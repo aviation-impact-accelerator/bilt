@@ -1,0 +1,32 @@
+name: check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  check:
+    name: Checks and tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install dependencies
+        run: uv sync --all-packages
+      - name: Lint with Ruff
+        run: uv run ruff check
+      - name: Format with Ruff
+        run: uv run ruff format
+      - name: Type check with ty
+        run: uv run ty check
+      - name: Test with pytest
+        run: uv run pytest
+      - name: Check with prek
+        run: uv run prek run --all-files
