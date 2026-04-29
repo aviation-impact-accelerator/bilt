@@ -2,10 +2,21 @@ version = 1
 revision = 3
 requires-python = ">=3.14"
 
+[manifest]
+members = [
+    "bilt",
+    "bilt-backend-rust",
+    "bilt-units",
+]
+
 [[package]]
 name = "bilt"
 version = "0.0.1"
 source = { editable = "." }
+dependencies = [
+    { name = "bilt-backend-rust" },
+    { name = "bilt-units" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -16,6 +27,10 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "bilt-backend-rust", editable = "packages/bilt-backend-rust" },
+    { name = "bilt-units", editable = "packages/bilt-units" },
+]
 
 [package.metadata.requires-dev]
 dev = [
@@ -24,6 +39,16 @@ dev = [
     { name = "ruff", specifier = ">=0.15.12" },
     { name = "ty", specifier = ">=0.0.32" },
 ]
+
+[[package]]
+name = "bilt-backend-rust"
+version = "0.0.1"
+source = { editable = "packages/bilt-backend-rust" }
+
+[[package]]
+name = "bilt-units"
+version = "0.0.1"
+source = { editable = "packages/bilt-units" }
 
 [[package]]
 name = "colorama"

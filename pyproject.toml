@@ -7,7 +7,20 @@ authors = [
     { name = "Sam Brockie", email = "sambrockie@icloud.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "bilt-units>=0.0.1",
+    "bilt-backend-rust>=0.0.1",
+]
+
+[tool.uv.sources]
+bilt-units = { workspace = true }
+bilt-backend-rust = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "packages/bilt-units",
+    "packages/bilt-backend-rust",
+]
 
 [dependency-groups]
 dev = [
@@ -19,6 +32,7 @@ dev = [
 
 [tool.pytest.ini_options]
 xfail_strict = true
+addopts = "--import-mode=importlib"
 
 [tool.ruff]
 line-length = 120
@@ -54,8 +68,9 @@ mark-parentheses = false
 parametrize-values-type = "tuple"
 
 [tool.ruff.lint.per-file-ignores]
-"src/*" = ["D1"]
+"src/*" = ["INP001", "D1"]
 "tests/*" = ["D1", "FBT001", "INP001", "S101"]
+"packages/*/src/bilt/**/*.py" = ["INP001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -66,3 +81,7 @@ all = "error"
 [build-system]
 requires = ["uv_build>=0.10.9,<0.11.0"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "bilt"
+namespace = true

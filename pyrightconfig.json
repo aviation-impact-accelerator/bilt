@@ -1,0 +1,15 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": [
+    "src",
+    "packages/bilt-units/src",
+    "packages/bilt-backend-rust/src"
+  ],
+  "include": [
+    "src",
+    "packages/bilt-units/src",
+    "packages/bilt-backend-rust/src",
+    "tests"
+  ]
+}
