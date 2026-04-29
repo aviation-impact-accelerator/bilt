@@ -10,23 +10,167 @@ jobs:
   check:
     name: Checks and tests
     runs-on: ubuntu-latest
+
     steps:
       - name: Check out code
         uses: actions/checkout@v6
+
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
+
       - name: Install dependencies
-        run: uv sync --all-packages
+        run: uv sync --all-packages --group dev
+
       - name: Lint with Ruff
-        run: uv run ruff check
-      - name: Format with Ruff
-        run: uv run ruff format
+        run: uv run ruff check .
+
+      - name: Check formatting with Ruff
+        run: uv run ruff format --check .
+
       - name: Type check with ty
         run: uv run ty check
+
       - name: Test with pytest
         run: uv run pytest
+
       - name: Check with prek
         run: uv run prek run --all-files
+
+  test-bilt-units-standalone:
+    name: Test bilt-units standalone wheel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Build bilt-units only
+        run: uv build --package bilt-units --no-sources --out-dir dist-units
+
+      - name: Create clean venv
+        run: uv venv .venv-units-test
+
+      - name: Install only bilt-units wheel and test tools
+        run: uv pip install --python .venv-units-test/bin/python dist-units/bilt_units-*.whl pytest
+
+      - name: Check bilt-core distribution is not installed
+        run: |
+          .venv-units-test/bin/python - <<'PY'
+          import importlib.metadata as metadata
+
+          try:
+              metadata.version("bilt-core")
+          except metadata.PackageNotFoundError:
+              print("OK: bilt-core distribution is not installed")
+          else:
+              raise SystemExit("ERROR: bilt-core distribution should not be installed")
+          PY
+
+      - name: Check bilt is a namespace package
+        run: |
+          .venv-units-test/bin/python - <<'PY'
+          import bilt
+
+          print("bilt module:", bilt)
+          print("bilt __path__:", list(bilt.__path__))
+          print("bilt __file__:", getattr(bilt, "__file__", None))
+
+          # bilt is a native PEP 420 namespace package.
+          assert hasattr(bilt, "__path__")
+          assert getattr(bilt, "__file__", None) is None
+
+          print("OK: bilt is a namespace package")
+          PY
+
+      - name: Check bilt-units import works
+        run: |
+          .venv-units-test/bin/python - <<'PY'
+          from bilt.units import multiply
+
+          assert multiply(2, 3) == 6
+          print("OK: bilt-units works standalone")
+          PY
+
+      - name: Check bilt-units tests work
+        run: .venv-units-test/bin/python -m pytest packages/bilt-units/tests
+
+  test-bilt-core-full-install:
+    name: Test bilt-core full wheel install
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Build bilt-core and hard dependencies
+        run: |
+          uv build --package bilt-units --no-sources --out-dir dist
+          uv build --package bilt-core --no-sources --out-dir dist
+
+      - name: Create clean venv
+        run: uv venv .venv-bilt-core-test
+
+      - name: Install built wheels and test tools
+        run: uv pip install --python .venv-bilt-core-test/bin/python dist/*.whl pytest
+
+      - name: Check installed distributions
+        run: |
+          .venv-bilt-core-test/bin/python - <<'PY'
+          import importlib.metadata as metadata
+
+          expected = [
+              "bilt-core",
+              "bilt-units",
+          ]
+
+          for package in expected:
+              version = metadata.version(package)
+              print(f"OK: {package} {version} is installed")
+
+          try:
+              metadata.version("bilt-backend-rust")
+          except metadata.PackageNotFoundError:
+              print("OK: bilt-backend-rust is not installed")
+          else:
+              raise SystemExit("ERROR: bilt-backend-rust should not be installed as a hard dependency")
+          PY
+
+      - name: Check bilt namespace and public imports work
+        run: |
+          .venv-bilt-core-test/bin/python - <<'PY'
+          import bilt
+          from bilt.core import add
+          from bilt.units import multiply
+
+          print("bilt module:", bilt)
+          print("bilt __path__:", list(bilt.__path__))
+          print("bilt __file__:", getattr(bilt, "__file__", None))
+
+          # bilt is a native PEP 420 namespace package.
+          # It should not have bilt/__init__.py.
+          assert hasattr(bilt, "__path__")
+          assert getattr(bilt, "__file__", None) is None
+
+          assert add(2, 3) == 5
+          assert multiply(2, 3) == 6
+
+          print("OK: bilt namespace, bilt.core, and bilt.units work")
+          PY
+
+      - name: Check bilt-core tests work
+        run: .venv-bilt-core-test/bin/python -m pytest packages/bilt-core/tests

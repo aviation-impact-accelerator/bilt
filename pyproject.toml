@@ -13,11 +13,13 @@ dependencies = [
 ]
 
 [tool.uv.sources]
+bilt = { workspace = true }
 bilt-units = { workspace = true }
 bilt-backend-rust = { workspace = true }
 
 [tool.uv.workspace]
 members = [
+    "packages/bilt-core",
     "packages/bilt-units",
     "packages/bilt-backend-rust",
 ]
@@ -71,17 +73,11 @@ parametrize-values-type = "tuple"
 "src/*" = ["INP001", "D1"]
 "tests/*" = ["D1", "FBT001", "INP001", "S101"]
 "packages/*/src/bilt/**/*.py" = ["INP001"]
+"packages/*/tests/**/*.py" = ["D1", "FBT001", "INP001", "S101"]
+
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.ty.rules]
 all = "error"
-
-[build-system]
-requires = ["uv_build>=0.10.9,<0.11.0"]
-build-backend = "uv_build"
-
-[tool.uv.build-backend]
-module-name = "bilt"
-namespace = true

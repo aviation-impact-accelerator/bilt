@@ -4,12 +4,14 @@
   "extraPaths": [
     "src",
     "packages/bilt-units/src",
-    "packages/bilt-backend-rust/src"
+    "packages/bilt-backend-rust/src",
+    "packages/bilt-core/src"
   ],
   "include": [
     "src",
     "packages/bilt-units/src",
     "packages/bilt-backend-rust/src",
+    "packages/bilt-core",
     "tests"
   ]
 }

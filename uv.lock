@@ -6,13 +6,14 @@ requires-python = ">=3.14"
 members = [
     "bilt",
     "bilt-backend-rust",
+    "bilt-core",
     "bilt-units",
 ]
 
 [[package]]
 name = "bilt"
 version = "0.0.1"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "bilt-backend-rust" },
     { name = "bilt-units" },
@@ -44,6 +45,17 @@ dev = [
 name = "bilt-backend-rust"
 version = "0.0.1"
 source = { editable = "packages/bilt-backend-rust" }
+
+[[package]]
+name = "bilt-core"
+version = "0.0.1"
+source = { editable = "packages/bilt-core" }
+dependencies = [
+    { name = "bilt-units" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "bilt-units", editable = "packages/bilt-units" }]
 
 [[package]]
 name = "bilt-units"
