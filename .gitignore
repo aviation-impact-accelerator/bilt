@@ -9,5 +9,13 @@ wheels/
 # Virtual environments
 .venv
 
+# Rust / Cargo
+target/
+Cargo.lock
+*.so
+
+# Rust backup files
+**/*.rs.bk
+
 # OS
 .DS_Store

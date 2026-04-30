@@ -1,0 +1,11 @@
+[package]
+name = "bilt-backend-rust"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+name = "_rust"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.26", features = ["extension-module"] }
