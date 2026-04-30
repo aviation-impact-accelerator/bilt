@@ -1,0 +1,57 @@
+:root {
+  --md-primary-fg-color: #85b09a;
+  --md-accent-fg-color: #ff6f61;
+  --md-admonition-icon--validation: url("../assets/validation.svg");
+  --md-admonition-icon--assumption: url("../assets/assumption.svg");
+  --md-admonition-icon--possibility: url("../assets/possibility.svg");
+}
+
+/* Light mode */
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #eff4fb;
+}
+
+.md-typeset .admonition.validation,
+.md-typeset details.validation {
+  border-color: rgb(0 39 212 / 100%);
+}
+.md-typeset .validation > .admonition-title,
+.md-typeset .validation > summary {
+  background-color: rgb(0 39 212 / 10%);
+}
+.md-typeset .validation > .admonition-title::before,
+.md-typeset .validation > summary::before {
+  background-color: rgb(0 39 212 / 100%);
+  -webkit-mask-image: var(--md-admonition-icon--validation);
+  mask-image: var(--md-admonition-icon--validation);
+}
+
+.md-typeset .admonition.assumption,
+.md-typeset details.assumption {
+  border-color: rgb(0 184 212 / 100%);
+}
+.md-typeset .assumption > .admonition-title,
+.md-typeset .assumption > summary {
+  background-color: rgb(0 184 212 / 10%);
+}
+.md-typeset .assumption > .admonition-title::before,
+.md-typeset .assumption > summary::before {
+  background-color: rgb(0 184 212 / 100%);
+  -webkit-mask-image: var(--md-admonition-icon--assumption);
+  mask-image: var(--md-admonition-icon--assumption);
+}
+
+.md-typeset .admonition.possibility,
+.md-typeset details.possibility {
+  border-color: rgb(100 221 23 / 100%);
+}
+.md-typeset .possibility > .admonition-title,
+.md-typeset .possibility > summary {
+  background-color: rgb(100 221 23 / 10%);
+}
+.md-typeset .possibility > .admonition-title::before,
+.md-typeset .possibility > summary::before {
+  background-color: rgb(100 221 23 / 100%);
+  -webkit-mask-image: var(--md-admonition-icon--possibility);
+  mask-image: var(--md-admonition-icon--possibility);
+}
