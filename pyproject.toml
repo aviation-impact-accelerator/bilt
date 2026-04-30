@@ -16,6 +16,9 @@ dev = [
     "ruff>=0.15.12",
     "ty>=0.0.32",
 ]
+docs = [
+    "zensical>=0.0.37",
+]
 
 [tool.pytest.ini_options]
 xfail_strict = true
