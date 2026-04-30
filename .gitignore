@@ -11,3 +11,6 @@ wheels/
 
 # OS
 .DS_Store
+
+# Zensical
+site/
