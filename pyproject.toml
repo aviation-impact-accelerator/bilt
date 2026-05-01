@@ -8,12 +8,10 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
-    "bilt-units>=0.0.1",
-    "bilt-backend-rust>=0.0.1",
 ]
 
 [tool.uv.sources]
-bilt = { workspace = true }
+bilt-core = { workspace = true }
 bilt-units = { workspace = true }
 bilt-backend-rust = { workspace = true }
 

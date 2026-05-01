@@ -14,10 +14,6 @@ members = [
 name = "bilt"
 version = "0.0.1"
 source = { virtual = "." }
-dependencies = [
-    { name = "bilt-backend-rust" },
-    { name = "bilt-units" },
-]
 
 [package.dev-dependencies]
 dev = [
@@ -28,10 +24,6 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "bilt-backend-rust", editable = "packages/bilt-backend-rust" },
-    { name = "bilt-units", editable = "packages/bilt-units" },
-]
 
 [package.metadata.requires-dev]
 dev = [
