@@ -1,0 +1,6 @@
+[project]
+site_name = "Bilt"
+site_url = "https://aiazero.org"
+site_description = "Documentation site for the Bilt package"
+docs_dir = "docs"
+repo_url = "https://github.com/aviation-impact-accelerator/bilt"
