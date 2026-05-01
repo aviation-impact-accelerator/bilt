@@ -28,4 +28,6 @@ class BasicTransform[R, **P]:
         return self._function(*args, **kwargs)
 
 
-transform = BasicTransform
+def transform[R, **P](function: collections.abc.Callable[P, R]) -> BasicTransform[R, P]:
+    """Decorator to denote a function as a transform."""
+    return BasicTransform(function)
