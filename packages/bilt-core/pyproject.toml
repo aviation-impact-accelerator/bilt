@@ -4,10 +4,24 @@ version = "0.0.1"
 description = "Systems models using transforms."
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = ["bilt-units>=0.0.1",]
+dependencies = ["bilt-units",]
+
+[project.optional-dependencies]
+rust = [
+  "bilt-backend-rust"
+]
 
 [tool.uv.sources]
-bilt-units = { workspace = true }
+bilt-units = {
+    git = "https://github.com/aviation-impact-accelerator/bilt",
+    subdirectory = "packages/bilt-units",
+    rev = "cfc9dbc6c1eb146005abb38f28bab507a9ecffcf"
+}
+bilt-backend-rust = {
+    git = "https://github.com/aviation-impact-accelerator/bilt",
+    subdirectory = "packages/bilt-backend-rust",
+    rev = "cfc9dbc6c1eb146005abb38f28bab507a9ecffcf"
+}
 
 [tool.uv.build-backend]
 module-name = "bilt"
