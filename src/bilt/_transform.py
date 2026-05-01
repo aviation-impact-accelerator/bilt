@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__all__ = ("BasicTransform", "transform")
+__all__ = ("transform",)
 
 import inspect
 import typing
