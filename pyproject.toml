@@ -4,7 +4,9 @@ version = "0.0.1"
 description = "Systems models using transforms."
 readme = "README.md"
 authors = [
-    { name = "Sam Brockie", email = "sambrockie@icloud.com" }
+    { name = "Sam Brockie", email = "sgb39@cam.ac.uk" },
+    { name = "James Emberton", email = "je484@cam.ac.uk" },
+    { name = "Nicolas Seyedzadeh", email = "ns896@cam.ac.uk" },
 ]
 requires-python = ">=3.14"
 dependencies = []
