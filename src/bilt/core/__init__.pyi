@@ -1,4 +1,3 @@
-"""Only needed to satisfy Pyright."""
 from collections.abc import Callable
 from typing import Protocol
 
