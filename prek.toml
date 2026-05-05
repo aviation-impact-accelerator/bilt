@@ -65,10 +65,10 @@ id = "uv-lock"
 repo = "local"
 
 [[repos.hooks]]
-id = "ty"
-name = "ty"
+id = "mypy"
+name = "mypy"
 types = ["python"]
-entry = "uv run ty check"
+entry = "uv run mypy"
 language = "system"
 pass_filenames = false
 always_run = true

@@ -1,11 +1,15 @@
-from bilt._transform import BasicTransform, transform
+"""Tests for bilt transforms."""
+
+from bilt.core import transform
 
 
-def test_basic_transform() -> None:
+def test_transform_decorator_adds_bilt_metadata() -> None:
     @transform
     def c(a: float, b: float) -> float:
         return a + b
 
-    assert isinstance(c, BasicTransform)
+    result = 3.0
+
     assert c.__bilt_transform_name__ == "c"
     assert c.__bilt_transform_parameters__ == ("a", "b")
+    assert c(1.0, 2.0) == result

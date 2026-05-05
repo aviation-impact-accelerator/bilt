@@ -1,5 +1,11 @@
-"""Systems models using transforms."""
+"""Top-level public API for bilt."""
 
-__all__ = ("transform",)
+from pkgutil import extend_path
 
-from bilt._transform import transform
+__path__ = extend_path(__path__, __name__)
+
+from .core import transform as transform
+
+__all__ = [
+    "transform",
+]

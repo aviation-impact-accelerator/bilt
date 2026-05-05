@@ -1,0 +1,21 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "stubPath": "typings",
+  "extraPaths": [
+    "src",
+    "packages/bilt-core/src"
+  ],
+  "include": [
+    "src",
+    "packages/bilt-core/src",
+    "packages/bilt-core/tests"
+  ],
+  "exclude": [
+    ".venv",
+    "dist",
+    ".pytest_cache",
+    ".ruff_cache"
+  ],
+  "typeCheckingMode": "strict"
+}

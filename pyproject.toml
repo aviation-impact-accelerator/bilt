@@ -3,27 +3,34 @@ name = "bilt"
 version = "0.0.1"
 description = "Systems models using transforms."
 readme = "README.md"
-authors = [
-    { name = "Sam Brockie", email = "sgb39@cam.ac.uk" },
-    { name = "James Emberton", email = "je484@cam.ac.uk" },
-    { name = "Nicolas Seyedzadeh", email = "ns896@cam.ac.uk" },
-]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "bilt-core",
+]
 
 [dependency-groups]
 dev = [
     "prek>=0.3.11",
     "pytest>=9.0.3",
     "ruff>=0.15.12",
-    "ty>=0.0.32",
+    "mypy",
 ]
-docs = [
-    "zensical>=0.0.37",
+
+[tool.uv.sources]
+bilt-core = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "packages/bilt-core",
 ]
+
+[build-system]
+requires = ["uv_build>=0.10.9,<0.11.0"]
+build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 xfail_strict = true
+addopts = "--import-mode=importlib"
 
 [tool.ruff]
 line-length = 120
@@ -59,8 +66,11 @@ mark-parentheses = false
 parametrize-values-type = "tuple"
 
 [tool.ruff.lint.per-file-ignores]
-"src/*" = ["D1"]
+"src/*" = ["INP001", "D1"]
 "tests/*" = ["D1", "FBT001", "INP001", "S101"]
+"packages/*/src/bilt/**/*.py" = ["INP001"]
+"packages/*/tests/**/*.py" = ["D1", "FBT001", "INP001", "S101"]
+
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -68,6 +78,24 @@ convention = "google"
 [tool.ty.rules]
 all = "error"
 
-[build-system]
-requires = ["uv_build>=0.10.9,<0.11.0"]
-build-backend = "uv_build"
+[tool.mypy]
+python_version = "3.14"
+strict = true
+namespace_packages = true
+explicit_package_bases = true
+
+mypy_path = [
+    "src",
+    "packages/bilt-core/src",
+]
+
+files = [
+    "src",
+    "packages/bilt-core/src",
+    "packages/bilt-core/tests",
+    "tests",
+]
+
+exclude = [
+    "^src/bilt/core/",
+]
