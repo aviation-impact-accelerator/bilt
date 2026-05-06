@@ -36,7 +36,7 @@ requires-dist = [{ name = "bilt-core", editable = "packages/bilt-core" }]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "mypy" },
+    { name = "mypy", specifier = ">=1.20.2" },
     { name = "prek", specifier = ">=0.3.11" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "ruff", specifier = ">=0.15.12" },
