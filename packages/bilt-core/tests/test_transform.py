@@ -1,5 +1,3 @@
-"""Tests for bilt transforms."""
-
 from bilt.core import transform
 
 

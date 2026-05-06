@@ -1,5 +1,3 @@
-"""Decorate functions as transforms."""
-
 from __future__ import annotations
 
 __all__ = ("transform",)
