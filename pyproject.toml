@@ -10,10 +10,10 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "mypy",
     "prek>=0.3.11",
     "pytest>=9.0.3",
     "ruff>=0.15.12",
-    "mypy",
 ]
 
 docs = [
@@ -21,14 +21,14 @@ docs = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.10.9,<0.11.0"]
 build-backend = "uv_build"
+requires = ["uv_build>=0.10.9,<0.11.0"]
 
 [tool.mypy]
+explicit_package_bases = true
+namespace_packages = true
 python_version = "3.14"
 strict = true
-namespace_packages = true
-explicit_package_bases = true
 
 mypy_path = [
     "src",
@@ -36,9 +36,9 @@ mypy_path = [
 ]
 
 files = [
-    "src",
     "packages/bilt-core/src",
     "packages/bilt-core/tests",
+    "src",
     "tests",
 ]
 
@@ -47,8 +47,8 @@ exclude = [
 ]
 
 [tool.pytest.ini_options]
-xfail_strict = true
 addopts = "--import-mode=importlib"
+xfail_strict = true
 
 [tool.ruff]
 line-length = 120
@@ -84,10 +84,10 @@ mark-parentheses = false
 parametrize-values-type = "tuple"
 
 [tool.ruff.lint.per-file-ignores]
-"src/*" = ["D1"]
-"tests/*" = ["D1", "FBT001", "INP001", "S101"]
 "packages/*/src/bilt/**/*.py" = ["INP001"]
 "packages/*/tests/**/*.py" = ["D1", "FBT001", "INP001", "S101"]
+"src/*" = ["D1"]
+"tests/*" = ["D1", "FBT001", "INP001", "S101"]
 
 
 [tool.ruff.lint.pydocstyle]
