@@ -9,6 +9,7 @@ requires-python = ">=3.14"
 dev = [
     "mypy>=1.20.2",
     "prek>=0.3.11",
+    "pyright>=1.1.409",
     "pytest>=9.0.3",
     "ruff>=0.15.12",
 ]
@@ -80,6 +81,8 @@ known-first-party = ["bilt"]
 "packages/*/src/bilt/**/*.py" = ["INP001"]
 "packages/*/src/examples/**/*.py" = ["D104"]
 "packages/*/tests/**/*.py" = ["D1", "FBT001", "INP001", "S101"]
+"packages/bilt-units/src/bilt/units/_units.py" = ["SIM110"]
+"packages/bilt-units/tests/test_units.py" = ["RUF043"]
 "src/*" = ["D1"]
 "tests/*" = ["D1", "FBT001", "INP001", "S101"]
 
@@ -89,12 +92,14 @@ convention = "google"
 
 [tool.uv.sources]
 bilt-core = { workspace = true }
+bilt-units = {workspace = true}
 bilt-mypy = { workspace = true }
 examples = { workspace = true }
 
 [tool.uv.workspace]
 members = [
     "packages/bilt-core",
+    "packages/bilt-units",
     "packages/bilt-mypy",
     "packages/examples"
 ]
