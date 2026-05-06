@@ -1,5 +1,9 @@
-"""Systems models using transforms."""
+from pkgutil import extend_path
 
-__all__ = ("transform",)
+__path__ = extend_path(__path__, __name__)
 
-from bilt._transform import transform
+from .core import transform as transform
+
+__all__ = [
+    "transform",
+]

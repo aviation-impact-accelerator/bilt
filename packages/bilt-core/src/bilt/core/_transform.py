@@ -1,8 +1,4 @@
-"""Decorate functions as transforms."""
-
-from __future__ import annotations
-
-__all__ = ("transform",)
+__all__ = ["transform"]
 
 import inspect
 import typing

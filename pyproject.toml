@@ -3,26 +3,51 @@ name = "bilt"
 version = "0.0.1"
 description = "Systems models using transforms."
 readme = "README.md"
-authors = [
-    { name = "Sam Brockie", email = "sgb39@cam.ac.uk" },
-    { name = "James Emberton", email = "je484@cam.ac.uk" },
-    { name = "Nicolas Seyedzadeh", email = "ns896@cam.ac.uk" },
-]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "bilt-core",
+]
 
 [dependency-groups]
 dev = [
+    "mypy>=1.20.2",
     "prek>=0.3.11",
     "pytest>=9.0.3",
     "ruff>=0.15.12",
-    "ty>=0.0.32",
 ]
+
 docs = [
     "zensical>=0.0.37",
 ]
 
+[build-system]
+build-backend = "uv_build"
+requires = ["uv_build>=0.10.9,<0.11.0"]
+
+[tool.mypy]
+explicit_package_bases = true
+namespace_packages = true
+python_version = "3.14"
+strict = true
+
+mypy_path = [
+    "src",
+    "packages/bilt-core/src",
+]
+
+files = [
+    "packages/bilt-core/src",
+    "packages/bilt-core/tests",
+    "src",
+    "tests",
+]
+
+exclude = [
+    "^src/bilt/core/",
+]
+
 [tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
 xfail_strict = true
 
 [tool.ruff]
@@ -59,15 +84,19 @@ mark-parentheses = false
 parametrize-values-type = "tuple"
 
 [tool.ruff.lint.per-file-ignores]
+"packages/*/src/bilt/**/*.py" = ["INP001"]
+"packages/*/tests/**/*.py" = ["D1", "FBT001", "INP001", "S101"]
 "src/*" = ["D1"]
 "tests/*" = ["D1", "FBT001", "INP001", "S101"]
+
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-[tool.ty.rules]
-all = "error"
+[tool.uv.sources]
+bilt-core = { workspace = true }
 
-[build-system]
-requires = ["uv_build>=0.10.9,<0.11.0"]
-build-backend = "uv_build"
+[tool.uv.workspace]
+members = [
+    "packages/bilt-core",
+]
