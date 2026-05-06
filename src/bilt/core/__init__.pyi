@@ -9,4 +9,6 @@ class Transform[**P, R](Protocol):
 
 def transform[**P, R](func: Callable[P, R]) -> Transform[P, R]: ...
 
-__all__ = ("transform",)
+__all__ = [
+    "transform",
+]
