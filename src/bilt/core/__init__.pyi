@@ -1,3 +1,7 @@
+__all__ = [
+    "transform",
+]
+
 import collections.abc
 import typing
 
@@ -8,7 +12,3 @@ class Transform[**P, R](typing.Protocol):
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
 def transform[**P, R](func: collections.abc.Callable[P, R]) -> Transform[P, R]: ...
-
-__all__ = [
-    "transform",
-]
