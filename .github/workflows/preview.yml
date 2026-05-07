@@ -69,4 +69,4 @@ jobs:
             |-------------------|-------------------------------------------------------------------------------------------------------------|
             | **Latest commit** | ${{ github.event.pull_request.head.sha }}                                                                   |
             | **Status**        | ✅  Deploy successful!                                                                                      |
-            | **Preview URL**   | [${{ steps.deploy.outputs.deployment-url }}]                                                                |
+            | **Preview URL**   | [${{ steps.deploy.outputs.deployment-url }}](${{ steps.deploy.outputs.deployment-url }})                    |
