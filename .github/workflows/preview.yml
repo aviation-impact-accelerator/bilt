@@ -70,6 +70,6 @@ jobs:
             ## Docs Site Staged
             |                   |                                                                                                             |
             |-------------------|-------------------------------------------------------------------------------------------------------------|
-            | **Latest commit** | ${{ github.event.pull_request.head.sha }}                                                           |
+            | **Latest commit** | ${{ github.event.pull_request.head.sha }}                                                                   |
             | **Status**        | ✅  Deploy successful!                                                                                      |
             | **Preview URL**   | [${{ steps.deploy.outputs.url }}](${{ steps.deploy.outputs.url }}) |
