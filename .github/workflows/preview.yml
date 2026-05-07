@@ -79,7 +79,7 @@ jobs:
       - name: Deploy to Cloudflare Pages
         id: deploy
         run: |
-          DEPLOY_OUTPUT=$(npx wrangler pages deploy site/ --project-name=bilt-docs)
+          DEPLOY_OUTPUT=$(npx wrangler pages deploy site/ --project-name=bilt)
           echo "$DEPLOY_OUTPUT"
           DEPLOYMENT_URL=$(echo "$DEPLOY_OUTPUT" | grep -oP 'https://\S+\.pages\.dev' | tail -1)
           echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
