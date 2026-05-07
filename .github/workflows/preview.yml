@@ -23,7 +23,7 @@ jobs:
           concurrent_skipping: "same_content_newer"
           skip_after_successful_duplicate: "true"
           cancel_others: "true"
-  build:
+  build-and-deploy:
     name: Build documentation
     if: needs.duplicate-check.outputs.should_skip != 'true'
     needs: [duplicate-check]
@@ -36,7 +36,7 @@ jobs:
           app-id: ${{ vars.CAMIA_BOT_APP_ID }}
           private-key: ${{ secrets.CAMIA_BOT_PRIVATE_KEY }}
           owner: ${{ vars.ORGANIZATION }}
-      - name: Check out bilt
+      - name: Check out Code
         uses: actions/checkout@v6
         with:
           repository: aviation-impact-accelerator/bilt
@@ -50,32 +50,6 @@ jobs:
         run: uv sync --group docs
       - name: Run documentation build
         run: uv run zensical build
-      - name: Save documentation site files
-        uses: actions/upload-artifact@v7
-        with:
-          name: bilt-${{ github.event.repository.name }}-${{ github.event.number }}
-          path: site
-  deploy:
-    name: Deploy documentation
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download documentation site files
-        uses: actions/download-artifact@v4
-        with:
-          name: bilt-${{ github.event.repository.name }}-${{ github.event.number }}
-          path: site
-      - name: Generate a token
-        id: generate-token
-        uses: actions/create-github-app-token@v3
-        with:
-          app-id: ${{ vars.CAMIA_BOT_APP_ID }}
-          private-key: ${{ secrets.CAMIA_BOT_PRIVATE_KEY }}
-          owner: ${{ vars.ORGANIZATION }}
-      - name: Check out code
-        uses: actions/checkout@v6
-        with:
-          token: ${{ steps.generate-token.outputs.token }}
       - name: Deploy to Cloudflare Pages
         id: deploy
         run: |
