@@ -2,7 +2,7 @@ import pytest
 
 from bilt.core._system._decorator import system
 from bilt.core._system._error import BiltSystemImplementationSelectionError, BiltUnknownSystemAttributeError
-from bilt.core._system._interface import Interface
+from bilt.core._system._interface import Implementation, Interface
 from bilt.core._transform import transform
 
 
@@ -45,7 +45,7 @@ def test_register_implementation() -> None:
 
     assert Demo.__bilt_system_registry__ == set()
 
-    basic = Demo.implementation(c)
+    basic = Implementation(Demo, [c])
     assert basic in Demo.__bilt_system_registry__
 
 
@@ -107,7 +107,7 @@ def test_cannot_set_implementation_from_different_system_on_instance() -> None:
     def c(a: float, b: float) -> float:
         return a + b
 
-    other = Other.implementation()
+    other = Implementation(Other, [])
 
     a = 1.0
     b = 2.0
@@ -131,7 +131,7 @@ def test_cannot_reset_implementation_on_system_instance() -> None:
     def c(a: float, b: float) -> float:
         return a + b
 
-    basic = Demo.implementation(c)
+    basic = Implementation(Demo, [c])
 
     a = 1.0
     b = 2.0
@@ -156,7 +156,7 @@ def test_evaluation_with_implementation_set_on_system_instance() -> None:
     def c(a: float, b: float) -> float:
         return a + b
 
-    basic = Demo.implementation(c)
+    basic = Implementation(Demo, [c])
 
     a = 1.0
     b = 2.0
@@ -179,7 +179,7 @@ def test_evaluation_with_default_implementation_on_system() -> None:
     def c(a: float, b: float) -> float:
         return a + b
 
-    basic = Demo.implementation(c)
+    basic = Implementation(Demo, [c])
 
     a = 1.0
     b = 2.0

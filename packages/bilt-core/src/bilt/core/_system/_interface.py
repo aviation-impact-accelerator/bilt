@@ -1,8 +1,10 @@
-__all__ = ["Interface"]
+__all__ = ["Implementation", "Interface"]
 
 import typing
 
 if typing.TYPE_CHECKING:
+    import collections.abc
+
     from bilt.core._transform import Transform
 
 
@@ -11,10 +13,10 @@ class BiltSystemEvaluationError(Exception):
 
 
 class Implementation:
-    def __init__(self, system: Interface, transforms: frozenset[Transform[typing.Any, ...]]) -> None:
+    def __init__(self, system: Interface, transforms: collections.abc.Iterable[Transform[typing.Any, ...]]) -> None:
         self._system = system
         self._transforms = {transform.__bilt_transform_name__: transform for transform in transforms}
-        self._previous_default: Implementation | None = None
+        system.__bilt_system_registry__.add(self)
 
     @property
     def system(self) -> Interface:
@@ -69,8 +71,3 @@ class Interface(type):
         cls.__bilt_system_registry__ = set()
         cls.__bilt_system_implementation_default__ = []
         return cls
-
-    def implementation(cls, *value: Transform[typing.Any, ...]) -> Implementation:
-        implementation = Implementation(cls, frozenset(value))
-        cls.__bilt_system_registry__.add(implementation)
-        return implementation
