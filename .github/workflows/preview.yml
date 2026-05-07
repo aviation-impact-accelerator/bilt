@@ -84,6 +84,7 @@ jobs:
           DEPLOYMENT_URL=$(echo "$DEPLOY_OUTPUT" | grep -oP 'https://\S+\.pages\.dev' | tail -1)
           echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
         env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_BOT_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.BILT_BOT_CLOUDFLARE_TEMP }}
       - name: Add comment to pull request
         run: gh issue comment "$NUMBER" --body "$BODY"
