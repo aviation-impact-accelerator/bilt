@@ -1,9 +1,12 @@
 __all__ = [
+    "system",
     "transform",
 ]
 
 import collections.abc
 import typing
+
+def system[T](cls: type[T]) -> type[T]: ...
 
 class Transform[**P, R](typing.Protocol):
     __bilt_transform_name__: str
