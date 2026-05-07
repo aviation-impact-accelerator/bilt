@@ -20,13 +20,25 @@ jobs:
         run: |
           echo "Looking for preview deployments on branch: $BRANCH"
 
-          DEPLOYMENT_IDS=$(npx wrangler pages deployment list \
-            --project-name=bilt --environment=preview --json \
-            | jq -r --arg branch "$BRANCH" \
-                '.[] | select((.deployment_trigger.metadata.branch // "") == $branch) | .id')
+          RAW_DEPLOYMENTS=$(npx wrangler pages deployment list \
+            --project-name=bilt --environment=preview --json)
+
+          DEPLOYMENT_IDS=$(echo "$RAW_DEPLOYMENTS" \
+            | jq -r --arg branch "$BRANCH" '
+                .[]
+                | select(
+                    (.deployment_trigger.metadata.branch // "") == $branch
+                    or (.source.ref // "") == $branch
+                    or ((.aliases // []) | any(contains(($branch | gsub("/"; "-")) + ".")))
+                  )
+                | .id')
 
           if [ -z "$DEPLOYMENT_IDS" ]; then
             echo "No matching preview deployments found for branch: $BRANCH"
+            echo "Top preview deployments (id / branch / aliases) for debugging:"
+            echo "$RAW_DEPLOYMENTS" \
+              | jq -r '.[] | "id=\(.id) branch=\(.deployment_trigger.metadata.branch // .source.ref // "n/a") aliases=\((.aliases // []) | join(","))"' \
+              | head -20
           fi
 
           echo "DEPLOYMENT_IDS<<EOF" >> $GITHUB_ENV
