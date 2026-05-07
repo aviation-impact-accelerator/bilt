@@ -29,5 +29,6 @@ jobs:
       - name: Delete preview deployments
         run: |
           for ID in $DEPLOYMENT_IDS; do
+            echo "Deleting deployment: $ID"
             npx wrangler pages deployment delete "$ID" --project-name=bilt --force
           done
