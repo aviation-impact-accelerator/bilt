@@ -186,5 +186,5 @@ def test_evaluation_with_default_implementation_on_system() -> None:
     demo = Demo(a=a, b=b)
 
     expected_c = 3.0
-    with basic.as_default():
+    with basic:
         assert demo.c == expected_c
