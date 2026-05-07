@@ -1,0 +1,31 @@
+name: preview-destroy
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  destroy:
+    name: Destroy
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_BOT_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.BILT_BOT_CLOUDFLARE_TEMP }}
+    steps:
+      - name: List preview deployments for branch
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          DEPLOYMENT_IDS=$(npx wrangler pages deployment list \
+            --project-name=bilt --json \
+            | jq -r --arg branch "$BRANCH" \
+                '.[] | select(.deployment_trigger.metadata.branch == $branch) | .id')
+          echo "$DEPLOYMENT_IDS" >> $GITHUB_ENV
+
+      - name: Delete preview deployments
+        run: |
+          for ID in $DEPLOYMENT_IDS; do
+            npx wrangler pages deployment delete "$ID" --project-name=bilt --force
+          done
