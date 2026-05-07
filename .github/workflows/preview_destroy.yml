@@ -16,12 +16,19 @@ jobs:
     steps:
       - name: List preview deployments for branch
         env:
-          BRANCH: ${{ github.head_ref }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
+          echo "Looking for preview deployments on branch: $BRANCH"
+
           DEPLOYMENT_IDS=$(npx wrangler pages deployment list \
-            --project-name=bilt --json \
+            --project-name=bilt --environment=preview --json \
             | jq -r --arg branch "$BRANCH" \
-                '.[] | select(.deployment_trigger.metadata.branch == $branch) | .id')
+                '.[] | select((.deployment_trigger.metadata.branch // "") == $branch) | .id')
+
+          if [ -z "$DEPLOYMENT_IDS" ]; then
+            echo "No matching preview deployments found for branch: $BRANCH"
+          fi
+
           echo "DEPLOYMENT_IDS<<EOF" >> $GITHUB_ENV
           echo "$DEPLOYMENT_IDS" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
