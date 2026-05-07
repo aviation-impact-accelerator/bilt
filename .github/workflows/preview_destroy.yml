@@ -22,7 +22,9 @@ jobs:
             --project-name=bilt --json \
             | jq -r --arg branch "$BRANCH" \
                 '.[] | select(.deployment_trigger.metadata.branch == $branch) | .id')
+          echo "DEPLOYMENT_IDS<<EOF" >> $GITHUB_ENV
           echo "$DEPLOYMENT_IDS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Delete preview deployments
         run: |
