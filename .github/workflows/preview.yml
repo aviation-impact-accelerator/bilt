@@ -47,7 +47,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --group docs
       - name: Run documentation build
         run: uv run zensical build
       - name: Save documentation site files
