@@ -1,6 +1,5 @@
 __all__ = [
     "BiltSystemImplementationRegistrationError",
-    "BiltSystemImplementationSelectionError",
     "BiltUnknownSystemAttributeError",
 ]
 
@@ -11,10 +10,6 @@ if typing.TYPE_CHECKING:
 
 
 class BiltSystemImplementationRegistrationError(Exception):
-    pass
-
-
-class BiltSystemImplementationSelectionError(Exception):
     pass
 
 

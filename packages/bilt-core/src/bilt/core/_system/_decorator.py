@@ -4,19 +4,10 @@ import dataclasses
 import enum
 import typing
 
-from ._error import BiltSystemImplementationSelectionError, BiltUnknownSystemAttributeError
-from ._interface import Interface
+from ._interface import MISSING, Attribute, Interface, _dispatch_evaluation
 
 if typing.TYPE_CHECKING:
     import types
-
-
-class _Missing:
-    def __repr__(self) -> str:
-        return "MISSING"
-
-
-MISSING = _Missing()
 
 
 class DataclassesDataclass(typing.Protocol):
@@ -25,26 +16,38 @@ class DataclassesDataclass(typing.Protocol):
     __dataclass_params__: typing.ClassVar[typing.Any]
     __post_init__: typing.ClassVar[typing.Callable[..., None]]
 
+    __bilt_system_attributes__: typing.ClassVar[dict[str, Attribute[object]]]
+
     def __init__(self, *args: object, **kwargs: object) -> None: ...
 
 
 def system[T](cls: type[T]) -> type[T]:
     def create_system(cls: type[T]) -> type[T]:
         dataclass = typing.cast("DataclassesDataclass", dataclasses.dataclass(cls))
+        _create_bilt_system_class_attribute(dataclass)
         _create_initialize_method(dataclass)
         _create_properties(dataclass)
-        _create_with_implementation_method(dataclass)
         return typing.cast("type[T]", dataclass)
 
     interface = typing.cast("type[T]", Interface(cls.__name__, cls.__bases__, dict(cls.__dict__)))
     return create_system(interface)
 
 
+def _create_bilt_system_class_attribute(cls: DataclassesDataclass) -> None:
+    annotations = cls.__dataclass_fields__
+    cls.__bilt_system_attributes__ = {  # type: ignore[misc]
+        annotation.name: Attribute(annotation.name, typing.cast("type[object]", annotation.type))
+        for annotation in annotations.values()
+    }
+
+
 def _create_initialize_method(cls: DataclassesDataclass) -> None:
     annotations = cls.__dataclass_fields__
     args = ["self", *(f"{parameter}=MISSING" for parameter in annotations)]
-    body = "\n".join(f"    self._{parameter} = {parameter}" for parameter in annotations)
-    body += "\n    self.__bilt_system_implementation__ = MISSING"
+    body = [
+        "self.__bilt_system_implementation__ = MISSING",
+        f"self.__bilt_system_instance_variables__ = {{{', '.join(f'"{parameter}": {parameter}' for parameter in annotations)}}}",
+    ]
     _create_method(
         cls,
         name="__init__",
@@ -60,24 +63,10 @@ def _create_properties(cls: DataclassesDataclass) -> None:
     annotations = cls.__dataclass_fields__
     local_namespace = {
         cls.__name__: cls,
-        "BiltUnknownSystemAttributeError": BiltUnknownSystemAttributeError,
-        "MISSING": MISSING,
+        "_dispatch_evaluation": _dispatch_evaluation,
     }
     for parameter in annotations:
-        body = (
-            f"    if self._{parameter} is not MISSING:\n"
-            f"        return self._{parameter}\n"
-            f"    if self.__bilt_system_implementation__ is MISSING:\n"
-            f"        if len(self.__class__.__bilt_system_implementation_default__) == 0:\n"
-            f"            raise BiltUnknownSystemAttributeError({parameter!r}, {cls.__name__!r})\n"
-            f"        self.__bilt_system_implementation__ = self.__class__.__bilt_system_implementation_default__[-1]\n"
-            f"    implementation = self.__bilt_system_implementation__\n"
-            f"    inputs = {{parameter: getattr(self, '_' + parameter) for parameter in {list(annotations)} if getattr(self, '_' + parameter) is not MISSING}}\n"
-            f"    output = '{parameter}'\n"
-            f"    result = implementation.evaluate(inputs=inputs, output=output)\n"
-            f"    self._{parameter} = result\n"
-            f"    return result"
-        )
+        body = [f"value = _dispatch_evaluation(self, self.__bilt_system_attributes__['{parameter}'])", "return value"]
         _create_method(
             cls,
             name=parameter,
@@ -87,38 +76,6 @@ def _create_properties(cls: DataclassesDataclass) -> None:
             global_namespace=globals(),
             local_namespace=local_namespace,
         )
-
-
-def _create_with_implementation_method(cls: DataclassesDataclass) -> None:
-    args = ["self", "implementation"]
-    body = (
-        "    if self.__bilt_system_implementation__ is not MISSING:\n"
-        "        message = (\n"
-        "            f'Cannot use the provided implementation with the {self.__class__.__name__!r} instance as '\n"
-        "            f'it is already using an implementation.'\n"
-        "        )\n"
-        "        raise BiltSystemImplementationSelectionError(message)\n"
-        "    if implementation not in self.__bilt_system_registry__:\n"
-        "        message = (\n"
-        "            f'Cannot use the provided implementation with the {self.__class__.__name__!r} instance as this '\n"
-        "            f'is from the {implementation.system.__name__!r} system.'\n"
-        "        )\n"
-        "        raise BiltSystemImplementationSelectionError(message)\n"
-        "    self.__bilt_system_implementation__ = implementation"
-    )
-    _create_method(
-        cls,
-        name="with_implementation",
-        method=Method.METHOD,
-        args=args,
-        body=body,
-        global_namespace=globals(),
-        local_namespace={
-            cls.__name__: cls,
-            "BiltSystemImplementationSelectionError": BiltSystemImplementationSelectionError,
-            "MISSING": MISSING,
-        },
-    )
 
 
 @enum.unique
@@ -149,12 +106,13 @@ def _create_method(  # noqa: PLR0913
     name: str,
     method: Method,
     args: list[str],
-    body: str,
+    body: list[str],
     global_namespace: dict[str, typing.Any],
     local_namespace: dict[str, typing.Any],
 ) -> None:
     decorator = _create_decorator(method)
-    src = f"{decorator}def {name}({', '.join(args)}):\n{body}"
+    body = [f"    {line}" for line in body]
+    src = f"{decorator}def {name}({', '.join(args)}):\n{'\n'.join(body)}"
     exec(src, global_namespace, local_namespace)  # noqa: S102
     attribute = typing.cast("types.FunctionType", local_namespace[name])
     match method:

@@ -1,11 +1,22 @@
 __all__ = ["Implementation", "Interface"]
 
+import dataclasses
 import typing
+
+from ._error import BiltUnknownSystemAttributeError
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt.core._transform import Transform
+
+
+class _Missing:
+    def __repr__(self) -> str:
+        return "MISSING"
+
+
+MISSING = _Missing()
 
 
 class BiltSystemEvaluationError(Exception):
@@ -26,7 +37,7 @@ class Implementation:
     def transforms(self) -> dict[str, Transform[typing.Any, ...]]:
         return self._transforms
 
-    def evaluate(self, inputs: dict[str, object], output: str) -> object:
+    def evaluate(self, inputs: dict[str, object], output: object) -> object:
         if output in inputs:
             return inputs[output]
 
@@ -71,3 +82,34 @@ class Interface(type):
         cls.__bilt_system_registry__ = set()
         cls.__bilt_system_implementation_default__ = []
         return cls
+
+
+class SystemInstance(typing.Protocol):
+    __bilt_system_implementation__: Implementation | _Missing
+    __bilt_system_instance_variables__: dict[str, object]
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Attribute[T]:
+    name: str
+    annotation: type[T]
+
+
+def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -> T:
+    current = typing.cast("T | _Missing", instance.__bilt_system_instance_variables__.get(attribute.name, MISSING))
+    if not isinstance(current, _Missing):
+        return current
+    implementation = instance.__bilt_system_implementation__
+    if isinstance(implementation, _Missing):
+        instance_class = typing.cast("Interface", instance.__class__)
+        if len(instance_class.__bilt_system_implementation_default__) == 0:
+            raise BiltUnknownSystemAttributeError(attribute.name, instance_class)
+        implementation = instance_class.__bilt_system_implementation_default__[-1]
+        instance.__bilt_system_implementation__ = implementation
+    inputs = {
+        name: value for name, value in instance.__bilt_system_instance_variables__.items() if value is not MISSING
+    }
+    output = attribute.name
+    result = typing.cast("T", implementation.evaluate(inputs=inputs, output=output))
+    instance.__bilt_system_instance_variables__[attribute.name] = result
+    return result

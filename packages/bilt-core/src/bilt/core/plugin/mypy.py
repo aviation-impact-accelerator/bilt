@@ -54,10 +54,7 @@ def _bilt_system_maker_callback(ctx: mypy.plugin.ClassDefContext) -> bool:
     fields = typing.cast("list[mypy.plugins.dataclasses.DataclassAttribute]", transformer.collect_attributes())
 
     _bilt_system_set_interface_metaclass(ctx)
-
     _bilt_system_add_init_method(ctx, fields)
-
-    _bilt_system_add_with_implementation_method(ctx)
 
     return True
 
@@ -74,13 +71,13 @@ def _bilt_system_add_init_method(
     method_name = "__init__"
     type_var_def = _construct_type_var_def(ctx, method_name)
 
-    missing_symbol = ctx.api.lookup_fully_qualified("bilt.core._system._decorator.MISSING")
+    missing_symbol = ctx.api.lookup_fully_qualified("bilt.core._system._interface.MISSING")
     missing_ref = mypy.nodes.NameExpr("MISSING")
     missing_ref.node = missing_symbol.node
     # `missing_symbol.fullname` cannot be `None` because `MISSING` is always defined.
     missing_ref.fullname = missing_symbol.fullname  # type: ignore[assignment]
     missing_ref.kind = missing_symbol.kind
-    missing_type = ctx.api.named_type("bilt.core._system._decorator._Missing")
+    missing_type = ctx.api.named_type("bilt.core._system._interface._Missing")
 
     arguments = []
     for field in fields:
@@ -106,26 +103,6 @@ def _bilt_system_add_init_method(
         return_type=mypy.types.NoneType(),
         self_type=type_var_def,
         tvar_def=type_var_def,
-    )
-
-
-def _bilt_system_add_with_implementation_method(ctx: mypy.plugin.ClassDefContext) -> None:
-    method_name = "with_implementation"
-    implementation_type = ctx.api.named_type("bilt.core._system._interface.Implementation")
-    arguments = [
-        mypy.nodes.Argument(
-            mypy.nodes.Var("implementation", implementation_type),
-            implementation_type,
-            None,
-            mypy.nodes.ARG_POS,
-        )
-    ]
-    mypy.plugins.common.add_method_to_class(
-        ctx.api,
-        ctx.cls,
-        method_name,
-        args=arguments,
-        return_type=mypy.types.NoneType(),
     )
 
 
