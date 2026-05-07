@@ -1,0 +1,100 @@
+name: preview
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+
+permissions:
+  actions: write
+
+jobs:
+  duplicate-check:
+    name: Check for duplicates
+    if: |
+      github.event.pull_request.state == 'open' &&
+      contains(github.event.pull_request.labels.*.name, 'preview')
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          concurrent_skipping: "same_content_newer"
+          skip_after_successful_duplicate: "true"
+          cancel_others: "true"
+  build:
+    name: Build documentation
+    if: needs.duplicate-check.outputs.should_skip != 'true'
+    needs: [duplicate-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.CAMIA_BOT_APP_ID }}
+          private-key: ${{ secrets.CAMIA_BOT_PRIVATE_KEY }}
+          owner: ${{ vars.ORGANIZATION }}
+      - name: Check out bilt
+        uses: actions/checkout@v6
+        with:
+          repository: aviation-impact-accelerator/bilt
+          token: ${{ steps.generate-token.outputs.token }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install dependencies
+        run: uv sync
+      - name: Run documentation build
+        run: uv run zensical build
+      - name: Save documentation site files
+        uses: actions/upload-artifact@v7
+        with:
+          name: bilt-${{ github.event.repository.name }}-${{ github.event.number }}
+          path: site
+  deploy:
+    name: Deploy documentation
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download documentation site files
+        uses: actions/download-artifact@v4
+        with:
+          name: bilt-${{ github.event.repository.name }}-${{ github.event.number }}
+          path: site
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.CAMIA_BOT_APP_ID }}
+          private-key: ${{ secrets.CAMIA_BOT_PRIVATE_KEY }}
+          owner: ${{ vars.ORGANIZATION }}
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        run: |
+          DEPLOY_OUTPUT=$(npx wrangler pages deploy site --project-name=my-docs)
+          echo "$DEPLOY_OUTPUT"
+          DEPLOYMENT_URL=$(echo "$DEPLOY_OUTPUT" | grep -oP 'https://\S+\.pages\.dev' | tail -1)
+          echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.BILT_BOT_CLOUDFLARE_TEMP }}
+      - name: Add comment to pull request
+        run: gh issue comment "$NUMBER" --body "$BODY"
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.number }}
+          BODY: |
+            ## Docs Site Staged
+            |                   |                                                                                                             |
+            |-------------------|-------------------------------------------------------------------------------------------------------------|
+            | **Latest commit** | ${{ github.event.pull_request.head.sha }}                                                           |
+            | **Status**        | ✅  Deploy successful!                                                                                      |
+            | **Preview URL**   | [${{ steps.deploy.outputs.url }}](${{ steps.deploy.outputs.url }}) |
