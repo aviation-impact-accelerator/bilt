@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Delete all deployments from this branch
         run: |
-          IDs="$(npx wrangler pages deployment list --project-name=bilt --json | jq -r '.[] | select(.Branch == ${{ github.event.pull_request.head.ref }}) | .Id')"
+          IDs="$(npx wrangler pages deployment list --project-name=bilt --json | jq -r '.[] | select(.Branch == "${{ github.event.pull_request.head.ref }}") | .Id')"
           for ID in $IDs; do
             npx wrangler pages deployment delete "$ID" --project-name=bilt --force
           done
