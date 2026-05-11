@@ -7,47 +7,14 @@ on:
 jobs:
   destroy:
     name: Destroy
-    permissions:
-      id-token: write
     runs-on: ubuntu-latest
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_BOT_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.BILT_BOT_CLOUDFLARE_TEMP }}
     steps:
-      - name: List preview deployments for branch
-        env:
-          BRANCH: ${{ github.event.pull_request.head.ref }}
+      - name: Delete all deployments from this branch
         run: |
-          echo "Looking for preview deployments on branch: $BRANCH"
-
-          RAW_DEPLOYMENTS=$(npx wrangler pages deployment list \
-            --project-name=bilt --environment=preview --json)
-
-          DEPLOYMENT_IDS=$(echo "$RAW_DEPLOYMENTS" \
-            | jq -r --arg branch "$BRANCH" '
-                .[]
-                | select(
-                    (.deployment_trigger.metadata.branch // "") == $branch
-                    or (.source.ref // "") == $branch
-                    or ((.aliases // []) | any(contains(($branch | gsub("/"; "-")) + ".")))
-                  )
-                | .id')
-
-          if [ -z "$DEPLOYMENT_IDS" ]; then
-            echo "No matching preview deployments found for branch: $BRANCH"
-            echo "Top preview deployments (id / branch / aliases) for debugging:"
-            echo "$RAW_DEPLOYMENTS" \
-              | jq -r '.[] | "id=\(.id) branch=\(.deployment_trigger.metadata.branch // .source.ref // "n/a") aliases=\((.aliases // []) | join(","))"' \
-              | head -20
-          fi
-
-          echo "DEPLOYMENT_IDS<<EOF" >> $GITHUB_ENV
-          echo "$DEPLOYMENT_IDS" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      - name: Delete preview deployments
-        run: |
-          for ID in $DEPLOYMENT_IDS; do
-            echo "Deleting deployment: $ID"
+          IDs ="$(npx wrangler pages deployment list --project-name=bilt --json | jq -r '.[] | select(.Branch == ${{ github.event.pull_request.head.ref }}) | .Id')"
+          for ID in $IDs; do
             npx wrangler pages deployment delete "$ID" --project-name=bilt --force
           done
