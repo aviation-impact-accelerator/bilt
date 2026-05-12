@@ -4,9 +4,6 @@ version = "0.0.1"
 description = "Systems models using transforms."
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = [
-    "bilt-core",
-]
 
 [dependency-groups]
 dev = [
@@ -20,10 +17,6 @@ docs = [
     "zensical>=0.0.37",
 ]
 
-[build-system]
-build-backend = "uv_build"
-requires = ["uv_build>=0.10.9,<0.11.0"]
-
 [tool.mypy]
 explicit_package_bases = true
 namespace_packages = true
@@ -31,15 +24,12 @@ python_version = "3.14"
 strict = true
 
 mypy_path = [
-    "src",
     "packages/bilt-core/src",
 ]
 
 files = [
     "packages/bilt-core/src",
     "packages/bilt-core/tests",
-    "src",
-    "tests",
 ]
 
 exclude = [

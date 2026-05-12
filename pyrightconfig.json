@@ -3,11 +3,9 @@
   "venv": ".venv",
   "stubPath": "typings",
   "extraPaths": [
-    "src",
     "packages/bilt-core/src"
   ],
   "include": [
-    "src",
     "packages/bilt-core/src",
     "packages/bilt-core/tests"
   ],
