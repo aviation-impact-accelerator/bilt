@@ -4,51 +4,62 @@ import dataclasses
 import enum
 import typing
 
-from ._dispatch import Attribute, _dispatch_evaluation
+from ._dispatch import _dispatch_evaluation
 from ._interface import Interface
 from ._sentinel import MISSING
 
 if typing.TYPE_CHECKING:
     import types
 
+    from ._implementation import Implementation
+    from ._sentinel import _Missing
 
-class DataclassesDataclass(typing.Protocol):
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Attribute[T]:
+    name: str
+    annotation: type[T]
+
+
+class System(typing.Protocol):
     __name__: str
-    __dataclass_fields__: typing.ClassVar[dict[str, dataclasses.Field[typing.Any]]]
-    __dataclass_params__: typing.ClassVar[typing.Any]
-    __post_init__: typing.ClassVar[typing.Callable[..., None]]
-
     __bilt_system_attributes__: typing.ClassVar[dict[str, Attribute[object]]]
+    __bilt_system_implementation__: Implementation | _Missing
+    __bilt_system_instance_variables__: dict[str, object]
 
-    def __init__(self, *args: object, **kwargs: object) -> None: ...
+
+class SystemInstance(typing.Protocol):
+    __bilt_system_attributes__: typing.ClassVar[dict[str, Attribute[object]]]
+    __bilt_system_implementation__: Implementation | _Missing
+    __bilt_system_instance_variables__: dict[str, object]
 
 
 def system[T](cls: type[T]) -> type[T]:
     def create_system(cls: type[T]) -> type[T]:
-        dataclass = typing.cast("DataclassesDataclass", dataclasses.dataclass(cls))
-        _create_bilt_system_class_attribute(dataclass)
-        _create_initialize_method(dataclass)
-        _create_properties(dataclass)
-        return typing.cast("type[T]", dataclass)
+        interface = typing.cast("System", dataclasses.dataclass(cls))
+        _create_bilt_system_class_attribute(interface)
+        _create_initialize_method(interface)
+        _create_properties(interface)
+        return typing.cast("type[T]", interface)
 
     interface = typing.cast("type[T]", Interface(cls.__name__, cls.__bases__, dict(cls.__dict__)))
     return create_system(interface)
 
 
-def _create_bilt_system_class_attribute(cls: DataclassesDataclass) -> None:
-    annotations = cls.__dataclass_fields__
+def _create_bilt_system_class_attribute(cls: System) -> None:
+    annotations = cls.__dataclass_fields__  # type: ignore[attr-defined]
     cls.__bilt_system_attributes__ = {  # type: ignore[misc]
         annotation.name: Attribute(annotation.name, typing.cast("type[object]", annotation.type))
         for annotation in annotations.values()
     }
 
 
-def _create_initialize_method(cls: DataclassesDataclass) -> None:
-    annotations = cls.__dataclass_fields__
-    args = ["self", *(f"{parameter}=MISSING" for parameter in annotations)]
+def _create_initialize_method(cls: System) -> None:
+    parameters = cls.__bilt_system_attributes__
+    args = ["self", *(f"{parameter}=MISSING" for parameter in parameters)]
     body = [
         "self.__bilt_system_implementation__ = MISSING",
-        f"self.__bilt_system_instance_variables__ = {{{', '.join(f'"{parameter}": {parameter}' for parameter in annotations)}}}",
+        f"self.__bilt_system_instance_variables__ = {{{', '.join(f'"{parameter}": {parameter}' for parameter in parameters)}}}",
     ]
     _create_method(
         cls,
@@ -61,13 +72,13 @@ def _create_initialize_method(cls: DataclassesDataclass) -> None:
     )
 
 
-def _create_properties(cls: DataclassesDataclass) -> None:
-    annotations = cls.__dataclass_fields__
+def _create_properties(cls: System) -> None:
+    parameters = cls.__bilt_system_attributes__
     local_namespace = {
         cls.__name__: cls,
         "_dispatch_evaluation": _dispatch_evaluation,
     }
-    for parameter in annotations:
+    for parameter in parameters:
         body = [f"value = _dispatch_evaluation(self, self.__bilt_system_attributes__['{parameter}'])", "return value"]
         _create_method(
             cls,
@@ -103,7 +114,7 @@ def _create_decorator(method: Method) -> str:
 
 
 def _create_method(  # noqa: PLR0913
-    cls: DataclassesDataclass,
+    cls: System,
     *,
     name: str,
     method: Method,

@@ -1,25 +1,13 @@
 __all__ = []
 
-import dataclasses
 import typing
 
 from ._error import BiltUnknownSystemAttributeError
 from ._sentinel import MISSING, _Missing
 
 if typing.TYPE_CHECKING:
-    from ._implementation import Implementation
+    from ._decorator import Attribute, SystemInstance
     from ._interface import Interface
-
-
-class SystemInstance(typing.Protocol):
-    __bilt_system_implementation__: Implementation | _Missing
-    __bilt_system_instance_variables__: dict[str, object]
-
-
-@dataclasses.dataclass(frozen=True, slots=True)
-class Attribute[T]:
-    name: str
-    annotation: type[T]
 
 
 def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -> T:
