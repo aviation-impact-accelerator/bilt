@@ -1,5 +1,4 @@
 __all__ = [
-    "BiltSystemImplementationRegistrationError",
     "BiltUnknownSystemAttributeError",
 ]
 
@@ -9,10 +8,6 @@ from bilt.core._error import BiltCoreError
 
 if typing.TYPE_CHECKING:
     from ._interface import Interface
-
-
-class BiltSystemImplementationRegistrationError(BiltCoreError):
-    pass
 
 
 class BiltUnknownSystemAttributeError(BiltCoreError):
