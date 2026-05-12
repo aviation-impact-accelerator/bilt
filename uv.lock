@@ -15,10 +15,7 @@ members = [
 [[package]]
 name = "bilt"
 version = "0.0.1"
-source = { editable = "." }
-dependencies = [
-    { name = "bilt-core" },
-]
+source = { virtual = "." }
 
 [package.dev-dependencies]
 dev = [
@@ -32,7 +29,6 @@ docs = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "bilt-core", editable = "packages/bilt-core" }]
 
 [package.metadata.requires-dev]
 dev = [
