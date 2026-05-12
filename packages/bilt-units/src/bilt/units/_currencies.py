@@ -16,7 +16,7 @@ class AnnualCurrencyUnit:
         To get the unit for USD in 2024, index into the `USD` variable using the `int` literal
         corresponding to the year, so `2024`.
 
-        >>> from camia_model.units import USD
+        >>> from bilt.units import USD
 
         >>> str(USD[2024])
         'USD2024'
@@ -41,7 +41,7 @@ class AnnualCurrencyUnit:
         handling of the exchange rate appropriate to the year in question. In 2024, $1.00 was worth,
         on average, approximately £0.78.
 
-        >>> from camia_model.units import GBP
+        >>> from bilt.units import GBP
 
         >>> str((1.0 * USD[2024]).convert_to(GBP[2024]))
         '0.7825 GBP2024'
