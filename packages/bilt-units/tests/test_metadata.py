@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from bilt.units._metadata import MetadataError
-
 from bilt.units import Metadata
+from bilt.units._metadata import MetadataError
 
 
 class TestMetadata:

@@ -5,12 +5,6 @@ import re
 import typing
 
 import pytest
-from bilt.units._dimensions import LENGTH, TEMPERATURE, Dimension
-from bilt.units._errors import UnitError
-from bilt.units._metadata import Metadata
-from bilt.units._prefix import Prefix
-from bilt.units._units import Unit, UnitComposition, UnitOrder
-
 from bilt.units import (
     DIMENSIONLESS,
     USD,
@@ -50,6 +44,11 @@ from bilt.units import (
     watthour,
     yard,
 )
+from bilt.units._dimensions import LENGTH, TEMPERATURE, Dimension
+from bilt.units._errors import UnitError
+from bilt.units._metadata import Metadata
+from bilt.units._prefix import Prefix
+from bilt.units._units import Unit, UnitComposition, UnitOrder
 
 if typing.TYPE_CHECKING:
     from bilt.units._quantities import Quantity
@@ -354,7 +353,7 @@ class TestUnitComposition:
     def test_multiply_by_zero_is_error() -> None:
         with pytest.raises(
             UnitError,
-            match="Cannot multiply unit composition .* by 0.0 as result is ambiguous",
+            match="Cannot multiply unit composition .* by 0.0 as result is ambiguous",  # noqa: RUF043
         ):
             _ = 0.0 * UnitComposition()
 
@@ -574,7 +573,7 @@ class TestUnit:
 
     @staticmethod
     def test_cannot_instantiate_unit_with_inconsistent_relation() -> None:
-        with pytest.raises(UnitError, match="Cannot instantiate unit .* because relation .* does not match"):
+        with pytest.raises(UnitError, match="Cannot instantiate unit .* because relation .* does not match"):  # noqa: RUF043
             _ = Unit.new_named("meter", relation=UnitComposition(UnitOrder(second, 1)))
 
     @staticmethod

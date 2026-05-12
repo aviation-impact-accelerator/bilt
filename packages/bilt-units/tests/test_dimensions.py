@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from bilt.units import Dimension
 
 
