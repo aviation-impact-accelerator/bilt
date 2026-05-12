@@ -5,15 +5,17 @@ __all__ = [
 
 import typing
 
+from bilt.core._error import BiltCoreError
+
 if typing.TYPE_CHECKING:
     from ._interface import Interface
 
 
-class BiltSystemImplementationRegistrationError(Exception):
+class BiltSystemImplementationRegistrationError(BiltCoreError):
     pass
 
 
-class BiltUnknownSystemAttributeError(Exception):
+class BiltUnknownSystemAttributeError(BiltCoreError):
     name: str
 
     def __init__(self, name: str, interface: Interface) -> None:

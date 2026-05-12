@@ -3,6 +3,8 @@ __all__ = ["Implementation", "Interface"]
 import dataclasses
 import typing
 
+from bilt.core._error import BiltCoreError
+
 from ._error import BiltUnknownSystemAttributeError
 
 if typing.TYPE_CHECKING:
@@ -19,7 +21,7 @@ class _Missing:
 MISSING = _Missing()
 
 
-class BiltSystemEvaluationError(Exception):
+class BiltSystemEvaluationError(BiltCoreError):
     pass
 
 
