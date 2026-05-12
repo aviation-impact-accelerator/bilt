@@ -2,7 +2,8 @@ import pytest
 
 from bilt.core._system._decorator import system
 from bilt.core._system._error import BiltUnknownSystemAttributeError
-from bilt.core._system._interface import Implementation, Interface
+from bilt.core._system._implementation import Implementation
+from bilt.core._system._interface import Interface
 from bilt.core._transform import transform
 
 

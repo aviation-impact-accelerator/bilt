@@ -71,13 +71,13 @@ def _bilt_system_add_init_method(
     method_name = "__init__"
     type_var_def = _construct_type_var_def(ctx, method_name)
 
-    missing_symbol = ctx.api.lookup_fully_qualified("bilt.core._system._interface.MISSING")
+    missing_symbol = ctx.api.lookup_fully_qualified("bilt.core._system._sentinel.MISSING")
     missing_ref = mypy.nodes.NameExpr("MISSING")
     missing_ref.node = missing_symbol.node
     # `missing_symbol.fullname` cannot be `None` because `MISSING` is always defined.
     missing_ref.fullname = missing_symbol.fullname  # type: ignore[assignment]
     missing_ref.kind = missing_symbol.kind
-    missing_type = ctx.api.named_type("bilt.core._system._interface._Missing")
+    missing_type = ctx.api.named_type("bilt.core._system._sentinel._Missing")
 
     arguments = []
     for field in fields:

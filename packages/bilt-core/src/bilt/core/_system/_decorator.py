@@ -4,7 +4,9 @@ import dataclasses
 import enum
 import typing
 
-from ._interface import MISSING, Attribute, Interface, _dispatch_evaluation
+from ._dispatch import Attribute, _dispatch_evaluation
+from ._interface import Interface
+from ._sentinel import MISSING
 
 if typing.TYPE_CHECKING:
     import types
