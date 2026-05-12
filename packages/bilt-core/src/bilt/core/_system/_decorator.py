@@ -11,9 +11,6 @@ from ._sentinel import MISSING
 if typing.TYPE_CHECKING:
     import types
 
-    from ._implementation import Implementation
-    from ._sentinel import _Missing
-
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Attribute[T]:
@@ -21,22 +18,9 @@ class Attribute[T]:
     annotation: type[T]
 
 
-class System(typing.Protocol):
-    __name__: str
-    __bilt_system_attributes__: typing.ClassVar[dict[str, Attribute[object]]]
-    __bilt_system_implementation__: Implementation | _Missing
-    __bilt_system_instance_variables__: dict[str, object]
-
-
-class SystemInstance(typing.Protocol):
-    __bilt_system_attributes__: typing.ClassVar[dict[str, Attribute[object]]]
-    __bilt_system_implementation__: Implementation | _Missing
-    __bilt_system_instance_variables__: dict[str, object]
-
-
 def system[T](cls: type[T]) -> type[T]:
     def create_system(cls: type[T]) -> type[T]:
-        interface = typing.cast("System", dataclasses.dataclass(cls))
+        interface = typing.cast("Interface", dataclasses.dataclass(cls))
         _create_bilt_system_class_attribute(interface)
         _create_initialize_method(interface)
         _create_properties(interface)
@@ -46,7 +30,7 @@ def system[T](cls: type[T]) -> type[T]:
     return create_system(interface)
 
 
-def _create_bilt_system_class_attribute(cls: System) -> None:
+def _create_bilt_system_class_attribute(cls: Interface) -> None:
     annotations = cls.__dataclass_fields__  # type: ignore[attr-defined]
     cls.__bilt_system_attributes__ = {  # type: ignore[misc]
         annotation.name: Attribute(annotation.name, typing.cast("type[object]", annotation.type))
@@ -54,7 +38,7 @@ def _create_bilt_system_class_attribute(cls: System) -> None:
     }
 
 
-def _create_initialize_method(cls: System) -> None:
+def _create_initialize_method(cls: Interface) -> None:
     parameters = cls.__bilt_system_attributes__
     args = ["self", *(f"{parameter}=MISSING" for parameter in parameters)]
     body = [
@@ -72,7 +56,7 @@ def _create_initialize_method(cls: System) -> None:
     )
 
 
-def _create_properties(cls: System) -> None:
+def _create_properties(cls: Interface) -> None:
     parameters = cls.__bilt_system_attributes__
     local_namespace = {
         cls.__name__: cls,
@@ -114,7 +98,7 @@ def _create_decorator(method: Method) -> str:
 
 
 def _create_method(  # noqa: PLR0913
-    cls: System,
+    cls: Interface,
     *,
     name: str,
     method: Method,
@@ -130,7 +114,7 @@ def _create_method(  # noqa: PLR0913
     attribute = typing.cast("types.FunctionType", local_namespace[name])
     match method:
         case Method.METHOD | Method.CLASS | Method.STATIC:
-            attribute.__qualname__ = f"{cls.__qualname__}.{attribute.__name__}"  # type: ignore[attr-defined]
+            attribute.__qualname__ = f"{cls.__qualname__}.{attribute.__name__}"
         case Method.PROPERTY:
             attribute.fget.__qualname__ = f"{cls.__qualname__}.{attribute.fget.__name__}"  # type: ignore[attr-defined]
         case _:
