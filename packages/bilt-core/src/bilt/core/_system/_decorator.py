@@ -19,6 +19,8 @@ class Attribute[T]:
 
 
 def system[T](cls: type[T]) -> type[T]:
+    """Decorate a class as the interface for a system."""
+
     def create_system(cls: type[T]) -> type[T]:
         interface = typing.cast("Interface", dataclasses.dataclass(cls))
         _create_bilt_system_class_attribute(interface)

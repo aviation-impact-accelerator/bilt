@@ -17,6 +17,8 @@ class BiltSystemEvaluationError(BiltCoreError):
 
 
 class Implementation:
+    """Register a collection of transforms as an implementation of a system."""
+
     def __init__(self, system: Interface, transforms: collections.abc.Iterable[Transform[typing.Any, ...]]) -> None:
         self._system = system
         self._transforms = {transform.__bilt_transform_name__: transform for transform in transforms}
