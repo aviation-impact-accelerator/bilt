@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "bilt-core",
+    "bilt-mypy",
 ]
 
 [dependency-groups]
@@ -27,18 +28,21 @@ requires = ["uv_build>=0.10.9,<0.11.0"]
 [tool.mypy]
 explicit_package_bases = true
 namespace_packages = true
-plugins = ["bilt.core.plugin.mypy"]
+plugins = ["bilt.mypy"]
 python_version = "3.14"
 strict = true
 
 mypy_path = [
     "src",
     "packages/bilt-core/src",
+    "packages/bilt-mypy/src",
 ]
 
 files = [
     "packages/bilt-core/src",
     "packages/bilt-core/tests",
+    "packages/bilt-mypy/src",
+    "packages/bilt-mypy/tests",
     "src",
     "tests",
 ]
@@ -98,8 +102,10 @@ convention = "google"
 
 [tool.uv.sources]
 bilt-core = { workspace = true }
+bilt-mypy = { workspace = true }
 
 [tool.uv.workspace]
 members = [
     "packages/bilt-core",
+    "packages/bilt-mypy",
 ]

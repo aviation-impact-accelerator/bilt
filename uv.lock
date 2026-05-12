@@ -10,6 +10,7 @@ resolution-markers = [
 members = [
     "bilt",
     "bilt-core",
+    "bilt-mypy",
 ]
 
 [[package]]
@@ -18,6 +19,7 @@ version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "bilt-core" },
+    { name = "bilt-mypy" },
 ]
 
 [package.dev-dependencies]
@@ -32,7 +34,10 @@ docs = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "bilt-core", editable = "packages/bilt-core" }]
+requires-dist = [
+    { name = "bilt-core", editable = "packages/bilt-core" },
+    { name = "bilt-mypy", editable = "packages/bilt-mypy" },
+]
 
 [package.metadata.requires-dev]
 dev = [
@@ -47,6 +52,17 @@ docs = [{ name = "zensical", specifier = ">=0.0.37" }]
 name = "bilt-core"
 version = "0.0.1"
 source = { editable = "packages/bilt-core" }
+
+[[package]]
+name = "bilt-mypy"
+version = "0.0.1"
+source = { editable = "packages/bilt-mypy" }
+dependencies = [
+    { name = "bilt-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "bilt-core", editable = "packages/bilt-core" }]
 
 [[package]]
 name = "click"

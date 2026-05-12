@@ -9,7 +9,6 @@ import mypy.plugin
 import mypy.plugins.common
 import mypy.plugins.dataclasses
 import mypy.types
-
 from bilt.core._system._decorator import system
 
 SELF_TYPE_VAR_NAME: typing.Final = "_DT"
