@@ -42,7 +42,6 @@ files = [
     "packages/bilt-core/src",
     "packages/bilt-core/tests",
     "packages/bilt-mypy/src",
-    "packages/bilt-mypy/tests",
     "src",
     "tests",
 ]
