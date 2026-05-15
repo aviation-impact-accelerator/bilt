@@ -3,11 +3,13 @@
   "venv": ".venv",
   "stubPath": "typings",
   "extraPaths": [
-    "packages/bilt-core/src"
+    "packages/bilt-core/src",
+    "packages/bilt-mypy/src"
   ],
   "include": [
     "packages/bilt-core/src",
-    "packages/bilt-core/tests"
+    "packages/bilt-core/tests",
+    "packages/bilt-mypy/src"
   ],
   "exclude": [
     ".venv",
