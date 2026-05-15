@@ -9,7 +9,8 @@
   "include": [
     "packages/bilt-core/src",
     "packages/bilt-core/tests",
-    "packages/bilt-mypy/src"
+    "packages/bilt-mypy/src",
+    "packages/bilt-mypy/tests"
   ],
   "exclude": [
     ".venv",
