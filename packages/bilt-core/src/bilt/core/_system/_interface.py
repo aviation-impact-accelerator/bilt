@@ -1,5 +1,3 @@
-__all__ = ["Interface"]
-
 import typing
 
 if typing.TYPE_CHECKING:
