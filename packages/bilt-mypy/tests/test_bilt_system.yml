@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/typeddjango/pytest-mypy-plugins/master/pytest_mypy_plugins/schema.json
+
+- case: bilt_system_metaclass_is_interface
+  main: |
+    from bilt.core import system
+
+    @system
+    class Demo:
+        a: float
+        b: float
+        c: float
+
+    reveal_type(Demo)  # N: Revealed type is "bilt.core._system._interface.Interface"
+
+- case: bilt_system_init_instance
+  main: |
+    from bilt.core import system
+
+    @system
+    class Demo:
+        a: float
+        b: float
+        c: float
+
+    instance = Demo(a=1.0)
+
+- case: bilt_system_instance_properties
+  main: |
+    from bilt.core import system
+
+    @system
+    class Demo:
+        a: float
+        b: float
+        c: float
+
+    instance = Demo(a=1.0)
+    reveal_type(instance.a)  # N: Revealed type is "float"
