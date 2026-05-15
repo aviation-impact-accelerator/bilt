@@ -32,10 +32,6 @@ files = [
     "packages/bilt-core/tests",
 ]
 
-exclude = [
-    "^src/bilt/core/",
-]
-
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 xfail_strict = true
