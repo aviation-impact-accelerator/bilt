@@ -1,4 +1,4 @@
-from bilt.core._system._decorator import system
+from bilt.core import system
 
 
 def test_decorator() -> None:
