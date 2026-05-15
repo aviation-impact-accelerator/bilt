@@ -59,10 +59,14 @@ version = "0.0.1"
 source = { editable = "packages/bilt-mypy" }
 dependencies = [
     { name = "bilt-core" },
+    { name = "mypy" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "bilt-core", editable = "packages/bilt-core" }]
+requires-dist = [
+    { name = "bilt-core", editable = "packages/bilt-core" },
+    { name = "mypy", specifier = ">=1.20.2" },
+]
 
 [[package]]
 name = "click"

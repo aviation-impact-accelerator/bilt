@@ -56,7 +56,7 @@ id = "ruff-format"
 
 [[repos]]
 repo = "https://github.com/astral-sh/uv-pre-commit"
-rev = "0.9.21"
+rev = "0.11.14"
 
 [[repos.hooks]]
 id = "uv-lock"
