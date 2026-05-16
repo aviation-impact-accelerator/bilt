@@ -1,7 +1,7 @@
 import typing
 
 import bilt
-from bilt.demo.component.interface import Combustor, Compressor, WorkProducing
+from bilt.demo.turbomachinery.component.interface import Combustor, Compressor, WorkProducing
 
 
 @bilt.core.transform

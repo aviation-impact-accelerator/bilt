@@ -1,7 +1,7 @@
 import typing
 
 import bilt
-from bilt.demo.fluid.interface import FluidProperties, ThermodynamicState
+from bilt.demo.turbomachinery.fluid.interface import FluidProperties, ThermodynamicState
 
 
 @bilt.core.equation

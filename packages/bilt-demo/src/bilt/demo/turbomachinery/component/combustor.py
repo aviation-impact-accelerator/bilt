@@ -1,8 +1,8 @@
 import typing
 
 import bilt
-from bilt.demo.component.interface import Combustor
-from bilt.demo.fluid.interface import FluidProperties, FuelFlow, ThermodynamicState
+from bilt.demo.turbomachinery.component.interface import Combustor
+from bilt.demo.turbomachinery.fluid.interface import FluidProperties, FuelFlow, ThermodynamicState
 
 
 @bilt.core.equation
