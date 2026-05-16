@@ -1,9 +1,8 @@
 import typing
 
 import bilt
-
-from examples.interface.component import Turbine
-from examples.interface.fluid import FluidProperties, ThermodynamicState
+from bilt.demo.component.interface import Compressor
+from bilt.demo.fluid.interface import FluidProperties, ThermodynamicState
 
 
 @bilt.core.equation
@@ -16,7 +15,7 @@ def isentropic_relation(
     return (
         outlet.temperature / inlet.temperature
         == (outlet.pressure / inlet.pressure) ** ((heat_capacity_ratio - 1) / heat_capacity_ratio)
-        * isentropic_efficiency
+        / isentropic_efficiency
     )
 
 
@@ -27,11 +26,11 @@ def specific_work_relation(
     fluid: FluidProperties,
     specific_work: typing.Annotated[float, bilt.unit.joule / bilt.unit.kilogram],
 ) -> bilt.core.equation:
-    return specific_work == fluid.specific_heat_capacity * (inlet.temperature - outlet.temperature)
+    return specific_work == fluid.specific_heat_capacity * (outlet.temperature - inlet.temperature)
 
 
 @bilt.core.equation
-def inlet_fluid_equals_turbine_fluid(
+def inlet_fluid_equals_compressor_fluid(
     fluid: FluidProperties,
     inlet: ThermodynamicState,
 ) -> bilt.core.equation:
@@ -39,19 +38,19 @@ def inlet_fluid_equals_turbine_fluid(
 
 
 @bilt.core.equation
-def outlet_fluid_equals_turbine_fluid(
+def outlet_fluid_equals_compressor_fluid(
     fluid: FluidProperties,
     outlet: ThermodynamicState,
 ) -> bilt.core.equation:
     return fluid == outlet.fluid
 
 
-isentropic_turbine = bilt.Implementation(
-    Turbine,
+isentropic_compressor = bilt.Implementation(
+    Compressor,
     {
         isentropic_relation,
         specific_work_relation,
-        inlet_fluid_equals_turbine_fluid,
-        outlet_fluid_equals_turbine_fluid,
+        inlet_fluid_equals_compressor_fluid,
+        outlet_fluid_equals_compressor_fluid,
     },
 )
