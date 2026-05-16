@@ -1,7 +1,7 @@
 import typing
 
 import bilt
-from bilt.demo.fluid.interface import FluidProperties, FuelFlow, ThermodynamicState
+from bilt.demo.turbomachinery.fluid.interface import FluidProperties, FuelFlow, ThermodynamicState
 
 
 class WorkProducing(typing.Protocol):

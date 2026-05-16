@@ -1,7 +1,7 @@
 import typing
 
 import bilt
-from bilt.demo.fluid.interface import FuelFlow, FuelProperties
+from bilt.demo.turbomachinery.fluid.interface import FuelFlow, FuelProperties
 
 
 @bilt.core.equation
