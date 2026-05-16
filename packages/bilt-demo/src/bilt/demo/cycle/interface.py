@@ -1,8 +1,7 @@
 import typing
 
 import bilt
-
-from examples.interface.fluid import FluidProperties
+from bilt.demo.fluid.interface import FluidProperties
 
 
 @bilt.core.system

@@ -1,11 +1,10 @@
 import typing
 
 import bilt
-
-from examples.cycle.common import net_specific_work, pressure_ratio_relation, thermal_efficiency_relation
-from examples.interface.component import Combustor, Compressor, Turbine
-from examples.interface.cycle import Cycle
-from examples.interface.fluid import FluidProperties
+from bilt.demo.component.interface import Combustor, Compressor, Turbine
+from bilt.demo.cycle.common import net_specific_work, pressure_ratio_relation, thermal_efficiency_relation
+from bilt.demo.cycle.interface import Cycle
+from bilt.demo.fluid.interface import FluidProperties
 
 
 @bilt.core.equation
