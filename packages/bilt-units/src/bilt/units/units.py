@@ -1,7 +1,5 @@
 """Common units defined with the (mostly SI) units system."""
 
-from __future__ import annotations
-
 __all__ = (
     "DIMENSIONLESS",
     "EUR",

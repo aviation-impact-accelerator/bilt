@@ -1,9 +1,8 @@
-from __future__ import annotations
-
 import math
 import re
 
 import pytest
+
 from bilt.units._errors import DimensionalityError, UnitError
 from bilt.units._metadata import Metadata
 from bilt.units._quantities import Quantity
