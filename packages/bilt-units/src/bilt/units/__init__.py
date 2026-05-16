@@ -1,6 +1,6 @@
 """Attach units to numerical values to create quantities."""
 
-__all__ = (
+__all__ = [
     "DIMENSIONLESS",
     "EUR",
     "GBP",
@@ -91,7 +91,7 @@ __all__ = (
     "watthour",
     "yard",
     "year",
-)
+]
 
 from ._currencies import EUR as EUR
 from ._currencies import GBP as GBP
