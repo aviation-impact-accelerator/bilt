@@ -122,18 +122,3 @@ def tube_outer_element_temperatures(
         outer_outlet_temperature=element_result.unmixed_outlet_temperature,
         heat_transfer_rate_tube_to_outer=element_result.heat_transfer_rate_mixed_to_unmixed,
     )
-
-
-class TubeOuterElementMarchResult(NamedTuple):
-    tube_inlet_temperature: float
-    tube_outlet_temperature: float
-    outer_inlet_temperature: float
-    outer_outlet_temperature: float
-    heat_transfer_rate_tube_to_outer: float
-
-
-class TubeMarchResult(NamedTuple):
-    element_results: tuple[TubeOuterElementMarchResult, ...]
-    tube_outlet_temperature: float
-    total_heat_transfer_rate_tube_to_outer: float
-    outer_outlet_temperature_values: tuple[float, ...]
