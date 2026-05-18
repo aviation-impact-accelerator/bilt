@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 __all__ = ("EUR", "GBP", "JPY", "USD")
 
 import dataclasses
