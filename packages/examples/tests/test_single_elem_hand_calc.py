@@ -167,17 +167,17 @@ def test_full_one_element_heat_exchanger_against_hand_calculation() -> None:
     assert thermal_conductance_element_value == pytest.approx(expected_thermal_conductance_element)
 
     assert result.q_tube_to_outer == pytest.approx(expected_q)
-    assert result.T_tube_out == pytest.approx(expected_temp_tube_out)
-    assert result.T_outer_out == pytest.approx(expected_temp_outer_out)
+    assert result.temp_tube_out == pytest.approx(expected_temp_tube_out)
+    assert result.temp_outer_out == pytest.approx(expected_temp_outer_out)
 
-    assert march_result.T_tube_out == pytest.approx(expected_temp_tube_out)
+    assert march_result.temp_tube_out == pytest.approx(expected_temp_tube_out)
     assert march_result.q_total_tube_to_outer == pytest.approx(expected_q)
-    assert march_result.T_outer_out_values[0] == pytest.approx(expected_temp_outer_out)
+    assert march_result.temp_outer_out_values[0] == pytest.approx(expected_temp_outer_out)
 
     # Numerical values for regression clarity.
     assert overall_u_outer_basis_value == pytest.approx(89.46975490243314)
     assert thermal_conductance_element_value == pytest.approx(11.243100988798535)
     assert expected_local_effectiveness == pytest.approx(0.20137359419222556)
     assert result.q_tube_to_outer == pytest.approx(491.0728474430857)
-    assert result.T_tube_out == pytest.approx(347.5446357627846)
-    assert result.T_outer_out == pytest.approx(309.82145694886174)
+    assert result.temp_tube_out == pytest.approx(347.5446357627846)
+    assert result.temp_outer_out == pytest.approx(309.82145694886174)

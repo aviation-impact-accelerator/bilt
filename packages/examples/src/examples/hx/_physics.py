@@ -97,8 +97,8 @@ def element_temperatures_mixed_unmixed(
 
 
 class TubeOuterElementTemperatures(NamedTuple):
-    T_tube_out: float
-    T_outer_out: float
+    temp_tube_out: float
+    temp_outer_out: float
     q_tube_to_outer: float
 
 
@@ -118,22 +118,22 @@ def tube_outer_element_temperatures(
     )
 
     return TubeOuterElementTemperatures(
-        T_tube_out=element_temperatures_mixed_unmixed_value.temp_mixed_out,
-        T_outer_out=element_temperatures_mixed_unmixed_value.temp_unmixed_out,
+        temp_tube_out=element_temperatures_mixed_unmixed_value.temp_mixed_out,
+        temp_outer_out=element_temperatures_mixed_unmixed_value.temp_unmixed_out,
         q_tube_to_outer=element_temperatures_mixed_unmixed_value.q_element_mixed_unmixed,
     )
 
 
 class ElementResult(NamedTuple):
-    T_tube_in: float
-    T_tube_out: float
-    T_outer_in: float
-    T_outer_out: float
+    temp_tube_in: float
+    temp_tube_out: float
+    temp_outer_in: float
+    temp_outer_out: float
     q_tube_to_outer: float
 
 
 class TubeMarchResult(NamedTuple):
     element_results: tuple[ElementResult, ...]
-    T_tube_out: float
+    temp_tube_out: float
     q_total_tube_to_outer: float
-    T_outer_out_values: tuple[float, ...]
+    temp_outer_out_values: tuple[float, ...]

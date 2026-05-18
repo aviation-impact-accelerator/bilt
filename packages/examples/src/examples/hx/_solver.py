@@ -7,18 +7,18 @@ if TYPE_CHECKING:
 
 
 class ElementResult(NamedTuple):
-    T_tube_in: float
-    T_tube_out: float
-    T_outer_in: float
-    T_outer_out: float
+    temp_tube_in: float
+    temp_tube_out: float
+    temp_outer_in: float
+    temp_outer_out: float
     q_tube_to_outer: float
 
 
 class TubeMarchResult(NamedTuple):
     element_results: tuple[ElementResult, ...]
-    T_tube_out: float
+    temp_tube_out: float
     q_total_tube_to_outer: float
-    T_outer_out_values: tuple[float, ...]
+    temp_outer_out_values: tuple[float, ...]
 
 
 def march_single_tube(
@@ -47,23 +47,23 @@ def march_single_tube(
 
         element_results.append(
             ElementResult(
-                T_tube_in=temp_tube,
-                T_tube_out=tube_outer_element_temperatures_value.T_tube_out,
-                T_outer_in=temp_outer_in,
-                T_outer_out=tube_outer_element_temperatures_value.T_outer_out,
+                temp_tube_in=temp_tube,
+                temp_tube_out=tube_outer_element_temperatures_value.temp_tube_out,
+                temp_outer_in=temp_outer_in,
+                temp_outer_out=tube_outer_element_temperatures_value.temp_outer_out,
                 q_tube_to_outer=tube_outer_element_temperatures_value.q_tube_to_outer,
             )
         )
 
-        temp_tube = tube_outer_element_temperatures_value.T_tube_out
+        temp_tube = tube_outer_element_temperatures_value.temp_tube_out
 
     q_total_tube_to_outer = sum(element_result.q_tube_to_outer for element_result in element_results)
 
-    temp_outer_out_values = tuple(element_result.T_outer_out for element_result in element_results)
+    temp_outer_out_values = tuple(element_result.temp_outer_out for element_result in element_results)
 
     return TubeMarchResult(
         element_results=tuple(element_results),
-        T_tube_out=temp_tube,
+        temp_tube_out=temp_tube,
         q_total_tube_to_outer=q_total_tube_to_outer,
-        T_outer_out_values=temp_outer_out_values,
+        temp_outer_out_values=temp_outer_out_values,
     )
