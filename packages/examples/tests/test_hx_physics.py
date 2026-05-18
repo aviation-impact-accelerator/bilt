@@ -1,5 +1,3 @@
-
-
 from math import exp
 
 import pytest
@@ -48,12 +46,7 @@ def test_single_element_against_closed_form_solution() -> None:
         expected_local_effectiveness
         * heat_capacity_rate_unmixed
         * (t_mixed_in - t_unmixed_in)
-        / (
-            1.0
-            + expected_local_effectiveness
-            * heat_capacity_rate_unmixed
-            / (2.0 * heat_capacity_rate_mixed)
-        )
+        / (1.0 + expected_local_effectiveness * heat_capacity_rate_unmixed / (2.0 * heat_capacity_rate_mixed))
     )
 
     expected_t_mixed_out = t_mixed_in - expected_q / heat_capacity_rate_mixed

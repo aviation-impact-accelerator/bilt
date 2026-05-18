@@ -86,7 +86,7 @@ def heat_transfer_coefficient_dittus_boelter_cooling(
     )
 
 
-def tube_side_heat_transfer_coefficient_heating( # noqa: PLR0913
+def tube_side_heat_transfer_coefficient_heating(  # noqa: PLR0913
     mdot: float,
     density: float,
     specific_heat_capacity: float,
@@ -117,7 +117,7 @@ def tube_side_heat_transfer_coefficient_heating( # noqa: PLR0913
     )
 
 
-def tube_side_heat_transfer_coefficient_cooling( # noqa : PLR0913
+def tube_side_heat_transfer_coefficient_cooling(  # noqa : PLR0913
     mdot: float,
     density: float,
     specific_heat_capacity: float,
