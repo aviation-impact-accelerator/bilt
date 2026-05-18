@@ -9,7 +9,6 @@ requires-python = ">=3.14"
 dev = [
     "mypy>=1.20.2",
     "prek>=0.3.11",
-    "pyright>=1.1.409",
     "pytest>=9.0.3",
     "ruff>=0.15.12",
 ]
