@@ -79,8 +79,4 @@ def effectiveness(
     area: float,
     minimum_heat_capacity_rate: float,
 ) -> float:
-    return 1.0 - math.exp(
-        -overall_heat_transfer_coefficient
-        * area
-        / minimum_heat_capacity_rate
-    )
+    return 1.0 - math.exp(-overall_heat_transfer_coefficient * area / minimum_heat_capacity_rate)

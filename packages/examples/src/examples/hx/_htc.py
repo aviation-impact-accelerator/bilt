@@ -159,11 +159,7 @@ def wall_thermal_resistance_outer_area_basis(
     tube_inner_radius: float,
     wall_thermal_conductivity: float,
 ) -> float:
-    return (
-        tube_outer_radius
-        * log(tube_outer_radius / tube_inner_radius)
-        / wall_thermal_conductivity
-    )
+    return tube_outer_radius * log(tube_outer_radius / tube_inner_radius) / wall_thermal_conductivity
 
 
 def inner_convection_thermal_resistance_outer_area_basis(
@@ -171,9 +167,7 @@ def inner_convection_thermal_resistance_outer_area_basis(
     tube_inner_radius: float,
     inner_heat_transfer_coefficient: float,
 ) -> float:
-    return tube_outer_radius / (
-        tube_inner_radius * inner_heat_transfer_coefficient
-    )
+    return tube_outer_radius / (tube_inner_radius * inner_heat_transfer_coefficient)
 
 
 def total_thermal_resistance_outer_area_basis(
@@ -211,12 +205,10 @@ def overall_heat_transfer_coefficient_outer_area_basis_from_coefficients(
         wall_thermal_conductivity=wall_thermal_conductivity,
     )
 
-    inner_convection_resistance = (
-        inner_convection_thermal_resistance_outer_area_basis(
-            tube_outer_radius=tube_outer_radius,
-            tube_inner_radius=tube_inner_radius,
-            inner_heat_transfer_coefficient=inner_heat_transfer_coefficient,
-        )
+    inner_convection_resistance = inner_convection_thermal_resistance_outer_area_basis(
+        tube_outer_radius=tube_outer_radius,
+        tube_inner_radius=tube_inner_radius,
+        inner_heat_transfer_coefficient=inner_heat_transfer_coefficient,
     )
 
     total_resistance = total_thermal_resistance_outer_area_basis(
@@ -234,7 +226,4 @@ def thermal_conductance_per_element(
     overall_heat_transfer_coefficient_outer_area_basis: float,
     tube_outer_area_per_element: float,
 ) -> float:
-    return (
-        overall_heat_transfer_coefficient_outer_area_basis
-        * tube_outer_area_per_element
-    )
+    return overall_heat_transfer_coefficient_outer_area_basis * tube_outer_area_per_element
