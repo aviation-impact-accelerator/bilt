@@ -3,137 +3,137 @@ from typing import NamedTuple
 
 
 def heat_capacity_rate(
-    mdot: float,
+    mass_flow_rate: float,
     specific_heat_capacity: float,
 ) -> float:
-    return mdot * specific_heat_capacity
+    return mass_flow_rate * specific_heat_capacity
 
 
 def velocity(
-    mdot: float,
+    mass_flow_rate: float,
     density: float,
-    tube_flow_area: float,
+    flow_area: float,
 ) -> float:
-    return mdot / (density * tube_flow_area)
+    return mass_flow_rate / (density * flow_area)
 
 
 def local_effectiveness(
-    thermal_conductance_element: float,
-    heat_capacity_rate_unmixed: float,
+    thermal_conductance_per_element: float,
+    unmixed_heat_capacity_rate: float,
 ) -> float:
-    return 1.0 - exp(-thermal_conductance_element / heat_capacity_rate_unmixed)
+    return 1.0 - exp(-thermal_conductance_per_element / unmixed_heat_capacity_rate)
 
 
-def q_element_mixed_unmixed(
-    temp_mixed_in: float,
-    temp_unmixed_in: float,
-    heat_capacity_rate_mixed: float,
-    heat_capacity_rate_unmixed: float,
-    local_effectiveness: float,
+def heat_transfer_rate_mixed_to_unmixed(
+    mixed_inlet_temperature: float,
+    unmixed_inlet_temperature: float,
+    mixed_heat_capacity_rate: float,
+    unmixed_heat_capacity_rate: float,
+    effectiveness: float,
 ) -> float:
     return (
-        local_effectiveness
-        * heat_capacity_rate_unmixed
-        * (temp_mixed_in - temp_unmixed_in)
-        / (1.0 + local_effectiveness * heat_capacity_rate_unmixed / (2.0 * heat_capacity_rate_mixed))
+        effectiveness
+        * unmixed_heat_capacity_rate
+        * (mixed_inlet_temperature - unmixed_inlet_temperature)
+        / (1.0 + effectiveness * unmixed_heat_capacity_rate / (2.0 * mixed_heat_capacity_rate))
     )
 
 
-def temp_mixed_out(
-    temp_mixed_in: float,
-    q_element_mixed_unmixed: float,
-    heat_capacity_rate_mixed: float,
+def mixed_outlet_temperature(
+    mixed_inlet_temperature: float,
+    heat_transfer_rate_mixed_to_unmixed: float,
+    mixed_heat_capacity_rate: float,
 ) -> float:
-    return temp_mixed_in - q_element_mixed_unmixed / heat_capacity_rate_mixed
+    return mixed_inlet_temperature - heat_transfer_rate_mixed_to_unmixed / mixed_heat_capacity_rate
 
 
-def temp_unmixed_out(
-    temp_unmixed_in: float,
-    q_element_mixed_unmixed: float,
-    heat_capacity_rate_unmixed: float,
+def unmixed_outlet_temperature(
+    unmixed_inlet_temperature: float,
+    heat_transfer_rate_mixed_to_unmixed: float,
+    unmixed_heat_capacity_rate: float,
 ) -> float:
-    return temp_unmixed_in + q_element_mixed_unmixed / heat_capacity_rate_unmixed
+    return unmixed_inlet_temperature + heat_transfer_rate_mixed_to_unmixed / unmixed_heat_capacity_rate
 
 
-class ElementTemperaturesMixedUnmixed(NamedTuple):
-    temp_mixed_out: float
-    temp_unmixed_out: float
-    q_element_mixed_unmixed: float
+class MixedUnmixedElementResult(NamedTuple):
+    mixed_outlet_temperature: float
+    unmixed_outlet_temperature: float
+    heat_transfer_rate_mixed_to_unmixed: float
 
 
-def element_temperatures_mixed_unmixed(
-    temp_mixed_in: float,
-    temp_unmixed_in: float,
-    heat_capacity_rate_mixed: float,
-    heat_capacity_rate_unmixed: float,
-    thermal_conductance_element: float,
-) -> ElementTemperaturesMixedUnmixed:
-    local_effectiveness_value = local_effectiveness(
-        thermal_conductance_element=thermal_conductance_element,
-        heat_capacity_rate_unmixed=heat_capacity_rate_unmixed,
+def mixed_unmixed_element_temperatures(
+    mixed_inlet_temperature: float,
+    unmixed_inlet_temperature: float,
+    mixed_heat_capacity_rate: float,
+    unmixed_heat_capacity_rate: float,
+    thermal_conductance_per_element: float,
+) -> MixedUnmixedElementResult:
+    effectiveness = local_effectiveness(
+        thermal_conductance_per_element=thermal_conductance_per_element,
+        unmixed_heat_capacity_rate=unmixed_heat_capacity_rate,
     )
 
-    q_element_mixed_unmixed_value = q_element_mixed_unmixed(
-        temp_mixed_in=temp_mixed_in,
-        temp_unmixed_in=temp_unmixed_in,
-        heat_capacity_rate_mixed=heat_capacity_rate_mixed,
-        heat_capacity_rate_unmixed=heat_capacity_rate_unmixed,
-        local_effectiveness=local_effectiveness_value,
+    heat_transfer_rate = heat_transfer_rate_mixed_to_unmixed(
+        mixed_inlet_temperature=mixed_inlet_temperature,
+        unmixed_inlet_temperature=unmixed_inlet_temperature,
+        mixed_heat_capacity_rate=mixed_heat_capacity_rate,
+        unmixed_heat_capacity_rate=unmixed_heat_capacity_rate,
+        effectiveness=effectiveness,
     )
 
-    return ElementTemperaturesMixedUnmixed(
-        temp_mixed_out=temp_mixed_out(
-            temp_mixed_in=temp_mixed_in,
-            q_element_mixed_unmixed=q_element_mixed_unmixed_value,
-            heat_capacity_rate_mixed=heat_capacity_rate_mixed,
+    return MixedUnmixedElementResult(
+        mixed_outlet_temperature=mixed_outlet_temperature(
+            mixed_inlet_temperature=mixed_inlet_temperature,
+            heat_transfer_rate_mixed_to_unmixed=heat_transfer_rate,
+            mixed_heat_capacity_rate=mixed_heat_capacity_rate,
         ),
-        temp_unmixed_out=temp_unmixed_out(
-            temp_unmixed_in=temp_unmixed_in,
-            q_element_mixed_unmixed=q_element_mixed_unmixed_value,
-            heat_capacity_rate_unmixed=heat_capacity_rate_unmixed,
+        unmixed_outlet_temperature=unmixed_outlet_temperature(
+            unmixed_inlet_temperature=unmixed_inlet_temperature,
+            heat_transfer_rate_mixed_to_unmixed=heat_transfer_rate,
+            unmixed_heat_capacity_rate=unmixed_heat_capacity_rate,
         ),
-        q_element_mixed_unmixed=q_element_mixed_unmixed_value,
+        heat_transfer_rate_mixed_to_unmixed=heat_transfer_rate,
     )
 
 
-class TubeOuterElementTemperatures(NamedTuple):
-    temp_tube_out: float
-    temp_outer_out: float
-    q_tube_to_outer: float
+class TubeOuterElementResult(NamedTuple):
+    tube_outlet_temperature: float
+    outer_outlet_temperature: float
+    heat_transfer_rate_tube_to_outer: float
 
 
 def tube_outer_element_temperatures(
-    temp_tube_in: float,
-    temp_outer_in: float,
-    heat_capacity_rate_tube: float,
-    heat_capacity_rate_outer_element: float,
-    thermal_conductance_element: float,
-) -> TubeOuterElementTemperatures:
-    element_temperatures_mixed_unmixed_value = element_temperatures_mixed_unmixed(
-        temp_mixed_in=temp_tube_in,
-        temp_unmixed_in=temp_outer_in,
-        heat_capacity_rate_mixed=heat_capacity_rate_tube,
-        heat_capacity_rate_unmixed=heat_capacity_rate_outer_element,
-        thermal_conductance_element=thermal_conductance_element,
+    tube_inlet_temperature: float,
+    outer_inlet_temperature: float,
+    tube_heat_capacity_rate: float,
+    outer_heat_capacity_rate_per_element: float,
+    thermal_conductance_per_element: float,
+) -> TubeOuterElementResult:
+    element_result = mixed_unmixed_element_temperatures(
+        mixed_inlet_temperature=tube_inlet_temperature,
+        unmixed_inlet_temperature=outer_inlet_temperature,
+        mixed_heat_capacity_rate=tube_heat_capacity_rate,
+        unmixed_heat_capacity_rate=outer_heat_capacity_rate_per_element,
+        thermal_conductance_per_element=thermal_conductance_per_element,
     )
 
-    return TubeOuterElementTemperatures(
-        temp_tube_out=element_temperatures_mixed_unmixed_value.temp_mixed_out,
-        temp_outer_out=element_temperatures_mixed_unmixed_value.temp_unmixed_out,
-        q_tube_to_outer=element_temperatures_mixed_unmixed_value.q_element_mixed_unmixed,
+    return TubeOuterElementResult(
+        tube_outlet_temperature=element_result.mixed_outlet_temperature,
+        outer_outlet_temperature=element_result.unmixed_outlet_temperature,
+        heat_transfer_rate_tube_to_outer=element_result.heat_transfer_rate_mixed_to_unmixed,
     )
 
 
-class ElementResult(NamedTuple):
-    temp_tube_in: float
-    temp_tube_out: float
-    temp_outer_in: float
-    temp_outer_out: float
-    q_tube_to_outer: float
+class TubeOuterElementMarchResult(NamedTuple):
+    tube_inlet_temperature: float
+    tube_outlet_temperature: float
+    outer_inlet_temperature: float
+    outer_outlet_temperature: float
+    heat_transfer_rate_tube_to_outer: float
 
 
 class TubeMarchResult(NamedTuple):
-    element_results: tuple[ElementResult, ...]
-    temp_tube_out: float
-    q_total_tube_to_outer: float
-    temp_outer_out_values: tuple[float, ...]
+    element_results: tuple[TubeOuterElementMarchResult, ...]
+    tube_outlet_temperature: float
+    total_heat_transfer_rate_tube_to_outer: float
+    outer_outlet_temperature_values: tuple[float, ...]

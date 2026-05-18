@@ -2,8 +2,8 @@ from math import exp
 
 import pytest
 from examples.hx._physics import (
-    element_temperatures_mixed_unmixed,
     local_effectiveness,
+    mixed_unmixed_element_temperatures,
 )
 
 
@@ -14,60 +14,81 @@ def test_single_element_against_closed_form_solution() -> None:
     equations.
 
     Given:
-        T_mixed_in = 350 K
-        T_unmixed_in = 300 K
-        C_mixed = 200 W/K
-        C_unmixed = 50 W/K
-        UA = 25 W/K
+        mixed_inlet_temperature = 350 K
+        unmixed_inlet_temperature = 300 K
+        mixed_heat_capacity_rate = 200 W/K
+        unmixed_heat_capacity_rate = 50 W/K
+        thermal_conductance_per_element = 25 W/K
 
     The exact local effectiveness is:
 
-        eps = 1 - exp(-UA / C_unmixed)
+        effectiveness = 1 - exp(
+            -thermal_conductance_per_element / unmixed_heat_capacity_rate
+        )
 
-    The signed element heat transfer is:
+    The signed heat transfer rate is:
 
-        q = eps * C_unmixed * (T_mixed_in - T_unmixed_in)
-            / (1 + eps * C_unmixed / (2 * C_mixed))
+        heat_transfer_rate = (
+            effectiveness
+            * unmixed_heat_capacity_rate
+            * (mixed_inlet_temperature - unmixed_inlet_temperature)
+            / (
+                1
+                + effectiveness
+                * unmixed_heat_capacity_rate
+                / (2 * mixed_heat_capacity_rate)
+            )
+        )
 
     Then:
 
-        T_mixed_out = T_mixed_in - q / C_mixed
-        T_unmixed_out = T_unmixed_in + q / C_unmixed
+        mixed_outlet_temperature = (
+            mixed_inlet_temperature
+            - heat_transfer_rate / mixed_heat_capacity_rate
+        )
+
+        unmixed_outlet_temperature = (
+            unmixed_inlet_temperature
+            + heat_transfer_rate / unmixed_heat_capacity_rate
+        )
     """
-    t_mixed_in = 350.0
-    t_unmixed_in = 300.0
-    heat_capacity_rate_mixed = 200.0
-    heat_capacity_rate_unmixed = 50.0
-    ua_element = 25.0
+    mixed_inlet_temperature = 350.0
+    unmixed_inlet_temperature = 300.0
+    mixed_heat_capacity_rate = 200.0
+    unmixed_heat_capacity_rate = 50.0
+    thermal_conductance_per_element = 25.0
 
-    expected_local_effectiveness = 1.0 - exp(-25.0 / 50.0)
+    expected_effectiveness = 1.0 - exp(-thermal_conductance_per_element / unmixed_heat_capacity_rate)
 
-    expected_q = (
-        expected_local_effectiveness
-        * heat_capacity_rate_unmixed
-        * (t_mixed_in - t_unmixed_in)
-        / (1.0 + expected_local_effectiveness * heat_capacity_rate_unmixed / (2.0 * heat_capacity_rate_mixed))
+    expected_heat_transfer_rate = (
+        expected_effectiveness
+        * unmixed_heat_capacity_rate
+        * (mixed_inlet_temperature - unmixed_inlet_temperature)
+        / (1.0 + expected_effectiveness * unmixed_heat_capacity_rate / (2.0 * mixed_heat_capacity_rate))
     )
 
-    expected_t_mixed_out = t_mixed_in - expected_q / heat_capacity_rate_mixed
-    expected_t_unmixed_out = t_unmixed_in + expected_q / heat_capacity_rate_unmixed
-
-    result = element_temperatures_mixed_unmixed(
-        temp_mixed_in=t_mixed_in,
-        temp_unmixed_in=t_unmixed_in,
-        heat_capacity_rate_mixed=heat_capacity_rate_mixed,
-        heat_capacity_rate_unmixed=heat_capacity_rate_unmixed,
-        thermal_conductance_element=ua_element,
+    expected_mixed_outlet_temperature = mixed_inlet_temperature - expected_heat_transfer_rate / mixed_heat_capacity_rate
+    expected_unmixed_outlet_temperature = (
+        unmixed_inlet_temperature + expected_heat_transfer_rate / unmixed_heat_capacity_rate
     )
 
-    assert expected_local_effectiveness == pytest.approx(0.3934693402873666)
-    assert result.q_element_mixed_unmixed == pytest.approx(937.5606780351816)
-    assert result.temp_mixed_out == pytest.approx(345.31219660982407)
-    assert result.temp_unmixed_out == pytest.approx(318.7512135607036)
+    result = mixed_unmixed_element_temperatures(
+        mixed_inlet_temperature=mixed_inlet_temperature,
+        unmixed_inlet_temperature=unmixed_inlet_temperature,
+        mixed_heat_capacity_rate=mixed_heat_capacity_rate,
+        unmixed_heat_capacity_rate=unmixed_heat_capacity_rate,
+        thermal_conductance_per_element=thermal_conductance_per_element,
+    )
 
-    assert result.q_element_mixed_unmixed == pytest.approx(expected_q)
-    assert result.temp_mixed_out == pytest.approx(expected_t_mixed_out)
-    assert result.temp_unmixed_out == pytest.approx(expected_t_unmixed_out)
+    assert expected_effectiveness == pytest.approx(0.3934693402873666)
+
+    assert result.heat_transfer_rate_mixed_to_unmixed == pytest.approx(937.5606780351816)
+    assert result.mixed_outlet_temperature == pytest.approx(345.31219660982407)
+    assert result.unmixed_outlet_temperature == pytest.approx(318.7512135607036)
+
+    assert result.heat_transfer_rate_mixed_to_unmixed == pytest.approx(expected_heat_transfer_rate)
+    assert result.mixed_outlet_temperature == pytest.approx(expected_mixed_outlet_temperature)
+    assert result.unmixed_outlet_temperature == pytest.approx(expected_unmixed_outlet_temperature)
 
 
 def test_single_element_reverses_heat_flow_when_temperature_difference_reverses() -> None:
@@ -76,41 +97,45 @@ def test_single_element_reverses_heat_flow_when_temperature_difference_reverses(
     The result should be exactly the same magnitude of heat transfer, but
     negative, because the sign convention is:
 
-        q > 0: mixed/tube side heats unmixed/outer side
-        q < 0: unmixed/outer side heats mixed/tube side
-    """
-    expected_local_effectiveness = 1.0 - exp(-25.0 / 50.0)
+        heat_transfer_rate > 0:
+            mixed/tube side heats unmixed/outer side
 
-    result = element_temperatures_mixed_unmixed(
-        temp_mixed_in=300.0,
-        temp_unmixed_in=350.0,
-        heat_capacity_rate_mixed=200.0,
-        heat_capacity_rate_unmixed=50.0,
-        thermal_conductance_element=25.0,
+        heat_transfer_rate < 0:
+            unmixed/outer side heats mixed/tube side
+    """
+    expected_effectiveness = 1.0 - exp(-25.0 / 50.0)
+
+    result = mixed_unmixed_element_temperatures(
+        mixed_inlet_temperature=300.0,
+        unmixed_inlet_temperature=350.0,
+        mixed_heat_capacity_rate=200.0,
+        unmixed_heat_capacity_rate=50.0,
+        thermal_conductance_per_element=25.0,
     )
 
-    assert expected_local_effectiveness == pytest.approx(0.3934693402873666)
-    assert result.q_element_mixed_unmixed == pytest.approx(-937.5606780351816)
-    assert result.temp_mixed_out == pytest.approx(304.68780339017593)
-    assert result.temp_unmixed_out == pytest.approx(331.2487864392964)
+    assert expected_effectiveness == pytest.approx(0.3934693402873666)
+
+    assert result.heat_transfer_rate_mixed_to_unmixed == pytest.approx(-937.5606780351816)
+    assert result.mixed_outlet_temperature == pytest.approx(304.68780339017593)
+    assert result.unmixed_outlet_temperature == pytest.approx(331.2487864392964)
 
 
 def test_zero_temperature_difference_gives_zero_heat_transfer() -> None:
-    result = element_temperatures_mixed_unmixed(
-        temp_mixed_in=300.0,
-        temp_unmixed_in=300.0,
-        heat_capacity_rate_mixed=200.0,
-        heat_capacity_rate_unmixed=50.0,
-        thermal_conductance_element=25.0,
+    result = mixed_unmixed_element_temperatures(
+        mixed_inlet_temperature=300.0,
+        unmixed_inlet_temperature=300.0,
+        mixed_heat_capacity_rate=200.0,
+        unmixed_heat_capacity_rate=50.0,
+        thermal_conductance_per_element=25.0,
     )
 
-    assert result.q_element_mixed_unmixed == pytest.approx(0.0)
-    assert result.temp_mixed_out == pytest.approx(300.0)
-    assert result.temp_unmixed_out == pytest.approx(300.0)
+    assert result.heat_transfer_rate_mixed_to_unmixed == pytest.approx(0.0)
+    assert result.mixed_outlet_temperature == pytest.approx(300.0)
+    assert result.unmixed_outlet_temperature == pytest.approx(300.0)
 
 
 def test_local_effectiveness_against_exact_exponential_value() -> None:
     assert local_effectiveness(
-        thermal_conductance_element=25.0,
-        heat_capacity_rate_unmixed=50.0,
+        thermal_conductance_per_element=25.0,
+        unmixed_heat_capacity_rate=50.0,
     ) == pytest.approx(1.0 - exp(-0.5))
