@@ -2,8 +2,8 @@ from math import exp, log, pi
 
 import pytest
 from examples.hx._htc import (
-    overall_u_outer_basis_from_h,
-    thermal_conductance_element,
+    overall_heat_transfer_coefficient_outer_area_basis_from_coefficients,
+    thermal_conductance_per_element,
 )
 from examples.hx._physics import (
     heat_capacity_rate,
@@ -30,73 +30,6 @@ def test_full_one_element_heat_exchanger_against_hand_calculation() -> None:
         -> single-tube marching solver
 
     against an independent hand-calculated closed-form answer.
-
-    Geometry:
-        tube_length = 2.0 m
-        tube_outer_radius = 0.01 m
-        tube_wall_thickness = 0.001 m
-        wall_thermal_conductivity = 16 W/m/K
-
-    Heat transfer coefficients:
-        inner_heat_transfer_coefficient = 1000 W/m2/K
-        outer_heat_transfer_coefficient = 100 W/m2/K
-
-    Flow:
-        tube side:
-            tube_mass_flow_rate = 1.0 kg/s
-            tube_specific_heat_capacity = 200 J/kg/K
-            tube_heat_capacity_rate = 200 W/K
-
-        outer side:
-            outer_mass_flow_rate = 1.0 kg/s
-            outer_specific_heat_capacity = 50 J/kg/K
-            outer_heat_capacity_rate = 50 W/K
-
-    Temperatures:
-        tube_inlet_temperature = 350 K
-        outer_inlet_temperature = 300 K
-
-    Expected equations:
-
-        inner_radius = outer_radius - wall_thickness
-        element_length = tube_length / number_of_elements
-        outer_area_per_element = 2 pi outer_radius element_length
-
-        1 / overall_heat_transfer_coefficient =
-            1 / outer_heat_transfer_coefficient
-            + outer_radius * log(outer_radius / inner_radius)
-              / wall_thermal_conductivity
-            + outer_radius
-              / (inner_radius * inner_heat_transfer_coefficient)
-
-        thermal_conductance_per_element =
-            overall_heat_transfer_coefficient * outer_area_per_element
-
-        effectiveness = 1 - exp(
-            -thermal_conductance_per_element / outer_heat_capacity_rate
-        )
-
-        heat_transfer_rate = (
-            effectiveness
-            * outer_heat_capacity_rate
-            * (tube_inlet_temperature - outer_inlet_temperature)
-            / (
-                1
-                + effectiveness
-                * outer_heat_capacity_rate
-                / (2 * tube_heat_capacity_rate)
-            )
-        )
-
-        tube_outlet_temperature = (
-            tube_inlet_temperature
-            - heat_transfer_rate / tube_heat_capacity_rate
-        )
-
-        outer_outlet_temperature = (
-            outer_inlet_temperature
-            + heat_transfer_rate / outer_heat_capacity_rate
-        )
     """
     tube_length = 2.0
     tube_outer_radius = 0.01
@@ -132,17 +65,21 @@ def test_full_one_element_heat_exchanger_against_hand_calculation() -> None:
         element_length=element_length_value,
     )
 
-    overall_heat_transfer_coefficient_outer_basis = overall_u_outer_basis_from_h(
-        h_inner=inner_heat_transfer_coefficient,
-        h_outer=outer_heat_transfer_coefficient,
-        tube_outer_radius=tube_outer_radius,
-        tube_inner_radius=tube_inner_radius_value,
-        wall_thermal_conductivity=wall_thermal_conductivity,
+    overall_heat_transfer_coefficient_outer_area_basis = (
+        overall_heat_transfer_coefficient_outer_area_basis_from_coefficients(
+            inner_heat_transfer_coefficient=inner_heat_transfer_coefficient,
+            outer_heat_transfer_coefficient=outer_heat_transfer_coefficient,
+            tube_outer_radius=tube_outer_radius,
+            tube_inner_radius=tube_inner_radius_value,
+            wall_thermal_conductivity=wall_thermal_conductivity,
+        )
     )
 
-    thermal_conductance_per_element = thermal_conductance_element(
-        overall_u_outer_basis=overall_heat_transfer_coefficient_outer_basis,
-        tube_outer_area_element=tube_outer_area_per_element,
+    thermal_conductance_per_element_value = thermal_conductance_per_element(
+        overall_heat_transfer_coefficient_outer_area_basis=(
+            overall_heat_transfer_coefficient_outer_area_basis
+        ),
+        tube_outer_area_per_element=tube_outer_area_per_element,
     )
 
     tube_heat_capacity_rate = heat_capacity_rate(
@@ -160,7 +97,7 @@ def test_full_one_element_heat_exchanger_against_hand_calculation() -> None:
         outer_inlet_temperature=outer_inlet_temperature,
         tube_heat_capacity_rate=tube_heat_capacity_rate,
         outer_heat_capacity_rate_per_element=outer_heat_capacity_rate_per_element,
-        thermal_conductance_per_element=thermal_conductance_per_element,
+        thermal_conductance_per_element=thermal_conductance_per_element_value,
     )
 
     march_result = march_single_tube(
@@ -168,7 +105,7 @@ def test_full_one_element_heat_exchanger_against_hand_calculation() -> None:
         outer_inlet_temperature_values=[outer_inlet_temperature],
         tube_heat_capacity_rate=tube_heat_capacity_rate,
         outer_heat_capacity_rate_values=[outer_heat_capacity_rate_per_element],
-        thermal_conductance_values=[thermal_conductance_per_element],
+        thermal_conductance_values=[thermal_conductance_per_element_value],
     )
 
     # Independent hand calculation.
@@ -176,7 +113,9 @@ def test_full_one_element_heat_exchanger_against_hand_calculation() -> None:
     inner_radius = tube_outer_radius - tube_wall_thickness
     length_per_element = tube_length / number_of_elements
 
-    expected_tube_outer_area_per_element = 2.0 * pi * outer_radius * length_per_element
+    expected_tube_outer_area_per_element = (
+        2.0 * pi * outer_radius * length_per_element
+    )
 
     expected_total_thermal_resistance = (
         1.0 / outer_heat_transfer_coefficient
@@ -184,46 +123,86 @@ def test_full_one_element_heat_exchanger_against_hand_calculation() -> None:
         + outer_radius / (inner_radius * inner_heat_transfer_coefficient)
     )
 
-    expected_overall_heat_transfer_coefficient_outer_basis = 1.0 / expected_total_thermal_resistance
-
-    expected_thermal_conductance_per_element = (
-        expected_overall_heat_transfer_coefficient_outer_basis * expected_tube_outer_area_per_element
+    expected_overall_heat_transfer_coefficient_outer_area_basis = (
+        1.0 / expected_total_thermal_resistance
     )
 
-    expected_effectiveness = 1.0 - exp(-expected_thermal_conductance_per_element / outer_heat_capacity_rate_per_element)
+    expected_thermal_conductance_per_element = (
+        expected_overall_heat_transfer_coefficient_outer_area_basis
+        * expected_tube_outer_area_per_element
+    )
+
+    expected_effectiveness = 1.0 - exp(
+        -expected_thermal_conductance_per_element
+        / outer_heat_capacity_rate_per_element
+    )
 
     expected_heat_transfer_rate = (
         expected_effectiveness
         * outer_heat_capacity_rate_per_element
         * (tube_inlet_temperature - outer_inlet_temperature)
-        / (1.0 + expected_effectiveness * outer_heat_capacity_rate_per_element / (2.0 * tube_heat_capacity_rate))
+        / (
+            1.0
+            + expected_effectiveness
+            * outer_heat_capacity_rate_per_element
+            / (2.0 * tube_heat_capacity_rate)
+        )
     )
 
-    expected_tube_outlet_temperature = tube_inlet_temperature - expected_heat_transfer_rate / tube_heat_capacity_rate
+    expected_tube_outlet_temperature = (
+        tube_inlet_temperature
+        - expected_heat_transfer_rate / tube_heat_capacity_rate
+    )
 
     expected_outer_outlet_temperature = (
-        outer_inlet_temperature + expected_heat_transfer_rate / outer_heat_capacity_rate_per_element
+        outer_inlet_temperature
+        + expected_heat_transfer_rate / outer_heat_capacity_rate_per_element
     )
 
     assert tube_inner_radius_value == pytest.approx(0.009)
-    assert tube_outer_area_per_element == pytest.approx(expected_tube_outer_area_per_element)
-    assert overall_heat_transfer_coefficient_outer_basis == pytest.approx(
-        expected_overall_heat_transfer_coefficient_outer_basis
+
+    assert tube_outer_area_per_element == pytest.approx(
+        expected_tube_outer_area_per_element
     )
-    assert thermal_conductance_per_element == pytest.approx(expected_thermal_conductance_per_element)
 
-    assert result.heat_transfer_rate_tube_to_outer == pytest.approx(expected_heat_transfer_rate)
-    assert result.tube_outlet_temperature == pytest.approx(expected_tube_outlet_temperature)
-    assert result.outer_outlet_temperature == pytest.approx(expected_outer_outlet_temperature)
+    assert overall_heat_transfer_coefficient_outer_area_basis == pytest.approx(
+        expected_overall_heat_transfer_coefficient_outer_area_basis
+    )
 
-    assert march_result.tube_outlet_temperature == pytest.approx(expected_tube_outlet_temperature)
-    assert march_result.total_heat_transfer_rate_tube_to_outer == pytest.approx(expected_heat_transfer_rate)
-    assert march_result.outer_outlet_temperature_values[0] == pytest.approx(expected_outer_outlet_temperature)
+    assert thermal_conductance_per_element_value == pytest.approx(
+        expected_thermal_conductance_per_element
+    )
+
+    assert result.heat_transfer_rate_tube_to_outer == pytest.approx(
+        expected_heat_transfer_rate
+    )
+    assert result.tube_outlet_temperature == pytest.approx(
+        expected_tube_outlet_temperature
+    )
+    assert result.outer_outlet_temperature == pytest.approx(
+        expected_outer_outlet_temperature
+    )
+
+    assert march_result.tube_outlet_temperature == pytest.approx(
+        expected_tube_outlet_temperature
+    )
+    assert march_result.total_heat_transfer_rate_tube_to_outer == pytest.approx(
+        expected_heat_transfer_rate
+    )
+    assert march_result.outer_outlet_temperature_values[0] == pytest.approx(
+        expected_outer_outlet_temperature
+    )
 
     # Numerical values for regression clarity.
-    assert overall_heat_transfer_coefficient_outer_basis == pytest.approx(89.46975490243314)
-    assert thermal_conductance_per_element == pytest.approx(11.243100988798535)
+    assert overall_heat_transfer_coefficient_outer_area_basis == pytest.approx(
+        89.46975490243314
+    )
+    assert thermal_conductance_per_element_value == pytest.approx(
+        11.243100988798535
+    )
     assert expected_effectiveness == pytest.approx(0.20137359419222556)
-    assert result.heat_transfer_rate_tube_to_outer == pytest.approx(491.0728474430857)
+    assert result.heat_transfer_rate_tube_to_outer == pytest.approx(
+        491.0728474430857
+    )
     assert result.tube_outlet_temperature == pytest.approx(347.5446357627846)
     assert result.outer_outlet_temperature == pytest.approx(309.82145694886174)

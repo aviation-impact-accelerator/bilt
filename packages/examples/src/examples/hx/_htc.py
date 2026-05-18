@@ -18,23 +18,23 @@ def heat_transfer_coefficient(
 
 
 def tube_side_reynolds_number(
-    mdot: float,
+    mass_flow_rate: float,
     density: float,
     dynamic_viscosity: float,
     tube_inner_diameter: float,
     tube_flow_area: float,
 ) -> float:
-    velocity_value = velocity(
-        mdot=mdot,
+    tube_velocity = velocity(
+        mass_flow_rate=mass_flow_rate,
         density=density,
-        tube_flow_area=tube_flow_area,
+        flow_area=tube_flow_area,
     )
 
     return reynolds_number(
         density=density,
-        velocity=velocity_value,
+        velocity=tube_velocity,
         length=tube_inner_diameter,
-        mu=dynamic_viscosity,
+        dynamic_viscosity=dynamic_viscosity,
     )
 
 
@@ -87,7 +87,7 @@ def heat_transfer_coefficient_dittus_boelter_cooling(
 
 
 def tube_side_heat_transfer_coefficient_heating(  # noqa: PLR0913
-    mdot: float,
+    mass_flow_rate: float,
     density: float,
     specific_heat_capacity: float,
     dynamic_viscosity: float,
@@ -96,7 +96,7 @@ def tube_side_heat_transfer_coefficient_heating(  # noqa: PLR0913
     tube_flow_area: float,
 ) -> float:
     reynolds_number_value = tube_side_reynolds_number(
-        mdot=mdot,
+        mass_flow_rate=mass_flow_rate,
         density=density,
         dynamic_viscosity=dynamic_viscosity,
         tube_inner_diameter=tube_inner_diameter,
@@ -117,8 +117,8 @@ def tube_side_heat_transfer_coefficient_heating(  # noqa: PLR0913
     )
 
 
-def tube_side_heat_transfer_coefficient_cooling(  # noqa : PLR0913
-    mdot: float,
+def tube_side_heat_transfer_coefficient_cooling(  # noqa: PLR0913
+    mass_flow_rate: float,
     density: float,
     specific_heat_capacity: float,
     dynamic_viscosity: float,
@@ -127,7 +127,7 @@ def tube_side_heat_transfer_coefficient_cooling(  # noqa : PLR0913
     tube_flow_area: float,
 ) -> float:
     reynolds_number_value = tube_side_reynolds_number(
-        mdot=mdot,
+        mass_flow_rate=mass_flow_rate,
         density=density,
         dynamic_viscosity=dynamic_viscosity,
         tube_inner_diameter=tube_inner_diameter,
@@ -148,78 +148,93 @@ def tube_side_heat_transfer_coefficient_cooling(  # noqa : PLR0913
     )
 
 
-def resistance_outer_convection(
-    h_outer: float,
+def outer_convection_thermal_resistance(
+    outer_heat_transfer_coefficient: float,
 ) -> float:
-    return 1.0 / h_outer
+    return 1.0 / outer_heat_transfer_coefficient
 
 
-def resistance_wall_outer_basis(
+def wall_thermal_resistance_outer_area_basis(
     tube_outer_radius: float,
     tube_inner_radius: float,
     wall_thermal_conductivity: float,
 ) -> float:
-    return tube_outer_radius * log(tube_outer_radius / tube_inner_radius) / wall_thermal_conductivity
-
-
-def resistance_inner_convection_outer_basis(
-    tube_outer_radius: float,
-    tube_inner_radius: float,
-    h_inner: float,
-) -> float:
-    return tube_outer_radius / (tube_inner_radius * h_inner)
-
-
-def resistance_total_outer_basis(
-    resistance_outer_convection: float,
-    resistance_wall_outer_basis: float,
-    resistance_inner_convection_outer_basis: float,
-) -> float:
-    return resistance_outer_convection + resistance_wall_outer_basis + resistance_inner_convection_outer_basis
-
-
-def overall_u_outer_basis(
-    resistance_total_outer_basis: float,
-) -> float:
-    return 1.0 / resistance_total_outer_basis
-
-
-def overall_u_outer_basis_from_h(
-    h_inner: float,
-    h_outer: float,
-    tube_outer_radius: float,
-    tube_inner_radius: float,
-    wall_thermal_conductivity: float,
-) -> float:
-    resistance_outer_convection_value = resistance_outer_convection(
-        h_outer=h_outer,
+    return (
+        tube_outer_radius
+        * log(tube_outer_radius / tube_inner_radius)
+        / wall_thermal_conductivity
     )
 
-    resistance_wall_outer_basis_value = resistance_wall_outer_basis(
+
+def inner_convection_thermal_resistance_outer_area_basis(
+    tube_outer_radius: float,
+    tube_inner_radius: float,
+    inner_heat_transfer_coefficient: float,
+) -> float:
+    return tube_outer_radius / (
+        tube_inner_radius * inner_heat_transfer_coefficient
+    )
+
+
+def total_thermal_resistance_outer_area_basis(
+    outer_convection_thermal_resistance: float,
+    wall_thermal_resistance_outer_area_basis: float,
+    inner_convection_thermal_resistance_outer_area_basis: float,
+) -> float:
+    return (
+        outer_convection_thermal_resistance
+        + wall_thermal_resistance_outer_area_basis
+        + inner_convection_thermal_resistance_outer_area_basis
+    )
+
+
+def overall_heat_transfer_coefficient_outer_area_basis(
+    total_thermal_resistance_outer_area_basis: float,
+) -> float:
+    return 1.0 / total_thermal_resistance_outer_area_basis
+
+
+def overall_heat_transfer_coefficient_outer_area_basis_from_coefficients(
+    inner_heat_transfer_coefficient: float,
+    outer_heat_transfer_coefficient: float,
+    tube_outer_radius: float,
+    tube_inner_radius: float,
+    wall_thermal_conductivity: float,
+) -> float:
+    outer_convection_resistance = outer_convection_thermal_resistance(
+        outer_heat_transfer_coefficient=outer_heat_transfer_coefficient,
+    )
+
+    wall_resistance = wall_thermal_resistance_outer_area_basis(
         tube_outer_radius=tube_outer_radius,
         tube_inner_radius=tube_inner_radius,
         wall_thermal_conductivity=wall_thermal_conductivity,
     )
 
-    resistance_inner_convection_outer_basis_value = resistance_inner_convection_outer_basis(
-        tube_outer_radius=tube_outer_radius,
-        tube_inner_radius=tube_inner_radius,
-        h_inner=h_inner,
+    inner_convection_resistance = (
+        inner_convection_thermal_resistance_outer_area_basis(
+            tube_outer_radius=tube_outer_radius,
+            tube_inner_radius=tube_inner_radius,
+            inner_heat_transfer_coefficient=inner_heat_transfer_coefficient,
+        )
     )
 
-    resistance_total_outer_basis_value = resistance_total_outer_basis(
-        resistance_outer_convection=resistance_outer_convection_value,
-        resistance_wall_outer_basis=resistance_wall_outer_basis_value,
-        resistance_inner_convection_outer_basis=resistance_inner_convection_outer_basis_value,
+    total_resistance = total_thermal_resistance_outer_area_basis(
+        outer_convection_thermal_resistance=outer_convection_resistance,
+        wall_thermal_resistance_outer_area_basis=wall_resistance,
+        inner_convection_thermal_resistance_outer_area_basis=inner_convection_resistance,
     )
 
-    return overall_u_outer_basis(
-        resistance_total_outer_basis=resistance_total_outer_basis_value,
+    return overall_heat_transfer_coefficient_outer_area_basis(
+        total_thermal_resistance_outer_area_basis=total_resistance,
     )
 
 
-def thermal_conductance_element(
-    overall_u_outer_basis: float,
-    tube_outer_area_element: float,
+def thermal_conductance_per_element(
+    overall_heat_transfer_coefficient_outer_area_basis: float,
+    tube_outer_area_per_element: float,
 ) -> float:
-    return overall_u_outer_basis * tube_outer_area_element
+    return (
+        overall_heat_transfer_coefficient_outer_area_basis
+        * tube_outer_area_per_element
+    )
