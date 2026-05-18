@@ -1,6 +1,6 @@
 """Common units defined with the (mostly SI) units system."""
 
-__all__ = (
+__all__ = [
     "DIMENSIONLESS",
     "EUR",
     "GBP",
@@ -86,7 +86,7 @@ __all__ = (
     "watthour",
     "yard",
     "year",
-)
+]
 
 import math
 

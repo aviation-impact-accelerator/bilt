@@ -1,4 +1,4 @@
-__all__ = ("EUR", "GBP", "JPY", "USD")
+__all__ = ["EUR", "GBP", "JPY", "USD"]
 
 import dataclasses
 import typing
