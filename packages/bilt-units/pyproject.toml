@@ -1,0 +1,20 @@
+[project]
+name = "bilt-units"
+version = "0.0.1"
+description = "Unit system for transform based system modelling."
+readme = "README.md"
+authors = [
+    { name = "Sam Brockie", email = "sgb39@cam.ac.uk" },
+    { name = "James Emberton", email = "je484@cam.ac.uk" },
+    { name = "Nicolas Seyedzadeh", email = "ns896@cam.ac.uk" },
+]
+requires-python = ">=3.14"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.11.9,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "bilt"
+namespace = true

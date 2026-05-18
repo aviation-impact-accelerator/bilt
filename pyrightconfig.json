@@ -4,12 +4,15 @@
   "stubPath": "typings",
   "extraPaths": [
     "packages/bilt-core/src",
+    "packages/bilt-units/src",
     "packages/bilt-mypy/src",
     "packages/examples/src"
   ],
   "include": [
     "packages/bilt-core/src",
     "packages/bilt-core/tests",
+    "packages/bilt-units/src",
+    "packages/bilt-units/tests",
     "packages/bilt-mypy/src",
     "packages/bilt-mypy/tests",
     "packages/examples/src",
