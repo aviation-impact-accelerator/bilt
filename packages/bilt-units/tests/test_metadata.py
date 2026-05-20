@@ -16,11 +16,14 @@ class TestMetadata:
         (
             (Metadata("co2"), Metadata("nox"), True),
             (Metadata("co2"), None, False),
-            (None, Metadata("co2"), True),
         ),
     )
-    def test_comparison(left: Metadata | None, right: Metadata | None, is_less_than: bool) -> None:
-        assert (left < right) is is_less_than  # type: ignore[operator]
+    def test_comparison(left: Metadata, right: Metadata | None, is_less_than: bool) -> None:
+        assert (left < right) is is_less_than
+
+    @staticmethod
+    def test_none_less_than_metadata() -> None:
+        assert Metadata("co2") > None
 
     @staticmethod
     def test_equality() -> None:
