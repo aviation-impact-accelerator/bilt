@@ -1,7 +1,6 @@
 import pytest
 
-from bilt.core import system
-from bilt.core._system._error import BiltUnknownSystemAttributeError
+from bilt.core import BiltUnknownSystemAttributeError, system
 from bilt.core._system._interface import Interface
 
 
