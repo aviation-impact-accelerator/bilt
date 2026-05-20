@@ -77,8 +77,6 @@ def _create_properties(cls: Interface) -> None:
 class Method(enum.Enum):
     METHOD = enum.auto()
     PROPERTY = enum.auto()
-    CLASS = enum.auto()
-    STATIC = enum.auto()
 
 
 def _create_decorator(method: Method) -> str:
@@ -87,10 +85,6 @@ def _create_decorator(method: Method) -> str:
             return ""
         case Method.PROPERTY:
             return "@property\n"
-        case Method.CLASS:
-            return "@classmethod\n"
-        case Method.STATIC:
-            return "@staticmethod\n"
         case _:
             typing.assert_never(method)
 
@@ -111,7 +105,7 @@ def _create_method(  # noqa: PLR0913
     exec(src, global_namespace, local_namespace)  # noqa: S102
     attribute = typing.cast("types.FunctionType", local_namespace[name])
     match method:
-        case Method.METHOD | Method.CLASS | Method.STATIC:
+        case Method.METHOD:
             attribute.__qualname__ = f"{cls.__qualname__}.{attribute.__name__}"
         case Method.PROPERTY:
             attribute.fget.__qualname__ = f"{cls.__qualname__}.{attribute.fget.__name__}"  # type: ignore[attr-defined]
