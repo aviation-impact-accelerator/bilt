@@ -491,7 +491,7 @@ class Unit:
             )
             return self.__class__(left * right)
         if isinstance(other, Quantity):
-            return Quantity(other.value, self * other.unit)  # type: ignore[operator]
+            return Quantity(other.value, self * other.unit)
         return NotImplemented
 
     def __rmul__(self, other: Quantity | float) -> Quantity:
@@ -521,7 +521,7 @@ class Unit:
             )
             return self.__class__(numerator / denominator)
         if isinstance(other, Quantity):
-            return Quantity(1.0 / other.value, self / other.unit)  # type: ignore[operator]
+            return Quantity(1.0 / other.value, self / other.unit)
         return NotImplemented
 
     @typing.overload
