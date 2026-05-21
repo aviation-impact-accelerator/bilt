@@ -81,8 +81,8 @@ def _create_eq_method(cls: Interface) -> None:
     body = [
         "if other.__class__ is not self.__class__:",
         "    return NotImplemented",
-        "return ({name: self.__bilt_system_instance_variables__[name] for name in self.__bilt_system_attributes__}"
-        " == {name: other.__bilt_system_instance_variables__[name] for name in other.__bilt_system_attributes__})",
+        "return (tuple(self.__bilt_system_instance_variables__[name] for name in self.__bilt_system_attributes__)"
+        " == tuple(other.__bilt_system_instance_variables__[name] for name in other.__bilt_system_attributes__))",
     ]
     _create_method(
         cls,
