@@ -1,5 +1,44 @@
 __all__ = ["Implementation"]
 
+import typing
+
+from bilt.core._error import BiltCoreError
+
+if typing.TYPE_CHECKING:
+    import collections.abc
+
+    from bilt.core._transform import Transform
+
+    from ._interface import Interface
+
+
+class BiltSystemEvaluationError(BiltCoreError):
+    pass
+
 
 class Implementation:
     """Register a collection of transforms as an implementation of a system."""
+
+    def __init__(self, system: Interface, transforms: collections.abc.Iterable[Transform[typing.Any, ...]]) -> None:
+        self._system = system
+        self._transforms = {transform.__bilt_transform_name__: transform for transform in transforms}
+        system.__bilt_system_registry__.add(self)
+
+    @property
+    def system(self) -> Interface:
+        return self._system
+
+    @property
+    def transforms(self) -> dict[str, Transform[typing.Any, ...]]:
+        return self._transforms
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Implementation):
+            return NotImplemented
+        return self.system == other.system and self.transforms == other.transforms
+
+    def __hash__(self) -> int:
+        return hash((self.system, frozenset(self.transforms.items())))
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self.transforms.values())!r})"
