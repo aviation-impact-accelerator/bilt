@@ -104,12 +104,14 @@ def _create_method(  # noqa: PLR0913
     body = [f"    {line}" for line in body]
     src = f"{decorator}def {name}({', '.join(args)}):\n{'\n'.join(body)}"
     exec(src, global_namespace, local_namespace)  # noqa: S102
-    attribute = typing.cast("types.FunctionType", local_namespace[name])
     match method:
         case Method.METHOD:
+            attribute = typing.cast("types.FunctionType", local_namespace[name])
             attribute.__qualname__ = f"{cls.__qualname__}.{attribute.__name__}"
         case Method.PROPERTY:
-            attribute.fget.__qualname__ = f"{cls.__qualname__}.{attribute.fget.__name__}"  # type: ignore[attr-defined]
+            attribute = typing.cast("property", local_namespace[name])
+            fget = typing.cast("types.FunctionType", attribute.fget)
+            fget.__qualname__ = f"{cls.__qualname__}.{fget.__name__}"
         case _:
             typing.assert_never(method)
     setattr(cls, name, attribute)
