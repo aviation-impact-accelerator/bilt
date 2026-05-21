@@ -16,6 +16,7 @@ from bilt.units._units import (
     second,
 )
 from bilt.units.units import (
+    absolute_year,
     celsius,
     degree,
     exajoule,
@@ -373,6 +374,11 @@ class TestQuantity:
     def test_quantity_convert_to_unit_error_if_units_have_different_metadata() -> None:
         with pytest.raises(UnitError, match="Cannot convert quantity"):
             _ = (1.0 * kilogram * co2).convert_to(kilogram * nox)
+
+    @staticmethod
+    def test_quantity_convert_to_unit_error_if_converting_absolute_to_relative() -> None:
+        with pytest.raises(UnitError, match="Cannot convert quantity"):
+            _ = (1.0 * absolute_year).convert_to(second)
 
     @staticmethod
     @pytest.mark.parametrize(
