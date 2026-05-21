@@ -24,8 +24,10 @@ jobs:
         run: uv run ruff check
       - name: Format with Ruff
         run: uv run ruff format
-      - name: Type check with mypy
-        run: uv run mypy
+      - name: Type check with Pyrefly
+        run: uv run pyrefly check
+      - name: Type check with ty
+        run: uv run ty check
       - name: Test with pytest
         run: uv run pytest
       - name: Check with prek

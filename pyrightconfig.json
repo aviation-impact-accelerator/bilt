@@ -1,7 +1,6 @@
 {
   "venvPath": ".",
   "venv": ".venv",
-  "stubPath": "typings",
   "extraPaths": [
     "packages/bilt-core/src",
     "packages/bilt-units/src",

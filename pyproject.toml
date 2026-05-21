@@ -7,30 +7,19 @@ requires-python = ">=3.14"
 
 [dependency-groups]
 dev = [
-    "mypy>=1.20.2",
     "prek>=0.3.11",
+    "pyrefly>=1.0.0",
     "pytest>=9.0.3",
     "ruff>=0.15.12",
+    "ty>=0.0.38",
 ]
 
 docs = [
     "zensical>=0.0.37",
 ]
 
-[tool.mypy]
-explicit_package_bases = true
-namespace_packages = true
+[tool.pyrefly]
 python_version = "3.14"
-strict = true
-
-mypy_path = [
-    "packages/bilt-core/src",
-]
-
-files = [
-    "packages/bilt-core/src",
-    "packages/bilt-core/tests",
-]
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
@@ -85,7 +74,7 @@ convention = "google"
 
 [tool.uv.sources]
 bilt-core = { workspace = true }
-bilt-units = {workspace = true}
+bilt-units = { workspace = true }
 examples = { workspace = true }
 
 [tool.uv.workspace]

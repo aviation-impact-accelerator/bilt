@@ -65,10 +65,19 @@ id = "uv-lock"
 repo = "local"
 
 [[repos.hooks]]
-id = "mypy"
-name = "mypy"
+id = "pyrefly"
+name = "pyrefly"
 types = ["python"]
-entry = "uv run mypy"
+entry = "uv run pyrefly check"
+language = "system"
+pass_filenames = false
+always_run = true
+
+[[repos.hooks]]
+id = "ty"
+name = "ty"
+types = ["python"]
+entry = "uv run ty check"
 language = "system"
 pass_filenames = false
 always_run = true
