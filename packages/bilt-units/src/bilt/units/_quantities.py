@@ -52,7 +52,16 @@ class Quantity:
                     relative_unit = unit.relation.composition[0].unit
                     if relative_unit.is_si_base_unit:
                         return stack
-                    return create_unit_stack(unit.offset.composition[0].unit) + stack  # type: ignore[union-attr]
+                    if unit.offset is None:
+                        message = (
+                            f"Cannot build conversion chain for absolute unit {unit!s} because it "
+                            f"is not defined directly in terms of an SI base unit but has no offset "
+                            f"(zero point) set; absolute units defined relative to a non-SI-base "
+                            f"unit must supply a zero point to anchor the chain back to an SI base "
+                            f"unit"
+                        )
+                        raise UnitError(message)
+                    return create_unit_stack(unit.offset.composition[0].unit) + stack
 
                 start_unit_stack = create_unit_stack(self.unit)
                 end_unit_stack = create_unit_stack(unit)
