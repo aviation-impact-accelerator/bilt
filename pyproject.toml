@@ -74,8 +74,8 @@ convention = "google"
 
 [tool.uv.sources]
 bilt-core = { workspace = true }
-bilt-units = { workspace = true }
 bilt-symbolic = { workspace = true }
+bilt-units = { workspace = true }
 examples = { workspace = true }
 
 [tool.uv.workspace]
