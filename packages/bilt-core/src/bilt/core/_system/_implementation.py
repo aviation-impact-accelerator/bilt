@@ -1,5 +1,6 @@
 __all__ = ["BiltSystemEvaluationError", "Implementation"]
 
+import types
 import typing
 
 from bilt.core._error import BiltCoreError
@@ -21,7 +22,9 @@ class Implementation:
 
     def __init__(self, system: Interface, transforms: collections.abc.Iterable[Transform[typing.Any, ...]]) -> None:
         self._system = system
-        self._transforms = {transform.__bilt_transform_name__: transform for transform in transforms}
+        self._transforms = types.MappingProxyType(
+            {transform.__bilt_transform_name__: transform for transform in transforms}
+        )
         system.__bilt_system_registry__.add(self)
 
     @property
@@ -29,7 +32,7 @@ class Implementation:
         return self._system
 
     @property
-    def transforms(self) -> dict[str, Transform[typing.Any, ...]]:
+    def transforms(self) -> types.MappingProxyType[str, Transform[typing.Any, ...]]:
         return self._transforms
 
     def __eq__(self, other: object) -> bool:
