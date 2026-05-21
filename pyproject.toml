@@ -76,6 +76,7 @@ convention = "google"
 bilt-core = { workspace = true }
 bilt-symbolic = { workspace = true }
 bilt-units = { workspace = true }
+bilt-symbolic = { workspace = true }
 examples = { workspace = true }
 
 [tool.uv.workspace]
