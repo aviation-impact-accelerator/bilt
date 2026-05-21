@@ -2,6 +2,7 @@
 
 __all__ = [
     "BiltCoreError",
+    "BiltSystemEvaluationError",
     "BiltUnknownSystemAttributeError",
     "Implementation",
     "Interface",
@@ -11,6 +12,7 @@ __all__ = [
 ]
 
 from ._error import BiltCoreError as BiltCoreError
+from ._system import BiltSystemEvaluationError as BiltSystemEvaluationError
 from ._system import BiltUnknownSystemAttributeError as BiltUnknownSystemAttributeError
 from ._system import Implementation as Implementation
 from ._system import Interface as Interface

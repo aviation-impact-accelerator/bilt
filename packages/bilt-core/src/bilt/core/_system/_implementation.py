@@ -1,4 +1,4 @@
-__all__ = ["Implementation"]
+__all__ = ["BiltSystemEvaluationError", "Implementation"]
 
 import typing
 
