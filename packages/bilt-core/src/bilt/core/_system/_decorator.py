@@ -6,7 +6,7 @@ import typing
 
 from ._dispatch import _dispatch_evaluation
 from ._interface import Interface
-from ._sentinel import MISSING
+from ._sentinel import MISSING, _Missing
 
 if typing.TYPE_CHECKING:
     import types
@@ -25,6 +25,9 @@ def system[T](cls: type[T]) -> type[T]:
     _create_bilt_system_class_attribute(interface)
     _create_initialize_method(interface)
     _create_properties(interface)
+    _create_eq_method(interface)
+    _create_repr_method(interface)
+    _disable_hash(interface)
     return typing.cast("type[T]", interface)
 
 
@@ -72,6 +75,49 @@ def _create_properties(cls: Interface) -> None:
             global_namespace=globals(),
             local_namespace=local_namespace,
         )
+
+
+def _create_eq_method(cls: Interface) -> None:
+    body = [
+        "if other.__class__ is not self.__class__:",
+        "    return NotImplemented",
+        "return ({name: self.__bilt_system_instance_variables__[name] for name in self.__bilt_system_attributes__}"
+        " == {name: other.__bilt_system_instance_variables__[name] for name in other.__bilt_system_attributes__})",
+    ]
+    _create_method(
+        cls,
+        name="__eq__",
+        method=Method.METHOD,
+        args=["self", "other"],
+        body=body,
+        global_namespace=globals(),
+        local_namespace={},
+    )
+
+
+def _create_repr_method(cls: Interface) -> None:
+    body = [
+        "known_variables = {",
+        "    name: self.__bilt_system_instance_variables__[name]",
+        "    for name in self.__bilt_system_attributes__",
+        "    if not isinstance(self.__bilt_system_instance_variables__[name], _Missing)",
+        "}",
+        "formatted_variables = ', '.join(f'{name}={value}' for name, value in known_variables.items())",
+        "return f'{self.__class__.__name__}({formatted_variables})'",
+    ]
+    _create_method(
+        cls,
+        name="__repr__",
+        method=Method.METHOD,
+        args=["self"],
+        body=body,
+        global_namespace=globals(),
+        local_namespace={"_Missing": _Missing},
+    )
+
+
+def _disable_hash(cls: Interface) -> None:
+    setattr(cls, "__hash__", None)  # noqa: B010
 
 
 @enum.unique
