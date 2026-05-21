@@ -6,7 +6,7 @@ import typing
 
 from ._dispatch import _dispatch_evaluation
 from ._interface import Interface
-from ._sentinel import MISSING, _Missing
+from ._sentinel import MISSING
 
 if typing.TYPE_CHECKING:
     import types
@@ -100,7 +100,7 @@ def _create_repr_method(cls: Interface) -> None:
         "known_variables = {",
         "    name: self.__bilt_system_instance_variables__[name]",
         "    for name in self.__bilt_system_attributes__",
-        "    if not isinstance(self.__bilt_system_instance_variables__[name], _Missing)",
+        "    if not self.__bilt_system_instance_variables__[name] is MISSING",
         "}",
         "formatted_variables = ', '.join(f'{name}={value!r}' for name, value in known_variables.items())",
         "return f'{self.__class__.__name__}({formatted_variables})'",
@@ -112,7 +112,7 @@ def _create_repr_method(cls: Interface) -> None:
         args=["self"],
         body=body,
         global_namespace=globals(),
-        local_namespace={"_Missing": _Missing},
+        local_namespace={"MISSING": MISSING},
     )
 
 
