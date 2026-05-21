@@ -18,6 +18,7 @@ class Attribute[T]:
     annotation: type[T]
 
 
+@typing.dataclass_transform(kw_only_default=True)
 def system[T](cls: type[T]) -> type[T]:
     """Decorate a class as the interface of a system."""
     interface = Interface(cls.__name__, cls.__bases__, dict(cls.__dict__))
@@ -38,7 +39,7 @@ def _create_bilt_system_class_attribute(cls: Interface) -> None:
 
 def _create_initialize_method(cls: Interface) -> None:
     parameters = cls.__bilt_system_attributes__
-    args = ["self", *(f"{parameter}=MISSING" for parameter in parameters)]
+    args = ["self", "*", *(f"{parameter}=MISSING" for parameter in parameters)]
     body = [
         "self.__bilt_system_implementation__ = MISSING",
         f"self.__bilt_system_instance_variables__ = {{{', '.join(f'"{parameter}": {parameter}' for parameter in parameters)}}}",
