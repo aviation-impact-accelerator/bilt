@@ -1,11 +1,11 @@
 import pytest
 
-from bilt.core import BiltUnknownSystemAttributeError, field, system
+from bilt.core import BiltUnknownSystemAttributeError, Implementation, field, system, transform
 from bilt.core._system._interface import Interface
 
 
 @system
-class Demo:
+class Demo(metaclass=Interface):
     a: float = field()
     b: float = field()
     c: float = field()
@@ -13,7 +13,7 @@ class Demo:
 
 def test_decorator() -> None:
     @system
-    class Demo:
+    class Demo(metaclass=Interface):
         a: float = field()
         b: float = field()
         c: float = field()
@@ -106,10 +106,27 @@ def test_eq_different_type() -> None:
         (Demo(a=1.0, b=2.0, c=3.0), "Demo(a=1.0, b=2.0, c=3.0)"),
     ),
 )
-def test_repr(instance: Demo, expected_repr: str) -> None:
+def test_repr(instance: Demo, expected_repr: str) -> None:  # ty: ignore[invalid-type-form]
     assert repr(instance) == expected_repr
 
 
 def test_not_hashable() -> None:
     with pytest.raises(TypeError, match="unhashable type"):
         hash(Demo(a=1.0))
+
+
+def test_register_implementation() -> None:
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        c: float = field()
+
+    @transform
+    def c(a: float, b: float) -> float:
+        return a + b
+
+    assert Demo.__bilt_system_registry__ == set()
+
+    basic = Implementation(Demo, [c])
+    assert basic in Demo.__bilt_system_registry__
