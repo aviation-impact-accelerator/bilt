@@ -1,22 +1,22 @@
 import pytest
 
-from bilt.core import BiltUnknownSystemAttributeError, system
+from bilt.core import BiltUnknownSystemAttributeError, field, system
 from bilt.core._system._interface import Interface
 
 
 @system
 class Demo:
-    a: float
-    b: float
-    c: float
+    a: float = field()
+    b: float = field()
+    c: float = field()
 
 
 def test_decorator() -> None:
     @system
     class Demo:
-        a: float
-        b: float
-        c: float
+        a: float = field()
+        b: float = field()
+        c: float = field()
 
     assert Demo.__name__ == "Demo"
 
