@@ -102,7 +102,7 @@ def _create_repr_method(cls: Interface) -> None:
         "    for name in self.__bilt_system_attributes__",
         "    if not isinstance(self.__bilt_system_instance_variables__[name], _Missing)",
         "}",
-        "formatted_variables = ', '.join(f'{name}={value}' for name, value in known_variables.items())",
+        "formatted_variables = ', '.join(f'{name}={value!r}' for name, value in known_variables.items())",
         "return f'{self.__class__.__name__}({formatted_variables})'",
     ]
     _create_method(
