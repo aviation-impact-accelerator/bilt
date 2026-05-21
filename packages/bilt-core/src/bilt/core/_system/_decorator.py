@@ -6,7 +6,7 @@ import typing
 
 from ._dispatch import _dispatch_evaluation
 from ._interface import Interface
-from ._sentinel import MISSING, _Missing
+from ._sentinel import MISSING
 
 if typing.TYPE_CHECKING:
     import types
