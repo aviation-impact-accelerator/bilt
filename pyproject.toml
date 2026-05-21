@@ -76,6 +76,7 @@ convention = "google"
 bilt-core = { workspace = true }
 bilt-symbolic = { workspace = true }
 bilt-units = { workspace = true }
+bilt-symbolic = { workspace = true }
 examples = { workspace = true }
 
 [tool.uv.workspace]
@@ -83,5 +84,6 @@ members = [
     "packages/bilt-core",
     "packages/bilt-symbolic",
     "packages/bilt-units",
+    "packages/bilt-symbolic",
     "packages/examples"
 ]
