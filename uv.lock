@@ -10,6 +10,7 @@ resolution-markers = [
 members = [
     "bilt",
     "bilt-core",
+    "bilt-symbolic",
     "bilt-units",
     "examples",
 ]
@@ -47,6 +48,11 @@ docs = [{ name = "zensical", specifier = ">=0.0.37" }]
 name = "bilt-core"
 version = "0.0.1"
 source = { editable = "packages/bilt-core" }
+
+[[package]]
+name = "bilt-symbolic"
+version = "0.0.1"
+source = { editable = "packages/bilt-symbolic" }
 
 [[package]]
 name = "bilt-units"
