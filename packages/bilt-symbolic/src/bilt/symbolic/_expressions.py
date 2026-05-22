@@ -49,8 +49,16 @@ def as_expr(value: ExprLike) -> Expr:
         case Constant() | Symbol() | Binary():
             return value
 
+        case bool():
+            msg = "Boolean values are not supported as expressions"
+            raise TypeError(msg)
+
         case int() | float():
             return Constant(float(value))
+
+        case _:
+            msg = f"Unsupported expression value: {type(value).__name__}"
+            raise TypeError(msg)
 
 
 def binary(op: BinaryOperator, left: ExprLike, right: ExprLike) -> Binary:

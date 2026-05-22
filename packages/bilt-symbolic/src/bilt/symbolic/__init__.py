@@ -9,6 +9,7 @@ __all__ = [
     "add",
     "as_expr",
     "contains",
+    "div",
     "evaluate",
     "mul",
     "neg",
