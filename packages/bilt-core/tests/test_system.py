@@ -105,7 +105,7 @@ def test_eq_different_type() -> None:
         (Demo(a=1.0, b=2.0, c=3.0), "Demo(a=1.0, b=2.0, c=3.0)"),
     ),
 )
-def test_repr(instance: Demo, expected_repr: str) -> None:  # ty: ignore[invalid-type-form]
+def test_repr(instance: Demo, expected_repr: str) -> None:
     assert repr(instance) == expected_repr
 
 

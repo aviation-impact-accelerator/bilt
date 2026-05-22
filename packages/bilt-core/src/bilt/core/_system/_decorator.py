@@ -19,7 +19,7 @@ class Attribute[T]:
     annotation: type[T]
 
 
-def system(cls: Interface) -> Interface:
+def system[T: Interface](cls: T) -> T:
     """Decorate a class as the interface of a system."""
     _create_bilt_system_class_attribute(cls)
     _create_initialize_method(cls)
