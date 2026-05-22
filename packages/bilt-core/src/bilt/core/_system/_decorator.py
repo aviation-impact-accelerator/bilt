@@ -5,12 +5,12 @@ import enum
 import typing
 
 from ._dispatch import _dispatch_evaluation
+from ._error import BiltSystemDefinitionError
+from ._interface import Interface
 from ._sentinel import MISSING
 
 if typing.TYPE_CHECKING:
     import types
-
-    from ._interface import Interface
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -21,13 +21,21 @@ class Attribute[T]:
 
 def system[T: Interface](cls: T) -> T:
     """Decorate a class as the interface of a system."""
+    _validate_cls_is_interface(cls)
+
     _create_bilt_system_class_attribute(cls)
     _create_initialize_method(cls)
     _create_properties(cls)
     _create_eq_method(cls)
     _create_repr_method(cls)
     _disable_hash(cls)
+
     return cls
+
+
+def _validate_cls_is_interface(cls: type) -> None:
+    if not isinstance(cls, Interface):
+        raise BiltSystemDefinitionError(cls)
 
 
 def _create_bilt_system_class_attribute(cls: Interface) -> None:

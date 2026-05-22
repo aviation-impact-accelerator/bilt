@@ -1,6 +1,14 @@
 import pytest
 
-from bilt.core import BiltUnknownSystemAttributeError, Implementation, Interface, field, system, transform
+from bilt.core import (
+    BiltSystemDefinitionError,
+    BiltUnknownSystemAttributeError,
+    Implementation,
+    Interface,
+    field,
+    system,
+    transform,
+)
 
 
 @system
@@ -22,6 +30,17 @@ def test_decorator() -> None:
 
 def test_metaclass_is_interface() -> None:
     assert isinstance(Demo, Interface)
+
+
+def test_system_requires_interface_metaclass() -> None:
+    with pytest.raises(
+        BiltSystemDefinitionError,
+        match="Cannot apply `@system` to 'NotAnInterface' because it does not declare `metaclass=Interface`",
+    ):
+
+        @system  # ty: ignore[invalid-argument-type]
+        class NotAnInterface:
+            pass
 
 
 def test_has_private_registry() -> None:
