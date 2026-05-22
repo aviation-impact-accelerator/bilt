@@ -72,3 +72,44 @@ def test_cannot_access_unset_field() -> None:
         match="Cannot evaluate attribute 'c' because it was not set during initialization",
     ):
         _ = demo.c
+
+
+@pytest.mark.parametrize(
+    ("args"),
+    ({"a": 1.0, "b": 2.0, "c": 3.0}, {"a": 1.0}),
+)
+def test_eq_same_inputs(args: dict[str, float]) -> None:
+    assert Demo(**args) == Demo(**args)
+
+
+@pytest.mark.parametrize(
+    ("left", "right"),
+    (
+        ({"a": 1.0, "b": 2.0, "c": 3.0}, {"a": 1.0, "b": 2.0, "c": 4.0}),
+        ({"a": 1.0}, {"a": 2.0}),
+        ({"a": 1.0}, {"b": 2.0}),
+    ),
+)
+def test_eq_different_inputs(left: dict[str, float], right: dict[str, float]) -> None:
+    assert Demo(**left) != Demo(**right)
+
+
+def test_eq_different_type() -> None:
+    assert Demo(a=1.0) != object()
+
+
+@pytest.mark.parametrize(
+    ("instance", "expected_repr"),
+    (
+        (Demo(a=1.0), "Demo(a=1.0)"),
+        (Demo(a=1.0, c=3.0), "Demo(a=1.0, c=3.0)"),
+        (Demo(a=1.0, b=2.0, c=3.0), "Demo(a=1.0, b=2.0, c=3.0)"),
+    ),
+)
+def test_repr(instance: Demo, expected_repr: str) -> None:
+    assert repr(instance) == expected_repr
+
+
+def test_not_hashable() -> None:
+    with pytest.raises(TypeError, match="unhashable type"):
+        hash(Demo(a=1.0))
