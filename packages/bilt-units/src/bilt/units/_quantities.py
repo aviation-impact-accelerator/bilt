@@ -219,7 +219,7 @@ class Quantity:
                 return self.__class__(self.value**other, self.unit**other)
             case float() if self.unit.is_dimensionless:
                 return self.__class__(self.value**other, self.unit)
-            case Quantity() if other.unit.is_dimensionless and other.unit.relation.scale == 1.0:
+            case Quantity() if self.unit.is_dimensionless and self.unit.relation.scale == 1.0:
                 return self.__class__(self.value**other.value, self.unit)
         return NotImplemented
 
