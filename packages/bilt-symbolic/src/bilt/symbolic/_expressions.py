@@ -4,7 +4,6 @@ import ast
 from dataclasses import dataclass
 from typing import Literal
 
-
 type Expr = Constant | Symbol | Binary
 type ExprLike = Expr | float | int
 type ValueEnv = dict[str, float]
