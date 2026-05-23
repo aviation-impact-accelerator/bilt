@@ -12,7 +12,6 @@ __all__ = [
     "div",
     "evaluate",
     "mul",
-    "neg",
     "parse_expr",
     "pow_",
     "sub",
@@ -30,7 +29,6 @@ from ._expressions import contains as contains
 from ._expressions import div as div
 from ._expressions import evaluate as evaluate
 from ._expressions import mul as mul
-from ._expressions import neg as neg
 from ._expressions import parse_expr as parse_expr
 from ._expressions import pow_ as pow_
 from ._expressions import sub as sub

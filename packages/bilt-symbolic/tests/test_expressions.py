@@ -11,7 +11,6 @@ from bilt.symbolic import (
     div,
     evaluate,
     mul,
-    neg,
     parse_expr,
     pow_,
     sub,
@@ -272,19 +271,6 @@ def test_reverse_pow_operator_preserves_left_and_right_order() -> None:
     assert isinstance(expr, Binary)
     assert expr.op == "**"
     assert expr.left == Constant(2.0)
-    assert expr.right == x
-    assert evaluate(expr, {"x": 3.0}) == expected
-
-
-def test_neg_operator_creates_expression() -> None:
-    expected = -3.0
-    x = Symbol("x")
-
-    expr = neg(x)
-
-    assert isinstance(expr, Binary)
-    assert expr.op == "*"
-    assert expr.left == Constant(-1.0)
     assert expr.right == x
     assert evaluate(expr, {"x": 3.0}) == expected
 
