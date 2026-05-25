@@ -1,90 +1,72 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import Any
+from typing import Literal
 
-from bilt.symbolic._expressions import Expr, as_expr
+from bilt.symbolic._expressions import Expr, ExprLike, ValueEnv, as_expr, evaluate, sub, symbols
 
+type RelationOperator = Literal["==", "<=", ">="]
+type RelationKind = Literal["equality", "less_equal", "greater_equal"]
+
+
+@dataclass(frozen=True, slots=True)
 class Relation:
+    op: RelationOperator
     lhs: Expr
     rhs: Expr
-
-    @property
-    def kind(self) -> str:
-        return self.__class__.__name__
-
-    def residual(self) -> Expr:
-        raise NotImplementedError
-
-    def check_units(self) -> None:
-        require_compatible_units(self.lhs.unit(), self.rhs.unit())
-
-    def unit_analysis(self, *, name: str = "<relation>") -> UnitAnalysis:
-        lu, ru = self.lhs.unit(), self.rhs.unit()
-        return UnitAnalysis(name, str(self), self.lhs, self.rhs, lu, ru, units_compatible(lu, ru), self.kind)
-
-    def unit_report(self, *, name: str = "<relation>") -> str:
-        return self.unit_analysis(name=name).to_text()
-
-    def symbols(self) -> set[str]:
-        return self.lhs.symbols() | self.rhs.symbols()
-
-
-@dataclass(frozen=True)
-class Equality(Relation):
-    lhs: Expr
-    rhs: Expr
-
-    @property
-    def kind(self) -> str:
-        return "equality"
-
-    def residual(self) -> Expr:
-        return self.lhs - self.rhs
 
     def __str__(self) -> str:
-        return f"{self.lhs} == {self.rhs}"
+        return relation_to_string(self)
 
 
-@dataclass(frozen=True)
-class LessEqual(Relation):
-    lhs: Expr
-    rhs: Expr
-
-    @property
-    def kind(self) -> str:
-        return "less_equal"
-
-    def residual(self) -> Expr:
-        return self.lhs - self.rhs
-
-    def __str__(self) -> str:
-        return f"{self.lhs} <= {self.rhs}"
+def relation(op: RelationOperator, lhs: ExprLike, rhs: ExprLike) -> Relation:
+    return Relation(op, as_expr(lhs), as_expr(rhs))
 
 
-@dataclass(frozen=True)
-class GreaterEqual(Relation):
-    lhs: Expr
-    rhs: Expr
-
-    @property
-    def kind(self) -> str:
-        return "greater_equal"
-
-    def residual(self) -> Expr:
-        return self.lhs - self.rhs
-
-    def __str__(self) -> str:
-        return f"{self.lhs} >= {self.rhs}"
+def eq(lhs: ExprLike, rhs: ExprLike) -> Relation:
+    return relation("==", lhs, rhs)
 
 
-def Eq(lhs: Any, rhs: Any) -> Equality:
-    return Equality(as_expr(lhs), as_expr(rhs))
+def le(lhs: ExprLike, rhs: ExprLike) -> Relation:
+    return relation("<=", lhs, rhs)
 
 
-def Le(lhs: Any, rhs: Any) -> LessEqual:
-    return LessEqual(as_expr(lhs), as_expr(rhs))
+def ge(lhs: ExprLike, rhs: ExprLike) -> Relation:
+    return relation(">=", lhs, rhs)
+
+Eq = eq
+Le = le
+Ge = ge
 
 
-def Ge(lhs: Any, rhs: Any) -> GreaterEqual:
-    return GreaterEqual(as_expr(lhs), as_expr(rhs))
+def relation_to_string(rel: Relation) -> str:
+    return f"{rel.lhs} {rel.op} {rel.rhs}"
+
+
+def relation_kind(rel: Relation) -> RelationKind:
+    match rel.op:
+        case "==":
+            return "equality"
+        case "<=":
+            return "less_equal"
+        case ">=":
+            return "greater_equal"
+
+
+def relation_residual(rel: Relation) -> Expr:
+    return sub(rel.lhs, rel.rhs)
+
+
+def relation_symbols(rel: Relation) -> set[str]:
+    return symbols(rel.lhs) | symbols(rel.rhs)
+
+
+def evaluate_relation(rel: Relation, values: ValueEnv) -> bool:
+    lhs_value = evaluate(rel.lhs, values)
+    rhs_value = evaluate(rel.rhs, values)
+
+    match rel.op:
+        case "==":
+            return lhs_value == rhs_value
+        case "<=":
+            return lhs_value <= rhs_value
+        case ">=":
+            return lhs_value >= rhs_value
