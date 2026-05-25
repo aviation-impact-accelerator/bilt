@@ -5,15 +5,18 @@ __all__ = [
     "BinaryOperator",
     "Constant",
     "Expr",
+    "Relation",
     "Symbol",
     "add",
     "as_expr",
     "contains",
     "div",
+    "eq",
     "evaluate",
     "mul",
     "parse_expr",
     "pow_",
+    "relation_residual",
     "sub",
     "symbols",
 ]
@@ -33,3 +36,6 @@ from ._expressions import parse_expr as parse_expr
 from ._expressions import pow_ as pow_
 from ._expressions import sub as sub
 from ._expressions import symbols as symbols
+from ._relations import Relation as Relation
+from ._relations import eq as eq
+from ._relations import relation_residual as relation_residual

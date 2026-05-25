@@ -32,6 +32,7 @@ def le(lhs: ExprLike, rhs: ExprLike) -> Relation:
 def ge(lhs: ExprLike, rhs: ExprLike) -> Relation:
     return relation(">=", lhs, rhs)
 
+
 Eq = eq
 Le = le
 Ge = ge

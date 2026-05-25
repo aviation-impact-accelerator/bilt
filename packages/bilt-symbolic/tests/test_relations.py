@@ -12,9 +12,9 @@ from bilt.symbolic._relations import (
     le,
     relation,
     relation_kind,
+    relation_residual,
     relation_symbols,
     relation_to_string,
-    residual,
 )
 
 
@@ -35,12 +35,12 @@ def test_relation_constructor_accepts_expressions() -> None:
 
 def test_relation_constructor_rejects_bool() -> None:
     with pytest.raises(TypeError, match="Boolean values are not supported"):
-        relation("==", True, 1.0)  # type: ignore[arg-type]
+        relation("==", True, 1.0)  # noqa: FBT003
 
 
 def test_relation_constructor_rejects_unsupported_value() -> None:
     with pytest.raises(TypeError, match="Unsupported expression value"):
-        relation("==", "x", 1.0)  # type: ignore[arg-type]
+        relation("==", "x", 1.0)  # type: ignore  # noqa: PGH003
 
 
 def test_eq_constructor() -> None:
@@ -126,7 +126,7 @@ def test_residual_returns_lhs_minus_rhs() -> None:
     y = Symbol("y")
     rel = Eq(add(x, y), 10.0)
 
-    result = residual(rel)
+    result = relation_residual(rel)
 
     assert result == sub(add(x, y), Constant(10.0))
 
@@ -134,8 +134,8 @@ def test_residual_returns_lhs_minus_rhs() -> None:
 def test_residual_is_same_for_inequalities() -> None:
     x = Symbol("x")
 
-    assert residual(Le(x, 5.0)) == sub(x, Constant(5.0))
-    assert residual(Ge(x, 5.0)) == sub(x, Constant(5.0))
+    assert relation_residual(Le(x, 5.0)) == sub(x, Constant(5.0))
+    assert relation_residual(Ge(x, 5.0)) == sub(x, Constant(5.0))
 
 
 def test_relation_symbols_for_constants() -> None:
