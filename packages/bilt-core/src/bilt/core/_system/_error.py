@@ -27,7 +27,7 @@ class BiltUnknownSystemAttributeError(BiltCoreError):
         self.name = name
         self.message = (
             f"Cannot evaluate attribute {name!r} because it was not set during initialization and no implementation "
-            f"has been selected for this instance of the {interface.__name__!r} interface. Set an implementation for "
-            f"the instance."
+            f"has been selected for this instance of the {interface.__class__.__name__!r} interface. Set an "
+            f"implementation for the instance."
         )
         super().__init__(self.message)
