@@ -2,6 +2,7 @@ import pytest
 
 from bilt.core import (
     BiltSystemDefinitionError,
+    BiltSystemEvaluationError,
     BiltUnknownSystemAttributeError,
     Implementation,
     Interface,
@@ -167,3 +168,19 @@ def test_evaluation_with_single_implementation() -> None:
     expected_c = 3.0
     with basic:
         assert demo.c == expected_c
+
+
+def test_evaluation_of_attribute_with_no_path_raises_system_evaluation_error() -> None:
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        c: float = field()
+
+    basic = Implementation(Demo, [])
+    a = 1.0
+    b = 2.0
+    demo = Demo(a=a, b=b)
+
+    with basic, pytest.raises(BiltSystemEvaluationError):
+        _ = demo.c
