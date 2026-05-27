@@ -35,6 +35,23 @@ class Implementation:
     def transforms(self) -> types.MappingProxyType[str, Transform[typing.Any, ...]]:
         return self._transforms
 
+    def evaluate(self, inputs: dict[str, object], output: str) -> object:
+        if output in inputs:
+            return inputs[output]
+
+        if output not in self.transforms:
+            message = f"No transform registered to produce output {output!r}"
+            raise BiltSystemEvaluationError(message)
+        transform = self.transforms[output]
+
+        parameters = transform.__bilt_transform_parameters__
+        for parameter in parameters:
+            if parameter not in inputs:
+                inputs[parameter] = self.evaluate(inputs=inputs, output=parameter)
+
+        arguments = {parameter: inputs[parameter] for parameter in parameters}
+        return transform(**arguments)
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Implementation):
             return NotImplemented
