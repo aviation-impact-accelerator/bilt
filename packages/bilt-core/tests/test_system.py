@@ -1,11 +1,18 @@
 import pytest
 
-from bilt.core import BiltUnknownSystemAttributeError, field, system
-from bilt.core._system._interface import Interface
+from bilt.core import (
+    BiltSystemDefinitionError,
+    BiltUnknownSystemAttributeError,
+    Implementation,
+    Interface,
+    field,
+    system,
+    transform,
+)
 
 
 @system
-class Demo:
+class Demo(metaclass=Interface):
     a: float = field()
     b: float = field()
     c: float = field()
@@ -13,7 +20,7 @@ class Demo:
 
 def test_decorator() -> None:
     @system
-    class Demo:
+    class Demo(metaclass=Interface):
         a: float = field()
         b: float = field()
         c: float = field()
@@ -23,6 +30,17 @@ def test_decorator() -> None:
 
 def test_metaclass_is_interface() -> None:
     assert isinstance(Demo, Interface)
+
+
+def test_system_requires_interface_metaclass() -> None:
+    with pytest.raises(
+        BiltSystemDefinitionError,
+        match="Cannot apply `@system` to 'NotAnInterface' because it does not declare `metaclass=Interface`",
+    ):
+
+        @system  # ty: ignore[invalid-argument-type]
+        class NotAnInterface:
+            pass
 
 
 def test_has_private_registry() -> None:
@@ -113,3 +131,20 @@ def test_repr(instance: Demo, expected_repr: str) -> None:
 def test_not_hashable() -> None:
     with pytest.raises(TypeError, match="unhashable type"):
         hash(Demo(a=1.0))
+
+
+def test_register_implementation() -> None:
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        c: float = field()
+
+    @transform
+    def c(a: float, b: float) -> float:
+        return a + b
+
+    assert Demo.__bilt_system_registry__ == set()
+
+    basic = Implementation(Demo, [c])
+    assert basic in Demo.__bilt_system_registry__

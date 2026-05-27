@@ -5,6 +5,7 @@ import enum
 import typing
 
 from ._dispatch import _dispatch_evaluation
+from ._error import BiltSystemDefinitionError
 from ._interface import Interface
 from ._sentinel import MISSING
 
@@ -18,17 +19,23 @@ class Attribute[T]:
     annotation: type[T]
 
 
-@typing.dataclass_transform(kw_only_default=True)
-def system[T](cls: type[T]) -> type[T]:
+def system[T: Interface](cls: T) -> T:
     """Decorate a class as the interface of a system."""
-    interface = Interface(cls.__name__, cls.__bases__, dict(cls.__dict__))
-    _create_bilt_system_class_attribute(interface)
-    _create_initialize_method(interface)
-    _create_properties(interface)
-    _create_eq_method(interface)
-    _create_repr_method(interface)
-    _disable_hash(interface)
-    return typing.cast("type[T]", interface)
+    _validate_cls_is_interface(cls)
+
+    _create_bilt_system_class_attribute(cls)
+    _create_initialize_method(cls)
+    _create_properties(cls)
+    _create_eq_method(cls)
+    _create_repr_method(cls)
+    _disable_hash(cls)
+
+    return cls
+
+
+def _validate_cls_is_interface(cls: type) -> None:
+    if not isinstance(cls, Interface):
+        raise BiltSystemDefinitionError(cls)
 
 
 def _create_bilt_system_class_attribute(cls: Interface) -> None:

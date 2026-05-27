@@ -1,3 +1,5 @@
+__all__ = ["Interface"]
+
 import typing
 
 if typing.TYPE_CHECKING:
@@ -6,6 +8,7 @@ if typing.TYPE_CHECKING:
     from ._sentinel import _Missing
 
 
+@typing.dataclass_transform(kw_only_default=True)
 class Interface(type):
     __bilt_system_registry__: set[Implementation]
     __bilt_system_implementation_default__: list[Implementation]
