@@ -148,3 +148,24 @@ def test_register_implementation() -> None:
 
     basic = Implementation(Demo, [c])
     assert basic in Demo.__bilt_system_registry__
+
+
+def test_evaluation_with_single_implementation() -> None:
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        c: float = field()
+
+    @transform
+    def c(a: float, b: float) -> float:
+        return a + b
+
+    basic = Implementation(Demo, [c])
+    a = 1.0
+    b = 2.0
+    demo = Demo(a=a, b=b)
+
+    expected_c = 3.0
+    with basic:
+        assert demo.c == expected_c
