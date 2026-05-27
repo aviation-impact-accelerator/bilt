@@ -64,7 +64,6 @@ def test_can_instantiate_with_a_subset_of_fields() -> None:
     assert isinstance(demo, Demo)
 
 
-@pytest.mark.xfail(reason="Attribute access/evaluation logic not implemented yet.")
 def test_can_access_set_field() -> None:
     a = 1.0
     b = 2.0
@@ -75,7 +74,6 @@ def test_can_access_set_field() -> None:
     assert demo.c == c
 
 
-@pytest.mark.xfail(reason="Attribute access/evaluation logic not implemented yet.")
 def test_cannot_access_unset_field() -> None:
     a = 1.0
     demo = Demo(a=a)
