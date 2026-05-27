@@ -52,6 +52,13 @@ class Implementation:
         arguments = {parameter: inputs[parameter] for parameter in parameters}
         return transform(**arguments)
 
+    def __enter__(self) -> typing.Self:
+        self._system.__bilt_system_implementation_default__.append(self)
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self._system.__bilt_system_implementation_default__.pop()
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Implementation):
             return NotImplemented
