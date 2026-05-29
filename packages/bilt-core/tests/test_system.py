@@ -170,6 +170,41 @@ def test_evaluation_with_single_implementation() -> None:
         assert demo.c == expected_c
 
 
+def test_multiple_transform_evaluation_with_single_implementation() -> None:
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        c: float = field()
+        d: float = field()
+        e: float = field()
+
+    @transform
+    def c(a: float, b: float) -> float:
+        return a + b
+
+    @transform
+    def d(a: float, c: float) -> float:
+        return a + c
+
+    @transform
+    def e(c: float, d: float) -> float:
+        return c + d
+
+    basic = Implementation(Demo, [c, d, e])
+    a = 1.0
+    b = 2.0
+    demo = Demo(a=a, b=b)
+
+    expected_c = 3.0
+    expected_d = 4.0
+    expected_e = 7.0
+    with basic:
+        assert demo.c == expected_c
+        assert demo.d == expected_d
+        assert demo.e == expected_e
+
+
 def test_evaluation_of_attribute_with_no_path_raises_system_evaluation_error() -> None:
     @system
     class Demo(metaclass=Interface):
