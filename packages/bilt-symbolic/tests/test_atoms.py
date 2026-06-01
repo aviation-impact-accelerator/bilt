@@ -237,12 +237,12 @@ def test_integer_returns_interned_atom() -> None:
 
 
 def test_floating_constructs_float_atom() -> None:
-    value = 1.5
-    value = floating(value)
+    const = 1.5
+    value = floating(const)
 
     assert isinstance(value, Atom)
     assert repr(value) == "Float(1.5)"
-    assert value.value == value
+    assert value.value == const
 
 
 def test_floating_returns_interned_atom() -> None:
