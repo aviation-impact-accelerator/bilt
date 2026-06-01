@@ -11,7 +11,7 @@ from bilt.symbolic._atoms import (
     integer,
     symbol,
 )
-from bilt.symbolic._errors import AtomHashError, AtomMutationError
+from bilt.symbolic._errors import AtomMutationError
 
 
 @pytest.fixture(autouse=True)
