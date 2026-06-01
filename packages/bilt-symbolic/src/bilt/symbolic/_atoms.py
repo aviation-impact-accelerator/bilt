@@ -44,6 +44,12 @@ class AtomType:
         return Atom(self, value)
 
 
+_SymbolType = AtomType("Symbol")
+_OpType = AtomType("Op")
+_IntType = AtomType("Integer")
+_FloatType = AtomType("Float")
+
+
 @typing.final
 class Atom:
     """A hash-consed immutable leaf value.
@@ -97,6 +103,25 @@ class Atom:
 
     def __eq__(self, other: object) -> bool:
         return self is other
+
+
+_ADD = Atom(_OpType, "add")
+_MUL = Atom(_OpType, "mul")
+_POW = Atom(_OpType, "pow")
+_NEG = Atom(_OpType, "neg")
+_INV = Atom(_OpType, "inv")
+
+
+def symbol(name: str) -> Atom:
+    return Atom(_SymbolType, name)
+
+
+def integer(value: int) -> Atom:
+    return Atom(_IntType, value)
+
+
+def floating(value: float) -> Atom:
+    return Atom(_FloatType, value)
 
 
 def atom_cache_size() -> int:
