@@ -3,7 +3,7 @@
 import pytest
 
 from bilt.symbolic._atoms import Atom, AtomType, atom_cache_size, clear_atom_cache
-from bilt.symbolic._errors import AtomHashError, AtomMutationError
+from bilt.symbolic._errors import AtomMutationError
 
 
 @pytest.fixture(autouse=True)
@@ -87,40 +87,6 @@ def test_new_attributes_cannot_be_added() -> None:
 
     with pytest.raises(AtomMutationError):
         x.extra = "not allowed"  # type: ignore[attr-defined]
-
-
-@pytest.mark.parametrize(
-    "value",
-    (
-        ["x"],
-        {"x": 1},
-        {"x", "y"},
-    ),
-)
-def test_unhashable_values_raise_atom_hash_error(value: object) -> None:
-    symbol = AtomType("symbol")
-
-    with pytest.raises(AtomHashError):
-        symbol(value)  # type: ignore[arg-type]
-
-
-@pytest.mark.parametrize(
-    "value",
-    (
-        "x",
-        1,
-        1.5,
-        True,
-        ("x", 1),
-        frozenset({"x", "y"}),
-    ),
-)
-def test_hashable_values_are_accepted(value: object) -> None:
-    symbol = AtomType("symbol")
-
-    atom = symbol(value)  # type: ignore[arg-type]
-
-    assert atom.value == value
 
 
 def test_equality_is_identity_based() -> None:

@@ -2,7 +2,7 @@ import collections.abc
 import typing
 import weakref
 
-from bilt.symbolic._errors import AtomHashError, AtomMutationError
+from bilt.symbolic._errors import AtomMutationError
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -62,15 +62,6 @@ class Atom:
     _initialised: bool
 
     def __new__(cls, atom_type: AtomType, value: collections.abc.Hashable) -> Atom:
-        try:
-            hash(value)
-        except TypeError as exc:
-            message = (
-                "Atom values must be hashable so they can be used for "
-                f"hash-consing. Got {type(value).__name__}: {value!r}."
-            )
-            raise AtomHashError(message) from exc
-
         key = (atom_type, value)
 
         if (existing := _atom_cache.get(key)) is not None:

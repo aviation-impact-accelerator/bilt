@@ -1,4 +1,4 @@
-__all__ = ["AtomError", "AtomHashError", "AtomMutationError", "BiltSymbolicError"]
+__all__ = ["AtomError", "AtomMutationError", "BiltSymbolicError"]
 
 
 class BiltSymbolicError(Exception):
@@ -7,10 +7,6 @@ class BiltSymbolicError(Exception):
 
 class AtomError(BiltSymbolicError):
     """Base error for atom construction and hash-consing failures."""
-
-
-class AtomHashError(AtomError):
-    """Raised when an Atom value is not suitable for hash-consing."""
 
 
 class AtomMutationError(AtomError, AttributeError):
