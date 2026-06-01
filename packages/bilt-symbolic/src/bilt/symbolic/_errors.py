@@ -17,5 +17,5 @@ class TreeError(BiltSymbolicError):
     """Base error for tree construction and hash-consing failures."""
 
 
-class TreeMutationError(AtomError, AttributeError):
+class TreeMutationError(TreeError, AttributeError):
     """Raised when attempting to mutate an immutable Tree."""
