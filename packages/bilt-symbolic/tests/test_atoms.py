@@ -2,8 +2,16 @@
 
 import pytest
 
-from bilt.symbolic._atoms import Atom, AtomType, atom_cache_size, clear_atom_cache
-from bilt.symbolic._errors import AtomMutationError
+from bilt.symbolic._atoms import (
+    Atom,
+    AtomType,
+    atom_cache_size,
+    clear_atom_cache,
+    floating,
+    integer,
+    symbol,
+)
+from bilt.symbolic._errors import AtomHashError, AtomMutationError
 
 
 @pytest.fixture(autouse=True)
@@ -196,3 +204,49 @@ def test_unknown_attribute_cannot_be_deleted() -> None:
 
     with pytest.raises(AtomMutationError):
         delattr(x, "extra")
+
+
+def test_symbol_constructs_symbol_atom() -> None:
+    x = symbol("x")
+
+    assert isinstance(x, Atom)
+    assert repr(x) == "Symbol('x')"
+    assert x.value == "x"
+
+
+def test_symbol_returns_interned_atom() -> None:
+    x1 = symbol("x")
+    x2 = symbol("x")
+
+    assert x1 is x2
+
+
+def test_integer_constructs_integer_atom() -> None:
+    one = integer(1)
+
+    assert isinstance(one, Atom)
+    assert repr(one) == "Integer(1)"
+    assert one.value == 1
+
+
+def test_integer_returns_interned_atom() -> None:
+    one1 = integer(1)
+    one2 = integer(1)
+
+    assert one1 is one2
+
+
+def test_floating_constructs_float_atom() -> None:
+    value = 1.5
+    value = floating(value)
+
+    assert isinstance(value, Atom)
+    assert repr(value) == "Float(1.5)"
+    assert value.value == value
+
+
+def test_floating_returns_interned_atom() -> None:
+    value1 = floating(1.5)
+    value2 = floating(1.5)
+
+    assert value1 is value2
