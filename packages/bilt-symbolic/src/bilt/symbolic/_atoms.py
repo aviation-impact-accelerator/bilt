@@ -9,6 +9,9 @@ if typing.TYPE_CHECKING:
 
 __all__ = [
     "Atom",
+    "floating",
+    "integer",
+    "symbol",
 ]
 
 
