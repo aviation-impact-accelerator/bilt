@@ -43,12 +43,15 @@ def test_different_leaf_atom_types_are_different_trees() -> None:
 
 
 def test_compound_tree_is_hash_consed() -> None:
-    x = symbol_tree("x")
-    y = symbol_tree("y")
+    x1 = symbol_tree("x")
+    y1 = symbol_tree("y")
 
-    expr1 = Tree(symbol("add"), (x, y))
-    expr2 = Tree(symbol("add"), (x, y))
+    expr1 = Tree(symbol("add"), (x1, y1))
 
+    x2 = symbol_tree("x")
+    y2 = symbol_tree("y")
+
+    expr2 = Tree(symbol("add"), (x2, y2))
     assert expr1 is expr2
 
 

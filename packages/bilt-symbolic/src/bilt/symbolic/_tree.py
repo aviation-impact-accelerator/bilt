@@ -36,13 +36,13 @@ class Tree:
 
     def __setattr__(self, name: str, value: object) -> None:
         if getattr(self, "_locked", False):
-            msg = f"{self.__class__.__name__} is immutable"
+            msg = f"{self.__class__.__name__} is immutable. This cannot be updated once it is set."
             raise TreeMutationError(msg)
         object.__setattr__(self, name, value)
 
     def __delattr__(self, name: str) -> None:
         if getattr(self, "_locked", False):
-            msg = f"{self.__class__.__name__} is immutable"
+            msg = f"{self.__class__.__name__} is immutable. It cannot be deleted once it is set."
             raise TreeMutationError(msg)
         object.__delattr__(self, name)
 
