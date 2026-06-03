@@ -7,7 +7,20 @@ from bilt.symbolic._errors import AtomMutationError
 if typing.TYPE_CHECKING:
     import collections.abc
 
-__all__ = ["Atom", "FloatType", "IntType", "SymbolType", "floating", "integer", "symbol"]
+__all__ = [
+    "ADD",
+    "INV",
+    "MUL",
+    "NEG",
+    "POW",
+    "Atom",
+    "FloatType",
+    "IntType",
+    "SymbolType",
+    "floating",
+    "integer",
+    "symbol",
+]
 
 
 _atom_cache: weakref.WeakValueDictionary[
@@ -103,11 +116,11 @@ class Atom:
         return self is other
 
 
-_ADD = Atom(OpType, "add")
-_MUL = Atom(OpType, "mul")
-_POW = Atom(OpType, "pow")
-_NEG = Atom(OpType, "neg")
-_INV = Atom(OpType, "inv")
+ADD = Atom(OpType, "add")
+MUL = Atom(OpType, "mul")
+POW = Atom(OpType, "pow")
+NEG = Atom(OpType, "neg")
+INV = Atom(OpType, "inv")
 
 
 def symbol(name: str) -> Atom:
