@@ -3,6 +3,7 @@
   "venv": ".venv",
   "extraPaths": [
     "packages/bilt-core/src",
+    "packages/bilt-jax-backend",
     "packages/bilt-symbolic/src",
     "packages/bilt-units/src",
     "packages/examples/src"
@@ -10,6 +11,7 @@
   "include": [
     "packages/bilt-core/src",
     "packages/bilt-core/tests",
+    "packages/bilt-jax-backend",
     "packages/bilt-symbolic/src",
     "packages/bilt-symbolic/tests",
     "packages/bilt-units/src",
