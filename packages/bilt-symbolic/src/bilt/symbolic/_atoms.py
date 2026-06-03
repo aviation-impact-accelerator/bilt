@@ -7,12 +7,7 @@ from bilt.symbolic._errors import AtomMutationError
 if typing.TYPE_CHECKING:
     import collections.abc
 
-__all__ = [
-    "Atom",
-    "floating",
-    "integer",
-    "symbol",
-]
+__all__ = ["Atom", "FloatType", "IntType", "SymbolType", "floating", "integer", "symbol"]
 
 
 _atom_cache: weakref.WeakValueDictionary[
@@ -47,10 +42,10 @@ class AtomType:
         return Atom(self, value)
 
 
-_SymbolType = AtomType("Symbol")
-_OpType = AtomType("Op")
-_IntType = AtomType("Integer")
-_FloatType = AtomType("Float")
+SymbolType = AtomType("Symbol")
+OpType = AtomType("Op")
+IntType = AtomType("Integer")
+FloatType = AtomType("Float")
 
 
 @typing.final
@@ -108,23 +103,23 @@ class Atom:
         return self is other
 
 
-_ADD = Atom(_OpType, "add")
-_MUL = Atom(_OpType, "mul")
-_POW = Atom(_OpType, "pow")
-_NEG = Atom(_OpType, "neg")
-_INV = Atom(_OpType, "inv")
+_ADD = Atom(OpType, "add")
+_MUL = Atom(OpType, "mul")
+_POW = Atom(OpType, "pow")
+_NEG = Atom(OpType, "neg")
+_INV = Atom(OpType, "inv")
 
 
 def symbol(name: str) -> Atom:
-    return Atom(_SymbolType, name)
+    return Atom(SymbolType, name)
 
 
 def integer(value: int) -> Atom:
-    return Atom(_IntType, value)
+    return Atom(IntType, value)
 
 
 def floating(value: float) -> Atom:
-    return Atom(_FloatType, value)
+    return Atom(FloatType, value)
 
 
 def atom_cache_size() -> int:
