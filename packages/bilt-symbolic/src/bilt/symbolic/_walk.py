@@ -8,6 +8,7 @@ __all__ = [
     "contains",
 ]
 
+
 def contains(root: Tree, target: Tree) -> bool:
     """Return True if target occurs anywhere inside root.
 

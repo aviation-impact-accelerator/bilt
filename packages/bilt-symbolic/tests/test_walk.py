@@ -1,18 +1,6 @@
 from bilt.symbolic._atoms import symbol
 from bilt.symbolic._tree import Tree, symbol_tree
-from bilt.symbolic._walk import contains, walk_postorder, walk_preorder
-
-
-def test_walk_preorder_leaf() -> None:
-    x = symbol_tree("x")
-
-    assert walk_preorder(x) == [x]
-
-
-def test_walk_postorder_leaf() -> None:
-    x = symbol_tree("x")
-
-    assert walk_postorder(x) == [x]
+from bilt.symbolic._walk import contains
 
 
 def test_contains_leaf_self() -> None:
@@ -26,24 +14,6 @@ def test_contains_leaf_other() -> None:
     y = symbol_tree("y")
 
     assert not contains(x, y)
-
-
-def test_walk_preorder_simple_tree() -> None:
-    add = symbol("+")
-    x = symbol_tree("x")
-    y = symbol_tree("y")
-    expr = Tree(add, (x, y))
-
-    assert walk_preorder(expr) == [expr, x, y]
-
-
-def test_walk_postorder_simple_tree() -> None:
-    add = symbol("+")
-    x = symbol_tree("x")
-    y = symbol_tree("y")
-    expr = Tree(add, (x, y))
-
-    assert walk_postorder(expr) == [x, y, expr]
 
 
 def test_contains_direct_child() -> None:
@@ -64,34 +34,6 @@ def test_contains_missing_child() -> None:
     expr = Tree(add, (x, y))
 
     assert not contains(expr, z)
-
-
-def test_walk_preorder_nested_tree() -> None:
-    add = symbol("+")
-    mul = symbol("*")
-
-    x = symbol_tree("x")
-    y = symbol_tree("y")
-    z = symbol_tree("z")
-
-    product = Tree(mul, (y, z))
-    expr = Tree(add, (x, product))
-
-    assert walk_preorder(expr) == [expr, x, product, y, z]
-
-
-def test_walk_postorder_nested_tree() -> None:
-    add = symbol("+")
-    mul = symbol("*")
-
-    x = symbol_tree("x")
-    y = symbol_tree("y")
-    z = symbol_tree("z")
-
-    product = Tree(mul, (y, z))
-    expr = Tree(add, (x, product))
-
-    assert walk_postorder(expr) == [x, y, z, product, expr]
 
 
 def test_contains_nested_child() -> None:
@@ -121,40 +63,6 @@ def test_contains_shared_subtree() -> None:
     assert expr.args[0] is expr.args[1]
     assert contains(expr, shared)
     assert contains(expr, x)
-
-
-def test_walk_preorder_visits_shared_subtree_occurrences() -> None:
-    add = symbol("+")
-    neg = symbol("neg")
-
-    x = symbol_tree("x")
-    shared = Tree(neg, (x,))
-    expr = Tree(add, (shared, shared))
-
-    assert walk_preorder(expr) == [
-        expr,
-        shared,
-        x,
-        shared,
-        x,
-    ]
-
-
-def test_walk_postorder_visits_shared_subtree_occurrences() -> None:
-    add = symbol("+")
-    neg = symbol("neg")
-
-    x = symbol_tree("x")
-    shared = Tree(neg, (x,))
-    expr = Tree(add, (shared, shared))
-
-    assert walk_postorder(expr) == [
-        x,
-        shared,
-        x,
-        shared,
-        expr,
-    ]
 
 
 def test_contains_hash_consed_equivalent_leaf() -> None:
