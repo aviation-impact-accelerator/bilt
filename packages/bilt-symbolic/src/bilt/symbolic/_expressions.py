@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 import typing
 
-from bilt.symbolic._atoms import FloatType, IntType, SymbolType
+from bilt.symbolic._atoms import ADD, INV, MUL, NEG, POW, FloatType, IntType, SymbolType
 from bilt.symbolic._tree import Tree, float_tree, int_tree, symbol_tree
 
 __all__ = [
@@ -35,6 +33,30 @@ class Expr:
     def real(value: float) -> Expr:
         return Expr(float_tree(value))
 
+        # -- operator overloads -------------------------------------------------
+
+    # Internally: no Sub or Div ops.
+    #   a - b  -> add(a, neg(b))
+    #   a / b  -> mul(a, inv(b))
+
+    def __add__(self, other: Expr) -> Expr:
+        return Expr(Tree(ADD, (self._rep, other._rep)))
+
+    def __mul__(self, other: Expr) -> Expr:
+        return Expr(Tree(MUL, (self._rep, other._rep)))
+
+    def __pow__(self, other: Expr) -> Expr:
+        return Expr(Tree(POW, (self._rep, other._rep)))
+
+    def __neg__(self) -> Expr:
+        return Expr(Tree(NEG, (self._rep,)))
+
+    def __sub__(self, other: Expr) -> Expr:
+        return self + (-other)
+
+    def __truediv__(self, other: Expr) -> Expr:
+        return Expr(Tree(MUL, (self._rep, Tree(INV, (other._rep,)))))
+
     # -- structural helpers -------------------------------------------------
 
     @property
@@ -47,7 +69,6 @@ class Expr:
 
     @property
     def rep(self) -> Tree:
-        """Underlying hash-consed tree representation."""
         return self._rep
 
     # -- equality -----------------------------------------------------------

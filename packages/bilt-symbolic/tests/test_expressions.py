@@ -1,4 +1,4 @@
-from bilt.symbolic._expressions import Expr
+from bilt.symbolic._expressions import ADD, INV, MUL, NEG, POW, Expr
 
 
 def test_symbol_factory_returns_expr() -> None:
@@ -55,3 +55,70 @@ def test_symbol_is_not_number() -> None:
     x = Expr.symbol("x")
 
     assert not x.is_number
+
+
+def test_add_builds_add_tree() -> None:
+    x = Expr.symbol("x")
+    y = Expr.symbol("y")
+
+    expr = x + y
+
+    assert expr.rep.head is ADD
+    assert expr.rep.args == (x.rep, y.rep)
+
+
+def test_mul_builds_mul_tree() -> None:
+    x = Expr.symbol("x")
+    y = Expr.symbol("y")
+
+    expr = x * y
+
+    assert expr.rep.head is MUL
+    assert expr.rep.args == (x.rep, y.rep)
+
+
+def test_pow_builds_pow_tree() -> None:
+    x = Expr.symbol("x")
+    two = Expr.integer(2)
+
+    expr = x**two
+
+    assert expr.rep.head is POW
+    assert expr.rep.args == (x.rep, two.rep)
+
+
+def test_neg_builds_neg_tree() -> None:
+    x = Expr.symbol("x")
+
+    expr = -x
+
+    assert expr.rep.head is NEG
+    assert expr.rep.args == (x.rep,)
+
+
+def test_sub_builds_add_of_neg() -> None:
+    x = Expr.symbol("x")
+    y = Expr.symbol("y")
+
+    expr = x - y
+
+    assert expr.rep.head is ADD
+    assert expr.rep.args[0] is x.rep
+
+    neg_y = expr.rep.args[1]
+    assert neg_y.head is NEG
+    assert neg_y.args == (y.rep,)
+
+
+def test_truediv_builds_mul_of_inv() -> None:
+    x = Expr.symbol("x")
+    y = Expr.symbol("y")
+
+    expr = x / y
+
+    assert expr.rep.head is MUL
+    assert expr.rep.args[0] is x.rep
+
+    inv_y = expr.rep.args[1]
+    assert inv_y.head is INV
+    assert inv_y.args == (y.rep,)
