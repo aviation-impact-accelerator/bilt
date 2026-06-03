@@ -1,4 +1,5 @@
 from bilt.symbolic._expressions import ADD, INV, MUL, NEG, POW, Expr
+from bilt.symbolic._relations import Relation
 
 
 def test_symbol_factory_returns_expr() -> None:
@@ -15,13 +16,24 @@ def test_symbol_factory_uses_hash_consed_tree() -> None:
     assert x1.rep is x2.rep
 
 
-def test_structural_equality_uses_tree_identity() -> None:
+def test_expr_eq_builds_relation() -> None:
+    x = Expr.symbol("x")
+    y = Expr.symbol("y")
+
+    rel = x == y
+
+    assert isinstance(rel, Relation)
+    assert rel.lhs is x
+    assert rel.rhs is y
+
+
+def test_expr_structural_identity_uses_hash_consed_tree() -> None:
     x1 = Expr.symbol("x")
     x2 = Expr.symbol("x")
     y = Expr.symbol("y")
 
-    assert x1 == x2
-    assert x1 != y
+    assert x1.rep is x2.rep
+    assert x1.rep is not y.rep
 
 
 def test_hash_uses_tree_identity() -> None:

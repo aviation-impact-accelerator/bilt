@@ -8,6 +8,10 @@ __all__ = [
 ]
 
 
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._relations import Relation
+
+
 @typing.final
 class Expr:
     """User-facing symbolic expression."""
@@ -73,10 +77,10 @@ class Expr:
 
     # -- equality -----------------------------------------------------------
 
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, Expr):
-            return self._rep is other._rep
-        return NotImplemented
+    def __eq__(self, other: object) -> Relation:  # ty: ignore[invalid-method-override]
+        from bilt.symbolic._relations import equals  # noqa: PLC0415
+
+        return equals(self, other)
 
     def __hash__(self) -> int:
         return id(self._rep)

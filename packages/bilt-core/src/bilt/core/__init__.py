@@ -7,11 +7,13 @@ __all__ = [
     "BiltUnknownSystemAttributeError",
     "Implementation",
     "Interface",
+    "equation",
     "field",
     "system",
     "transform",
 ]
 
+from ._equation import equation
 from ._error import BiltCoreError as BiltCoreError
 from ._system import BiltSystemDefinitionError as BiltSystemDefinitionError
 from ._system import BiltSystemEvaluationError as BiltSystemEvaluationError
