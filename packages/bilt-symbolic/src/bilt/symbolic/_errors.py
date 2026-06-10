@@ -13,6 +13,10 @@ class AtomMutationError(AtomError, AttributeError):
     """Raised when attempting to mutate an immutable Atom."""
 
 
+class IsolationError(BiltSymbolicError):
+    """Raised when an equation cannot be structurally isolated."""
+
+
 class TreeError(BiltSymbolicError):
     """Base error for tree construction and hash-consing failures."""
 
