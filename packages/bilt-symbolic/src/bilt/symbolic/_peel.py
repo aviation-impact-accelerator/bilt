@@ -11,6 +11,10 @@ if TYPE_CHECKING:
 BINARY_LENGTH = 2
 
 
+def _is_symbol(expr: Expr) -> bool:
+    return expr.is_symbol
+
+
 @dataclass(frozen=True, slots=True)
 class SymbolTarget:
     expr: Expr
@@ -18,6 +22,14 @@ class SymbolTarget:
     @property
     def rep(self) -> Tree:
         return self.expr.rep
+
+    @classmethod
+    def from_expr(cls, expr: Expr) -> SymbolTarget:
+        if not _is_symbol(expr):
+            msg = "Expected a single symbolic variable."
+            raise TypeError(msg)
+
+        return cls(expr)
 
 
 @dataclass(frozen=True, slots=True)

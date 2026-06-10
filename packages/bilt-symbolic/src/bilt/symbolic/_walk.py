@@ -31,3 +31,25 @@ def contains(root: Tree, target: Tree) -> bool:
         stack.extend(node.args)
 
     return False
+
+
+def count_occurrences(root: Tree, target: Tree) -> int:
+    """Count how many times target occurs inside root.
+
+    Repeated references are counted as repeated occurrences.
+
+    This matters for hash-consed trees, where x + x may contain the same
+    target node twice.
+    """
+    count = 0
+    stack = [root]
+
+    while stack:
+        node = stack.pop()
+
+        if node is target:
+            count += 1
+
+        stack.extend(node.args)
+
+    return count
