@@ -1,6 +1,6 @@
-from bilt.symbolic._atoms import symbol
+from bilt.symbolic._atoms import ADD, symbol
 from bilt.symbolic._tree import Tree, symbol_tree
-from bilt.symbolic._walk import contains
+from bilt.symbolic._walk import contains, count_occurrences
 
 
 def test_contains_leaf_self() -> None:
@@ -107,3 +107,31 @@ def test_contains_similar_but_different_subtree() -> None:
     expr = Tree(add, (neg_x,))
 
     assert not contains(expr, neg_y)
+
+
+def test_count_occurrences_counts_root_itself() -> None:
+    x = symbol_tree("x")
+
+    assert count_occurrences(x, x) == 1
+
+
+def test_count_occurrences_returns_zero_when_target_absent() -> None:
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+
+    assert count_occurrences(x, y) == 0
+
+
+def test_count_occurrences_counts_nested_target() -> None:
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+    expr = Tree(ADD, (x, y))
+
+    assert count_occurrences(expr, x) == 1
+
+
+def test_count_occurrences_counts_repeated_references() -> None:
+    x = symbol_tree("x")
+    expr = Tree(ADD, (x, x))
+    expected_occurances = 2
+    assert count_occurrences(expr, x) == expected_occurances

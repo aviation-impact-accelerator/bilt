@@ -5,6 +5,7 @@ from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolate import isolate
 from bilt.symbolic._relations import Relation
 
+
 def assert_relation_reps_equal(
     relation: Relation,
     *,
@@ -13,6 +14,7 @@ def assert_relation_reps_equal(
 ) -> None:
     assert relation.lhs.rep == lhs.rep
     assert relation.rhs.rep == rhs.rep
+
 
 def test_isolate_symbol_on_lhs_identity() -> None:
     x = Expr.symbol("x")

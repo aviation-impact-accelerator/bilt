@@ -1,9 +1,13 @@
+from typing import TYPE_CHECKING
+
 from bilt.symbolic._errors import IsolationError
-from bilt.symbolic._expressions import Expr
+from bilt.symbolic._peel import SymbolTarget, peel
 from bilt.symbolic._relations import Relation
 from bilt.symbolic._walk import count_occurrences
 
-from bilt.symbolic._peel import SymbolTarget, peel
+if TYPE_CHECKING:
+    from bilt.symbolic._expressions import Expr
+
 
 def isolate(relation: Relation, target: Expr) -> Relation:
     """Structurally isolate target in a symbolic relation.
@@ -14,7 +18,6 @@ def isolate(relation: Relation, target: Expr) -> Relation:
     - occurs on exactly one side of the relation
     - can be isolated using the supported peel rules
     """
-
     symbol_target = SymbolTarget.from_expr(target)
 
     lhs = relation.lhs
