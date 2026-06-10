@@ -27,6 +27,19 @@ class Relation:
         return relation_to_string(self)
 
 
+@dataclass(frozen=True, slots=True)
+class IsolatedRelation:
+    lhs: Expr
+    rhs: Expr
+
+    def __bool__(self) -> bool:
+        msg = "IsolatedRelation objects cannot be used as booleans."
+        raise TypeError(msg)
+
+    def __str__(self) -> str:
+        return relation_to_string(self)
+
+
 def equals(lhs: object, rhs: object) -> Relation:
     return Relation(
         lhs=as_expr(lhs),
@@ -34,5 +47,5 @@ def equals(lhs: object, rhs: object) -> Relation:
     )
 
 
-def relation_to_string(relation: Relation) -> str:
+def relation_to_string(relation: Relation | IsolatedRelation) -> str:
     return f"{relation.lhs} == {relation.rhs}"

@@ -2,14 +2,14 @@ from typing import TYPE_CHECKING
 
 from bilt.symbolic._errors import IsolationError
 from bilt.symbolic._peel import SymbolTarget, peel
-from bilt.symbolic._relations import Relation
+from bilt.symbolic._relations import IsolatedRelation, Relation
 from bilt.symbolic._walk import count_occurrences
 
 if TYPE_CHECKING:
     from bilt.symbolic._expressions import Expr
 
 
-def isolate(relation: Relation, target: Expr) -> Relation:
+def isolate(relation: Relation, target: Expr) -> IsolatedRelation:
     """Structurally isolate target in a symbolic relation.
 
     This is deliberately limited. It assumes the target:
@@ -45,4 +45,4 @@ def isolate(relation: Relation, target: Expr) -> Relation:
         target=symbol_target,
     )
 
-    return Relation(lhs=symbol_target.expr, rhs=isolated_rhs)
+    return IsolatedRelation(lhs=symbol_target.expr, rhs=isolated_rhs)

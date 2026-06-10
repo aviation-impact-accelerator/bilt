@@ -3,11 +3,11 @@ import pytest
 from bilt.symbolic._errors import IsolationError
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolate import isolate
-from bilt.symbolic._relations import Relation
+from bilt.symbolic._relations import IsolatedRelation, Relation
 
 
 def assert_relation_reps_equal(
-    relation: Relation,
+    relation: IsolatedRelation,
     *,
     lhs: Expr,
     rhs: Expr,
