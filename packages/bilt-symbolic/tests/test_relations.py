@@ -1,20 +1,24 @@
 import pytest
 
+from bilt.core._equation import equation
+from bilt.symbolic._equalities import Equality
 from bilt.symbolic._expressions import Expr
-from bilt.symbolic._relations import Relation, equals, relation_to_string
+from bilt.symbolic._relations import Relation, as_relation, equals
 
 
 def assert_same_expr(left: Expr, right: Expr) -> None:
     assert left.rep is right.rep
 
 
-def test_equals_returns_relation() -> None:
+def test_expr_eq_builds_equality() -> None:
     x = Expr.symbol("x")
     y = Expr.symbol("y")
 
-    rel = equals(x, y)
+    equality = x == y
 
-    assert isinstance(rel, Relation)
+    assert isinstance(equality, Equality)
+    assert equality.lhs is x
+    assert equality.rhs is y
 
 
 def test_equals_stores_lhs_and_rhs_exprs() -> None:
@@ -93,22 +97,6 @@ def test_equals_rejects_unsupported_rhs() -> None:
         equals(x, object())
 
 
-def test_relation_to_string_formats_equality() -> None:
-    x = Expr.symbol("x")
-    y = Expr.symbol("y")
-    rel = Relation(lhs=x, rhs=y)
-
-    assert relation_to_string(rel) == f"{x} == {y}"
-
-
-def test_relation_str_uses_relation_to_string() -> None:
-    x = Expr.symbol("x")
-    y = Expr.symbol("y")
-    rel = Relation(lhs=x, rhs=y)
-
-    assert str(rel) == relation_to_string(rel)
-
-
 def test_relation_is_frozen() -> None:
     x = Expr.symbol("x")
     y = Expr.symbol("y")
@@ -124,3 +112,42 @@ def test_relation_uses_slots() -> None:
     rel = Relation(lhs=x, rhs=y)
 
     assert not hasattr(rel, "__dict__")
+
+
+def test_as_relation_converts_equality() -> None:
+    x = Expr.symbol("x")
+    y = Expr.symbol("y")
+
+    equality = equals(x, y)
+    relation = as_relation(equality)
+
+    assert isinstance(relation, Relation)
+    assert relation.lhs is x
+    assert relation.rhs is y
+
+
+def test_as_relation_returns_relation_unchanged() -> None:
+    x = Expr.symbol("x")
+    y = Expr.symbol("y")
+    relation = Relation(lhs=x, rhs=y)
+
+    assert as_relation(relation) is relation
+
+
+def test_equation_builds_equation_from_function() -> None:
+    @equation
+    def model(a: float, b: float, c: float) -> object:
+        return a == b + c
+
+    assert model.__bilt_equation_name__ == "model"
+    assert model.__bilt_equation_parameters__ == ("a", "b", "c")
+    assert set(model.__bilt_equation_symbols__) == {"a", "b", "c"}
+    assert isinstance(model.__bilt_equation_relation__, Relation)
+
+
+def test_equation_accepts_equals_function() -> None:
+    @equation
+    def model(a: float, b: float, c: float) -> object:
+        return equals(a, b + c)
+
+    assert isinstance(model.__bilt_equation_relation__, Relation)

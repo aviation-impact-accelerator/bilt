@@ -1,14 +1,12 @@
 __all__ = [
     "equation",
 ]
-
-import collections.abc
 import inspect
 import typing
 
 from bilt.core._error import EquationReturnError
 from bilt.symbolic._expressions import Expr
-from bilt.symbolic._relations import Relation
+from bilt.symbolic._relations import Relation, as_relation
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -31,58 +29,18 @@ class BasicEquation[R, **P]:
     _function: collections.abc.Callable[P, R]
 
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
-        self.__bilt_equation_name__ = getattr(
-            function,
-            "__name__",
-            type(function).__name__,
-        )
-
+        name = _function_name(function)
         signature = inspect.signature(function)
-        for param in signature.parameters.values():
-            if param.kind in (
-                inspect.Parameter.POSITIONAL_ONLY,
-                inspect.Parameter.VAR_POSITIONAL,
-                inspect.Parameter.VAR_KEYWORD,
-            ):
-                msg = (
-                    f"Equation function {self.__bilt_equation_name__!r} must use only named parameters "
-                    "(no positional-only parameters, *args, or **kwargs)."
-                )
-                raise TypeError(msg)
 
-        self.__bilt_equation_parameters__ = tuple(signature.parameters.keys())
+        _validate_equation_signature(name, signature)
 
-        self.__bilt_equation_symbols__ = {name: Expr.symbol(name) for name in self.__bilt_equation_parameters__}
+        parameters = tuple(signature.parameters.keys())
+        symbols = _build_symbols(parameters)
+        relation = _build_equation_relation(name, function, symbols)
 
-        symbolic_function = typing.cast(
-            "collections.abc.Callable[..., object]",
-            function,
-        )
-        relation = symbolic_function(**self.__bilt_equation_symbols__)
-
-        if not isinstance(relation, Relation):
-            if isinstance(relation, Expr):
-                msg = (
-                    f"Equation {self.__bilt_equation_name__!r} returned an expression, "
-                    "not an equation.\n\n"
-                    "Did you forget to compare it with another expression?\n\n"
-                    "Use:\n"
-                    "    return equals(lhs, rhs)\n"
-                    "or:\n"
-                    "    return lhs == rhs"
-                )
-            else:
-                msg = (
-                    f"Equation {self.__bilt_equation_name__!r} must return an equation relation, "
-                    f"but returned {type(relation).__name__!r}.\n\n"
-                    "Use:\n"
-                    "    return equals(lhs, rhs)\n"
-                    "or:\n"
-                    "    return lhs == rhs"
-                )
-
-            raise EquationReturnError(msg)
-
+        self.__bilt_equation_name__ = name
+        self.__bilt_equation_parameters__ = parameters
+        self.__bilt_equation_symbols__ = symbols
         self.__bilt_equation_relation__ = relation
         self._function = function
 
@@ -91,6 +49,74 @@ class BasicEquation[R, **P]:
 
     def __str__(self) -> str:
         return f"{self.__bilt_equation_name__}: {self.__bilt_equation_relation__}"
+
+
+def _function_name(function: collections.abc.Callable[..., object]) -> str:
+    return getattr(
+        function,
+        "__name__",
+        type(function).__name__,
+    )
+
+
+def _validate_equation_signature(
+    name: str,
+    signature: inspect.Signature,
+) -> None:
+    for param in signature.parameters.values():
+        if param.kind in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        ):
+            msg = (
+                f"Equation function {name!r} must use only named parameters "
+                "(no positional-only parameters, *args, or **kwargs)."
+            )
+            raise TypeError(msg)
+
+
+def _build_symbols(parameters: tuple[str, ...]) -> dict[str, Expr]:
+    return {name: Expr.symbol(name) for name in parameters}
+
+
+def _build_equation_relation[R, **P](
+    name: str,
+    function: collections.abc.Callable[P, R],
+    symbols: dict[str, Expr],
+) -> Relation:
+    symbolic_function = typing.cast(
+        "collections.abc.Callable[..., object]",
+        function,
+    )
+    result = symbolic_function(**symbols)
+
+    try:
+        return as_relation(result)
+    except TypeError:
+        raise EquationReturnError(_equation_return_error_message(name, result)) from None
+
+
+def _equation_return_error_message(name: str, result: object) -> str:
+    if isinstance(result, Expr):
+        return (
+            f"Equation {name!r} returned an expression, "
+            "not an equation.\n\n"
+            "Did you forget to compare it with another expression?\n\n"
+            "Use:\n"
+            "    return equals(lhs, rhs)\n"
+            "or:\n"
+            "    return lhs == rhs"
+        )
+
+    return (
+        f"Equation {name!r} must return an equation relation, "
+        f"but returned {type(result).__name__!r}.\n\n"
+        "Use:\n"
+        "    return equals(lhs, rhs)\n"
+        "or:\n"
+        "    return lhs == rhs"
+    )
 
 
 def equation[R, **P](

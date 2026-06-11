@@ -1,5 +1,5 @@
+from bilt.symbolic._equalities import Equality
 from bilt.symbolic._expressions import ADD, INV, MUL, NEG, POW, Expr
-from bilt.symbolic._relations import Relation
 
 
 def test_symbol_factory_returns_expr() -> None:
@@ -16,15 +16,15 @@ def test_symbol_factory_uses_hash_consed_tree() -> None:
     assert x1.rep is x2.rep
 
 
-def test_expr_eq_builds_relation() -> None:
+def test_expr_eq_builds_equality() -> None:
     x = Expr.symbol("x")
     y = Expr.symbol("y")
 
-    rel = x == y
+    equality = x == y
 
-    assert isinstance(rel, Relation)
-    assert rel.lhs is x
-    assert rel.rhs is y
+    assert isinstance(equality, Equality)
+    assert equality.lhs is x
+    assert equality.rhs is y
 
 
 def test_expr_structural_identity_uses_hash_consed_tree() -> None:

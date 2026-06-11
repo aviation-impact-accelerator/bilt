@@ -4,37 +4,20 @@ import pytest
 
 from bilt.core._equation import equation
 from bilt.core._error import EquationReturnError
+from bilt.symbolic._equalities import Equality
 from bilt.symbolic._expressions import Expr
-from bilt.symbolic._relations import Relation, equals, relation_to_string
+from bilt.symbolic._relations import Relation, equals
 
 
-def test_equals_returns_relation() -> None:
+def test_equals_returns_equality() -> None:
     x = Expr.symbol("x")
     y = Expr.symbol("y")
 
-    rel = equals(x, y)
+    equality = equals(x, y)
 
-    assert isinstance(rel, Relation)
-    assert rel.lhs is x
-    assert rel.rhs is y
-
-
-def test_relation_to_string_formats_equality() -> None:
-    x = Expr.symbol("x")
-    y = Expr.symbol("y")
-
-    rel = equals(x, y)
-
-    assert relation_to_string(rel) == f"{x} == {y}"
-
-
-def test_relation_str_uses_relation_to_string() -> None:
-    x = Expr.symbol("x")
-    y = Expr.symbol("y")
-
-    rel = equals(x, y)
-
-    assert str(rel) == relation_to_string(rel)
+    assert isinstance(equality, Equality)
+    assert equality.lhs is x
+    assert equality.rhs is y
 
 
 def test_equation_builds_equation_from_function() -> None:

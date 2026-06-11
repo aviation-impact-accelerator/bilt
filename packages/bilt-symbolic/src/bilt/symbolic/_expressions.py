@@ -1,8 +1,11 @@
 import typing
 
 from bilt.symbolic._atoms import ADD, INV, MUL, NEG, POW, FloatType, IntType, SymbolType
-from bilt.symbolic._relation_types import Relation
+from bilt.symbolic._equalities import Equality
 from bilt.symbolic._tree import Tree, float_tree, int_tree, symbol_tree
+
+if typing.TYPE_CHECKING:
+    import types
 
 __all__ = [
     "Expr",
@@ -20,8 +23,6 @@ class Expr:
     def __init__(self, rep: Tree) -> None:
         self._rep = rep
 
-    # -- factories ----------------------------------------------------------
-
     @staticmethod
     def symbol(name: str) -> Expr:
         return Expr(symbol_tree(name))
@@ -33,12 +34,6 @@ class Expr:
     @staticmethod
     def real(value: float) -> Expr:
         return Expr(float_tree(value))
-
-        # -- operator overloads -------------------------------------------------
-
-    # Internally: no Sub or Div ops.
-    #   a - b  -> add(a, neg(b))
-    #   a / b  -> mul(a, inv(b))
 
     def __add__(self, other: Expr) -> Expr:
         return Expr(Tree(ADD, (self._rep, other._rep)))
@@ -58,8 +53,6 @@ class Expr:
     def __truediv__(self, other: Expr) -> Expr:
         return Expr(Tree(MUL, (self._rep, Tree(INV, (other._rep,)))))
 
-    # -- structural helpers -------------------------------------------------
-
     @property
     def is_symbol(self) -> bool:
         return self._rep.is_leaf and self._rep.head.atom_type is SymbolType
@@ -72,29 +65,40 @@ class Expr:
     def rep(self) -> Tree:
         return self._rep
 
-    # -- equality -----------------------------------------------------------
-
-    def __eq__(self, other: object) -> Relation:  # ty: ignore[invalid-method-override]
-        if isinstance(other, Expr):
-            rhs = other
-        elif isinstance(other, bool):
-            return NotImplemented
-        elif isinstance(other, int):
-            rhs = Expr.integer(other)
-        elif isinstance(other, float):
-            rhs = Expr.real(other)
-        else:
+    def __eq__(self, other: object) -> Equality:  # ty: ignore[invalid-method-override]
+        rhs = _rhs_as_expr(other)
+        if rhs is NotImplemented:
             return NotImplemented
 
-        return Relation(lhs=self, rhs=rhs)
+        return Equality(lhs=self, rhs=rhs)
+
+    def structurally_equal(self, other: object) -> bool:
+        if not isinstance(other, Expr):
+            return False
+
+        return self.rep == other.rep
 
     def __hash__(self) -> int:
         return id(self._rep)
-
-    # -- display ------------------------------------------------------------
 
     def __repr__(self) -> str:
         return repr(self._rep)
 
     def __str__(self) -> str:
         return str(self._rep)
+
+
+def _rhs_as_expr(value: object) -> Expr | types.NotImplementedType:
+    if isinstance(value, Expr):
+        return value
+
+    if isinstance(value, bool):
+        return NotImplemented
+
+    if isinstance(value, int):
+        return Expr.integer(value)
+
+    if isinstance(value, float):
+        return Expr.real(value)
+
+    return NotImplemented
