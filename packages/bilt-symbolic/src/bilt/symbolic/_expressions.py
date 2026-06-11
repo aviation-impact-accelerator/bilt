@@ -1,15 +1,12 @@
 import typing
 
 from bilt.symbolic._atoms import ADD, INV, MUL, NEG, POW, FloatType, IntType, SymbolType
+from bilt.symbolic._relation_types import Relation
 from bilt.symbolic._tree import Tree, float_tree, int_tree, symbol_tree
 
 __all__ = [
     "Expr",
 ]
-
-
-if typing.TYPE_CHECKING:
-    from bilt.symbolic._relations import Relation
 
 
 @typing.final
@@ -78,9 +75,18 @@ class Expr:
     # -- equality -----------------------------------------------------------
 
     def __eq__(self, other: object) -> Relation:  # ty: ignore[invalid-method-override]
-        from bilt.symbolic._relations import equals  # noqa: PLC0415
+        if isinstance(other, Expr):
+            rhs = other
+        elif isinstance(other, bool):
+            return NotImplemented
+        elif isinstance(other, int):
+            rhs = Expr.integer(other)
+        elif isinstance(other, float):
+            rhs = Expr.real(other)
+        else:
+            return NotImplemented
 
-        return equals(self, other)
+        return Relation(lhs=self, rhs=rhs)
 
     def __hash__(self) -> int:
         return id(self._rep)

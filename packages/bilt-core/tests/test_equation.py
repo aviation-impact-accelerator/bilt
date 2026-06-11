@@ -106,7 +106,7 @@ def test_equation_raises_if_function_does_not_return_relation() -> None:
     def bad_model(x: Expr) -> object:
         return x
 
-    with pytest.raises(EquationReturnError, match="must return a Relation"):
+    with pytest.raises(EquationReturnError, match="Did you forget to compare it with another expression"):
         equation(bad_model)
 
 

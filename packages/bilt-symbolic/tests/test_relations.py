@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import pytest
 
 from bilt.symbolic._expressions import Expr
@@ -116,7 +114,6 @@ def test_relation_is_frozen() -> None:
     y = Expr.symbol("y")
     z = Expr.symbol("z")
     rel = Relation(lhs=x, rhs=y)
-
     with pytest.raises(AttributeError):
         setattr(rel, "lhs", z)  # noqa: B010
 

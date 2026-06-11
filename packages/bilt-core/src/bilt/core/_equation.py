@@ -1,4 +1,6 @@
-__all__ = ["equation"]
+__all__ = [
+    "equation",
+]
 
 import collections.abc
 import inspect
@@ -59,10 +61,25 @@ class BasicEquation[R, **P]:
         relation = symbolic_function(**self.__bilt_equation_symbols__)
 
         if not isinstance(relation, Relation):
-            msg = (
-                f"Equation function {self.__bilt_equation_name__!r} must return a Relation, "
-                f"got {type(relation).__name__}."
-            )
+            if isinstance(relation, Expr):
+                msg = (
+                    f"Equation {self.__bilt_equation_name__!r} returned an expression, "
+                    "not an equation.\n\n"
+                    "Did you forget to compare it with another expression?\n\n"
+                    "Use:\n"
+                    "    return equals(lhs, rhs)\n"
+                    "or:\n"
+                    "    return lhs == rhs"
+                )
+            else:
+                msg = (
+                    f"Equation {self.__bilt_equation_name__!r} must return an equation relation, "
+                    f"but returned {type(relation).__name__!r}.\n\n"
+                    "Use:\n"
+                    "    return equals(lhs, rhs)\n"
+                    "or:\n"
+                    "    return lhs == rhs"
+                )
 
             raise EquationReturnError(msg)
 
