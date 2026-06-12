@@ -9,14 +9,13 @@ from bilt.symbolic._relations import Relation
 from bilt.symbolic._tree import Tree
 from bilt.symbolic._walk import contains, count_occurrences
 
-
 __all__ = [
-    "isolate",
     "IsolatedRelation",
     "IsolationError",
     "TargetNotFoundError",
     "TargetOnBothSidesError",
     "UnsupportedIsolationError",
+    "isolate",
 ]
 
 
@@ -126,7 +125,6 @@ class IsolatedRelation:
 
 
 def isolate(relation: Relation, target: Expr) -> IsolatedRelation:
-
     simplified = simplify_relation(relation)
     analysed = analyse_occurrences(simplified, target)
     planned = choose_isolation_plan(analysed)
@@ -145,7 +143,6 @@ def isolate(relation: Relation, target: Expr) -> IsolatedRelation:
 
 
 def simplify_relation(relation: Relation) -> SimplifiedRelation:
-
     simplified = Relation(
         lhs=simplify(relation.lhs),
         rhs=simplify(relation.rhs),
@@ -170,14 +167,10 @@ def analyse_occurrences(
         raise TargetNotFoundError(f"Target {target!r} does not occur in relation.")
 
     if profile.target_on_both_sides:
-        raise TargetOnBothSidesError(
-            f"Target {target!r} occurs on both sides."
-        )
+        raise TargetOnBothSidesError(f"Target {target!r} occurs on both sides.")
 
     if profile.total_count > 1:
-        raise UnsupportedIsolationError(
-            f"Target {target!r} occurs more than once."
-        )
+        raise UnsupportedIsolationError(f"Target {target!r} occurs more than once.")
 
     return AnalysedRelation(
         relation=relation,
@@ -274,9 +267,7 @@ def isolate_expr_by_inverse_rules(
         new_lhs, new_rhs = isolate_mul_expr(lhs, rhs, target)
         return isolate_expr_by_inverse_rules(new_lhs, new_rhs, target)
 
-    raise UnsupportedIsolationError(
-        f"Cannot isolate {target!r} from {lhs!r}."
-    )
+    raise UnsupportedIsolationError(f"Cannot isolate {target!r} from {lhs!r}.")
 
 
 def isolate_add_expr(
@@ -288,10 +279,7 @@ def isolate_add_expr(
     target_terms, other_terms = split_terms_by_target(terms, target)
 
     if len(target_terms) != 1:
-        raise UnsupportedIsolationError(
-            f"Expected one target-containing additive term, "
-            f"got {len(target_terms)}."
-        )
+        raise UnsupportedIsolationError(f"Expected one target-containing additive term, got {len(target_terms)}.")
 
     target_part = target_terms[0]
 
@@ -314,8 +302,7 @@ def isolate_mul_expr(
 
     if len(target_factors) != 1:
         raise UnsupportedIsolationError(
-            f"Expected one target-containing multiplicative factor, "
-            f"got {len(target_factors)}."
+            f"Expected one target-containing multiplicative factor, got {len(target_factors)}."
         )
 
     target_part = target_factors[0]
@@ -535,8 +522,7 @@ def count_expr_occurrences(expr: Expr, target: Expr) -> int:
 
 
 def same_expr(left: Expr, right: Expr) -> bool:
-    """
-    Internal structural equality.
+    """Internal structural equality.
 
     Do not use Expr.__eq__, because Expr.__eq__ constructs a Relation.
     """
@@ -554,6 +540,5 @@ def same_tree(left: Tree, right: Tree) -> bool:
         return False
 
     return all(
-        same_tree(left_child, right_child)
-        for left_child, right_child in zip(left.args, right.args, strict=True)
+        same_tree(left_child, right_child) for left_child, right_child in zip(left.args, right.args, strict=True)
     )

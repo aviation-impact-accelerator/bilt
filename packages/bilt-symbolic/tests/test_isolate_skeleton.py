@@ -1,7 +1,6 @@
 import pytest
 
 from bilt.symbolic._expressions import Expr
-from bilt.symbolic._relations import Relation
 from bilt.symbolic._isolate_skeleton import (
     TargetNotFoundError,
     TargetOnBothSidesError,
@@ -14,6 +13,7 @@ from bilt.symbolic._isolate_skeleton import (
     make_neg,
     make_sub,
 )
+from bilt.symbolic._relations import Relation
 
 
 def assert_same_expr(left: Expr, right: Expr) -> None:
@@ -31,8 +31,7 @@ def same_tree(left, right) -> bool:
         return False
 
     return all(
-        same_tree(left_child, right_child)
-        for left_child, right_child in zip(left.args, right.args, strict=True)
+        same_tree(left_child, right_child) for left_child, right_child in zip(left.args, right.args, strict=True)
     )
 
 
