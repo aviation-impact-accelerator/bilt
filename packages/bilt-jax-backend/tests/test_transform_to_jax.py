@@ -85,6 +85,26 @@ def test_build_pipeline_raises_on_unsatisfied_arg() -> None:
         bilt_asts_to_jax(fdefs)
 
 
+def test_pipeline_rejects_unexpected_input() -> None:
+    pipeline = bilt_asts_to_jax([parse_to_ast("def f(x):\n    return x")])
+    with pytest.raises(ValueError, match="Unexpected"):
+        pipeline(x=jnp.array(1.0), z=jnp.array(2.0))
+
+
+def test_transpile_list_literal_becomes_jnp_array() -> None:
+    fn = transpile(parse_to_ast("def f():\n    return [1.0, 2.0, 3.0]"))
+    result = fn()
+    assert isinstance(result, jnp.ndarray)
+    assert list(result) == pytest.approx([1.0, 2.0, 3.0])
+
+
+def test_transpile_nested_list_both_converted() -> None:
+    fn = transpile(parse_to_ast("def f():\n    return [[1.0, 2.0], [3.0, 4.0]]"))
+    result = fn()
+    assert isinstance(result, jnp.ndarray)
+    assert result.shape == (2, 2)
+
+
 def test_grad_pipeline() -> None:
     """A proof of concept that we can differentate the output here, even though we have to do this hacky thing to turn kwargs into args for jax.grad."""
     fdefs = [
@@ -94,9 +114,3 @@ def test_grad_pipeline() -> None:
     pipeline = bilt_asts_to_jax(fdefs)
     grad_pipeline = jax.grad(lambda x, y: pipeline(x=x, y=y), argnums=0)
     assert float(grad_pipeline(3.0, 1.0)) == pytest.approx(6.0)
-
-
-def test_pipeline_rejects_unexpected_input() -> None:
-    pipeline = bilt_asts_to_jax([parse_to_ast("def f(x):\n    return x")])
-    with pytest.raises(ValueError, match="Unexpected"):
-        pipeline(x=jnp.array(1.0), z=jnp.array(2.0))
