@@ -19,18 +19,30 @@ __all__ = ("JaxExecutor", "bilt_asts_to_jax")
 class JaxExecutor:
     """Wrapper for the callable that executes the plan provided by structural analysis, enforcing that only expected inputs are provided at runtime."""
 
-    def __init__(self, fn: collections.abc.Callable, external_inputs: set[str]) -> None:
-        """Initialize the JaxExecutor with the callable and the set of expected external inputs."""
+    def __init__(
+        self,
+        jitted_functions: collections.abc.Mapping[str, collections.abc.Callable],
+        order: list[str],
+        arg_map: dict[str, list[str]],
+        external_inputs: set[str],
+    ) -> None:
+        """Initialize the JaxExecutor with the given JIT-compiled functions, execution order, argument mapping, and external inputs."""
         self.external_inputs = external_inputs
-        self._fn = fn
+        self._jitted_functions = jitted_functions
+        self._order = order
+        self._arg_map = arg_map
 
     def __call__(self, **kwargs: Any) -> Any:  # noqa: ANN401
-        """Calls the executor function with the provided keyword arguments, ensuring that only expected inputs are passed."""
+        """Runs the JAX execution plan function with the provided keyword arguments, ensuring that only expected inputs are passed."""
         unexpected = kwargs.keys() - self.external_inputs
         if unexpected:
             msg = f"Unexpected inputs: {unexpected}"
             raise ValueError(msg)
-        return self._fn(**kwargs)
+        intermediates: dict[str, Any] = dict(kwargs)
+        for fname in self._order:
+            args = [intermediates[a] for a in self._arg_map[fname]]
+            intermediates[fname] = self._jitted_functions[fname](*args)
+        return intermediates[self._order[-1]]
 
 
 class _JaxTransformer(ast.NodeTransformer):
@@ -85,17 +97,10 @@ def bilt_asts_to_jax(
     for fname in order:
         for arg in arg_map[fname]:
             if arg not in external_inputs and arg not in prior:
-                msg = f"Argument '{arg}' of '{fname}' is not satisfied by any external input or prior function output."
+                msg = f"Argument '{arg}' of '{fname}' is is not an expected input or a function that takes place before '{fname}'."
                 raise ValueError(msg)
         prior.add(fname)
 
-    jitted = {fdef.name: jax.jit(transpile(fdef)) for fdef in fdefs}
+    jitted_functions = {fdef.name: jax.jit(transpile(fdef)) for fdef in fdefs}
 
-    def pipeline(**kwargs: typing.Any) -> typing.Any:  # noqa: ANN401
-        intermediates: dict[str, Any] = dict(kwargs)
-        for fname in order:
-            args = [intermediates[a] for a in arg_map[fname]]
-            intermediates[fname] = jitted[fname](*args)
-        return intermediates[order[-1]]
-
-    return JaxExecutor(pipeline, external_inputs)
+    return JaxExecutor(jitted_functions, order, arg_map, external_inputs)

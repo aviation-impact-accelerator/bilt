@@ -81,13 +81,15 @@ def test_build_pipeline_raises_on_unsatisfied_arg() -> None:
         parse_to_ast("def g(h):\n    return h"),
         parse_to_ast("def h(g):\n    return g"),
     ]
-    with pytest.raises(ValueError, match="not satisfied"):
+    with pytest.raises(
+        ValueError, match="Argument 'h' of 'g' is is not an expected input or a function that takes place before 'g'"
+    ):
         bilt_asts_to_jax(fdefs)
 
 
 def test_pipeline_rejects_unexpected_input() -> None:
     pipeline = bilt_asts_to_jax([parse_to_ast("def f(x):\n    return x")])
-    with pytest.raises(ValueError, match="Unexpected"):
+    with pytest.raises(ValueError, match=r"Unexpected inputs: {'z'}"):
         pipeline(x=jnp.array(1.0), z=jnp.array(2.0))
 
 
@@ -115,7 +117,7 @@ def test_build_pipeline_with_list_operation() -> None:
 
 
 def test_grad_pipeline() -> None:
-    """A proof of concept that we can differentate the output here, even though we have to do this hacky thing to turn kwargs into args for jax.grad."""
+    """A proof of concept that we can differentate the output here, even though we have to do this hacky thing to turn kwargs into positional args for jax.grad."""
     fdefs = [
         parse_to_ast("def f(x):\n    return x ** 2"),
         parse_to_ast("def g(f, y):\n    return f + y"),
