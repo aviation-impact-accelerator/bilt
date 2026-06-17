@@ -53,7 +53,7 @@ source = { editable = "packages/bilt-core" }
 [[package]]
 name = "bilt-jax-backend"
 version = "0.1.0"
-source = { virtual = "packages/bilt-jax-backend" }
+source = { editable = "packages/bilt-jax-backend" }
 dependencies = [
     { name = "jax" },
 ]

@@ -22,6 +22,7 @@ docs = [
 python_version = "3.14"
 search-path = [
     "packages/bilt-core/src",
+    "packages/bilt-jax-backend/src",
     "packages/bilt-symbolic/src",
     "packages/bilt-units/src",
     "packages/examples/src",
@@ -30,6 +31,7 @@ search-path = [
 [tool.ty.environment]
 extra-paths = [
     "packages/bilt-core/src",
+    "packages/bilt-jax-backend/src",
     "packages/bilt-symbolic/src",
     "packages/bilt-units/src",
     "packages/examples/src",
@@ -88,6 +90,7 @@ convention = "google"
 
 [tool.uv.sources]
 bilt-core = { workspace = true }
+bilt-jax-backend = { workspace = true }
 bilt-symbolic = { workspace = true }
 bilt-units = { workspace = true }
 examples = { workspace = true }
@@ -95,8 +98,9 @@ examples = { workspace = true }
 [tool.uv.workspace]
 members = [
     "packages/bilt-core",
+    "packages/bilt-jax-backend",
     "packages/bilt-units",
     "packages/bilt-symbolic",
     "packages/examples",
-    "packages/bilt-jax-backend",
+
 ]
