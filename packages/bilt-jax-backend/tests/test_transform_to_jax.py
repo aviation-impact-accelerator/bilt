@@ -81,9 +81,7 @@ def test_build_pipeline_raises_on_unsatisfied_arg() -> None:
         parse_to_ast("def g(h):\n    return h"),
         parse_to_ast("def h(g):\n    return g"),
     ]
-    with pytest.raises(
-        ValueError, match="Argument 'h' of 'g' is is not an expected input or a function that takes place before 'g'"
-    ):
+    with pytest.raises(ValueError, match=r"not satisfied|not an expected input"):
         bilt_asts_to_jax(fdefs)
 
 

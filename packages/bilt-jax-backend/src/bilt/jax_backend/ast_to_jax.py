@@ -2,22 +2,21 @@
 
 import ast
 import copy
-import typing
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jax
 import jax.numpy as jnp
 
 from bilt.jax_backend.supported_node_check import _validate
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     import collections.abc
 
 __all__ = ("JaxExecutor", "bilt_asts_to_jax")
 
 
 class JaxExecutor:
-    """Wrapper for the callable that executes the plan provided by structural analysis, enforcing that only expected inputs are provided at runtime."""
+    """Executes a JIT-compiled pipeline, enforcing that only expected inputs are provided at runtime."""
 
     def __init__(
         self,
@@ -26,14 +25,14 @@ class JaxExecutor:
         arg_map: dict[str, list[str]],
         external_inputs: set[str],
     ) -> None:
-        """Initialize the JaxExecutor with the given JIT-compiled functions, execution order, argument mapping, and external inputs."""
+        """Initialize the JaxExecutor with the JIT-compiled functions, their execution order, argument mapping, and expected external inputs."""
         self.external_inputs = external_inputs
         self._jitted_functions = jitted_functions
         self._order = order
         self._arg_map = arg_map
 
     def __call__(self, **kwargs: Any) -> Any:  # noqa: ANN401
-        """Runs the JAX execution plan function with the provided keyword arguments, ensuring that only expected inputs are passed."""
+        """Calls the execution pipeline with the provided keyword arguments, ensuring that only expected inputs are passed."""
         unexpected = kwargs.keys() - self.external_inputs
         if unexpected:
             msg = f"Unexpected inputs: {unexpected}"
@@ -70,9 +69,23 @@ def transpile(fdef: ast.FunctionDef) -> collections.abc.Callable:
     return ns[fdef.name]
 
 
-def bilt_asts_to_jax(
-    fdefs: list[ast.FunctionDef],
-) -> JaxExecutor:
+def extract_external_inputs(function_names: list[str], arg_map: dict[str, list[str]]) -> set[str]:
+    """Return args that are not themselves function names — these must be provided externally."""
+    all_args = {arg for arg_list in arg_map.values() for arg in arg_list}
+    return all_args - set(function_names)
+
+
+def validate_function_order(ordered_names: list[str], arg_map: dict[str, list[str]], external_inputs: set[str]) -> None:
+    prior: set[str] = set()
+    for fname in ordered_names:
+        for arg in arg_map[fname]:
+            if arg not in external_inputs and arg not in prior:
+                msg = f"Argument '{arg}' of '{fname}' is not an expected input or a function that takes place before '{fname}'."
+                raise ValueError(msg)
+        prior.add(fname)
+
+
+def bilt_asts_to_jax(fdefs: list[ast.FunctionDef]) -> JaxExecutor:
     """Build a JIT-compiled pipeline from a list of FunctionDefs in execution order.
 
     If we are given two functions:
@@ -84,23 +97,9 @@ def bilt_asts_to_jax(
 
     Given this is the Jax backend, we will JIT compile each function in the pipeline to the best of our ability.
     """
-    order = [fdef.name for fdef in fdefs]
-    arg_map = {fdef.name: [a.arg for a in fdef.args.args] for fdef in fdefs}
-
-    external_inputs: set[str] = set()
-    for args in arg_map.values():
-        for arg in args:
-            if arg not in order:
-                external_inputs.add(arg)
-
-    prior: set[str] = set()
-    for fname in order:
-        for arg in arg_map[fname]:
-            if arg not in external_inputs and arg not in prior:
-                msg = f"Argument '{arg}' of '{fname}' is is not an expected input or a function that takes place before '{fname}'."
-                raise ValueError(msg)
-        prior.add(fname)
-
+    function_names = [fdef.name for fdef in fdefs]
+    name_to_args = {fdef.name: [a.arg for a in fdef.args.args] for fdef in fdefs}
+    external_inputs = extract_external_inputs(function_names, name_to_args)
+    validate_function_order(function_names, name_to_args, external_inputs)
     jitted_functions = {fdef.name: jax.jit(transpile(fdef)) for fdef in fdefs}
-
-    return JaxExecutor(jitted_functions, order, arg_map, external_inputs)
+    return JaxExecutor(jitted_functions, function_names, name_to_args, external_inputs)
