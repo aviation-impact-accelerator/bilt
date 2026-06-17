@@ -77,6 +77,7 @@ def extract_external_inputs(function_names: list[str], arg_map: dict[str, list[s
 
 
 def validate_function_order(ordered_names: list[str], arg_map: dict[str, list[str]], external_inputs: set[str]) -> None:
+    """Ensure that each function's arguments are either external inputs or outputs of functions that were called before it."""
     prior: set[str] = set()
     for fname in ordered_names:
         for arg in arg_map[fname]:
