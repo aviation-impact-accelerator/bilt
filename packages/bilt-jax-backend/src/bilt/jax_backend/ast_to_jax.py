@@ -1,4 +1,4 @@
-"""JAX backend: transpile Python AST FunctionDefs to JAX callables."""
+"""JAX backend: compile Python AST FunctionDefs to a callable utilising JAX for performance boosts."""
 
 import ast
 import copy
