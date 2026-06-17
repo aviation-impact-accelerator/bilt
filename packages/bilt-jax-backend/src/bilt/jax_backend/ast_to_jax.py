@@ -59,6 +59,7 @@ class _JaxTransformer(ast.NodeTransformer):
 
 
 def transpile(fdef: ast.FunctionDef) -> collections.abc.Callable:
+    """Apply bilt transformations to a ast.FunctionDef and return a it as a callable."""
     _validate(fdef)
     transformed = _JaxTransformer().visit(copy.deepcopy(fdef))
     module = ast.Module(body=[transformed], type_ignores=[])
