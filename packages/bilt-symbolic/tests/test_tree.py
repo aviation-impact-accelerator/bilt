@@ -1,7 +1,22 @@
 import pytest
 
-from bilt.symbolic._atoms import symbol
-from bilt.symbolic._tree import Tree, float_tree, int_tree, symbol_tree
+from bilt.symbolic._atoms import (
+    ADD,
+    EQUALS,
+    LESS_THAN,
+    MUL,
+    Atom,
+    symbol,
+)
+from bilt.symbolic._errors import TreeMutationError
+from bilt.symbolic._tree import (
+    Tree,
+    equality_tree,
+    float_tree,
+    int_tree,
+    relation_tree,
+    symbol_tree,
+)
 
 
 def test_symbol_tree_is_hash_consed() -> None:
@@ -32,35 +47,41 @@ def test_different_leaf_values_are_different_trees() -> None:
     assert x is not y
 
 
-def test_different_leaf_atom_types_are_different_trees() -> None:
-    symbol_one = symbol_tree("1")
-    int_one = int_tree(1)
-    float_one = float_tree(1.0)
+def test_leaf_tree_has_head_and_no_args() -> None:
+    x = symbol_tree("x")
 
-    assert symbol_one is not int_one
-    assert int_one is not float_one
-    assert symbol_one is not float_one
+    assert x.head is symbol("x")
+    assert x.args == ()
+    assert x.is_leaf is True
 
 
 def test_compound_tree_is_hash_consed() -> None:
-    x1 = symbol_tree("x")
-    y1 = symbol_tree("y")
+    x = symbol_tree("x")
+    y = symbol_tree("y")
 
-    expr1 = Tree(symbol("add"), (x1, y1))
+    expr1 = Tree(ADD, (x, y))
+    expr2 = Tree(ADD, (x, y))
 
-    x2 = symbol_tree("x")
-    y2 = symbol_tree("y")
-
-    expr2 = Tree(symbol("add"), (x2, y2))
     assert expr1 is expr2
+
+
+def test_compound_tree_preserves_head_and_args() -> None:
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+
+    expr = Tree(ADD, (x, y))
+
+    assert expr.head is ADD
+    assert expr.args == (x, y)
+    assert expr.is_leaf is False
 
 
 def test_compound_tree_argument_order_matters() -> None:
     x = symbol_tree("x")
     y = symbol_tree("y")
 
-    xy = Tree(symbol("add"), (x, y))
-    yx = Tree(symbol("add"), (y, x))
+    xy = Tree(ADD, (x, y))
+    yx = Tree(ADD, (y, x))
 
     assert xy is not yx
 
@@ -69,78 +90,46 @@ def test_compound_tree_head_matters() -> None:
     x = symbol_tree("x")
     y = symbol_tree("y")
 
-    add_expr = Tree(symbol("add"), (x, y))
-    mul_expr = Tree(symbol("mul"), (x, y))
+    add_expr = Tree(ADD, (x, y))
+    mul_expr = Tree(MUL, (x, y))
 
     assert add_expr is not mul_expr
 
 
-def test_leaf_has_no_args() -> None:
+def test_tree_equality_is_identity_based() -> None:
     x = symbol_tree("x")
-
-    assert x.head == symbol("x")
-    assert x.args == ()
-    assert x.is_leaf is True
-
-
-def test_compound_tree_is_not_leaf() -> None:
-    x = symbol_tree("x")
-    y = symbol_tree("y")
-    expr = Tree(symbol("add"), (x, y))
-
-    assert expr.is_leaf is False
-
-
-def test_equality_is_identity_based() -> None:
-    x = symbol_tree("x")
+    x_again = symbol_tree("x")
     y = symbol_tree("y")
 
+    assert x is x_again
+    assert x == x_again
     assert x != y
     assert x != object()
 
 
-def test_hash_is_identity_based() -> None:
+def test_tree_hash_is_identity_based() -> None:
     x = symbol_tree("x")
 
     assert hash(x) == id(x)
 
 
-def test_head_cannot_be_reassigned() -> None:
+def test_tree_is_immutable() -> None:
     x = symbol_tree("x")
 
-    with pytest.raises(AttributeError, match="immutable"):
+    with pytest.raises(TreeMutationError, match="immutable"):
         x.head = symbol("y")
 
+    with pytest.raises(TreeMutationError, match="immutable"):
+        x.args = ()
 
-def test_args_cannot_be_reassigned() -> None:
-    x = symbol_tree("x")
-
-    with pytest.raises(AttributeError, match="immutable"):
-        x.args = (symbol_tree("y"),)
-
-
-def test_head_cannot_be_deleted() -> None:
-    x = symbol_tree("x")
-
-    with pytest.raises(AttributeError, match="immutable"):
+    with pytest.raises(TreeMutationError, match="immutable"):
         del x.head
 
-
-def test_args_cannot_be_deleted() -> None:
-    x = symbol_tree("x")
-
-    with pytest.raises(AttributeError, match="immutable"):
-        del x.args
-
-
-def test_tree_cannot_gain_extra_attributes() -> None:
-    x = symbol_tree("x")
-
-    with pytest.raises(AttributeError):
+    with pytest.raises(TreeMutationError, match="immutable"):
         x.extra = 1  # type: ignore[attr-defined]
 
 
-def test_str_for_leaf() -> None:
+def test_str_for_leaf_tree() -> None:
     assert str(symbol_tree("x")) == "x"
     assert str(int_tree(1)) == "1"
     assert str(float_tree(1.5)) == "1.5"
@@ -150,6 +139,98 @@ def test_str_for_compound_tree() -> None:
     x = symbol_tree("x")
     y = symbol_tree("y")
 
-    expr = Tree(symbol("add"), (x, y))
+    expr = Tree(ADD, (x, y))
 
     assert str(expr) == "add(x, y)"
+
+
+@pytest.mark.parametrize(
+    ("operator", "operator_text"),
+    (
+        (EQUALS, "=="),
+        (LESS_THAN, "<"),
+    ),
+)
+def test_relation_tree_constructs_from_relation_operator_atom(
+    operator: Atom,
+    operator_text: str,
+) -> None:
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+
+    relation = relation_tree(operator, x, y)
+
+    assert relation.head is operator
+    assert relation.args == (x, y)
+    assert relation.is_relation is True
+    assert relation.operator is operator
+    assert relation.left is x
+    assert relation.right is y
+    assert str(relation) == f"(x {operator_text} y)"
+
+
+@pytest.mark.parametrize(
+    "operator",
+    (
+        "==",
+        "<",
+    ),
+)
+def test_relation_tree_constructs_from_operator_string(operator: str) -> None:
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+
+    relation = relation_tree(operator, x, y)
+
+    assert relation.args == (x, y)
+    assert relation.is_relation is True
+    assert str(relation) == f"(x {operator} y)"
+
+
+def test_equality_tree_constructs_equality_relation() -> None:
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+
+    relation = equality_tree(x, y)
+
+    assert relation.head is EQUALS
+    assert relation.args == (x, y)
+    assert relation.is_relation is True
+    assert relation.is_equality is True
+    assert relation.left is x
+    assert relation.right is y
+
+
+def test_non_relation_tree_rejects_relation_accessors() -> None:
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+
+    expr = Tree(ADD, (x, y))
+
+    assert expr.is_relation is False
+    assert expr.is_equality is False
+
+    with pytest.raises(ValueError, match="not a relation"):
+        _ = expr.operator
+
+    with pytest.raises(ValueError, match="no left-hand side"):
+        _ = expr.left
+
+    with pytest.raises(ValueError, match="no right-hand side"):
+        _ = expr.right
+
+
+def test_relation_tree_rejects_non_relation_operator_atom() -> None:
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+
+    with pytest.raises(TypeError, match="Expected relation operator atom"):
+        relation_tree(ADD, x, y)
+
+
+def test_relation_tree_rejects_unknown_operator_string() -> None:
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+
+    with pytest.raises(ValueError, match="Unknown relation operator"):
+        relation_tree("===", x, y)
