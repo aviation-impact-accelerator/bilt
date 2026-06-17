@@ -8,70 +8,12 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 
+from bilt.jax_backend.supported_node_check import _validate
+
 if typing.TYPE_CHECKING:
     import collections.abc
 
 __all__ = ("JaxExecutor", "bilt_asts_to_jax")
-
-
-_SUPPORTED_NODES = frozenset(
-    {
-        ast.FunctionDef,
-        ast.arguments,
-        ast.arg,
-        ast.Return,
-        ast.Expr,
-        ast.BinOp,
-        ast.UnaryOp,
-        ast.BoolOp,
-        ast.Compare,
-        ast.Call,
-        ast.Constant,
-        ast.Name,
-        ast.Attribute,
-        ast.Tuple,
-        ast.List,
-        ast.keyword,
-        ast.Subscript,
-        ast.Slice,
-        ast.Add,
-        ast.Sub,
-        ast.Mult,
-        ast.Div,
-        ast.FloorDiv,
-        ast.Mod,
-        ast.Pow,
-        ast.MatMult,
-        ast.UAdd,
-        ast.USub,
-        ast.Not,
-        ast.Invert,
-        ast.BitAnd,
-        ast.BitOr,
-        ast.BitXor,
-        ast.LShift,
-        ast.RShift,
-        ast.And,
-        ast.Or,
-        ast.Eq,
-        ast.NotEq,
-        ast.Lt,
-        ast.LtE,
-        ast.Gt,
-        ast.GtE,
-        ast.Is,
-        ast.IsNot,
-        ast.In,
-        ast.NotIn,
-        ast.Load,
-        ast.Store,
-        ast.Del,
-    }
-)
-
-
-class UnsupportedNodeError(Exception):
-    pass
 
 
 class JaxExecutor:
@@ -89,14 +31,6 @@ class JaxExecutor:
             msg = f"Unexpected inputs: {unexpected}"
             raise ValueError(msg)
         return self._fn(**kwargs)
-
-
-def _validate(fdef: ast.FunctionDef) -> None:
-    for node in ast.walk(fdef):
-        if type(node) not in _SUPPORTED_NODES:
-            lineno = getattr(node, "lineno", "?")
-            msg = f"Unsupported AST node '{type(node).__name__}' at line {lineno}."
-            raise UnsupportedNodeError(msg)
 
 
 class _JaxTransformer(ast.NodeTransformer):

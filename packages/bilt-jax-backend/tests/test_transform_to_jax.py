@@ -7,8 +7,8 @@ import jax
 import jax.numpy as jnp
 import pytest
 
+from bilt.jax_backend.supported_node_check import UnsupportedNodeError
 from bilt.jax_backend.transform_to_jax import (
-    UnsupportedNodeError,
     bilt_asts_to_jax,
     transpile,
 )
