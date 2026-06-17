@@ -105,6 +105,15 @@ def test_transpile_nested_list_both_converted() -> None:
     assert result.shape == (2, 2)
 
 
+def test_build_pipeline_with_list_operation() -> None:
+    fdefs = [
+        parse_to_ast("def f():\n    return [1.0,2.0,3.0,4.0,5.0]"),
+        parse_to_ast("def g(f):\n    return f + 1"),
+    ]
+    pipeline = bilt_asts_to_jax(fdefs)
+    assert float(pipeline() == pytest.approx([2.0, 3.0, 4.0, 5.0, 6.0]))
+
+
 def test_grad_pipeline() -> None:
     """A proof of concept that we can differentate the output here, even though we have to do this hacky thing to turn kwargs into args for jax.grad."""
     fdefs = [
