@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 import jax
 import jax.numpy as jnp
 
-from bilt.jax_backend.supported_node_check import _validate
+from bilt.jax_backend.validate_ast import _validate
 
 if TYPE_CHECKING:
     import collections.abc

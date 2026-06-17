@@ -11,7 +11,7 @@ from bilt.jax_backend.ast_to_jax import (
     bilt_asts_to_jax,
     transpile,
 )
-from bilt.jax_backend.supported_node_check import UnsupportedNodeError
+from bilt.jax_backend.validate_ast import UnsupportedNodeError
 
 
 def parse_to_ast(src: str) -> ast.FunctionDef:
