@@ -45,6 +45,8 @@ class JaxExecutor:
 
 
 class _JaxTransformer(ast.NodeTransformer):
+    """Transformer to apply our specific optimisations to the AST, such as converting list literals to jnp.array calls."""
+
     def visit_List(self, node: ast.List) -> ast.Call:
         self.generic_visit(node)
         return ast.Call(
@@ -59,7 +61,7 @@ class _JaxTransformer(ast.NodeTransformer):
 
 
 def transpile(fdef: ast.FunctionDef) -> collections.abc.Callable:
-    """Apply bilt transformations to a ast.FunctionDef and return a it as a callable."""
+    """Apply bilt transformations to a ast.FunctionDef and compile it into a callable."""
     _validate(fdef)
     transformed = _JaxTransformer().visit(copy.deepcopy(fdef))
     module = ast.Module(body=[transformed], type_ignores=[])
