@@ -33,10 +33,15 @@ class JaxExecutor:
 
     def __call__(self, **kwargs: Any) -> Any:  # noqa: ANN401
         """Calls the execution pipeline with the provided keyword arguments, ensuring that only expected inputs are passed."""
-        unexpected = kwargs.keys() - self.external_inputs
-        if unexpected:
-            msg = f"Unexpected inputs: {unexpected}"
+        unexpected_additional_args = kwargs.keys() - self.external_inputs
+        if unexpected_additional_args:
+            msg = f"Unexpected inputs: {unexpected_additional_args}"
             raise ValueError(msg)
+        required_missing_args = self.external_inputs - kwargs.keys()
+        if required_missing_args:
+            msg = f"Missing required inputs: {required_missing_args}"
+            raise ValueError(msg)
+
         intermediates: dict[str, Any] = dict(kwargs)
         for fname in self._order:
             args = [intermediates[a] for a in self._arg_map[fname]]
