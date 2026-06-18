@@ -1,1 +1,1 @@
-"""JAX backend package."""
+"""Bilt JAX backend package."""
