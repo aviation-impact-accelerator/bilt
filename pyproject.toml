@@ -69,6 +69,10 @@ fixture-parentheses = false
 mark-parentheses = false
 parametrize-values-type = "tuple"
 
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["bilt.core.Interface"]
+runtime-evaluated-decorators = ["bilt.core.equation", "bilt.core.system", "bilt.core.transform"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["bilt"]
 
