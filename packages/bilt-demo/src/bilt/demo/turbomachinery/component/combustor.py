@@ -1,24 +1,25 @@
 import typing
 
-import bilt
+import bilt.core
 from bilt.demo.turbomachinery.component.interface import Combustor
 from bilt.demo.turbomachinery.fluid.interface import FluidProperties, FuelFlow, ThermodynamicState
+from bilt.units import fraction, joule, kilogram, second
 
 
 @bilt.core.equation
 def heat_addition_relation(
     fuel_flow: FuelFlow,
-    heat_addition: typing.Annotated[float, bilt.unit.joule / bilt.unit.second],
-) -> bilt.core.equation:
+    heat_addition: typing.Annotated[float, joule / second],
+) -> bool:
     return heat_addition == fuel_flow.heat_release
 
 
 @bilt.core.equation
 def outlet_pressure_relation(
     inlet: ThermodynamicState,
-    pressure_recovery_factor: typing.Annotated[float, bilt.unit.fraction],
+    pressure_recovery_factor: typing.Annotated[float, fraction],
     outlet: ThermodynamicState,
-) -> bilt.core.equation:
+) -> bool:
     return outlet.pressure == pressure_recovery_factor * inlet.pressure
 
 
@@ -26,10 +27,10 @@ def outlet_pressure_relation(
 def outlet_temperature_relation(
     inlet: ThermodynamicState,
     fluid: FluidProperties,
-    heat_addition: typing.Annotated[float, bilt.unit.joule / bilt.unit.second],
-    air_mass_flow_rate: typing.Annotated[float, bilt.unit.kilogram / bilt.unit.second],
+    heat_addition: typing.Annotated[float, joule / second],
+    air_mass_flow_rate: typing.Annotated[float, kilogram / second],
     outlet: ThermodynamicState,
-) -> bilt.core.equation:
+) -> bool:
     return outlet.temperature == inlet.temperature + heat_addition / (air_mass_flow_rate * fluid.specific_heat_capacity)
 
 
@@ -37,7 +38,7 @@ def outlet_temperature_relation(
 def inlet_fluid_equals_combustor_fluid(
     fluid: FluidProperties,
     inlet: ThermodynamicState,
-) -> bilt.core.equation:
+) -> bool:
     return fluid == inlet.fluid
 
 
@@ -45,11 +46,11 @@ def inlet_fluid_equals_combustor_fluid(
 def outlet_fluid_equals_combustor_fluid(
     fluid: FluidProperties,
     outlet: ThermodynamicState,
-) -> bilt.core.equation:
+) -> bool:
     return fluid == outlet.fluid
 
 
-simple_combustor = bilt.Implementation(
+simple_combustor = bilt.core.Implementation(
     Combustor,
     {
         heat_addition_relation,

@@ -1,17 +1,18 @@
 import typing
 
-import bilt
+import bilt.core
 from bilt.demo.turbomachinery.component.interface import Turbine
 from bilt.demo.turbomachinery.fluid.interface import FluidProperties, ThermodynamicState
+from bilt.units import DIMENSIONLESS, fraction, joule, kilogram
 
 
 @bilt.core.equation
 def isentropic_relation(
     inlet: ThermodynamicState,
     outlet: ThermodynamicState,
-    heat_capacity_ratio: typing.Annotated[float, bilt.unit.DIMENSIONLESS],
-    isentropic_efficiency: typing.Annotated[float, bilt.unit.fraction],
-) -> bilt.core.equation:
+    heat_capacity_ratio: typing.Annotated[float, DIMENSIONLESS],
+    isentropic_efficiency: typing.Annotated[float, fraction],
+) -> bool:
     return (
         outlet.temperature / inlet.temperature
         == (outlet.pressure / inlet.pressure) ** ((heat_capacity_ratio - 1) / heat_capacity_ratio)
@@ -24,8 +25,8 @@ def specific_work_relation(
     inlet: ThermodynamicState,
     outlet: ThermodynamicState,
     fluid: FluidProperties,
-    specific_work: typing.Annotated[float, bilt.unit.joule / bilt.unit.kilogram],
-) -> bilt.core.equation:
+    specific_work: typing.Annotated[float, joule / kilogram],
+) -> bool:
     return specific_work == fluid.specific_heat_capacity * (inlet.temperature - outlet.temperature)
 
 
@@ -33,7 +34,7 @@ def specific_work_relation(
 def inlet_fluid_equals_turbine_fluid(
     fluid: FluidProperties,
     inlet: ThermodynamicState,
-) -> bilt.core.equation:
+) -> bool:
     return fluid == inlet.fluid
 
 
@@ -41,11 +42,11 @@ def inlet_fluid_equals_turbine_fluid(
 def outlet_fluid_equals_turbine_fluid(
     fluid: FluidProperties,
     outlet: ThermodynamicState,
-) -> bilt.core.equation:
+) -> bool:
     return fluid == outlet.fluid
 
 
-isentropic_turbine = bilt.Implementation(
+isentropic_turbine = bilt.core.Implementation(
     Turbine,
     {
         isentropic_relation,
