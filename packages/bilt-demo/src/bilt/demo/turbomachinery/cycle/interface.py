@@ -1,13 +1,14 @@
 import typing
 
-import bilt
+import bilt.core
 from bilt.demo.turbomachinery.fluid.interface import FluidProperties
+from bilt.units import DIMENSIONLESS, fraction, joule, kilogram, second
 
 
 @bilt.core.system
-class Cycle:
+class Cycle(metaclass=bilt.core.Interface):
     fluid: FluidProperties
-    air_mass_flow_rate: typing.Annotated[float, bilt.unit.kilogram / bilt.unit.second]
-    net_specific_work: typing.Annotated[float, bilt.unit.joule / bilt.unit.kilogram]
-    thermal_efficiency: typing.Annotated[float, bilt.unit.fraction]
-    pressure_ratio: typing.Annotated[float, bilt.unit.DIMENSIONLESS]
+    air_mass_flow_rate: typing.Annotated[float, kilogram / second]
+    net_specific_work: typing.Annotated[float, joule / kilogram]
+    thermal_efficiency: typing.Annotated[float, fraction]
+    pressure_ratio: typing.Annotated[float, DIMENSIONLESS]
