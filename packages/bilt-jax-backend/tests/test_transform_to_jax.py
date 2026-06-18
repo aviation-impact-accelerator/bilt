@@ -115,7 +115,7 @@ def test_build_pipeline_with_list_operation() -> None:
 
 
 def test_grad_pipeline() -> None:
-    """A proof of concept that we can differentate the output here, even though we have to do this hacky thing to turn kwargs into positional args for jax.grad."""
+    """A proof of concept that we can differentiate the output here, even though we have to do this hacky thing to turn kwargs into positional args for jax.grad."""
     fdefs = [
         parse_to_ast("def f(x):\n    return x ** 2"),
         parse_to_ast("def g(f, y):\n    return f + y"),
