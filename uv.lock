@@ -52,10 +52,14 @@ version = "0.0.1"
 source = { editable = "packages/bilt-demo" }
 dependencies = [
     { name = "bilt-core" },
+    { name = "bilt-units" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "bilt-core", editable = "packages/bilt-core" }]
+requires-dist = [
+    { name = "bilt-core", editable = "packages/bilt-core" },
+    { name = "bilt-units", editable = "packages/bilt-units" },
+]
 
 [[package]]
 name = "bilt-symbolic"
