@@ -58,11 +58,16 @@ fixture-parentheses = false
 mark-parentheses = false
 parametrize-values-type = "tuple"
 
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["bilt.core.Interface"]
+runtime-evaluated-decorators = ["bilt.core.equation", "bilt.core.system", "bilt.core.transform"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["bilt"]
 
 [tool.ruff.lint.per-file-ignores]
 "packages/*/src/bilt/**/*.py" = ["INP001"]
+"packages/*/src/bilt/demo/**/*.py" = ["D1"]
 "packages/*/src/examples/**/*.py" = ["D104"]
 "packages/*/tests/**/*.py" = ["D1", "FBT001", "INP001", "S101"]
 "src/*" = ["D1"]
