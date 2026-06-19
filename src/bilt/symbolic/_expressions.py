@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing
 
 from bilt.symbolic._atoms import (
@@ -102,10 +104,14 @@ class Expr:
     def __pos__(self) -> Expr:
         return self
 
-    def __eq__(self, other: object) -> Tree:  # ty: ignore[invalid-method-override]
+    # Expr deliberately overloads Python equality to construct symbolic relation
+    # trees. This violates the normal object.__eq__ contract, which returns bool,
+    # so static checkers need targeted suppressions here.
+    def __eq__(self, other: object, /) -> Tree:  # pyrefly: ignore[bad-override]  # ty: ignore[invalid-method-override]
         return relation_tree("==", self._rep, as_tree(other))
 
-    def __ne__(self, other: object) -> Tree:  # ty: ignore[invalid-method-override]
+    # See __eq__.
+    def __ne__(self, other: object, /) -> Tree:  # pyrefly: ignore[bad-override]  # ty: ignore[invalid-method-override]
         return relation_tree("!=", self._rep, as_tree(other))
 
     def __lt__(self, other: object) -> Tree:
@@ -131,7 +137,7 @@ class Expr:
         if not isinstance(other, Expr):
             return False
 
-        return self._rep is other._rep
+        return self.rep is other.rep
 
     def __hash__(self) -> int:
         return id(self._rep)

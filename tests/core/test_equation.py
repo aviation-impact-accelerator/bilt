@@ -5,7 +5,10 @@ import pytest
 from bilt.core._equation import equation
 from bilt.core._error import EquationReturnError
 from bilt.symbolic._atoms import ADD, EQUALS
-from bilt.symbolic._expressions import Expr
+
+# Expr is used in @equation function annotations. Those annotations are part of
+# the runtime behaviour being tested, so this must stay as a runtime import.
+from bilt.symbolic._expressions import Expr  # noqa: TC001
 from bilt.symbolic._tree import Tree
 
 

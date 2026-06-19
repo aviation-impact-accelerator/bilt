@@ -4,13 +4,15 @@ __all__ = [
     "equation",
 ]
 
-import collections.abc
 import inspect
 import typing
 
 from bilt.core._error import EquationReturnError
 from bilt.symbolic._expressions import Expr, symbol_expr
 from bilt.symbolic._tree import Tree
+
+if typing.TYPE_CHECKING:
+    import collections.abc
 
 
 class Equation[R, **P](typing.Protocol):
@@ -87,7 +89,7 @@ def _build_equation_tree[R, **P](
     symbols: dict[str, Expr],
 ) -> Tree:
     symbolic_function = typing.cast(
-        collections.abc.Callable[..., object],
+        "collections.abc.Callable[..., object]",
         function,
     )
     result = symbolic_function(**symbols)
