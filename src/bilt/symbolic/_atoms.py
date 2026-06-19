@@ -1,4 +1,3 @@
-import collections.abc
 import typing
 import weakref
 
@@ -9,22 +8,34 @@ if typing.TYPE_CHECKING:
 
 __all__ = [
     "ADD",
+    "EQUALS",
+    "GREATER_THAN",
+    "GREATER_THAN_OR_EQUALS",
     "INV",
+    "LESS_THAN",
+    "LESS_THAN_OR_EQUALS",
     "MUL",
     "NEG",
+    "NOT_EQUALS",
     "POW",
     "Atom",
+    "AtomType",
     "FloatType",
     "IntType",
+    "OpType",
+    "RelationOpType",
     "SymbolType",
+    "atom_cache_size",
+    "clear_atom_cache",
     "floating",
     "integer",
+    "relation_operator",
     "symbol",
 ]
 
 
 _atom_cache: weakref.WeakValueDictionary[
-    tuple[object, collections.abc.Hashable],
+    tuple[AtomType, collections.abc.Hashable],
     Atom,
 ] = weakref.WeakValueDictionary()
 
@@ -57,6 +68,7 @@ class AtomType:
 
 SymbolType = AtomType("Symbol")
 OpType = AtomType("Op")
+RelationOpType = AtomType("RelationOp")
 IntType = AtomType("Integer")
 FloatType = AtomType("Float")
 
@@ -65,11 +77,10 @@ FloatType = AtomType("Float")
 class Atom:
     """A hash-consed immutable leaf value.
 
-    Every Atom has an AtomType and a value. Equality is identity-based:
-    hash-consing guarantees that there is only one live Atom object for a given
-    ``(atom_type, value)`` pair.
+    Every Atom has an AtomType and a value.
 
-    Atom values must be hashable because they are used as part of the cache key.
+    Equality is identity-based. Symbolic equality is represented by the
+    EQUALS atom inside a Tree, not by Atom.__eq__.
     """
 
     __slots__ = ("__weakref__", "_initialised", "atom_type", "value")
@@ -116,13 +127,6 @@ class Atom:
         return self is other
 
 
-ADD = Atom(OpType, "add")
-MUL = Atom(OpType, "mul")
-POW = Atom(OpType, "pow")
-NEG = Atom(OpType, "neg")
-INV = Atom(OpType, "inv")
-
-
 def symbol(name: str) -> Atom:
     return Atom(SymbolType, name)
 
@@ -133,6 +137,41 @@ def integer(value: int) -> Atom:
 
 def floating(value: float) -> Atom:
     return Atom(FloatType, value)
+
+
+_ALLOWED_RELATION_OPERATORS = frozenset(
+    {
+        "==",
+        "!=",
+        "<",
+        "<=",
+        ">",
+        ">=",
+    }
+)
+
+
+def relation_operator(value: str) -> Atom:
+    """Return an interned relation operator atom."""
+    if value not in _ALLOWED_RELATION_OPERATORS:
+        msg = f"Unknown relation operator: {value!r}"
+        raise ValueError(msg)
+
+    return Atom(RelationOpType, value)
+
+
+ADD = Atom(OpType, "add")
+MUL = Atom(OpType, "mul")
+POW = Atom(OpType, "pow")
+NEG = Atom(OpType, "neg")
+INV = Atom(OpType, "inv")
+
+EQUALS = relation_operator("==")
+NOT_EQUALS = relation_operator("!=")
+LESS_THAN = relation_operator("<")
+LESS_THAN_OR_EQUALS = relation_operator("<=")
+GREATER_THAN = relation_operator(">")
+GREATER_THAN_OR_EQUALS = relation_operator(">=")
 
 
 def atom_cache_size() -> int:
