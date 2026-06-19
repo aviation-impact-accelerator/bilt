@@ -1,16 +1,35 @@
 import typing
 
-from bilt.symbolic._atoms import ADD, INV, MUL, NEG, POW, FloatType, IntType, SymbolType
-from bilt.symbolic._tree import Tree, float_tree, int_tree, symbol_tree
+from bilt.symbolic._atoms import (
+    ADD,
+    INV,
+    MUL,
+    NEG,
+    POW,
+    FloatType,
+    IntType,
+    SymbolType,
+)
+from bilt.symbolic._tree import Tree, float_tree, int_tree, relation_tree, symbol_tree
 
 __all__ = [
     "Expr",
+    "as_expr",
+    "as_tree",
+    "symbol_expr",
 ]
 
 
 @typing.final
 class Expr:
-    """User-facing symbolic expression."""
+    """Thin user-facing symbolic expression wrapper.
+
+    Expr exists to make Python syntax build canonical Tree objects.
+
+    Tree remains the immutable/hash-consed storage layer.
+    Expr is only the syntax layer used by @equation and other user-facing
+    construction APIs.
+    """
 
     __slots__ = ("_rep",)
 
@@ -19,11 +38,9 @@ class Expr:
     def __init__(self, rep: Tree) -> None:
         self._rep = rep
 
-    # -- factories ----------------------------------------------------------
-
     @staticmethod
     def symbol(name: str) -> Expr:
-        return Expr(symbol_tree(name))
+        return symbol_expr(name)
 
     @staticmethod
     def integer(value: int) -> Expr:
@@ -33,31 +50,13 @@ class Expr:
     def real(value: float) -> Expr:
         return Expr(float_tree(value))
 
-        # -- operator overloads -------------------------------------------------
+    @property
+    def rep(self) -> Tree:
+        return self._rep
 
-    # Internally: no Sub or Div ops.
-    #   a - b  -> add(a, neg(b))
-    #   a / b  -> mul(a, inv(b))
-
-    def __add__(self, other: Expr) -> Expr:
-        return Expr(Tree(ADD, (self._rep, other._rep)))
-
-    def __mul__(self, other: Expr) -> Expr:
-        return Expr(Tree(MUL, (self._rep, other._rep)))
-
-    def __pow__(self, other: Expr) -> Expr:
-        return Expr(Tree(POW, (self._rep, other._rep)))
-
-    def __neg__(self) -> Expr:
-        return Expr(Tree(NEG, (self._rep,)))
-
-    def __sub__(self, other: Expr) -> Expr:
-        return self + (-other)
-
-    def __truediv__(self, other: Expr) -> Expr:
-        return Expr(Tree(MUL, (self._rep, Tree(INV, (other._rep,)))))
-
-    # -- structural helpers -------------------------------------------------
+    @property
+    def tree(self) -> Tree:
+        return self._rep
 
     @property
     def is_symbol(self) -> bool:
@@ -67,24 +66,113 @@ class Expr:
     def is_number(self) -> bool:
         return self._rep.is_leaf and self._rep.head.atom_type in (IntType, FloatType)
 
-    @property
-    def rep(self) -> Tree:
-        return self._rep
+    def __add__(self, other: object) -> Expr:
+        return Expr(Tree(ADD, (self._rep, as_tree(other))))
 
-    # -- equality -----------------------------------------------------------
+    def __radd__(self, other: object) -> Expr:
+        return Expr(Tree(ADD, (as_tree(other), self._rep)))
 
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, Expr):
-            return self._rep is other._rep
-        return NotImplemented
+    def __sub__(self, other: object) -> Expr:
+        return Expr(Tree(ADD, (self._rep, Tree(NEG, (as_tree(other),)))))
+
+    def __rsub__(self, other: object) -> Expr:
+        return Expr(Tree(ADD, (as_tree(other), Tree(NEG, (self._rep,)))))
+
+    def __mul__(self, other: object) -> Expr:
+        return Expr(Tree(MUL, (self._rep, as_tree(other))))
+
+    def __rmul__(self, other: object) -> Expr:
+        return Expr(Tree(MUL, (as_tree(other), self._rep)))
+
+    def __truediv__(self, other: object) -> Expr:
+        return Expr(Tree(MUL, (self._rep, Tree(INV, (as_tree(other),)))))
+
+    def __rtruediv__(self, other: object) -> Expr:
+        return Expr(Tree(MUL, (as_tree(other), Tree(INV, (self._rep,)))))
+
+    def __pow__(self, other: object) -> Expr:
+        return Expr(Tree(POW, (self._rep, as_tree(other))))
+
+    def __rpow__(self, other: object) -> Expr:
+        return Expr(Tree(POW, (as_tree(other), self._rep)))
+
+    def __neg__(self) -> Expr:
+        return Expr(Tree(NEG, (self._rep,)))
+
+    def __pos__(self) -> Expr:
+        return self
+
+    def __eq__(self, other: object) -> Tree:  # ty: ignore[invalid-method-override]
+        return relation_tree("==", self._rep, as_tree(other))
+
+    def __ne__(self, other: object) -> Tree:  # ty: ignore[invalid-method-override]
+        return relation_tree("!=", self._rep, as_tree(other))
+
+    def __lt__(self, other: object) -> Tree:
+        return relation_tree("<", self._rep, as_tree(other))
+
+    def __le__(self, other: object) -> Tree:
+        return relation_tree("<=", self._rep, as_tree(other))
+
+    def __gt__(self, other: object) -> Tree:
+        return relation_tree(">", self._rep, as_tree(other))
+
+    def __ge__(self, other: object) -> Tree:
+        return relation_tree(">=", self._rep, as_tree(other))
+
+    def __bool__(self) -> typing.NoReturn:
+        msg = (
+            "Symbolic expressions cannot be used as booleans. "
+            "Return a symbolic relation from an @equation function instead."
+        )
+        raise TypeError(msg)
+
+    def structurally_equal(self, other: object) -> bool:
+        if not isinstance(other, Expr):
+            return False
+
+        return self._rep is other._rep
 
     def __hash__(self) -> int:
         return id(self._rep)
-
-    # -- display ------------------------------------------------------------
 
     def __repr__(self) -> str:
         return repr(self._rep)
 
     def __str__(self) -> str:
         return str(self._rep)
+
+
+def as_tree(value: object) -> Tree:
+    """Convert supported values to a symbolic Tree."""
+    if isinstance(value, Expr):
+        return value.rep
+
+    if isinstance(value, Tree):
+        return value
+
+    if isinstance(value, bool):
+        msg = "Boolean values cannot be converted to symbolic expressions."
+        raise TypeError(msg)
+
+    if isinstance(value, int):
+        return int_tree(value)
+
+    if isinstance(value, float):
+        return float_tree(value)
+
+    msg = f"Cannot convert {type(value).__name__!r} to symbolic Tree."
+    raise TypeError(msg)
+
+
+def as_expr(value: object) -> Expr:
+    """Convert supported values to Expr."""
+    if isinstance(value, Expr):
+        return value
+
+    return Expr(as_tree(value))
+
+
+def symbol_expr(name: str) -> Expr:
+    """Construct a symbolic expression placeholder."""
+    return Expr(symbol_tree(name))
