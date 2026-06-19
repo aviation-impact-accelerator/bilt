@@ -42,14 +42,14 @@ class Metadata:
             return Quantity(other.value, other.unit * self)
         return NotImplemented
 
-    def __lt__(self, other: typing.Self | None) -> bool:
+    def __lt__(self, other: Metadata | None) -> bool:
         if other is None:
             return False
         if not isinstance(other, self.__class__):
             return NotImplemented
         return self.value < other.value
 
-    def __gt__(self, other: typing.Self | None) -> bool:
+    def __gt__(self, other: Metadata | None) -> bool:
         if other is None:
             return True
         if not isinstance(other, self.__class__):

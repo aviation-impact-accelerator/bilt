@@ -157,7 +157,7 @@ class UnitComposition:
             self_si_base_units._scale == other_si_base_units._scale
         )
 
-    def __mul__(self, other: typing.Self) -> typing.Self:
+    def __mul__(self, other: UnitComposition) -> typing.Self:
         if not isinstance(other, self.__class__):
             return NotImplemented
 
@@ -181,7 +181,7 @@ class UnitComposition:
             raise UnitError(message)
         return self.__class__(*self.composition, scale=self.scale * other)
 
-    def __truediv__(self, other: typing.Self) -> typing.Self:
+    def __truediv__(self, other: UnitComposition) -> typing.Self:
         if not isinstance(other, self.__class__):
             return NotImplemented
 
@@ -472,12 +472,12 @@ class Unit:
         return self.__class__._absolute_cache[self]  # noqa: SLF001
 
     @typing.overload
-    def __mul__(self, other: typing.Self) -> typing.Self: ...
+    def __mul__(self, other: Unit) -> typing.Self: ...
 
     @typing.overload
     def __mul__(self, other: Quantity) -> Quantity: ...
 
-    def __mul__(self, other: typing.Self | Quantity) -> typing.Self | Quantity:
+    def __mul__(self, other: Unit | Quantity) -> typing.Self | Quantity:
         if isinstance(other, self.__class__):
             left = (
                 self.relation
@@ -491,7 +491,6 @@ class Unit:
             )
             return self.__class__(left * right)
         if isinstance(other, Quantity):
-            # pyrefly: ignore[unsupported-operation]
             return Quantity(other.value, self * other.unit)
         return NotImplemented
 
@@ -503,12 +502,12 @@ class Unit:
         return NotImplemented
 
     @typing.overload
-    def __truediv__(self, other: typing.Self) -> typing.Self: ...
+    def __truediv__(self, other: Unit) -> typing.Self: ...
 
     @typing.overload
     def __truediv__(self, other: Quantity) -> Quantity: ...
 
-    def __truediv__(self, other: typing.Self | Quantity) -> typing.Self | Quantity:
+    def __truediv__(self, other: Unit | Quantity) -> typing.Self | Quantity:
         if isinstance(other, self.__class__):
             numerator = (
                 self.relation
@@ -522,7 +521,6 @@ class Unit:
             )
             return self.__class__(numerator / denominator)
         if isinstance(other, Quantity):
-            # pyrefly: ignore[unsupported-operation]
             return Quantity(1.0 / other.value, self / other.unit)
         return NotImplemented
 
