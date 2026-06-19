@@ -1,3 +1,4 @@
+import typing
 from dataclasses import dataclass
 from enum import Enum, auto
 
@@ -6,14 +7,21 @@ from bilt.symbolic._expressions import Expr
 from bilt.symbolic._tree import Tree
 from bilt.symbolic._walk import contains, count_occurrences
 
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._atoms import Atom
+
 __all__ = [
-    "IsolatedRelation",
+    "IsolatedTree",
     "IsolationError",
     "TargetNotFoundError",
     "TargetOnBothSidesError",
     "UnsupportedIsolationError",
     "isolate",
 ]
+
+
+BINARY_RELATION_ARG_COUNT = 2
+UNARY_ARG_COUNT = 1
 
 
 # =============================================================================
@@ -38,18 +46,13 @@ class UnsupportedIsolationError(IsolationError):
 
 
 # =============================================================================
-# Typestate relation wrappers
+# Typestate equation wrappers
 # =============================================================================
 
 
 @dataclass(frozen=True, slots=True, eq=False)
-class RawRelation:
-    relation: Relation
-
-
-@dataclass(frozen=True, slots=True, eq=False)
-class SimplifiedRelation:
-    relation: Relation
+class SimplifiedTree:
+    tree: Tree
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -71,8 +74,8 @@ class OccurrenceProfile:
 
 
 @dataclass(frozen=True, slots=True, eq=False)
-class AnalysedRelation:
-    relation: SimplifiedRelation
+class AnalysedTree:
+    simplified_tree: SimplifiedTree
     target: Expr
     profile: OccurrenceProfile
 
@@ -90,15 +93,24 @@ class IsolationPlan:
 
 
 @dataclass(frozen=True, slots=True, eq=False)
-class PlannedRelation:
-    relation: SimplifiedRelation
+class PlannedTree:
+    simplified_tree: SimplifiedTree
     target: Expr
     profile: OccurrenceProfile
     plan: IsolationPlan
 
 
 @dataclass(frozen=True, slots=True, eq=False)
-class IsolatedRelation:
+class IsolatedTree:
+    """Internal representation of an isolated binary relation tree.
+
+    The original relation head is preserved, so isolating from an equality tree
+    returns an equality tree, isolating from a less-than tree returns a less-than
+    tree, and so on. This module does not currently reverse inequality direction;
+    it only swaps sides when the target starts on the RHS.
+    """
+
+    relation_head: Atom
     target: Expr
     rhs: Expr
 
@@ -106,14 +118,21 @@ class IsolatedRelation:
     def lhs(self) -> Expr:
         return self.target
 
-    def as_relation(self) -> Relation:
-        return Relation(lhs=self.target, rhs=self.rhs)
+    def as_tree(self) -> Tree:
+        return Tree(self.relation_head, (self.target.rep, self.rhs.rep))
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, IsolatedRelation):
+        if not isinstance(other, IsolatedTree):
             return NotImplemented
 
-        return same_expr(self.target, other.target) and same_expr(self.rhs, other.rhs)
+        return (
+            self.relation_head == other.relation_head
+            and same_expr(self.target, other.target)
+            and same_expr(self.rhs, other.rhs)
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.relation_head, tree_hash(self.target.rep), tree_hash(self.rhs.rep)))
 
 
 # =============================================================================
@@ -121,17 +140,23 @@ class IsolatedRelation:
 # =============================================================================
 
 
-def isolate(relation: Relation, target: Expr) -> IsolatedRelation:
-    simplified = simplify_relation(relation)
+def isolate(equation: Tree, target: Expr) -> Tree:
+    """Return a relation tree with ``target`` isolated on the left-hand side.
+
+    ``equation`` is expected to be a binary relation tree whose two children are
+    expression trees. The returned tree keeps the same relation head as the input
+    and has ``target.rep`` as its first child.
+    """
+    simplified = simplify_tree(equation)
     analysed = analyse_occurrences(simplified, target)
     planned = choose_isolation_plan(analysed)
-
     isolated = isolate_by_inverse_rules(planned)
 
-    return IsolatedRelation(
+    return IsolatedTree(
+        relation_head=isolated.relation_head,
         target=isolated.target,
         rhs=simplify(isolated.rhs),
-    )
+    ).as_tree()
 
 
 # =============================================================================
@@ -139,21 +164,22 @@ def isolate(relation: Relation, target: Expr) -> IsolatedRelation:
 # =============================================================================
 
 
-def simplify_relation(relation: Relation) -> SimplifiedRelation:
-    simplified = Relation(
-        lhs=simplify(relation.lhs),
-        rhs=simplify(relation.rhs),
-    )
+def simplify_tree(tree: Tree) -> SimplifiedTree:
+    assert_binary_relation_tree(tree)
 
-    return SimplifiedRelation(simplified)
+    lhs = simplify(tree_lhs_expr(tree))
+    rhs = simplify(tree_rhs_expr(tree))
+
+    return SimplifiedTree(make_relation_tree(tree.head, lhs, rhs))
 
 
 def analyse_occurrences(
-    relation: SimplifiedRelation,
+    simplified: SimplifiedTree,
     target: Expr,
-) -> AnalysedRelation:
-    lhs_count = count_expr_occurrences(relation.relation.lhs, target)
-    rhs_count = count_expr_occurrences(relation.relation.rhs, target)
+) -> AnalysedTree:
+    tree = simplified.tree
+    lhs_count = count_tree_occurrences(tree_lhs_tree(tree), target.rep)
+    rhs_count = count_tree_occurrences(tree_rhs_tree(tree), target.rep)
 
     profile = OccurrenceProfile(
         lhs_count=lhs_count,
@@ -161,66 +187,76 @@ def analyse_occurrences(
     )
 
     if profile.target_missing:
-        raise TargetNotFoundError(f"Target {target!r} does not occur in relation.")
+        message = f"Target {target!r} does not occur in equation tree."
+        raise TargetNotFoundError(message)
 
     if profile.target_on_both_sides:
-        raise TargetOnBothSidesError(f"Target {target!r} occurs on both sides.")
+        message = f"Target {target!r} occurs on both sides."
+        raise TargetOnBothSidesError(message)
 
     if profile.total_count > 1:
-        raise UnsupportedIsolationError(f"Target {target!r} occurs more than once.")
+        message = f"Target {target!r} occurs more than once."
+        raise UnsupportedIsolationError(message)
 
-    return AnalysedRelation(
-        relation=relation,
+    return AnalysedTree(
+        simplified_tree=simplified,
         target=target,
         profile=profile,
     )
 
 
-def choose_isolation_plan(analysed: AnalysedRelation) -> PlannedRelation:
-    relation = analysed.relation.relation
+def choose_isolation_plan(analysed: AnalysedTree) -> PlannedTree:
+    tree = analysed.simplified_tree.tree
+    lhs = tree_lhs_expr(tree)
+    rhs = tree_rhs_expr(tree)
     target = analysed.target
 
-    if same_expr(relation.lhs, target):
+    if same_expr(lhs, target):
         strategy = IsolationStrategy.ALREADY_ISOLATED
 
-    elif same_expr(relation.rhs, target):
+    elif same_expr(rhs, target):
         strategy = IsolationStrategy.SWAP_SIDES
 
-    elif expr_contains(relation.lhs, target):
+    elif expr_contains(lhs, target):
         strategy = IsolationStrategy.INVERSE_RULES
 
-    elif expr_contains(relation.rhs, target):
+    elif expr_contains(rhs, target):
         strategy = IsolationStrategy.SWAP_THEN_INVERSE_RULES
 
     else:
-        raise TargetNotFoundError(f"Target {target!r} does not occur in relation.")
+        message = f"Target {target!r} does not occur in equation tree."
+        raise TargetNotFoundError(message)
 
-    return PlannedRelation(
-        relation=analysed.relation,
+    return PlannedTree(
+        simplified_tree=analysed.simplified_tree,
         target=target,
         profile=analysed.profile,
         plan=IsolationPlan(strategy),
     )
 
 
-def isolate_by_inverse_rules(planned: PlannedRelation) -> IsolatedRelation:
-    relation = planned.relation.relation
+def isolate_by_inverse_rules(planned: PlannedTree) -> IsolatedTree:
+    tree = planned.simplified_tree.tree
+    relation_head = tree.head
+    lhs = tree_lhs_expr(tree)
+    rhs = tree_rhs_expr(tree)
     target = planned.target
     strategy = planned.plan.strategy
 
     if strategy is IsolationStrategy.ALREADY_ISOLATED:
-        return IsolatedRelation(target=target, rhs=relation.rhs)
+        return IsolatedTree(relation_head=relation_head, target=target, rhs=rhs)
 
     if strategy is IsolationStrategy.SWAP_SIDES:
-        return IsolatedRelation(target=target, rhs=relation.lhs)
+        return IsolatedTree(relation_head=relation_head, target=target, rhs=lhs)
 
     if strategy is IsolationStrategy.SWAP_THEN_INVERSE_RULES:
-        relation = Relation(lhs=relation.rhs, rhs=relation.lhs)
+        lhs, rhs = rhs, lhs
 
     return isolate_expr_by_inverse_rules(
-        lhs=relation.lhs,
-        rhs=relation.rhs,
+        lhs=lhs,
+        rhs=rhs,
         target=target,
+        relation_head=relation_head,
     )
 
 
@@ -233,38 +269,52 @@ def isolate_expr_by_inverse_rules(
     lhs: Expr,
     rhs: Expr,
     target: Expr,
-) -> IsolatedRelation:
+    relation_head: Atom,
+) -> IsolatedTree:
     lhs = simplify(lhs)
     rhs = simplify(rhs)
 
     if same_expr(lhs, target):
-        return IsolatedRelation(target=target, rhs=rhs)
+        return IsolatedTree(relation_head=relation_head, target=target, rhs=rhs)
 
     if is_neg(lhs):
-        child = expr_args(lhs)[0]
+        child = unary_child(lhs)
         return isolate_expr_by_inverse_rules(
             lhs=child,
             rhs=make_neg(rhs),
             target=target,
+            relation_head=relation_head,
         )
 
     if is_inv(lhs):
-        child = expr_args(lhs)[0]
+        child = unary_child(lhs)
         return isolate_expr_by_inverse_rules(
             lhs=child,
             rhs=make_inv(rhs),
             target=target,
+            relation_head=relation_head,
         )
 
     if is_add(lhs):
         new_lhs, new_rhs = isolate_add_expr(lhs, rhs, target)
-        return isolate_expr_by_inverse_rules(new_lhs, new_rhs, target)
+        return isolate_expr_by_inverse_rules(
+            lhs=new_lhs,
+            rhs=new_rhs,
+            target=target,
+            relation_head=relation_head,
+        )
 
     if is_mul(lhs):
         new_lhs, new_rhs = isolate_mul_expr(lhs, rhs, target)
-        return isolate_expr_by_inverse_rules(new_lhs, new_rhs, target)
+        return isolate_expr_by_inverse_rules(
+            lhs=new_lhs,
+            rhs=new_rhs,
+            target=target,
+            relation_head=relation_head,
+        )
 
-    raise UnsupportedIsolationError(f"Cannot isolate {target!r} from {lhs!r}.")
+    message = f"Cannot isolate {target!r} from {lhs!r}."
+    raise UnsupportedIsolationError(message)
 
 
 def isolate_add_expr(
@@ -273,10 +323,11 @@ def isolate_add_expr(
     target: Expr,
 ) -> tuple[Expr, Expr]:
     terms = as_add_terms(lhs)
-    target_terms, other_terms = split_terms_by_target(terms, target)
+    target_terms, other_terms = split_exprs_by_target(terms, target)
 
     if len(target_terms) != 1:
-        raise UnsupportedIsolationError(f"Expected one target-containing additive term, got {len(target_terms)}.")
+        message = f"Expected one target-containing additive term, got {len(target_terms)}."
+        raise UnsupportedIsolationError(message)
 
     target_part = target_terms[0]
 
@@ -295,12 +346,11 @@ def isolate_mul_expr(
     target: Expr,
 ) -> tuple[Expr, Expr]:
     factors = as_mul_factors(lhs)
-    target_factors, other_factors = split_factors_by_target(factors, target)
+    target_factors, other_factors = split_exprs_by_target(factors, target)
 
     if len(target_factors) != 1:
-        raise UnsupportedIsolationError(
-            f"Expected one target-containing multiplicative factor, got {len(target_factors)}."
-        )
+        message = f"Expected one target-containing multiplicative factor, got {len(target_factors)}."
+        raise UnsupportedIsolationError(message)
 
     target_part = target_factors[0]
 
@@ -367,19 +417,19 @@ def simplify_mul(expr: Expr) -> Expr:
 
 
 def simplify_neg(expr: Expr) -> Expr:
-    child = simplify(expr_args(expr)[0])
+    child = simplify(unary_child(expr))
 
     if is_neg(child):
-        return expr_args(child)[0]
+        return unary_child(child)
 
     return make_neg(child)
 
 
 def simplify_inv(expr: Expr) -> Expr:
-    child = simplify(expr_args(expr)[0])
+    child = simplify(unary_child(expr))
 
     if is_inv(child):
-        return expr_args(child)[0]
+        return unary_child(child)
 
     return make_inv(child)
 
@@ -403,36 +453,20 @@ def as_mul_factors(expr: Expr) -> tuple[Expr, ...]:
     return (expr,)
 
 
-def split_terms_by_target(
-    terms: tuple[Expr, ...],
+def split_exprs_by_target(
+    exprs: tuple[Expr, ...],
     target: Expr,
 ) -> tuple[tuple[Expr, ...], tuple[Expr, ...]]:
-    target_terms: list[Expr] = []
-    other_terms: list[Expr] = []
+    target_exprs: list[Expr] = []
+    other_exprs: list[Expr] = []
 
-    for term in terms:
-        if expr_contains(term, target):
-            target_terms.append(term)
+    for expr in exprs:
+        if expr_contains(expr, target):
+            target_exprs.append(expr)
         else:
-            other_terms.append(term)
+            other_exprs.append(expr)
 
-    return tuple(target_terms), tuple(other_terms)
-
-
-def split_factors_by_target(
-    factors: tuple[Expr, ...],
-    target: Expr,
-) -> tuple[tuple[Expr, ...], tuple[Expr, ...]]:
-    target_factors: list[Expr] = []
-    other_factors: list[Expr] = []
-
-    for factor in factors:
-        if expr_contains(factor, target):
-            target_factors.append(factor)
-        else:
-            other_factors.append(factor)
-
-    return tuple(target_factors), tuple(other_factors)
+    return tuple(target_exprs), tuple(other_exprs)
 
 
 # =============================================================================
@@ -440,9 +474,14 @@ def split_factors_by_target(
 # =============================================================================
 
 
+def make_relation_tree(relation_head: Atom, lhs: Expr, rhs: Expr) -> Tree:
+    return Tree(relation_head, (lhs.rep, rhs.rep))
+
+
 def make_add(*terms: Expr) -> Expr:
     if not terms:
-        raise ValueError("Cannot build an empty addition.")
+        message = "Cannot build an empty addition."
+        raise ValueError(message)
 
     if len(terms) == 1:
         return terms[0]
@@ -452,7 +491,8 @@ def make_add(*terms: Expr) -> Expr:
 
 def make_mul(*factors: Expr) -> Expr:
     if not factors:
-        raise ValueError("Cannot build an empty multiplication.")
+        message = "Cannot build an empty multiplication."
+        raise ValueError(message)
 
     if len(factors) == 1:
         return factors[0]
@@ -502,6 +542,32 @@ def is_inv(expr: Expr) -> bool:
 # =============================================================================
 
 
+def assert_binary_relation_tree(tree: Tree) -> None:
+    if len(tree.args) != BINARY_RELATION_ARG_COUNT:
+        message = (
+            f"Expected a binary equation/relation tree with {BINARY_RELATION_ARG_COUNT} args, got {len(tree.args)}."
+        )
+        raise UnsupportedIsolationError(message)
+
+
+def tree_lhs_tree(tree: Tree) -> Tree:
+    assert_binary_relation_tree(tree)
+    return tree.args[0]
+
+
+def tree_rhs_tree(tree: Tree) -> Tree:
+    assert_binary_relation_tree(tree)
+    return tree.args[1]
+
+
+def tree_lhs_expr(tree: Tree) -> Expr:
+    return Expr(tree_lhs_tree(tree))
+
+
+def tree_rhs_expr(tree: Tree) -> Expr:
+    return Expr(tree_rhs_tree(tree))
+
+
 def tree_args(tree: Tree) -> tuple[Tree, ...]:
     return tree.args
 
@@ -510,18 +576,31 @@ def expr_args(expr: Expr) -> tuple[Expr, ...]:
     return tuple(Expr(child) for child in tree_args(expr.rep))
 
 
+def unary_child(expr: Expr) -> Expr:
+    args = expr_args(expr)
+    if len(args) != UNARY_ARG_COUNT:
+        message = f"Expected unary expression {expr!r} to have {UNARY_ARG_COUNT} arg, got {len(args)}."
+        raise UnsupportedIsolationError(message)
+
+    return args[0]
+
+
 def expr_contains(expr: Expr, target: Expr) -> bool:
     return contains(expr.rep, target.rep)
 
 
-def count_expr_occurrences(expr: Expr, target: Expr) -> int:
-    return count_occurrences(expr.rep, target.rep)
+def count_tree_occurrences(tree: Tree, target: Tree) -> int:
+    return count_occurrences(tree, target)
+
+
+def tree_hash(tree: Tree) -> int:
+    return hash((tree.head, tuple(tree_hash(child) for child in tree.args)))
 
 
 def same_expr(left: Expr, right: Expr) -> bool:
     """Internal structural equality.
 
-    Do not use Expr.__eq__, because Expr.__eq__ constructs a Relation.
+    Do not use Expr.__eq__, because Expr.__eq__ constructs a relation tree.
     """
     return same_tree(left.rep, right.rep)
 
