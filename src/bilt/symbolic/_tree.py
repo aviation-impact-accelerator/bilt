@@ -1,21 +1,53 @@
 import typing
 import weakref
 
-from bilt.symbolic._atoms import Atom, floating, integer, symbol
+from bilt.symbolic._atoms import (
+    EQUALS,
+    Atom,
+    RelationOpType,
+    floating,
+    integer,
+    relation_operator,
+    symbol,
+)
 from bilt.symbolic._errors import TreeMutationError
 
-_tree_cache: weakref.WeakValueDictionary[tuple[Atom, tuple[Tree, ...]], Tree] = weakref.WeakValueDictionary()
+_tree_cache: weakref.WeakValueDictionary[
+    tuple[Atom, tuple[Tree, ...]],
+    Tree,
+] = weakref.WeakValueDictionary()
 
 __all__ = [
     "Tree",
+    "equality_tree",
     "float_tree",
     "int_tree",
+    "relation_tree",
     "symbol_tree",
 ]
+
+_NUMBER_OF_SUB_TREES = 2
 
 
 @typing.final
 class Tree:
+    """Hash-consed immutable symbolic tree.
+
+    Leaves are represented as:
+
+        Tree(symbol("x"))
+
+    Operations are represented as:
+
+        Tree(ADD, (x, y))
+
+    Relations are represented in the same structure:
+
+        Tree(EQUALS, (lhs, rhs))
+        Tree(LESS_THAN, (lhs, rhs))
+        Tree(LESS_THAN_OR_EQUALS, (lhs, rhs))
+    """
+
     __slots__ = ("__weakref__", "_locked", "args", "head")
 
     head: Atom
@@ -51,6 +83,43 @@ class Tree:
         """True when this node carries a value rather than an operation."""
         return not self.args
 
+    @property
+    def is_relation(self) -> bool:
+        """True when this tree represents a symbolic relation."""
+        return self.head.atom_type is RelationOpType
+
+    @property
+    def is_equality(self) -> bool:
+        """True when this tree represents symbolic equality."""
+        return self.head is EQUALS
+
+    @property
+    def operator(self) -> Atom:
+        """The relation operator for a relation tree."""
+        if not self.is_relation:
+            msg = "Tree is not a relation. Tree head node must be a relation operator atom."
+            raise ValueError(msg)
+
+        return self.head
+
+    @property
+    def left(self) -> Tree:
+        """Left-hand side of a binary relation tree."""
+        if not self.is_relation or len(self.args) != _NUMBER_OF_SUB_TREES:
+            msg = "Tree is not a binary relation and has no left-hand side."
+            raise ValueError(msg)
+
+        return self.args[0]
+
+    @property
+    def right(self) -> Tree:
+        """Right-hand side of a binary relation tree."""
+        if not self.is_relation or len(self.args) != _NUMBER_OF_SUB_TREES:
+            msg = "Tree is not a binary relation and has no right-hand side."
+            raise ValueError(msg)
+
+        return self.args[1]
+
     def __hash__(self) -> int:
         return id(self)
 
@@ -60,12 +129,17 @@ class Tree:
     def __repr__(self) -> str:
         if self.is_leaf:
             return f"{self.__class__.__name__}({self.head!r})"
+
         args_repr = ", ".join(repr(a) for a in self.args)
         return f"{self.__class__.__name__}({self.head!r}, ({args_repr},))"
 
     def __str__(self) -> str:
         if self.is_leaf:
             return str(self.head)
+
+        if self.is_relation and len(self.args) == _NUMBER_OF_SUB_TREES:
+            return f"({self.args[0]} {self.head} {self.args[1]})"
+
         args_str = ", ".join(str(a) for a in self.args)
         return f"{self.head}({args_str})"
 
@@ -80,3 +154,25 @@ def int_tree(n: int) -> Tree:
 
 def float_tree(x: float) -> Tree:
     return Tree(floating(x))
+
+
+def relation_tree(operator: Atom | str, left: Tree, right: Tree) -> Tree:
+    """Construct a binary symbolic relation tree.
+
+    Examples:
+        relation_tree("==", x, y)
+        relation_tree(EQUALS, x, y)
+    """
+    if isinstance(operator, str):
+        operator = relation_operator(operator)
+
+    if operator.atom_type is not RelationOpType:
+        msg = f"Expected relation operator atom, got {operator!r}."
+        raise TypeError(msg)
+
+    return Tree(operator, (left, right))
+
+
+def equality_tree(left: Tree, right: Tree) -> Tree:
+    """Construct a symbolic equality tree."""
+    return relation_tree(EQUALS, left, right)
