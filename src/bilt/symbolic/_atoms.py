@@ -139,39 +139,37 @@ def floating(value: float) -> Atom:
     return Atom(FloatType, value)
 
 
-_ALLOWED_RELATION_OPERATORS = frozenset(
-    {
-        "==",
-        "!=",
-        "<",
-        "<=",
-        ">",
-        ">=",
-    }
-)
-
-
-def relation_operator(value: str) -> Atom:
-    """Return an interned relation operator atom."""
-    if value not in _ALLOWED_RELATION_OPERATORS:
-        msg = f"Unknown relation operator: {value!r}"
-        raise ValueError(msg)
-
-    return Atom(RelationOpType, value)
-
-
 ADD = Atom(OpType, "add")
 MUL = Atom(OpType, "mul")
 POW = Atom(OpType, "pow")
 NEG = Atom(OpType, "neg")
 INV = Atom(OpType, "inv")
 
-EQUALS = relation_operator("==")
-NOT_EQUALS = relation_operator("!=")
-LESS_THAN = relation_operator("<")
-LESS_THAN_OR_EQUALS = relation_operator("<=")
-GREATER_THAN = relation_operator(">")
-GREATER_THAN_OR_EQUALS = relation_operator(">=")
+EQUALS = Atom(RelationOpType, "==")
+NOT_EQUALS = Atom(RelationOpType, "!=")
+LESS_THAN = Atom(RelationOpType, "<")
+LESS_THAN_OR_EQUALS = Atom(RelationOpType, "<=")
+GREATER_THAN = Atom(RelationOpType, ">")
+GREATER_THAN_OR_EQUALS = Atom(RelationOpType, ">=")
+
+
+_RELATION_OPERATORS: dict[str, Atom] = {
+    "==": EQUALS,
+    "!=": NOT_EQUALS,
+    "<": LESS_THAN,
+    "<=": LESS_THAN_OR_EQUALS,
+    ">": GREATER_THAN,
+    ">=": GREATER_THAN_OR_EQUALS,
+}
+
+
+def relation_operator(value: str) -> Atom:
+    """Return the built-in relation operator atom for a symbolic operator string."""
+    try:
+        return _RELATION_OPERATORS[value]
+    except KeyError:
+        msg = f"Unknown relation operator: {value!r}"
+        raise ValueError(msg) from None
 
 
 def atom_cache_size() -> int:
