@@ -1,6 +1,7 @@
 import typing
 
 
+@typing.final
 class Dimension:
     __slots__ = (
         "_amount",

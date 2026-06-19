@@ -5,6 +5,7 @@ from ._quantities import Quantity
 from ._units import Unit, UnitComposition, UnitOrder
 
 
+@typing.final
 class Metadata:
     __slots__ = ("_value",)
 

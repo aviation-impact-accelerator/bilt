@@ -8,6 +8,7 @@ if typing.TYPE_CHECKING:
     from ._units import Unit
 
 
+@typing.final
 @functools.total_ordering
 class Quantity:
     __slots__ = ("_unit", "_value")

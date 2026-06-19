@@ -23,6 +23,7 @@ if typing.TYPE_CHECKING:
     from ._metadata import Metadata
 
 
+@typing.final
 class UnitOrder:
     __slots__ = ("_dimension", "_order", "_unit")
 
@@ -80,6 +81,7 @@ class UnitOrder:
         return f"{self.__class__.__name__}(unit={self.unit}, order={self.order})"
 
 
+@typing.final
 class UnitComposition:
     __slots__ = ("_composition", "_dimension", "_scale")
 
@@ -244,6 +246,7 @@ class UnitComposition:
         return f"{self.__class__.__name__}({', '.join(repr(term) for term in self.composition)}, scale={self.scale})"
 
 
+@typing.final
 class Unit:
     __slots__ = ("_category", "_dimension", "_metadata", "_name", "_offset", "_prefix", "_relation")
 
@@ -654,6 +657,7 @@ candela = _define_base_unit("candela", LUMINOSITY)
 _USD2025 = _define_base_unit("USD2025", CURRENCY)
 
 
+@typing.final
 @dataclasses.dataclass(frozen=True, slots=True)
 class UnitSystem:
     mass: Unit
