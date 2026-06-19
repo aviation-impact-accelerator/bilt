@@ -491,6 +491,7 @@ class Unit:
             )
             return self.__class__(left * right)
         if isinstance(other, Quantity):
+            # pyrefly: ignore[unsupported-operation]
             return Quantity(other.value, self * other.unit)
         return NotImplemented
 
@@ -521,6 +522,7 @@ class Unit:
             )
             return self.__class__(numerator / denominator)
         if isinstance(other, Quantity):
+            # pyrefly: ignore[unsupported-operation]
             return Quantity(1.0 / other.value, self / other.unit)
         return NotImplemented
 

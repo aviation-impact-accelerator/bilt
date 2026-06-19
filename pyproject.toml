@@ -1,9 +1,13 @@
 [project]
 name = "bilt"
 version = "0.0.1"
-description = "Systems models using transforms."
+description = "Causal and acausal systems models in Python."
 readme = "README.md"
 requires-python = ">=3.14"
+
+[build-system]
+requires = ["uv_build>=0.11.9,<0.12.0"]
+build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
@@ -62,26 +66,18 @@ parametrize-values-type = "tuple"
 known-first-party = ["bilt"]
 
 [tool.ruff.lint.per-file-ignores]
-"packages/*/src/bilt/**/*.py" = ["INP001"]
 "packages/*/src/examples/**/*.py" = ["D104"]
 "packages/*/tests/**/*.py" = ["D1", "FBT001", "INP001", "S101"]
 "src/*" = ["D1"]
 "tests/*" = ["D1", "FBT001", "INP001", "S101"]
 
-
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.uv.sources]
-bilt-core = { workspace = true }
-bilt-symbolic = { workspace = true }
-bilt-units = { workspace = true }
 examples = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "packages/bilt-core",
-    "packages/bilt-units",
-    "packages/bilt-symbolic",
     "packages/examples"
 ]

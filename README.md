@@ -1,3 +1,3 @@
 # Bilt
 
-Systems models using transforms.
+Causal and acausal systems models in Python.
