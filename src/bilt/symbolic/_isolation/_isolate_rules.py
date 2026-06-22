@@ -1,3 +1,8 @@
+__all__ = ["isolate_by_inverse_rules",
+           "isolate_expr_by_inverse_rules",
+           "isolate_add_expr",
+           "isolate_mul_expr"]
+
 import typing
 
 from bilt.symbolic._isolation._errors import UnsupportedIsolationError
