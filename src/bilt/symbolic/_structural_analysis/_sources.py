@@ -1,14 +1,13 @@
-from __future__ import annotations
-
+import typing
 from dataclasses import dataclass
 
-from bilt.structural_analysis._types import ProducerKey, Variable
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._structural_analysis._types import ProducerKey, Variable
 
 
 @dataclass(frozen=True)
 class EquationSpec:
-    """
-    Equation available for structural analysis.
+    """Equation available for structural analysis.
 
     `producer` is intentionally opaque to this layer. In the real system this
     can be the original symbolic equation tree.
@@ -21,8 +20,7 @@ class EquationSpec:
 
 @dataclass(frozen=True)
 class TransformSpec:
-    """
-    Transform available for structural analysis.
+    """Transform available for structural analysis.
 
     `producer` is intentionally opaque to this layer. In the real system this
     can be the transform object.
@@ -36,9 +34,7 @@ class TransformSpec:
 
 @dataclass(frozen=True)
 class CandidateSource:
-    """
-    Normalised source records from which structural candidates can be generated.
-    """
+    """Normalised source records from which structural candidates can be generated."""
 
     equations: tuple[EquationSpec, ...]
     transforms: tuple[TransformSpec, ...] = ()

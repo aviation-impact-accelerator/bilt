@@ -1,25 +1,28 @@
-from collections.abc import Iterable, Iterator
+import typing
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator
 from itertools import product
 
-from bilt.structural_analysis._schedule import schedule_structural_candidates
-from bilt.structural_analysis._types import (
-    Case,
-    ProducerKey,
-    StructuralCandidate,
-    StructuralPlan,
-)
+from bilt.symbolic._structural_analysis._schedule import schedule_structural_candidates
+
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._structural_analysis._types import (
+        Case,
+        ProducerKey,
+        StructuralCandidate,
+        StructuralPlan,
+    )
 
 
 def _group_by_producer(
     candidates: Iterable[StructuralCandidate],
 ) -> dict[ProducerKey, list[StructuralCandidate]]:
-    """
-    Group structural candidates by producer key.
+    """Group structural candidates by producer key.
 
     The exhaustive backend uses this to choose zero or one output orientation
     per producer.
     """
-
     groups: dict[ProducerKey, list[StructuralCandidate]] = {}
 
     for candidate in candidates:
@@ -32,8 +35,7 @@ def exhaustive_backend(
     candidates: tuple[StructuralCandidate, ...],
     case: Case,
 ) -> Iterator[StructuralPlan]:
-    """
-    Exhaustively enumerate structural producer-output choices.
+    """Exhaustively enumerate structural producer-output choices.
 
     The backend chooses zero or one candidate per producer key and yields every
     structurally valid plan it can schedule from the case inputs.
@@ -47,20 +49,12 @@ def exhaustive_backend(
     This function does not isolate equations, realise transforms, or construct
     execution plans.
     """
-
     groups = _group_by_producer(candidates)
 
-    options_by_producer: list[list[StructuralCandidate | None]] = [
-        [None, *options]
-        for options in groups.values()
-    ]
+    options_by_producer: list[list[StructuralCandidate | None]] = [[None, *options] for options in groups.values()]
 
     for choice in product(*options_by_producer):
-        chosen = tuple(
-            candidate
-            for candidate in choice
-            if candidate is not None
-        )
+        chosen = tuple(candidate for candidate in choice if candidate is not None)
 
         produced_outputs = [candidate.output for candidate in chosen]
         produced_output_set = set(produced_outputs)

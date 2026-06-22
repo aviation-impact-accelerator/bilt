@@ -1,15 +1,16 @@
-from collections.abc import Iterable
+import typing
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Iterable
 
 from bilt.symbolic._execution_planning._build import build_execution_plan
-from bilt.symbolic._structural_analysis import (
+from bilt.symbolic._structural_analysis._candidates import generate_structural_candidates
+from bilt.symbolic._structural_analysis._sources import (
     CandidateSource,
-    Case,
     EquationSpec,
-    StructuralCandidate,
-    StructuralPlan,
     TransformSpec,
-    generate_structural_candidates,
 )
+from bilt.symbolic._structural_analysis._types import Case, StructuralCandidate, StructuralPlan
 from bilt.symbolic._structural_analysis.backends._exhaustive import exhaustive_backend
 
 
@@ -124,8 +125,8 @@ def test_exhaustive_backend_rejects_duplicate_outputs() -> None:
     )
 
     plans = tuple(exhaustive_backend(candidates, case))
-
-    assert len(plans) == 2
+    length = 2
+    assert len(plans) == length
     assert all(len(plan.steps) == 1 for plan in plans)
 
 

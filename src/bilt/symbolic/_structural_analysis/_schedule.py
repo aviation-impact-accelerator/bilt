@@ -1,8 +1,9 @@
-from __future__ import annotations
+import typing
 
-from collections.abc import Iterable
+if typing.TYPE_CHECKING:
+    from collections.abc import Iterable
 
-from bilt.structural_analysis._types import StructuralCandidate, StructuralPlan, Variable
+from bilt.symbolic._structural_analysis._types import StructuralCandidate, StructuralPlan, Variable
 
 
 def schedule_structural_candidates(
@@ -11,8 +12,7 @@ def schedule_structural_candidates(
     known_inputs: frozenset[Variable],
     targets: frozenset[Variable],
 ) -> StructuralPlan | None:
-    """
-    Try to order selected structural candidates from known inputs.
+    """Try to order selected structural candidates from known inputs.
 
     This is structural only. It does not realise producers and does not isolate
     equations.
@@ -20,7 +20,6 @@ def schedule_structural_candidates(
     A candidate can be scheduled when all of its required inputs are already
     available. Once scheduled, its output becomes available for later steps.
     """
-
     available = set(known_inputs)
     remaining = list(candidates)
     ordered: list[StructuralCandidate] = []

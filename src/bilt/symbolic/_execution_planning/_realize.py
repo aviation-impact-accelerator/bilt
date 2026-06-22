@@ -1,9 +1,13 @@
+import typing
+
 from bilt.symbolic._execution_planning._types import (
     ExecutionPlan,
     RealizationFailure,
     RealizedStep,
 )
-from bilt.symbolic._structural_analysis._types import StructuralCandidate, StructuralPlan
+
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._structural_analysis._types import Isolate, StructuralCandidate, StructuralPlan
 
 
 def realize_step(
@@ -11,8 +15,7 @@ def realize_step(
     *,
     isolate: Isolate,
 ) -> RealizedStep | RealizationFailure:
-    """
-    Lower one selected structural candidate into an executable step.
+    """Lower one selected structural candidate into an executable step.
 
     Equation candidates are isolated here:
 
@@ -23,7 +26,6 @@ def realize_step(
 
     Transform candidates use the transform object directly.
     """
-
     if candidate.kind == "equation":
         implementation = isolate(candidate.producer, candidate.output)
 
@@ -43,8 +45,8 @@ def realize_step(
             candidate=candidate,
             implementation=candidate.producer,
         )
-
-    raise TypeError(f"Unknown candidate kind: {candidate.kind!r}")
+    msg = f"Unknown candidate kind: {candidate.kind!r}"
+    raise TypeError(msg)
 
 
 def realize_structural_plan(
@@ -52,13 +54,11 @@ def realize_structural_plan(
     *,
     isolate: Isolate,
 ) -> tuple[ExecutionPlan | None, tuple[RealizationFailure, ...]]:
-    """
-    Realise a structural plan.
+    """Realise a structural plan.
 
     If any selected equation cannot be isolated, the whole structural plan is
     rejected and the caller can try the next backend proposal.
     """
-
     realized_steps: list[RealizedStep] = []
 
     for candidate in structural_plan.steps:
@@ -69,7 +69,7 @@ def realize_structural_plan(
 
         realized_steps.append(result)
 
-    return ExecutionPlan(steps=tuple(realized_steps)), tuple()
+    return ExecutionPlan(steps=tuple(realized_steps)), ()
 
 
 __all__ = ["realize_step", "realize_structural_plan"]

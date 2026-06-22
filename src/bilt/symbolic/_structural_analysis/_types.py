@@ -1,18 +1,17 @@
-from __future__ import annotations
-
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
-
 
 Variable = str
 ProducerKey = str
 ProducerKind = Literal["equation", "transform"]
 
+Isolate = Callable[[object, Variable], object | None]
+
 
 @dataclass(frozen=True)
 class Case:
-    """
-    Minimal structural-analysis request.
+    """Minimal structural-analysis request.
 
     `inputs` are variables already available.
     `outputs` are variables that must be available by the end of the structural
@@ -25,8 +24,7 @@ class Case:
 
 @dataclass(frozen=True)
 class StructuralCandidate:
-    """
-    A possible producer-output edge.
+    """A possible producer-output edge.
 
     The structural-analysis layer uses `producer_key`, `output`, and `inputs`.
 
@@ -43,8 +41,7 @@ class StructuralCandidate:
 
 @dataclass(frozen=True)
 class StructuralPlan:
-    """
-    Ordered structural plan emitted by a structural backend.
+    """Ordered structural plan emitted by a structural backend.
 
     Steps are structural candidates only. No equation isolation or execution
     lowering has happened at this layer.

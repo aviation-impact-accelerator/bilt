@@ -1,13 +1,20 @@
-from __future__ import annotations
+import typing
 
-from bilt.execution_planning._realize import realize_structural_plan
-from bilt.execution_planning._types import Isolate, PlanningResult
-from bilt.structural_analysis import (
-    CandidateSource,
-    Case,
-    StructuralBackend,
+from bilt.symbolic._execution_planning._realize import realize_structural_plan
+from bilt.symbolic._execution_planning._types import PlanningResult
+from bilt.symbolic._structural_analysis._candidates import (
     generate_structural_candidates,
 )
+from bilt.symbolic._structural_analysis._protocol import (
+    StructuralBackend,
+)
+
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._structural_analysis._protocol import (
+        StructuralBackend,
+    )
+    from bilt.symbolic._structural_analysis._sources import CandidateSource
+    from bilt.symbolic._structural_analysis._types import Case, Isolate
 
 
 def build_execution_plan(
@@ -17,8 +24,7 @@ def build_execution_plan(
     isolate: Isolate,
     backend: StructuralBackend,
 ) -> PlanningResult:
-    """
-    Build an executable plan using an injected structural backend.
+    """Build an executable plan using an injected structural backend.
 
     Flow:
         CandidateSource
@@ -29,19 +35,20 @@ def build_execution_plan(
 
     Concrete backends live in bilt.structural_analysis.backends.
     """
-
     structural_candidates = generate_structural_candidates(
         source,
         known_inputs=case.inputs,
     )
 
-    rejected = []
+    rejected: list[typing.Any] = []
 
     for structural_plan in backend(structural_candidates, case):
         execution_plan, failures = realize_structural_plan(
             structural_plan,
             isolate=isolate,
         )
+
+        failures = typing.cast("tuple[typing.Any, ...]", failures)
 
         if execution_plan is not None:
             return PlanningResult(

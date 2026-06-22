@@ -1,7 +1,8 @@
-from __future__ import annotations
+import typing
 
-from bilt.structural_analysis._sources import CandidateSource
-from bilt.structural_analysis._types import StructuralCandidate, Variable
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._structural_analysis._sources import CandidateSource
+from bilt.symbolic._structural_analysis._types import StructuralCandidate, Variable
 
 
 def generate_structural_candidates(
@@ -9,8 +10,7 @@ def generate_structural_candidates(
     *,
     known_inputs: frozenset[Variable],
 ) -> tuple[StructuralCandidate, ...]:
-    """
-    Generate all structural candidates from the available producers.
+    """Generate all structural candidates from the available producers.
 
     For each equation, generate one candidate per possible output variable.
     Equation candidates whose output is already known are skipped.
@@ -20,7 +20,6 @@ def generate_structural_candidates(
 
     No scheduling, equation isolation, or realisation happens here.
     """
-
     candidates: list[StructuralCandidate] = []
 
     for equation in source.equations:
