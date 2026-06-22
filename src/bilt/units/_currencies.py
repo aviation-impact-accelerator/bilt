@@ -6,6 +6,7 @@ import typing
 from ._units import _USD2025, Unit
 
 
+@typing.final
 @dataclasses.dataclass(frozen=True, kw_only=True, slots=True)
 class AnnualCurrencyUnit:
     """Mapping of years as `int` literals to the corresponding currency unit.

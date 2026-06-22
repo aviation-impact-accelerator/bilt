@@ -23,6 +23,7 @@ if typing.TYPE_CHECKING:
     from ._metadata import Metadata
 
 
+@typing.final
 class UnitOrder:
     __slots__ = ("_dimension", "_order", "_unit")
 
@@ -80,6 +81,7 @@ class UnitOrder:
         return f"{self.__class__.__name__}(unit={self.unit}, order={self.order})"
 
 
+@typing.final
 class UnitComposition:
     __slots__ = ("_composition", "_dimension", "_scale")
 
@@ -157,7 +159,7 @@ class UnitComposition:
             self_si_base_units._scale == other_si_base_units._scale
         )
 
-    def __mul__(self, other: typing.Self) -> typing.Self:
+    def __mul__(self, other: UnitComposition) -> typing.Self:
         if not isinstance(other, self.__class__):
             return NotImplemented
 
@@ -181,7 +183,7 @@ class UnitComposition:
             raise UnitError(message)
         return self.__class__(*self.composition, scale=self.scale * other)
 
-    def __truediv__(self, other: typing.Self) -> typing.Self:
+    def __truediv__(self, other: UnitComposition) -> typing.Self:
         if not isinstance(other, self.__class__):
             return NotImplemented
 
@@ -244,6 +246,7 @@ class UnitComposition:
         return f"{self.__class__.__name__}({', '.join(repr(term) for term in self.composition)}, scale={self.scale})"
 
 
+@typing.final
 class Unit:
     __slots__ = ("_category", "_dimension", "_metadata", "_name", "_offset", "_prefix", "_relation")
 
@@ -472,12 +475,12 @@ class Unit:
         return self.__class__._absolute_cache[self]  # noqa: SLF001
 
     @typing.overload
-    def __mul__(self, other: typing.Self) -> typing.Self: ...
+    def __mul__(self, other: Unit) -> typing.Self: ...
 
     @typing.overload
     def __mul__(self, other: Quantity) -> Quantity: ...
 
-    def __mul__(self, other: typing.Self | Quantity) -> typing.Self | Quantity:
+    def __mul__(self, other: Unit | Quantity) -> typing.Self | Quantity:
         if isinstance(other, self.__class__):
             left = (
                 self.relation
@@ -491,7 +494,6 @@ class Unit:
             )
             return self.__class__(left * right)
         if isinstance(other, Quantity):
-            # pyrefly: ignore[unsupported-operation]
             return Quantity(other.value, self * other.unit)
         return NotImplemented
 
@@ -503,12 +505,12 @@ class Unit:
         return NotImplemented
 
     @typing.overload
-    def __truediv__(self, other: typing.Self) -> typing.Self: ...
+    def __truediv__(self, other: Unit) -> typing.Self: ...
 
     @typing.overload
     def __truediv__(self, other: Quantity) -> Quantity: ...
 
-    def __truediv__(self, other: typing.Self | Quantity) -> typing.Self | Quantity:
+    def __truediv__(self, other: Unit | Quantity) -> typing.Self | Quantity:
         if isinstance(other, self.__class__):
             numerator = (
                 self.relation
@@ -522,7 +524,6 @@ class Unit:
             )
             return self.__class__(numerator / denominator)
         if isinstance(other, Quantity):
-            # pyrefly: ignore[unsupported-operation]
             return Quantity(1.0 / other.value, self / other.unit)
         return NotImplemented
 
@@ -656,6 +657,7 @@ candela = _define_base_unit("candela", LUMINOSITY)
 _USD2025 = _define_base_unit("USD2025", CURRENCY)
 
 
+@typing.final
 @dataclasses.dataclass(frozen=True, slots=True)
 class UnitSystem:
     mass: Unit

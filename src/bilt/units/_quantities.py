@@ -8,6 +8,7 @@ if typing.TYPE_CHECKING:
     from ._units import Unit
 
 
+@typing.final
 @functools.total_ordering
 class Quantity:
     __slots__ = ("_unit", "_value")
@@ -138,7 +139,7 @@ class Quantity:
     def __abs__(self) -> typing.Self:
         return self.__class__(abs(self.value), self.unit)
 
-    def __add__(self, other: typing.Self) -> typing.Self:
+    def __add__(self, other: Quantity) -> typing.Self:
         if not isinstance(other, self.__class__):
             return NotImplemented
         if self.unit.category is UnitCategory.ABSOLUTE or other.unit.category is UnitCategory.ABSOLUTE:
@@ -182,14 +183,14 @@ class Quantity:
             return NotImplemented
         return self
 
-    def __sub__(self, other: typing.Self) -> Quantity:
+    def __sub__(self, other: Quantity) -> Quantity:
         if self.unit.category is UnitCategory.ABSOLUTE and other.unit.category is UnitCategory.ABSOLUTE:
             return (self.value * self.unit.relation.composition[0].unit) + (
                 -other.value * other.unit.relation.composition[0].unit
             )
         return self + (-other)
 
-    def __mul__(self, other: typing.Self | float) -> typing.Self:
+    def __mul__(self, other: Quantity | float) -> typing.Self:
         if isinstance(other, self.__class__):
             return self.__class__(self.value * other.value, self.unit * other.unit)
         if isinstance(other, float):
@@ -201,7 +202,7 @@ class Quantity:
             return NotImplemented
         return self.__class__(self.value * other, self.unit)
 
-    def __truediv__(self, other: typing.Self | float) -> typing.Self:
+    def __truediv__(self, other: Quantity | float) -> typing.Self:
         if isinstance(other, self.__class__):
             return self.__class__(self.value / other.value, self.unit / other.unit)
         if isinstance(other, float):
@@ -213,7 +214,7 @@ class Quantity:
             return NotImplemented
         return self.__class__(other / self.value, self.unit**-1)
 
-    def __pow__(self, other: float | typing.Self) -> typing.Self:
+    def __pow__(self, other: float | Quantity) -> typing.Self:
         match other:
             case int():
                 return self.__class__(self.value**other, self.unit**other)

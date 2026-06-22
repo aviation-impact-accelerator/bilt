@@ -1,6 +1,7 @@
 import typing
 
 
+@typing.final
 class Dimension:
     __slots__ = (
         "_amount",
@@ -110,7 +111,7 @@ class Dimension:
             self.currency,
         )
 
-    def __mul__(self, other: typing.Self) -> typing.Self:
+    def __mul__(self, other: Dimension) -> typing.Self:
         if not isinstance(other, self.__class__):
             return NotImplemented
         return self.__class__(
@@ -124,7 +125,7 @@ class Dimension:
             currency=self.currency + other.currency,
         )
 
-    def __truediv__(self, other: typing.Self) -> typing.Self:
+    def __truediv__(self, other: Dimension) -> typing.Self:
         if not isinstance(other, self.__class__):
             return NotImplemented
         return self.__class__(
