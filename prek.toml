@@ -91,3 +91,27 @@ entry = "uv run pytest"
 language = "system"
 pass_filenames = false
 always_run = true
+
+[[repos.hooks]]
+id = "rust-fmt"
+name = "rust fmt"
+entry = "cargo fmt -- --check"
+language = "system"
+pass_filenames = false
+types = ["rust"]
+
+[[repos.hooks]]
+id = "rust-clippy"
+name = "rust clippy"
+entry = "cargo clippy --all-targets --all-features -- -D warnings"
+language = "system"
+pass_filenames = false
+types = ["rust"]
+
+[[repos.hooks]]
+id = "rust-test"
+name = "rust test"
+entry = "cargo test"
+language = "system"
+pass_filenames = false
+types = ["rust"]

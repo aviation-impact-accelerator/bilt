@@ -15,6 +15,7 @@ source = { editable = "." }
 
 [package.dev-dependencies]
 dev = [
+    { name = "examples" },
     { name = "prek" },
     { name = "pyrefly" },
     { name = "pytest" },
@@ -29,6 +30,7 @@ docs = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "examples", editable = "packages/examples" },
     { name = "prek", specifier = ">=0.3.11" },
     { name = "pyrefly", specifier = ">=1.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
