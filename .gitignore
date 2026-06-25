@@ -1,16 +1,31 @@
 # Python-generated files
-__pycache__/
+
+**pycache**/
 *.py[oc]
 build/
 dist/
 wheels/
 *.egg-info
 
+# Python native extension build artefacts
+
+*.so
+*.pyd
+*.dll
+*.dylib
+
+# Rust-generated files
+
+target/
+
 # Virtual environments
+
 .venv
 
 # OS
+
 .DS_Store
 
 # Zensical
+
 site/
