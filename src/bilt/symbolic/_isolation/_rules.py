@@ -46,11 +46,6 @@ def isolate_by_inverse_rules(planned: PlannedTree) -> IsolatedTree:
     )
 
 
-# =============================================================================
-# Inverse-rule isolation
-# =============================================================================
-
-
 def isolate_expr_by_inverse_rules(
     lhs: Expr,
     rhs: Expr,
