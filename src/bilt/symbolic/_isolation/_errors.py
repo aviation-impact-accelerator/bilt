@@ -7,16 +7,16 @@ __all__ = [
 
 
 class IsolationError(Exception):
-    pass
+    """Base class for symbolic isolation failures."""
 
 
 class TargetNotFoundError(IsolationError):
-    pass
+    """Raised when the target does not occur in the equation."""
 
 
 class TargetOnBothSidesError(IsolationError):
-    pass
+    """Raised when the target occurs on both sides of the equation."""
 
 
 class UnsupportedIsolationError(IsolationError):
-    pass
+    """Raised when the target occurs in a form the isolator cannot handle."""
