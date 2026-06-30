@@ -10,8 +10,9 @@ __all__ = [
     "make_inv",
     "make_mul",
     "make_neg",
-    "make_relation_tree",
     "make_sub",
+    "relation_lhs",
+    "relation_rhs",
     "same_expr",
     "same_tree",
     "simplify",
@@ -20,15 +21,12 @@ __all__ = [
     "simplify_mul",
     "simplify_neg",
     "split_exprs_by_target",
-    "tree_hash",
     "tree_lhs_expr",
-    "tree_lhs_tree",
     "tree_rhs_expr",
-    "tree_rhs_tree",
     "unary_child",
 ]
 
-from bilt.symbolic._atoms import ADD, INV, MUL, NEG, Atom
+from bilt.symbolic._atoms import ADD, INV, MUL, NEG
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import UnsupportedIsolationError
 from bilt.symbolic._tree import Tree
@@ -41,19 +39,17 @@ UNARY_ARG_COUNT = 1
 def simplify(expr: Expr) -> Expr:
     head = expr.rep.head
 
-    if head is ADD:
-        return simplify_add(expr)
-
-    if head is MUL:
-        return simplify_mul(expr)
-
-    if head is NEG:
-        return simplify_neg(expr)
-
-    if head is INV:
-        return simplify_inv(expr)
-
-    return expr
+    match head:
+        case _ if head is ADD:
+            return simplify_add(expr)
+        case _ if head is MUL:
+            return simplify_mul(expr)
+        case _ if head is NEG:
+            return simplify_neg(expr)
+        case _ if head is INV:
+            return simplify_inv(expr)
+        case _:
+            return expr
 
 
 def simplify_add(expr: Expr) -> Expr:
@@ -122,17 +118,10 @@ def split_exprs_by_target(
     return tuple(target_exprs), tuple(other_exprs)
 
 
-def make_relation_tree(relation_head: Atom, lhs: Expr, rhs: Expr) -> Tree:
-    return Tree(relation_head, (lhs.rep, rhs.rep))
-
-
 def make_add(*terms: Expr) -> Expr:
     if not terms:
         message = "Cannot build an empty addition."
         raise ValueError(message)
-
-    if len(terms) == 1:
-        return terms[0]
 
     return Expr(Tree(ADD, tuple(term.rep for term in terms)))
 
@@ -141,9 +130,6 @@ def make_mul(*factors: Expr) -> Expr:
     if not factors:
         message = "Cannot build an empty multiplication."
         raise ValueError(message)
-
-    if len(factors) == 1:
-        return factors[0]
 
     return Expr(Tree(MUL, tuple(factor.rep for factor in factors)))
 
@@ -170,22 +156,22 @@ def assert_binary_relation_tree(tree: Tree) -> None:
         raise UnsupportedIsolationError(message)
 
 
-def tree_lhs_tree(tree: Tree) -> Tree:
+def relation_lhs(tree: Tree) -> Tree:
     assert_binary_relation_tree(tree)
     return tree.args[0]
 
 
-def tree_rhs_tree(tree: Tree) -> Tree:
+def relation_rhs(tree: Tree) -> Tree:
     assert_binary_relation_tree(tree)
     return tree.args[1]
 
 
 def tree_lhs_expr(tree: Tree) -> Expr:
-    return Expr(tree_lhs_tree(tree))
+    return Expr(relation_lhs(tree))
 
 
 def tree_rhs_expr(tree: Tree) -> Expr:
-    return Expr(tree_rhs_tree(tree))
+    return Expr(relation_rhs(tree))
 
 
 def expr_args(expr: Expr) -> tuple[Expr, ...]:
@@ -206,10 +192,6 @@ def expr_contains(expr: Expr, target: Expr) -> bool:
 
 def count_tree_occurrences(tree: Tree, target: Tree) -> int:
     return count_occurrences(tree, target)
-
-
-def tree_hash(tree: Tree) -> int:
-    return hash((tree.head, tuple(tree_hash(child) for child in tree.args)))
 
 
 def same_expr(left: Expr, right: Expr) -> bool:

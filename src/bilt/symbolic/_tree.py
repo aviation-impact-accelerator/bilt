@@ -176,3 +176,7 @@ def relation_tree(operator: Atom | str, left: Tree, right: Tree) -> Tree:
 def equality_tree(left: Tree, right: Tree) -> Tree:
     """Construct a symbolic equality tree."""
     return relation_tree(EQUALS, left, right)
+
+
+def tree_hash(tree: Tree) -> int:
+    return hash((tree.head, tuple(tree_hash(child) for child in tree.args)))

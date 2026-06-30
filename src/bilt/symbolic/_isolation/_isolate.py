@@ -1,6 +1,5 @@
 __all__ = ["isolate"]
 
-from typing import TYPE_CHECKING
 
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import (
@@ -10,7 +9,6 @@ from bilt.symbolic._isolation._errors import (
 )
 from bilt.symbolic._isolation._expr_ops import (
     assert_binary_relation_tree,
-    make_relation_tree,
     simplify,
 )
 from bilt.symbolic._isolation._rules import isolate_by_inverse_rules
@@ -22,10 +20,8 @@ from bilt.symbolic._isolation._types import (
     PlannedTree,
     SimplifiedTree,
 )
+from bilt.symbolic._tree import Tree
 from bilt.symbolic._walk import count_occurrences
-
-if TYPE_CHECKING:
-    from bilt.symbolic._tree import Tree
 
 
 def isolate(equation: Tree, target: Expr) -> Tree:
@@ -53,7 +49,7 @@ def simplify_tree(tree: Tree) -> SimplifiedTree:
     lhs = simplify(Expr(tree.args[0]))
     rhs = simplify(Expr(tree.args[1]))
 
-    return SimplifiedTree(make_relation_tree(tree.head, lhs, rhs))
+    return SimplifiedTree(Tree(tree.head, (lhs.rep, rhs.rep)))
 
 
 def analyse_occurrences(
