@@ -12,9 +12,6 @@ members = [
 name = "bilt"
 version = "0.0.1"
 source = { editable = "." }
-dependencies = [
-    { name = "jax" },
-]
 
 [package.dev-dependencies]
 dev = [
@@ -28,9 +25,11 @@ dev = [
 docs = [
     { name = "zensical" },
 ]
+jax-backend = [
+    { name = "jax" },
+]
 
 [package.metadata]
-requires-dist = [{ name = "jax", specifier = ">=0.10.2" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -42,6 +41,7 @@ dev = [
     { name = "ty", specifier = ">=0.0.38" },
 ]
 docs = [{ name = "zensical", specifier = ">=0.0.37" }]
+jax-backend = [{ name = "jax", specifier = ">=0.10.2" }]
 
 [[package]]
 name = "click"
