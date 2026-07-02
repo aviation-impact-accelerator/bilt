@@ -1,0 +1,130 @@
+"""Tests for transform_to_jax module."""
+
+import ast
+import typing
+
+import jax.numpy as jnp
+import pytest
+
+from bilt.abstract_backend import BackendCase
+from bilt.jax_backend import JaxBackend, UnsupportedNodeError
+
+
+def parse_to_ast(src: str) -> ast.FunctionDef:
+    return typing.cast("ast.FunctionDef", ast.parse(src).body[0])
+
+
+@pytest.fixture
+def jax_backend() -> JaxBackend:
+    return JaxBackend()
+
+
+simple_case = BackendCase(
+    name="test_case",
+    external_parameters=("a", "b", "d"),
+    interim=[
+        JaxBackend().transpile(parse_to_ast("def c(a: int, b: int) -> int:\n    return a + b")),
+        JaxBackend().transpile(parse_to_ast("def e(c: int, d: int) -> int:\n    return c * d")),
+    ],
+    return_value="e",
+)
+
+
+diamond_case = BackendCase(
+    name="test_case",
+    external_parameters=("x",),
+    interim=[
+        JaxBackend().transpile(parse_to_ast("def f(x: int) -> int:\n    return x + 1")),
+        JaxBackend().transpile(parse_to_ast("def g(f: int, x: int) -> int:\n        return f * x")),
+        JaxBackend().transpile(parse_to_ast("def h(f: int, x: int) -> int:\n    return f - x")),
+        JaxBackend().transpile(parse_to_ast("def i(g: int, h: int) -> int:\n        return g + h")),
+    ],
+    return_value="i",
+)
+
+list_case = BackendCase(
+    name="test_case",
+    external_parameters=(),
+    interim=[
+        JaxBackend().transpile(parse_to_ast("def l1() -> list[float]:\n    return [1.0, 2.0, 3.0, 4.0, 5.0]")),
+        JaxBackend().transpile(parse_to_ast("def l2(l1: float) -> float:\n    return l1 + 1.0")),
+    ],
+    return_value="l2",
+)
+
+
+def test_transpile_simple_arithmetic(jax_backend: JaxBackend) -> None:
+    fn = jax_backend.transpile(parse_to_ast("def f(x, y):\n    return x + y"))
+    assert float(fn(jnp.array(2.0), jnp.array(3.0))) == pytest.approx(5.0)
+
+
+def test_transpile_jnp_call(jax_backend: JaxBackend) -> None:
+    fn = jax_backend.transpile(parse_to_ast("def f(x):\n    return jnp.sqrt(x)"))
+    assert float(fn(jnp.array(9.0))) == pytest.approx(3.0)
+
+
+def test_transpile_raises_on_unsupported_node(jax_backend: JaxBackend) -> None:
+    with pytest.raises(UnsupportedNodeError):
+        jax_backend.transpile(parse_to_ast("def f(x):\n    if x > 0:\n        return x\n    return -x"))
+
+
+def test_transpile_list_literal_becomes_jnp_array(jax_backend: JaxBackend) -> None:
+    fn = jax_backend.transpile(parse_to_ast("def f():\n    return [1.0, 2.0, 3.0]"))
+    result = fn()
+    assert isinstance(result, jnp.ndarray)
+    assert list(result) == pytest.approx([1.0, 2.0, 3.0])
+
+
+def test_transpile_nested_list_both_converted(jax_backend: JaxBackend) -> None:
+    fn = jax_backend.transpile(parse_to_ast("def f():\n    return [[1.0, 2.0], [3.0, 4.0]]"))
+    result = fn()
+    assert isinstance(result, jnp.ndarray)
+    assert result.shape == (2, 2)
+
+
+@pytest.mark.parametrize(
+    ("case", "inputs", "expected"),
+    (
+        (
+            simple_case,
+            (3.0, 1.0, 2.0),
+            8.0,
+        ),
+        (
+            diamond_case,
+            (3.0,),
+            13.0,
+        ),
+    ),
+)
+def test_build_pipeline_for_cases(
+    case: BackendCase, inputs: tuple[float, ...], expected: float, jax_backend: JaxBackend
+) -> None:
+    pipeline = jax_backend.chain_case(case)
+    assert float(pipeline(*inputs)) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    ("case", "inputs"),
+    (
+        (
+            simple_case,
+            (3.0, 1.0, 2.0, 2.0),
+        ),
+        (
+            diamond_case,
+            (),
+        ),
+    ),
+)
+def test_pipeline_rejects_unexpected_input(
+    case: BackendCase, inputs: tuple[float, ...], jax_backend: JaxBackend
+) -> None:
+    pipeline = jax_backend.chain_case(case)
+    with pytest.raises(TypeError, match=r"argument"):
+        pipeline(*inputs)
+
+
+def test_build_pipeline_with_list_operation(jax_backend: JaxBackend) -> None:
+    pipeline = jax_backend.chain_case(list_case)
+    assert float(pipeline() == pytest.approx([2.0, 3.0, 4.0, 5.0, 6.0]))
