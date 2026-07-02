@@ -40,7 +40,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install dependencies
-        run: uv sync --python ${{ matrix.python-version }} --all-packages
+        run: uv sync --python ${{ matrix.python-version }} --all-packages --group jax-backend
 
       - name: Configure PyO3 Python
         run: |
