@@ -39,6 +39,6 @@ class BackendCase:
     """Container for information expected by the backend to allow it to chain computations into a larger pipelined callable."""
 
     name: str
-    external_parameters: tuple[str, ...]
+    parameters: tuple[str, ...]
     interim: list[typing.Callable]
-    return_value: str
+    return_name: str

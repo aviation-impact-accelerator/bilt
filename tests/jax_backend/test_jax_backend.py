@@ -21,35 +21,35 @@ def jax_backend() -> JaxBackend:
 
 simple_case = BackendCase(
     name="test_case",
-    external_parameters=("a", "b", "d"),
+    parameters=("a", "b", "d"),
     interim=[
         JaxBackend().transpile(parse_to_ast("def c(a: int, b: int) -> int:\n    return a + b")),
         JaxBackend().transpile(parse_to_ast("def e(c: int, d: int) -> int:\n    return c * d")),
     ],
-    return_value="e",
+    return_name="e",
 )
 
 
 diamond_case = BackendCase(
     name="test_case",
-    external_parameters=("x",),
+    parameters=("x",),
     interim=[
         JaxBackend().transpile(parse_to_ast("def f(x: int) -> int:\n    return x + 1")),
         JaxBackend().transpile(parse_to_ast("def g(f: int, x: int) -> int:\n        return f * x")),
         JaxBackend().transpile(parse_to_ast("def h(f: int, x: int) -> int:\n    return f - x")),
         JaxBackend().transpile(parse_to_ast("def i(g: int, h: int) -> int:\n        return g + h")),
     ],
-    return_value="i",
+    return_name="i",
 )
 
 list_case = BackendCase(
     name="test_case",
-    external_parameters=(),
+    parameters=(),
     interim=[
         JaxBackend().transpile(parse_to_ast("def l1() -> list[float]:\n    return [1.0, 2.0, 3.0, 4.0, 5.0]")),
         JaxBackend().transpile(parse_to_ast("def l2(l1: float) -> float:\n    return l1 + 1.0")),
     ],
-    return_value="l2",
+    return_name="l2",
 )
 
 

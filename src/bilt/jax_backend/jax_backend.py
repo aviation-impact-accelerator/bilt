@@ -42,7 +42,7 @@ class JaxBackend(Backend):
 
     def chain_case(self, case: BackendCase) -> typing.Callable:
         new_namespace: dict[str, typing.Any] = {}
-        args = "" if not case.external_parameters else "_, ".join(case.external_parameters) + "_"
+        args = "" if not case.parameters else "_, ".join(case.parameters) + "_"
         chained_callable_as_string = f"def {case.name}({args}):\n"
         for interim_callable in case.interim:
             if not hasattr(interim_callable, "__name__"):
@@ -55,7 +55,7 @@ class JaxBackend(Backend):
                 else "_, ".join(inspect.signature(interim_callable).parameters) + "_"
             )
             chained_callable_as_string += f"    {interim_callable.__name__}_={interim_callable.__name__}({args})\n"
-        chained_callable_as_string += f"    return {case.return_value}_\n"
+        chained_callable_as_string += f"    return {case.return_name}_\n"
         chained_callable_ast = typing.cast("ast.FunctionDef", ast.parse(chained_callable_as_string).body[0])
 
         old_namespace = self.compilation_namespace.copy()
