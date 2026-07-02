@@ -1,8 +1,22 @@
 {
   "venvPath": ".",
   "venv": ".venv",
-  "extraPaths": ["src/"],
-  "include": [],
+  "extraPaths": [
+    "packages/bilt-core/src",
+    "packages/bilt-symbolic/src",
+    "packages/bilt-units/src",
+    "packages/examples/src"
+  ],
+  "include": [
+    "packages/bilt-core/src",
+    "packages/bilt-core/tests",
+    "packages/bilt-symbolic/src",
+    "packages/bilt-symbolic/tests",
+    "packages/bilt-units/src",
+    "packages/bilt-units/tests",
+    "packages/examples/src",
+    "packages/examples/tests"
+  ],
   "exclude": [".venv", "dist", ".pytest_cache", ".ruff_cache"],
   "typeCheckingMode": "strict"
 }
