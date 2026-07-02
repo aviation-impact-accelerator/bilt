@@ -5,6 +5,9 @@ import ast
 import dataclasses
 import typing
 
+if typing.TYPE_CHECKING:
+    import collections.abc
+
 
 class Backend(abc.ABC):
     """Interface for methods to implement by the JAX backend."""
@@ -19,7 +22,7 @@ class Backend(abc.ABC):
         """Must at minimum initialise the ast_transformer and compilation_namespace attributes."""
         ...
 
-    def transpile(self, function_definition: ast.FunctionDef) -> typing.Callable:
+    def transpile(self, function_definition: ast.FunctionDef) -> collections.abc.Callable:
         """Used to compile a single transform AST into a callable function, that can then be chained into the execution pipeline."""
         transformed = self.ast_transformer.visit(function_definition)
         module = ast.Module(body=[transformed], type_ignores=[])
@@ -29,7 +32,7 @@ class Backend(abc.ABC):
         return self.compilation_namespace[function_definition.name]
 
     @abc.abstractmethod
-    def chain_case(self, case: BackendCase) -> typing.Callable:
+    def chain_case(self, case: BackendCase) -> collections.abc.Callable:
         """Execute the compiled function with the provided keyword arguments."""
         ...
 
@@ -40,5 +43,5 @@ class BackendCase:
 
     name: str
     parameters: tuple[str, ...]
-    interim: list[typing.Callable]
+    interim: list[collections.abc.Callable]
     return_name: str

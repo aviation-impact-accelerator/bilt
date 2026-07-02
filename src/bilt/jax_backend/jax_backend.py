@@ -8,6 +8,9 @@ import jax.numpy as jnp
 from bilt.abstract_backend import Backend, BackendCase
 from bilt.jax_backend.jax_compatible_validation import _validate
 
+if typing.TYPE_CHECKING:
+    import collections.abc
+
 
 class JaxASTTransformer(ast.NodeTransformer):
     def visit_List(self, node: ast.List) -> ast.Call:
@@ -35,12 +38,12 @@ class JaxBackend(Backend):
         self.ast_transformer = JaxASTTransformer()
         self.compilation_namespace = {"jnp": jnp, "jax.jit": jax.jit, "__builtins__": __builtins__}
 
-    def transpile(self, function_definition: ast.FunctionDef) -> typing.Callable:
+    def transpile(self, function_definition: ast.FunctionDef) -> collections.abc.Callable:
         """Compile a single transform AST into a callable function."""
         _validate(function_definition)
         return super().transpile(function_definition)
 
-    def chain_case(self, case: BackendCase) -> typing.Callable:
+    def chain_case(self, case: BackendCase) -> collections.abc.Callable:
         new_namespace: dict[str, typing.Any] = {}
         args = "" if not case.parameters else "_, ".join(case.parameters) + "_"
         chained_callable_as_string = f"def {case.name}({args}):\n"
