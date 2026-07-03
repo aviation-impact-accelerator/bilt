@@ -4,10 +4,10 @@ import abc
 import ast
 import typing
 
+from bilt._backend._callable import BackendCallable
+
 if typing.TYPE_CHECKING:
     from ._case import BackendCase
-
-from bilt._backend import BackendCallable
 
 
 class Backend(abc.ABC):
