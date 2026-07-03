@@ -21,7 +21,6 @@ class Backend(abc.ABC):
         self,
     ) -> None:
         """Must at minimum initialise the ast_transformer and compilation_namespace attributes."""
-        ...
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Used to compile a single transform AST into a callable function, that can then be chained into the execution pipeline."""
@@ -40,4 +39,3 @@ class Backend(abc.ABC):
     @abc.abstractmethod
     def chain_case(self, case: BackendCase) -> BackendCallable:
         """Execute the compiled function with the provided keyword arguments."""
-        ...
