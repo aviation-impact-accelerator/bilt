@@ -19,7 +19,7 @@ def jax_backend() -> JAXBackend:
     return JAXBackend()
 
 
-simple_case = BackendCase(
+SIMPLE_CASE = BackendCase(
     name="test_case",
     parameters=("a", "b", "d"),
     intermediates=[
@@ -30,7 +30,7 @@ simple_case = BackendCase(
 )
 
 
-diamond_case = BackendCase(
+DIAMOND_CASE = BackendCase(
     name="test_case",
     parameters=("x",),
     intermediates=[
@@ -42,7 +42,7 @@ diamond_case = BackendCase(
     return_name="i",
 )
 
-list_case = BackendCase(
+LIST_CASE = BackendCase(
     name="test_case",
     parameters=(),
     intermediates=[
@@ -86,12 +86,12 @@ def test_transpile_nested_list_both_converted(jax_backend: JAXBackend) -> None:
     ("case", "inputs", "expected"),
     (
         (
-            simple_case,
+            SIMPLE_CASE,
             (3.0, 1.0, 2.0),
             8.0,
         ),
         (
-            diamond_case,
+            DIAMOND_CASE,
             (3.0,),
             13.0,
         ),
@@ -108,11 +108,11 @@ def test_build_pipeline_for_cases(
     ("case", "inputs"),
     (
         (
-            simple_case,
+            SIMPLE_CASE,
             (3.0, 1.0, 2.0, 2.0),
         ),
         (
-            diamond_case,
+            DIAMOND_CASE,
             (),
         ),
     ),
@@ -126,5 +126,5 @@ def test_pipeline_rejects_unexpected_input(
 
 
 def test_build_pipeline_with_list_operation(jax_backend: JAXBackend) -> None:
-    pipeline = jax_backend.chain_case(list_case)
+    pipeline = jax_backend.chain_case(LIST_CASE)
     assert float(pipeline.callable() == pytest.approx([2.0, 3.0, 4.0, 5.0, 6.0]))
