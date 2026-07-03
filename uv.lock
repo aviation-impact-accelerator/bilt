@@ -13,6 +13,11 @@ name = "bilt"
 version = "0.0.1"
 source = { editable = "." }
 
+[package.optional-dependencies]
+jax = [
+    { name = "jax" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "examples" },
@@ -25,11 +30,10 @@ dev = [
 docs = [
     { name = "zensical" },
 ]
-jax-backend = [
-    { name = "jax" },
-]
 
 [package.metadata]
+requires-dist = [{ name = "jax", marker = "extra == 'jax'", specifier = ">=0.10.2" }]
+provides-extras = ["jax"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -41,7 +45,7 @@ dev = [
     { name = "ty", specifier = ">=0.0.38" },
 ]
 docs = [{ name = "zensical", specifier = ">=0.0.37" }]
-jax-backend = [{ name = "jax", specifier = ">=0.10.2" }]
+jax-backend = []
 
 [[package]]
 name = "click"

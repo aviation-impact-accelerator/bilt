@@ -6,6 +6,11 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = []
 
+[project.optional-dependencies]
+jax = [
+    "jax>=0.10.2",
+]
+
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
@@ -23,9 +28,7 @@ dev = [
 docs = [
     "zensical>=0.0.37",
 ]
-jax-backend = [
-    "jax>=0.10.2",
-]
+jax-backend = []
 
 [tool.pyrefly]
 python_version = "3.14"
