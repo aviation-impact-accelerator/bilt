@@ -27,7 +27,7 @@ class JAXBackend(Backend):
         new_namespace: dict[str, typing.Any] = {}
         chained_callable_as_string = f"def {case.name}({', '.join(f'{x}_' for x in case.parameters)}):\n"
         for interim_callable in case.intermediates:
-            new_namespace[typing.cast("str", interim_callable.name)] = interim_callable.callable
+            new_namespace[interim_callable.name] = interim_callable.callable
             chained_callable_as_string += f"    {interim_callable.name}_={interim_callable.name}({', '.join(f'{x}_' for x in interim_callable.parameters)})\n"
         chained_callable_as_string += f"    return {case.return_name}_\n"
         chained_callable_ast = typing.cast("ast.FunctionDef", ast.parse(chained_callable_as_string).body[0])
