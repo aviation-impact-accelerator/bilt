@@ -2,7 +2,7 @@ import dataclasses
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import collections.abc
+    from bilt._backend import BackendCallable
 
 
 @dataclasses.dataclass
@@ -11,5 +11,5 @@ class BackendCase:
 
     name: str
     parameters: tuple[str, ...]
-    interim: list[collections.abc.Callable]
+    intermediates: list[BackendCallable]
     return_name: str

@@ -22,7 +22,7 @@ def jax_backend() -> JaxBackend:
 simple_case = BackendCase(
     name="test_case",
     parameters=("a", "b", "d"),
-    interim=[
+    intermediates=[
         JaxBackend().transpile(parse_to_ast("def c(a: int, b: int) -> int:\n    return a + b")),
         JaxBackend().transpile(parse_to_ast("def e(c: int, d: int) -> int:\n    return c * d")),
     ],
@@ -33,7 +33,7 @@ simple_case = BackendCase(
 diamond_case = BackendCase(
     name="test_case",
     parameters=("x",),
-    interim=[
+    intermediates=[
         JaxBackend().transpile(parse_to_ast("def f(x: int) -> int:\n    return x + 1")),
         JaxBackend().transpile(parse_to_ast("def g(f: int, x: int) -> int:\n        return f * x")),
         JaxBackend().transpile(parse_to_ast("def h(f: int, x: int) -> int:\n    return f - x")),
@@ -45,7 +45,7 @@ diamond_case = BackendCase(
 list_case = BackendCase(
     name="test_case",
     parameters=(),
-    interim=[
+    intermediates=[
         JaxBackend().transpile(parse_to_ast("def l1() -> list[float]:\n    return [1.0, 2.0, 3.0, 4.0, 5.0]")),
         JaxBackend().transpile(parse_to_ast("def l2(l1: float) -> float:\n    return l1 + 1.0")),
     ],
@@ -55,12 +55,12 @@ list_case = BackendCase(
 
 def test_transpile_simple_arithmetic(jax_backend: JaxBackend) -> None:
     fn = jax_backend.transpile(parse_to_ast("def f(x, y):\n    return x + y"))
-    assert float(fn(jnp.array(2.0), jnp.array(3.0))) == pytest.approx(5.0)
+    assert float(fn.callable(jnp.array(2.0), jnp.array(3.0))) == pytest.approx(5.0)
 
 
 def test_transpile_jnp_call(jax_backend: JaxBackend) -> None:
     fn = jax_backend.transpile(parse_to_ast("def f(x):\n    return jnp.sqrt(x)"))
-    assert float(fn(jnp.array(9.0))) == pytest.approx(3.0)
+    assert float(fn.callable(jnp.array(9.0))) == pytest.approx(3.0)
 
 
 def test_transpile_raises_on_unsupported_node(jax_backend: JaxBackend) -> None:
@@ -70,14 +70,14 @@ def test_transpile_raises_on_unsupported_node(jax_backend: JaxBackend) -> None:
 
 def test_transpile_list_literal_becomes_jnp_array(jax_backend: JaxBackend) -> None:
     fn = jax_backend.transpile(parse_to_ast("def f():\n    return [1.0, 2.0, 3.0]"))
-    result = fn()
+    result = fn.callable()
     assert isinstance(result, jnp.ndarray)
     assert list(result) == pytest.approx([1.0, 2.0, 3.0])
 
 
 def test_transpile_nested_list_both_converted(jax_backend: JaxBackend) -> None:
     fn = jax_backend.transpile(parse_to_ast("def f():\n    return [[1.0, 2.0], [3.0, 4.0]]"))
-    result = fn()
+    result = fn.callable()
     assert isinstance(result, jnp.ndarray)
     assert result.shape == (2, 2)
 
@@ -101,7 +101,7 @@ def test_build_pipeline_for_cases(
     case: BackendCase, inputs: tuple[float, ...], expected: float, jax_backend: JaxBackend
 ) -> None:
     pipeline = jax_backend.chain_case(case)
-    assert float(pipeline(*inputs)) == pytest.approx(expected)
+    assert float(pipeline.callable(*inputs)) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(
@@ -122,9 +122,9 @@ def test_pipeline_rejects_unexpected_input(
 ) -> None:
     pipeline = jax_backend.chain_case(case)
     with pytest.raises(TypeError, match=r"argument"):
-        pipeline(*inputs)
+        pipeline.callable(*inputs)
 
 
 def test_build_pipeline_with_list_operation(jax_backend: JaxBackend) -> None:
     pipeline = jax_backend.chain_case(list_case)
-    assert float(pipeline() == pytest.approx([2.0, 3.0, 4.0, 5.0, 6.0]))
+    assert float(pipeline.callable() == pytest.approx([2.0, 3.0, 4.0, 5.0, 6.0]))
