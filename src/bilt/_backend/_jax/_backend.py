@@ -25,15 +25,10 @@ class JaxBackend(Backend):
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
         new_namespace: dict[str, typing.Any] = {}
-        args = "" if not case.parameters else "_, ".join(case.parameters) + "_"
-        chained_callable_as_string = f"def {case.name}({args}):\n"
+        chained_callable_as_string = f"def {case.name}({', '.join(f'{x}_' for x in case.parameters)}):\n"
         for interim_callable in case.intermediates:
-            if not hasattr(interim_callable, "name"):
-                msg = f"Interim callable {interim_callable} does not have a name attribute."
-                raise ValueError(msg)
-            new_namespace[typing.cast("str", interim_callable.name)] = interim_callable
-            args = "" if not interim_callable.parameters else "_, ".join(interim_callable.parameters) + "_"
-            chained_callable_as_string += f"    {interim_callable.name}_={interim_callable.name}({args})\n"
+            new_namespace[typing.cast("str", interim_callable.name)] = interim_callable.callable
+            chained_callable_as_string += f"    {interim_callable.name}_={interim_callable.name}({', '.join(f'{x}_' for x in interim_callable.parameters)})\n"
         chained_callable_as_string += f"    return {case.return_name}_\n"
         chained_callable_ast = typing.cast("ast.FunctionDef", ast.parse(chained_callable_as_string).body[0])
 
