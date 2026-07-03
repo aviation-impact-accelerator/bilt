@@ -28,7 +28,6 @@ dev = [
 docs = [
     "zensical>=0.0.37",
 ]
-jax-backend = []
 
 [tool.pyrefly]
 python_version = "3.14"
@@ -87,7 +86,7 @@ examples = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "packages/examples"
+    "packages/examples",
 ]
 
 [tool.maturin]
