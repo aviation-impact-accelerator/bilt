@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import pytest
 
 from bilt._backend import BackendCase
-from bilt._backend._jax import JaxBackend, UnsupportedNodeError
+from bilt._backend._jax import JAXBackend, UnsupportedNodeError
 
 
 def parse_to_ast(src: str) -> ast.FunctionDef:
@@ -15,16 +15,16 @@ def parse_to_ast(src: str) -> ast.FunctionDef:
 
 
 @pytest.fixture
-def jax_backend() -> JaxBackend:
-    return JaxBackend()
+def jax_backend() -> JAXBackend:
+    return JAXBackend()
 
 
 simple_case = BackendCase(
     name="test_case",
     parameters=("a", "b", "d"),
     intermediates=[
-        JaxBackend().transpile(parse_to_ast("def c(a: int, b: int) -> int:\n    return a + b")),
-        JaxBackend().transpile(parse_to_ast("def e(c: int, d: int) -> int:\n    return c * d")),
+        JAXBackend().transpile(parse_to_ast("def c(a: int, b: int) -> int:\n    return a + b")),
+        JAXBackend().transpile(parse_to_ast("def e(c: int, d: int) -> int:\n    return c * d")),
     ],
     return_name="e",
 )
@@ -34,10 +34,10 @@ diamond_case = BackendCase(
     name="test_case",
     parameters=("x",),
     intermediates=[
-        JaxBackend().transpile(parse_to_ast("def f(x: int) -> int:\n    return x + 1")),
-        JaxBackend().transpile(parse_to_ast("def g(f: int, x: int) -> int:\n        return f * x")),
-        JaxBackend().transpile(parse_to_ast("def h(f: int, x: int) -> int:\n    return f - x")),
-        JaxBackend().transpile(parse_to_ast("def i(g: int, h: int) -> int:\n        return g + h")),
+        JAXBackend().transpile(parse_to_ast("def f(x: int) -> int:\n    return x + 1")),
+        JAXBackend().transpile(parse_to_ast("def g(f: int, x: int) -> int:\n        return f * x")),
+        JAXBackend().transpile(parse_to_ast("def h(f: int, x: int) -> int:\n    return f - x")),
+        JAXBackend().transpile(parse_to_ast("def i(g: int, h: int) -> int:\n        return g + h")),
     ],
     return_name="i",
 )
@@ -46,36 +46,36 @@ list_case = BackendCase(
     name="test_case",
     parameters=(),
     intermediates=[
-        JaxBackend().transpile(parse_to_ast("def l1() -> list[float]:\n    return [1.0, 2.0, 3.0, 4.0, 5.0]")),
-        JaxBackend().transpile(parse_to_ast("def l2(l1: float) -> float:\n    return l1 + 1.0")),
+        JAXBackend().transpile(parse_to_ast("def l1() -> list[float]:\n    return [1.0, 2.0, 3.0, 4.0, 5.0]")),
+        JAXBackend().transpile(parse_to_ast("def l2(l1: float) -> float:\n    return l1 + 1.0")),
     ],
     return_name="l2",
 )
 
 
-def test_transpile_simple_arithmetic(jax_backend: JaxBackend) -> None:
+def test_transpile_simple_arithmetic(jax_backend: JAXBackend) -> None:
     fn = jax_backend.transpile(parse_to_ast("def f(x, y):\n    return x + y"))
     assert float(fn.callable(jnp.array(2.0), jnp.array(3.0))) == pytest.approx(5.0)
 
 
-def test_transpile_jnp_call(jax_backend: JaxBackend) -> None:
+def test_transpile_jnp_call(jax_backend: JAXBackend) -> None:
     fn = jax_backend.transpile(parse_to_ast("def f(x):\n    return jnp.sqrt(x)"))
     assert float(fn.callable(jnp.array(9.0))) == pytest.approx(3.0)
 
 
-def test_transpile_raises_on_unsupported_node(jax_backend: JaxBackend) -> None:
+def test_transpile_raises_on_unsupported_node(jax_backend: JAXBackend) -> None:
     with pytest.raises(UnsupportedNodeError):
         jax_backend.transpile(parse_to_ast("def f(x):\n    if x > 0:\n        return x\n    return -x"))
 
 
-def test_transpile_list_literal_becomes_jnp_array(jax_backend: JaxBackend) -> None:
+def test_transpile_list_literal_becomes_jnp_array(jax_backend: JAXBackend) -> None:
     fn = jax_backend.transpile(parse_to_ast("def f():\n    return [1.0, 2.0, 3.0]"))
     result = fn.callable()
     assert isinstance(result, jnp.ndarray)
     assert list(result) == pytest.approx([1.0, 2.0, 3.0])
 
 
-def test_transpile_nested_list_both_converted(jax_backend: JaxBackend) -> None:
+def test_transpile_nested_list_both_converted(jax_backend: JAXBackend) -> None:
     fn = jax_backend.transpile(parse_to_ast("def f():\n    return [[1.0, 2.0], [3.0, 4.0]]"))
     result = fn.callable()
     assert isinstance(result, jnp.ndarray)
@@ -98,7 +98,7 @@ def test_transpile_nested_list_both_converted(jax_backend: JaxBackend) -> None:
     ),
 )
 def test_build_pipeline_for_cases(
-    case: BackendCase, inputs: tuple[float, ...], expected: float, jax_backend: JaxBackend
+    case: BackendCase, inputs: tuple[float, ...], expected: float, jax_backend: JAXBackend
 ) -> None:
     pipeline = jax_backend.chain_case(case)
     assert float(pipeline.callable(*inputs)) == pytest.approx(expected)
@@ -118,13 +118,13 @@ def test_build_pipeline_for_cases(
     ),
 )
 def test_pipeline_rejects_unexpected_input(
-    case: BackendCase, inputs: tuple[float, ...], jax_backend: JaxBackend
+    case: BackendCase, inputs: tuple[float, ...], jax_backend: JAXBackend
 ) -> None:
     pipeline = jax_backend.chain_case(case)
     with pytest.raises(TypeError, match=r"argument"):
         pipeline.callable(*inputs)
 
 
-def test_build_pipeline_with_list_operation(jax_backend: JaxBackend) -> None:
+def test_build_pipeline_with_list_operation(jax_backend: JAXBackend) -> None:
     pipeline = jax_backend.chain_case(list_case)
     assert float(pipeline.callable() == pytest.approx([2.0, 3.0, 4.0, 5.0, 6.0]))

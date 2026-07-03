@@ -1,7 +1,7 @@
 import ast
 
 
-class JaxASTTransformer(ast.NodeTransformer):
+class JAXASTTransformer(ast.NodeTransformer):
     def visit_List(self, node: ast.List) -> ast.Call:
         self.generic_visit(node)
         return ast.Call(

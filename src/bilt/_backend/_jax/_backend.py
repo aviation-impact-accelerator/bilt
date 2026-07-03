@@ -7,15 +7,15 @@ import jax
 import jax.numpy as jnp
 
 from bilt._backend import Backend, BackendCallable, BackendCase
-from bilt._backend._jax._ast import JaxASTTransformer
+from bilt._backend._jax._ast import JAXASTTransformer
 from bilt._backend._jax._supports import _validate
 
 
-class JaxBackend(Backend):
+class JAXBackend(Backend):
     """JAX backend implementation of the Bilt backend interface."""
 
     def __init__(self) -> None:
-        self.ast_transformer = JaxASTTransformer()
+        self.ast_transformer = JAXASTTransformer()
         self.compilation_namespace = {"jnp": jnp, "jax.jit": jax.jit, "__builtins__": __builtins__}
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
