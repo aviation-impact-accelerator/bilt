@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ast
 import inspect
 import typing
@@ -5,30 +7,12 @@ import typing
 import jax
 import jax.numpy as jnp
 
-from bilt.abstract_backend import Backend, BackendCase
-from bilt.jax_backend.jax_compatible_validation import _validate
+from bilt._backend import Backend, BackendCase
+from bilt._backend._jax._ast import JaxASTTransformer
+from bilt._backend._jax._supports import _validate
 
 if typing.TYPE_CHECKING:
     import collections.abc
-
-
-class JaxASTTransformer(ast.NodeTransformer):
-    def visit_List(self, node: ast.List) -> ast.Call:
-        self.generic_visit(node)
-        return ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(id="jnp", ctx=ast.Load()),
-                attr="array",
-                ctx=ast.Load(),
-            ),
-            args=[node],
-            keywords=[],
-        )
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
-        self.generic_visit(node)
-        node.decorator_list.insert(0, ast.Name(id="jax.jit", ctx=ast.Load()))
-        return node
 
 
 class JaxBackend(Backend):

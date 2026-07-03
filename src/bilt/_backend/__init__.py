@@ -2,4 +2,5 @@
 
 __all__ = ("Backend", "BackendCase")
 
-from bilt.abstract_backend.backend_interface import Backend, BackendCase
+from bilt._backend._case import BackendCase
+from bilt._backend._protocol import Backend

@@ -2,11 +2,12 @@
 
 import abc
 import ast
-import dataclasses
 import typing
 
 if typing.TYPE_CHECKING:
     import collections.abc
+
+    from ._case import BackendCase
 
 
 class Backend(abc.ABC):
@@ -35,13 +36,3 @@ class Backend(abc.ABC):
     def chain_case(self, case: BackendCase) -> collections.abc.Callable:
         """Execute the compiled function with the provided keyword arguments."""
         ...
-
-
-@dataclasses.dataclass
-class BackendCase:
-    """Container for information expected by the backend to allow it to chain computations into a larger pipelined callable."""
-
-    name: str
-    parameters: tuple[str, ...]
-    interim: list[collections.abc.Callable]
-    return_name: str
