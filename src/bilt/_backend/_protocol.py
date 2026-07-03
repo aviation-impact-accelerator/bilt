@@ -27,7 +27,7 @@ class Backend(abc.ABC):
         transformed = self.ast_transformer.visit(function_definition)
         module = ast.Module(body=[transformed], type_ignores=[])
         ast.fix_missing_locations(module)
-        code = compile(module, "<jax_emit>", "exec")
+        code = compile(module, "<backend_compile>", "exec")
         exec(code, self.compilation_namespace)  # noqa: S102
 
         return BackendCallable(
