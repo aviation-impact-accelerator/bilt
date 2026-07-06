@@ -1,10 +1,4 @@
-import typing
-import weakref
-
-from bilt.symbolic._errors import AtomMutationError
-
-if typing.TYPE_CHECKING:
-    import collections.abc
+from __future__ import annotations
 
 __all__ = [
     "ADD",
@@ -31,11 +25,20 @@ __all__ = [
     "integer",
     "relation_operator",
     "symbol",
+    "symbol_domain",
 ]
 
+import typing
+import weakref
+
+from bilt.symbolic._domains import Domain, DomainLike, as_domain
+from bilt.symbolic._errors import AtomMutationError
+
+if typing.TYPE_CHECKING:
+    import collections.abc
 
 _atom_cache: weakref.WeakValueDictionary[
-    tuple[AtomType, collections.abc.Hashable],
+    tuple[AtomType, collections.abc.Hashable, Domain],
     Atom,
 ] = weakref.WeakValueDictionary()
 
@@ -77,20 +80,34 @@ FloatType = AtomType("Float")
 class Atom:
     """A hash-consed immutable leaf value.
 
-    Every Atom has an AtomType and a value.
+    Every Atom has an AtomType, a value, and optional symbolic domain metadata.
 
     Equality is identity-based. Symbolic equality is represented by the
     EQUALS atom inside a Tree, not by Atom.__eq__.
     """
 
-    __slots__ = ("__weakref__", "_initialised", "atom_type", "value")
+    __slots__ = (
+        "__weakref__",
+        "_initialised",
+        "atom_type",
+        "domain",
+        "value",
+    )
 
     atom_type: AtomType
     value: collections.abc.Hashable
+    domain: Domain
     _initialised: bool
 
-    def __new__(cls, atom_type: AtomType, value: collections.abc.Hashable) -> Atom:
-        key = (atom_type, value)
+    def __new__(
+        cls,
+        atom_type: AtomType,
+        value: collections.abc.Hashable,
+        *,
+        domain: DomainLike = None,
+    ) -> Atom:
+        atom_domain = as_domain(domain)
+        key = (atom_type, value, atom_domain)
 
         if (existing := _atom_cache.get(key)) is not None:
             return existing
@@ -98,6 +115,7 @@ class Atom:
         obj = object.__new__(cls)
         object.__setattr__(obj, "atom_type", atom_type)
         object.__setattr__(obj, "value", value)
+        object.__setattr__(obj, "domain", atom_domain)
         object.__setattr__(obj, "_initialised", True)
 
         return _atom_cache.setdefault(key, obj)
@@ -106,15 +124,20 @@ class Atom:
         if getattr(self, "_initialised", False):
             msg = "Atom objects are immutable"
             raise AtomMutationError(msg)
+
         object.__setattr__(self, name, value)
 
     def __delattr__(self, name: str) -> None:
         if getattr(self, "_initialised", False):
             msg = "Atom objects are immutable"
             raise AtomMutationError(msg)
+
         object.__delattr__(self, name)
 
     def __repr__(self) -> str:
+        if self.atom_type is SymbolType and self.domain != Domain.scalar():
+            return f"{self.atom_type}({self.value!r}, domain={self.domain!r})"
+
         return f"{self.atom_type}({self.value!r})"
 
     def __str__(self) -> str:
@@ -127,8 +150,19 @@ class Atom:
         return self is other
 
 
-def symbol(name: str) -> Atom:
-    return Atom(SymbolType, name)
+def symbol(
+    name: str,
+    *,
+    domain: DomainLike = None,
+) -> Atom:
+    return Atom(SymbolType, name, domain=domain)
+
+
+def symbol_domain(atom: Atom) -> Domain:
+    if atom.atom_type is not SymbolType:
+        return Domain.scalar()
+
+    return atom.domain
 
 
 def integer(value: int) -> Atom:

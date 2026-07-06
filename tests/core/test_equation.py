@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing
 
 import pytest
@@ -5,10 +7,12 @@ import pytest
 from bilt.core._equation import equation
 from bilt.core._error import EquationReturnError
 from bilt.symbolic._atoms import ADD, EQUALS
+from bilt.symbolic._dim import Dim
+from bilt.symbolic._domains import Domain, domain
 
 # Expr is used in @equation function annotations. Those annotations are part of
 # the runtime behaviour being tested, so this must stay as a runtime import.
-from bilt.symbolic._expressions import Expr  # noqa: TC001
+from bilt.symbolic._expressions import Expr, symbol_expr
 from bilt.symbolic._tree import Tree
 
 
@@ -89,6 +93,106 @@ def test_equation_call_delegates_to_original_function() -> None:
     result = model(a, b, c)
 
     assert result == (a == b + c)
+
+
+def test_equation_builds_scalar_domain_tree_by_default() -> None:
+    @equation
+    def model(a: float, b: float, c: float) -> bool:
+        return a == b + c
+
+    assert model.__bilt_equation_tree__.domain == Domain.scalar()
+
+
+def test_equation_can_be_called_with_domain_aware_symbols() -> None:
+    time = Dim("time")
+    time_domain = domain(time)
+
+    @equation
+    def model(a: float, b: float, c: float) -> bool:
+        return a == b + c
+
+    a = symbol_expr("a", domain=time_domain)
+    b = symbol_expr("b")
+    c = symbol_expr("c")
+
+    symbolic_model = typing.cast("typing.Callable[..., Tree]", model)
+    tree = symbolic_model(a, b, c)
+
+    assert tree.is_relation is True
+    assert tree.domain == time_domain
+
+
+def test_equation_call_with_domain_symbols_broadcasts_rhs() -> None:
+    time = Dim("time")
+    time_domain = domain(time)
+
+    @equation
+    def model(a: float, b: float, c: float) -> bool:
+        return a == b + c
+
+    a = symbol_expr("a")
+    b = symbol_expr("b", domain=time_domain)
+    c = symbol_expr("c")
+
+    symbolic_model = typing.cast("typing.Callable[..., Tree]", model)
+    tree = symbolic_model(a, b, c)
+
+    assert tree.domain == time_domain
+    assert tree.right.domain == time_domain
+
+
+def test_equation_call_with_symbols_merges_domains() -> None:
+    time = Dim("time")
+    node = Dim("node")
+
+    @equation
+    def model(a: float, b: float, c: float) -> bool:
+        return a == b + c
+
+    a = symbol_expr("a", domain=domain(time))
+    b = symbol_expr("b", domain=domain(node))
+    c = symbol_expr("c")
+
+    symbolic_model = typing.cast("typing.Callable[..., Tree]", model)
+    tree = symbolic_model(a, b, c)
+
+    assert tree.domain == domain(time, node)
+
+
+def test_intermediate_symbol_broadcasts_across_two_scalar_equations() -> None:
+    time = Dim("time")
+    node = Dim("node")
+
+    @equation
+    def first(out: float, source: float) -> bool:
+        return out == source
+
+    @equation
+    def second(lhs: float, out: float, offset: float) -> bool:
+        return lhs == out + offset
+
+    assert first.__bilt_equation_tree__.domain == Domain.scalar()
+    assert second.__bilt_equation_tree__.domain == Domain.scalar()
+
+    first_symbolic = typing.cast("typing.Callable[..., Tree]", first)
+    second_symbolic = typing.cast("typing.Callable[..., Tree]", second)
+
+    out = symbol_expr("out", domain=domain(time))
+    source = symbol_expr("source")
+
+    first_tree = first_symbolic(out, source)
+
+    assert first_tree.is_relation is True
+    assert first_tree.domain == domain(time)
+
+    lhs = symbol_expr("lhs")
+    offset = symbol_expr("offset", domain=domain(node))
+
+    second_tree = second_symbolic(lhs, out, offset)
+
+    assert second_tree.is_relation is True
+    assert second_tree.right.domain == domain(time, node)
+    assert second_tree.domain == domain(time, node)
 
 
 def test_equation_raises_if_function_returns_expr() -> None:

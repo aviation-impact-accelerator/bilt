@@ -8,6 +8,7 @@ import inspect
 import typing
 
 from bilt.core._error import EquationReturnError
+from bilt.symbolic._domains import Domain, DomainLike, as_domain
 from bilt.symbolic._expressions import Expr, symbol_expr
 from bilt.symbolic._tree import Tree
 
@@ -18,6 +19,7 @@ if typing.TYPE_CHECKING:
 class Equation[R, **P](typing.Protocol):
     __bilt_equation_name__: str
     __bilt_equation_parameters__: tuple[str, ...]
+    __bilt_equation_domains__: dict[str, Domain]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
 
@@ -27,22 +29,30 @@ class Equation[R, **P](typing.Protocol):
 class BasicEquation[R, **P]:
     __bilt_equation_name__: str
     __bilt_equation_parameters__: tuple[str, ...]
+    __bilt_equation_domains__: dict[str, Domain]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     _function: collections.abc.Callable[P, R]
 
-    def __init__(self, function: collections.abc.Callable[P, R]) -> None:
+    def __init__(
+        self,
+        function: collections.abc.Callable[P, R],
+        *,
+        domains: dict[str, DomainLike] | None = None,
+    ) -> None:
         name = _function_name(function)
         signature = inspect.signature(function)
 
         _validate_equation_signature(name, signature)
 
         parameters = tuple(signature.parameters.keys())
-        symbols = _build_symbols(parameters)
+        equation_domains = _build_domains(parameters, domains)
+        symbols = _build_symbols(parameters, equation_domains)
         tree = _build_equation_tree(name, function, symbols)
 
         self.__bilt_equation_name__ = name
         self.__bilt_equation_parameters__ = parameters
+        self.__bilt_equation_domains__ = equation_domains
         self.__bilt_equation_symbols__ = symbols
         self.__bilt_equation_tree__ = tree
         self._function = function
@@ -53,13 +63,12 @@ class BasicEquation[R, **P]:
     def __str__(self) -> str:
         return f"{self.__bilt_equation_name__}: {self.__bilt_equation_tree__}"
 
+    def __repr__(self) -> str:
+        return str(self)
+
 
 def _function_name(function: collections.abc.Callable[..., object]) -> str:
-    return getattr(
-        function,
-        "__name__",
-        type(function).__name__,
-    )
+    return getattr(function, "__name__", type(function).__name__)
 
 
 def _validate_equation_signature(
@@ -79,8 +88,30 @@ def _validate_equation_signature(
             raise TypeError(msg)
 
 
-def _build_symbols(parameters: tuple[str, ...]) -> dict[str, Expr]:
-    return {name: symbol_expr(name) for name in parameters}
+def _build_domains(
+    parameters: tuple[str, ...],
+    domains: dict[str, DomainLike] | None,
+) -> dict[str, Domain]:
+    result = {name: Domain.scalar() for name in parameters}
+
+    if domains is None:
+        return result
+
+    for name, value in domains.items():
+        if name not in result:
+            msg = f"Domain supplied for unknown equation parameter {name!r}."
+            raise TypeError(msg)
+
+        result[name] = as_domain(value)
+
+    return result
+
+
+def _build_symbols(
+    parameters: tuple[str, ...],
+    domains: dict[str, Domain],
+) -> dict[str, Expr]:
+    return {name: symbol_expr(name, domain=domains[name]) for name in parameters}
 
 
 def _build_equation_tree[R, **P](
@@ -129,8 +160,43 @@ def _equation_return_error_message(name: str, result: object) -> str:
     )
 
 
+@typing.overload
 def equation[R, **P](
     function: collections.abc.Callable[P, R],
-) -> BasicEquation[R, P]:
+    /,
+) -> BasicEquation[R, P]: ...
+
+
+@typing.overload
+def equation[R, **P](
+    *,
+    domains: dict[str, DomainLike] | None = None,
+) -> collections.abc.Callable[
+    [collections.abc.Callable[P, R]],
+    BasicEquation[R, P],
+]: ...
+
+
+def equation[R, **P](
+    function: collections.abc.Callable[P, R] | None = None,
+    /,
+    *,
+    domains: dict[str, DomainLike] | None = None,
+) -> (
+    BasicEquation[R, P]
+    | collections.abc.Callable[
+        [collections.abc.Callable[P, R]],
+        BasicEquation[R, P],
+    ]
+):
     """Decorator to denote a function as an equation."""
-    return BasicEquation(function)
+
+    def decorator(
+        inner: collections.abc.Callable[P, R],
+    ) -> BasicEquation[R, P]:
+        return BasicEquation(inner, domains=domains)
+
+    if function is None:
+        return decorator
+
+    return decorator(function)
