@@ -5,6 +5,7 @@ import ast
 import typing
 
 from bilt._backend._callable import BackendCallable
+from bilt._backend._errors import CompilationError
 
 if typing.TYPE_CHECKING:
     from ._case import BackendCase
@@ -27,9 +28,13 @@ class Backend(abc.ABC):
         transformed = self.ast_transformer.visit(function_definition)
         module = ast.Module(body=[transformed], type_ignores=[])
         ast.fix_missing_locations(module)
-        code = compile(module, "<backend_compile>", "exec")
-        exec(code, self.compilation_namespace)  # noqa: S102
+        try:
+            code = compile(module, "<backend_compile>", "exec")
+        except Exception as e:
+            msg = f"Error when trying to compile transformed function '{function_definition.name}' threw error: {e}"
+            raise CompilationError(msg) from e
 
+        exec(code, self.compilation_namespace)  # noqa: S102
         return BackendCallable(
             name=function_definition.name,
             parameters=tuple(arg.arg for arg in function_definition.args.args),
