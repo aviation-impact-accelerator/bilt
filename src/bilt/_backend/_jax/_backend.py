@@ -12,8 +12,8 @@ from bilt._backend._jax._supports import _validate
 class JAXBackend(Backend):
     """JAX backend implementation of the Bilt backend interface."""
 
-    def __init__(self) -> None:
-        self.ast_transformer = JAXASTTransformer()
+    def __init__(self, ast_transformer: ast.NodeTransformer = JAXASTTransformer()) -> None:  # noqa: B008
+        self.ast_transformer = ast_transformer
         self.compilation_namespace = {"jnp": jnp, "jax.jit": jax.jit, "__builtins__": __builtins__}
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
