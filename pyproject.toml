@@ -4,6 +4,12 @@ version = "0.0.1"
 description = "Causal and acausal systems models in Python."
 readme = "README.md"
 requires-python = ">=3.14"
+dependencies = []
+
+[project.optional-dependencies]
+jax = [
+    "jax>=0.10.2",
+]
 
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
@@ -80,7 +86,7 @@ examples = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "packages/examples"
+    "packages/examples",
 ]
 
 [tool.maturin]
