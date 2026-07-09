@@ -45,6 +45,7 @@ def _create_bilt_system_class_attribute(cls: Interface) -> None:
         if typing.get_origin(annotation) is not typing.ClassVar  # type: ignore[comparison-overlap]
     }
     setattr(cls, "__bilt_system_attributes__", attributes)  # noqa: B010
+    setattr(cls, "__bilt_parameters__", tuple(attributes.keys()))  # noqa: B010
 
 
 def _create_initialize_method(cls: Interface) -> None:

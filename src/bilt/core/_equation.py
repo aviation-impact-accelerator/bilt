@@ -15,9 +15,10 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
 
+@typing.runtime_checkable
 class Equation[R, **P](typing.Protocol):
-    __bilt_equation_name__: str
-    __bilt_equation_parameters__: tuple[str, ...]
+    __bilt_name__: str
+    __bilt_parameters__: tuple[str, ...]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
 
@@ -25,8 +26,8 @@ class Equation[R, **P](typing.Protocol):
 
 
 class BasicEquation[R, **P]:
-    __bilt_equation_name__: str
-    __bilt_equation_parameters__: tuple[str, ...]
+    __bilt_name__: str
+    __bilt_parameters__: tuple[str, ...]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     _function: collections.abc.Callable[P, R]
@@ -41,8 +42,8 @@ class BasicEquation[R, **P]:
         symbols = _build_symbols(parameters)
         tree = _build_equation_tree(name, function, symbols)
 
-        self.__bilt_equation_name__ = name
-        self.__bilt_equation_parameters__ = parameters
+        self.__bilt_name__ = name
+        self.__bilt_parameters__ = parameters
         self.__bilt_equation_symbols__ = symbols
         self.__bilt_equation_tree__ = tree
         self._function = function
@@ -51,7 +52,7 @@ class BasicEquation[R, **P]:
         return self._function(*args, **kwargs)
 
     def __str__(self) -> str:
-        return f"{self.__bilt_equation_name__}: {self.__bilt_equation_tree__}"
+        return f"{self.__bilt_name__}: {self.__bilt_equation_tree__}"
 
 
 def _function_name(function: collections.abc.Callable[..., object]) -> str:

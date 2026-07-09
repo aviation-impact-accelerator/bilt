@@ -17,8 +17,8 @@ def test_equation_builds_tree_from_function() -> None:
     def model(a: float, b: float, c: float) -> bool:
         return a == b + c
 
-    assert model.__bilt_equation_name__ == "model"
-    assert model.__bilt_equation_parameters__ == ("a", "b", "c")
+    assert model.__bilt_name__ == "model"
+    assert model.__bilt_parameters__ == ("a", "b", "c")
     assert tuple(model.__bilt_equation_symbols__) == ("a", "b", "c")
 
     tree = model.__bilt_equation_tree__
@@ -65,7 +65,7 @@ def test_equation_records_parameters_in_signature_order() -> None:
     def model(z: float, x: float, y: float) -> bool:
         return z == x + y
 
-    assert model.__bilt_equation_parameters__ == ("z", "x", "y")
+    assert model.__bilt_parameters__ == ("z", "x", "y")
     assert tuple(model.__bilt_equation_symbols__) == ("z", "x", "y")
 
 
