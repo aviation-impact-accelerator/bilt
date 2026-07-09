@@ -15,7 +15,6 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
 
-@typing.runtime_checkable
 class Equation[R, **P](typing.Protocol):
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
