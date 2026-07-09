@@ -36,6 +36,7 @@ class Implementation:
         self._system = system
         self._operations = types.MappingProxyType({operation.__bilt_name__: operation for operation in operations})
         self._backend = backend
+        self.callable_cache: dict[tuple[str, tuple[str, ...]], BackendCallable] = {}
         system.__bilt_system_registry__.add(self)
 
     @property
@@ -43,6 +44,8 @@ class Implementation:
         return self._system
 
     def evaluate(self, inputs: dict[str, object], output: str) -> object:
+        if self.callable_cache.get((output, tuple(inputs.keys()))):
+            return self.callable_cache[(output, tuple(inputs.keys()))].callable(**inputs)
         if output in inputs:
             return inputs[output]
 
@@ -52,7 +55,8 @@ class Implementation:
 
         backend_case = self._find_successful_case(inputs, output)
 
-        return self._backend.chain_case(backend_case).callable(**inputs)
+        self.callable_cache[(output, tuple(inputs.keys()))] = self._backend.chain_case(backend_case)
+        return self.callable_cache[(output, tuple(inputs.keys()))].callable(**inputs)
 
     def _find_successful_case(self, inputs: dict[str, object], output: str) -> BackendCase:
         return BackendCase(
