@@ -23,16 +23,17 @@ class JAXBackend(Backend):
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
         new_namespace: dict[str, typing.Any] = {}
+        chained_callable_as_string = f"def {case.name}_wrapped({', '.join(f'{x}' for x in case.parameters)}):\n"
         case_parameters = set(case.parameters)
-        chained_callable_as_string = f"def {case.name}({', '.join(f'{x}' for x in case.parameters)}):\n"
         for interim_callable in case.intermediates:
-            internal_name = f"_bilt_op_{interim_callable.name}"
-            new_namespace[internal_name] = interim_callable.callable
-            chained_args = ", ".join(
-                parameter if parameter in case_parameters else f"{parameter}_"
-                for parameter in interim_callable.parameters
-            )
-            chained_callable_as_string += f"    {interim_callable.name}_={internal_name}({chained_args})\n"
+            new_namespace[interim_callable.name] = interim_callable.callable
+            chained_callable_as_string += f"    {interim_callable.name}_={interim_callable.name}({
+                ', '.join(
+                    parameter if parameter in case_parameters else f'{parameter}_'
+                    for parameter in interim_callable.parameters
+                )
+            })\n"
+
         chained_callable_as_string += f"    return {case.return_name}_\n"
         chained_callable_ast = typing.cast("ast.FunctionDef", ast.parse(chained_callable_as_string).body[0])
 
