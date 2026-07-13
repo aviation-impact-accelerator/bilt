@@ -8,16 +8,16 @@ if typing.TYPE_CHECKING:
 
 
 class Transform[R, **P](typing.Protocol):
-    __bilt_transform_name__: str
-    __bilt_transform_parameters__: tuple[str, ...]
+    __bilt_name__: str
+    __bilt_parameters__: tuple[str, ...]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
 
 class BasicTransform[R, **P]:
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
-        self.__bilt_transform_name__ = function.__name__  # ty: ignore[unresolved-attribute]
-        self.__bilt_transform_parameters__ = tuple(inspect.signature(function).parameters.keys())
+        self.__bilt_name__ = function.__name__  # ty: ignore[unresolved-attribute]
+        self.__bilt_parameters__ = tuple(inspect.signature(function).parameters.keys())
         self._function = function
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:

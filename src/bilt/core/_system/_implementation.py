@@ -22,9 +22,7 @@ class Implementation:
 
     def __init__(self, system: Interface, transforms: collections.abc.Iterable[Transform[typing.Any, ...]]) -> None:
         self._system = system
-        self._transforms = types.MappingProxyType(
-            {transform.__bilt_transform_name__: transform for transform in transforms}
-        )
+        self._transforms = types.MappingProxyType({transform.__bilt_name__: transform for transform in transforms})
         system.__bilt_system_registry__.add(self)
 
     @property
@@ -44,7 +42,7 @@ class Implementation:
             raise BiltSystemEvaluationError(message)
         transform = self.transforms[output]
 
-        parameters = transform.__bilt_transform_parameters__
+        parameters = transform.__bilt_parameters__
         for parameter in parameters:
             if parameter not in inputs:
                 inputs[parameter] = self.evaluate(inputs=inputs, output=parameter)
