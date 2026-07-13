@@ -67,3 +67,24 @@ def test_build_pipeline_for_cases(
 ) -> None:
     pipeline = python_backend.chain_case(case)
     assert float(pipeline.callable(**inputs)) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    ("case", "inputs"),
+    (
+        (
+            SIMPLE_CASE,
+            {"a": 3.0, "b": 1.0, "d": 2.0, "extra": 5.0},
+        ),
+        (
+            DIAMOND_CASE,
+            {},
+        ),
+    ),
+)
+def test_pipeline_rejects_unexpected_input(
+    case: BackendCase, inputs: dict[str, float], python_backend: PythonBackend
+) -> None:
+    pipeline = python_backend.chain_case(case)
+    with pytest.raises(TypeError, match=r"argument"):
+        pipeline.callable(**inputs)

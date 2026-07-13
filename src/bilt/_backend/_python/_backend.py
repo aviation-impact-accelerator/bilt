@@ -15,6 +15,15 @@ class PythonBackend(Backend):
 
         def final_callable(**kwargs) -> object:  # noqa: ANN003
             inputs = dict(kwargs)
+            for parameter in case.parameters:
+                if parameter not in inputs:
+                    msg = f"Missing required argument: {parameter}"
+                    raise TypeError(msg)
+            for extra in inputs:
+                if extra not in case.parameters:
+                    msg = f"Unexpected argument: {extra}"
+                    raise TypeError(msg)
+
             for intermediate in case.intermediates:
                 args_for_intermediate = [inputs[name] for name in intermediate.parameters]
                 result = intermediate.callable(*args_for_intermediate)
