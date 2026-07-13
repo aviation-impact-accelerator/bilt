@@ -88,3 +88,26 @@ def test_pipeline_rejects_unexpected_input(
     pipeline = python_backend.chain_case(case)
     with pytest.raises(TypeError, match=r"argument"):
         pipeline.callable(**inputs)
+
+
+@pytest.mark.parametrize(
+    ("case", "inputs"),
+    (
+        (
+            SIMPLE_CASE,
+            {"a": 3.0, "b": 1.0, "d": 2.0},
+        ),
+        (
+            SIMPLE_CASE,
+            (3.0, 1.0, 2.0),
+        ),
+    ),
+)
+def test_can_accept_args_or_kwargs(
+    case: BackendCase, inputs: dict[str, float] | tuple[float, ...], python_backend: PythonBackend
+) -> None:
+    pipeline = python_backend.chain_case(case)
+    if isinstance(inputs, dict):
+        assert pipeline.callable(**inputs) == pytest.approx(8.0)
+    else:
+        assert pipeline.callable(*inputs) == pytest.approx(8.0)
