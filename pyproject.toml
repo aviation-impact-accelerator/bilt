@@ -4,9 +4,7 @@ version = "0.0.1"
 description = "Causal and acausal systems models in Python."
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = [
-    "networkx>=3.6.1",
-]
+dependencies = []
 
 [project.optional-dependencies]
 jax = [
