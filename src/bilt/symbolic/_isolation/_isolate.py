@@ -92,19 +92,9 @@ def choose_isolation_plan(analysed: AnalysedTree) -> PlannedTree:
     so that the target-containing expression is on the left. Already-isolated
     expressions are handled as the base case of the inverse-rule isolator.
     """
-    profile = analysed.profile
-
-    if profile.target_missing:
-        message = f"Target {analysed.target!r} does not occur in equation tree."
-        raise TargetNotFoundError(message)
-
-    if profile.target_on_both_sides:
-        message = f"Target {analysed.target!r} occurs on both sides."
-        raise TargetOnBothSidesError(message)
-
     return PlannedTree(
         simplified_tree=analysed.simplified_tree,
         target=analysed.target,
-        profile=profile,
-        plan=IsolationPlan(swap_sides=profile.rhs_count > 0),
+        profile=analysed.profile,
+        plan=IsolationPlan(swap_sides=analysed.profile.rhs_count > 0),
     )
