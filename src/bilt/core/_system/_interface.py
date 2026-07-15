@@ -10,6 +10,8 @@ if typing.TYPE_CHECKING:
 
 @typing.dataclass_transform(kw_only_default=True)
 class Interface(type):
+    __bilt_name__: str
+    __bilt_parameters__: tuple[str, ...]
     __bilt_system_registry__: set[Implementation]
     __bilt_system_implementation_default__: list[Implementation]
 
@@ -19,6 +21,8 @@ class Interface(type):
 
     def __new__(mcls: type[Interface], name: str, bases: tuple[type, ...], namespace: dict[str, object]) -> Interface:
         cls = super().__new__(mcls, name, bases, namespace)
+        cls.__bilt_name__ = name
+
         cls.__bilt_system_registry__ = set()
         cls.__bilt_system_implementation_default__ = []
         return cls
