@@ -128,3 +128,26 @@ def test_pipeline_rejects_unexpected_input(
 def test_build_pipeline_with_list_operation(jax_backend: JAXBackend) -> None:
     pipeline = jax_backend.chain_case(LIST_CASE)
     assert float(pipeline.callable() == pytest.approx([2.0, 3.0, 4.0, 5.0, 6.0]))
+
+
+@pytest.mark.parametrize(
+    ("case", "inputs"),
+    (
+        (
+            SIMPLE_CASE,
+            {"a": 3.0, "b": 1.0, "d": 2.0},
+        ),
+        (
+            SIMPLE_CASE,
+            (3.0, 1.0, 2.0),
+        ),
+    ),
+)
+def test_can_accept_args_or_kwargs(
+    case: BackendCase, inputs: dict[str, float] | tuple[float, ...], jax_backend: JAXBackend
+) -> None:
+    pipeline = jax_backend.chain_case(case)
+    if isinstance(inputs, dict):
+        assert pipeline.callable(**inputs) == pytest.approx(8.0)
+    else:
+        assert pipeline.callable(*inputs) == pytest.approx(8.0)
