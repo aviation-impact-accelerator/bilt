@@ -23,7 +23,7 @@ class JAXBackend(Backend):
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
         new_namespace: dict[str, typing.Any] = {}
-        chained_callable_as_string = f"def {case.name}({', '.join(f'{x}' for x in case.parameters)}):\n"
+        chained_callable_as_string = f"def {case.name}_({', '.join(f'{x}' for x in case.parameters)}):\n"
         case_parameters = set(case.parameters)
         for interim_callable in case.intermediates:
             new_namespace[interim_callable.name] = interim_callable.callable
