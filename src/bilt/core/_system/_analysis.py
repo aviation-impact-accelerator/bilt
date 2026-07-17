@@ -1,3 +1,5 @@
+__all__ = ["BiltSystemEvaluationError", "find_successful_case"]
+
 import ast
 import functools
 import inspect
@@ -13,8 +15,6 @@ from bilt.core._transform import BasicTransform
 if typing.TYPE_CHECKING:
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._system._implementation import Implementation
-
-__all__ = ["BiltSystemEvaluationError", "find_successful_case"]
 
 
 class BiltSystemEvaluationError(BiltCoreError):
