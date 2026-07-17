@@ -1,54 +1,50 @@
-__all__ = ["BiltSystemEvaluationError", "Implementation"]
-
+__all__ = ["Implementation"]
 import types
 import typing
 
-from bilt.core._error import BiltCoreError
+from bilt._backend._python import PythonBackend
+from bilt.core._system._analysis import find_successful_case
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt.core._transform import Transform
+    from bilt._backend import Backend, BackendCallable
+    from bilt.core._component import BiltComponent
 
     from ._interface import Interface
-
-
-class BiltSystemEvaluationError(BiltCoreError):
-    pass
 
 
 class Implementation:
     """Register a collection of transforms as an implementation of a system."""
 
-    def __init__(self, system: Interface, transforms: collections.abc.Iterable[Transform[typing.Any, ...]]) -> None:
-        self._system = system
-        self._transforms = types.MappingProxyType({transform.__bilt_name__: transform for transform in transforms})
+    def __init__(
+        self,
+        system: Interface,
+        components: collections.abc.Iterable[BiltComponent],
+        backend: Backend = PythonBackend(),  # noqa: B008
+    ) -> None:
+        self._system: Interface = system
+        self._components: types.MappingProxyType[str, BiltComponent] = types.MappingProxyType(
+            {component.__bilt_name__: component for component in components}
+        )
+        self._backend: Backend = backend
+        self._callable_cache: dict[tuple[str, tuple[str, ...]], BackendCallable] = {}
         system.__bilt_system_registry__.add(self)
 
     @property
     def system(self) -> Interface:
         return self._system
 
-    @property
-    def transforms(self) -> types.MappingProxyType[str, Transform[typing.Any, ...]]:
-        return self._transforms
-
     def evaluate(self, inputs: dict[str, object], output: str) -> object:
+        if self._callable_cache.get((output, tuple(inputs.keys()))):
+            return self._callable_cache[(output, tuple(inputs.keys()))].callable(**inputs)
         if output in inputs:
             return inputs[output]
 
-        if output not in self.transforms:
-            message = f"No transform registered to produce output {output!r}"
-            raise BiltSystemEvaluationError(message)
-        transform = self.transforms[output]
+        backend_case = find_successful_case(self, inputs, output)
 
-        parameters = transform.__bilt_parameters__
-        for parameter in parameters:
-            if parameter not in inputs:
-                inputs[parameter] = self.evaluate(inputs=inputs, output=parameter)
-
-        arguments = {parameter: inputs[parameter] for parameter in parameters}
-        return transform(**arguments)
+        self._callable_cache[(output, tuple(inputs.keys()))] = self._backend.chain_case(backend_case)
+        return self._callable_cache[(output, tuple(inputs.keys()))].callable(**inputs)
 
     def __enter__(self) -> typing.Self:
         self._system.__bilt_system_implementation_default__.append(self)
@@ -60,10 +56,10 @@ class Implementation:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Implementation):
             return NotImplemented
-        return self.system == other.system and self.transforms == other.transforms
+        return self.system == other.system and self._components == other._components
 
     def __hash__(self) -> int:
-        return hash((self.system, frozenset(self.transforms.items())))
+        return hash((self.system, frozenset(self._components.items())))
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self.transforms.values())!r})"
+        return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self._components.values())!r})"
