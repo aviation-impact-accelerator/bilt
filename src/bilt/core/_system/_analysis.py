@@ -35,7 +35,7 @@ def find_successful_case(
         parameters=tuple(inputs.keys()),
         intermediates=list(
             map(
-                functools.partial(operation_to_callable, implementation),
+                functools.partial(_operation_to_callable, implementation),
                 (implementation._components[x] for x in _path_through_graph(implementation, inputs, output)[::-1]),  # noqa: SLF001
             )
         ),
@@ -58,7 +58,7 @@ def _path_through_graph(implementation: Implementation, inputs: dict[str, object
     return ordered_callables
 
 
-def operation_to_callable(implementation: Implementation, operation: BiltModelConstituent) -> BackendCallable:
+def _operation_to_callable(implementation: Implementation, operation: BiltModelConstituent) -> BackendCallable:
     match operation:
         case BasicTransform():
             function_ast = typing.cast(
