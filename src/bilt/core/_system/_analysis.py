@@ -11,7 +11,7 @@ from bilt.core._system._interface import Interface
 from bilt.core._transform import BasicTransform
 
 if typing.TYPE_CHECKING:
-    from bilt.core._component import BiltComponent
+    from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._system._implementation import Implementation
 
 __all__ = ["BiltSystemEvaluationError", "find_successful_case"]
@@ -58,7 +58,7 @@ def _path_through_graph(implementation: Implementation, inputs: dict[str, object
     return ordered_callables
 
 
-def operation_to_callable(implementation: Implementation, operation: BiltComponent) -> BackendCallable:
+def operation_to_callable(implementation: Implementation, operation: BiltModelConstituent) -> BackendCallable:
     match operation:
         case BasicTransform():
             function_ast = typing.cast(

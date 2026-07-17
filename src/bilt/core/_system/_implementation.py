@@ -9,7 +9,7 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt._backend import Backend, BackendCallable
-    from bilt.core._component import BiltComponent
+    from bilt.core._model_constituent import BiltModelConstituent
 
     from ._interface import Interface
 
@@ -20,11 +20,11 @@ class Implementation:
     def __init__(
         self,
         system: Interface,
-        components: collections.abc.Iterable[BiltComponent],
+        components: collections.abc.Iterable[BiltModelConstituent],
         backend: Backend = PythonBackend(),  # noqa: B008
     ) -> None:
         self._system: Interface = system
-        self._components: types.MappingProxyType[str, BiltComponent] = types.MappingProxyType(
+        self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             {component.__bilt_name__: component for component in components}
         )
         self._backend: Backend = backend
