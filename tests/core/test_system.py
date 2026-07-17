@@ -1,5 +1,9 @@
+from typing import TYPE_CHECKING
+
 import pytest
 
+from bilt._backend._jax._backend import JAXBackend
+from bilt._backend._python._backend import PythonBackend
 from bilt.core import (
     BiltSystemDefinitionError,
     BiltSystemEvaluationError,
@@ -10,6 +14,9 @@ from bilt.core import (
     system,
     transform,
 )
+
+if TYPE_CHECKING:
+    from bilt._backend._base_backend import Backend
 
 
 @system
@@ -170,7 +177,14 @@ def test_evaluation_with_single_implementation() -> None:
         assert demo.c == expected_c
 
 
-def test_multiple_transform_evaluation_with_single_implementation() -> None:
+@pytest.mark.parametrize(
+    ("backend"),
+    (
+        PythonBackend(),
+        JAXBackend(),
+    ),
+)
+def test_evaluation_with_single_implementation_and_backend(backend: Backend) -> None:
     @system
     class Demo(metaclass=Interface):
         a: float = field()
@@ -191,7 +205,7 @@ def test_multiple_transform_evaluation_with_single_implementation() -> None:
     def e(c: float, d: float) -> float:
         return c + d
 
-    basic = Implementation(Demo, [c, d, e])
+    basic = Implementation(Demo, [c, d, e], backend=backend)
     a = 1.0
     b = 2.0
     demo = Demo(a=a, b=b)
