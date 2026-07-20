@@ -42,7 +42,7 @@ class BiltTensor:
     values: np.ndarray
     domain: Domain
     _broadcast_axes: frozenset[int] = dataclasses.field(
-        default_factory=frozenset,
+        default_factory=frozenset[int],
         repr=False,
         compare=False,
     )
@@ -59,9 +59,8 @@ class BiltTensor:
         values = np.asarray(value)
 
         if values.ndim != 0:
-            raise TensorDomainError(
-                f"Cannot create scalar BiltTensor from rank-{values.ndim} value."
-            )
+            message = f"Cannot create scalar BiltTensor from rank-{values.ndim} value."
+            raise TensorDomainError(message)
 
         return cls(values, Domain.scalar())
 
@@ -130,7 +129,8 @@ def tensor(
     lifted to that domain using singleton axes.
     """
     if over is not None and domain is not None:
-        raise TensorDomainError("Pass either over= or domain=, not both.")
+        message = "Pass either over= or domain=, not both."
+        raise TensorDomainError(message)
 
     array = np.asarray(values)
 
@@ -139,10 +139,10 @@ def tensor(
             if array.ndim == 0:
                 return BiltTensor.scalar(array)
 
-            raise TensorDomainError(
-                "Non-scalar values need an explicit domain. "
-                "Use tensor(values, over=...) or tensor(values, domain=...)."
+            message = (
+                "Non-scalar values need an explicit domain. Use tensor(values, over=...) or tensor(values, domain=...)."
             )
+            raise TensorDomainError(message)
 
         domain = _domain_from_over(over)
 
@@ -162,10 +162,12 @@ def as_bilt_tensor(value: object) -> BiltTensor:
     if values.ndim == 0:
         return BiltTensor.scalar(values)
 
-    raise TensorDomainError(
+    message = (
         "Raw non-scalar arrays/lists need an explicit domain. "
-        "Use tensor(values, over=...) or BiltTensor(values, domain=...)."
+        "Use tensor(values, over=...) or "
+        "BiltTensor(values, domain=...)."
     )
+    raise TensorDomainError(message)
 
 
 def align_to(tensor: BiltTensor, target: Domain) -> BiltTensor:
@@ -186,26 +188,22 @@ def align_to(tensor: BiltTensor, target: Domain) -> BiltTensor:
         return tensor
 
     if not _domain_is_subset_of(source, target):
-        raise TensorDomainError(
+        message = (
             f"Cannot align domain {source!r} to {target!r}. "
             "The source contains dimensions not present in the target. "
             "Use an explicit rename or reduction operation instead."
         )
+        raise TensorDomainError(message)
 
     values = tensor.values
     source_dims = tuple(source.dims)
     target_dims = tuple(target.dims)
 
     existing_target_dims = tuple(
-        target_dim
-        for target_dim in target_dims
-        if _find_dim_index(target_dim, source_dims) is not None
+        target_dim for target_dim in target_dims if _find_dim_index(target_dim, source_dims) is not None
     )
 
-    permutation = tuple(
-        _require_dim_index(target_dim, source_dims)
-        for target_dim in existing_target_dims
-    )
+    permutation = tuple(_require_dim_index(target_dim, source_dims) for target_dim in existing_target_dims)
 
     if permutation != tuple(range(len(permutation))):
         values = np.transpose(values, axes=permutation)
@@ -213,7 +211,7 @@ def align_to(tensor: BiltTensor, target: Domain) -> BiltTensor:
     broadcast_axes = {
         new_axis
         for new_axis, old_axis in enumerate(permutation)
-        if old_axis in tensor._broadcast_axes
+        if old_axis in tensor._broadcast_axes  # noqa: SLF001
     }
 
     current_dims = list(existing_target_dims)
@@ -223,8 +221,7 @@ def align_to(tensor: BiltTensor, target: Domain) -> BiltTensor:
             values = np.expand_dims(values, axis=axis)
             current_dims.insert(axis, target_dim)
             broadcast_axes = {
-                existing_axis + 1 if existing_axis >= axis else existing_axis
-                for existing_axis in broadcast_axes
+                existing_axis + 1 if existing_axis >= axis else existing_axis for existing_axis in broadcast_axes
             }
             broadcast_axes.add(axis)
 
@@ -261,30 +258,32 @@ def _check_rank(values: np.ndarray, domain: Domain) -> None:
     domain_rank = len(domain.dims)
 
     if values.ndim != domain_rank:
-        raise TensorDomainError(
-            f"Value rank {values.ndim} does not match domain rank "
-            f"{domain_rank} for domain {domain!r}."
-        )
+        message = f"Value rank {values.ndim} does not match domain rank {domain_rank} for domain {domain!r}."
+        raise TensorDomainError(message)
 
 
 def _check_broadcast_axes(values: np.ndarray, axes: frozenset[int]) -> None:
     invalid_axes = tuple(axis for axis in axes if axis < 0 or axis >= values.ndim)
 
     if invalid_axes:
-        raise TensorDomainError(
-            f"Broadcast axes {invalid_axes!r} are invalid for shape {values.shape!r}."
-        )
+        message = f"Broadcast axes {invalid_axes!r} are invalid for shape {values.shape!r}."
+        raise TensorDomainError(message)
 
     non_singleton_axes = tuple(axis for axis in axes if values.shape[axis] != 1)
 
     if non_singleton_axes:
-        raise TensorDomainError(
+        message = (
             "Broadcast axes must have length 1; got non-singleton axes "
             f"{non_singleton_axes!r} for shape {values.shape!r}."
         )
+        raise TensorDomainError(message)
 
 
-def _check_binary_shapes(lhs: BiltTensor, rhs: BiltTensor, domain: Domain) -> None:
+def _check_binary_shapes(
+    lhs: BiltTensor,
+    rhs: BiltTensor,
+    domain: Domain,
+) -> None:
     for axis, dim in enumerate(domain.dims):
         lhs_size = lhs.values.shape[axis]
         rhs_size = rhs.values.shape[axis]
@@ -292,16 +291,14 @@ def _check_binary_shapes(lhs: BiltTensor, rhs: BiltTensor, domain: Domain) -> No
         if lhs_size == rhs_size:
             continue
 
-        if lhs_size == 1 and axis in lhs._broadcast_axes:
+        if lhs_size == 1 and axis in lhs._broadcast_axes:  # noqa: SLF001
             continue
 
-        if rhs_size == 1 and axis in rhs._broadcast_axes:
+        if rhs_size == 1 and axis in rhs._broadcast_axes:  # noqa: SLF001
             continue
 
-        raise TensorDomainError(
-            f"Incompatible sizes for dimension {dim.name!r}: "
-            f"{lhs_size} and {rhs_size}."
-        )
+        message = f"Incompatible sizes for dimension {dim.name!r}: {lhs_size} and {rhs_size}."
+        raise TensorDomainError(message)
 
 
 def _domain_is_subset_of(source: Domain, target: Domain) -> bool:
@@ -324,7 +321,10 @@ def _domain_broadcast(lhs: Domain, rhs: Domain) -> Domain:
     return Domain(tuple(result))
 
 
-def _find_dim_index(dim: Dim, dims: collections.abc.Sequence[Dim]) -> int | None:
+def _find_dim_index(
+    dim: Dim,
+    dims: collections.abc.Sequence[Dim],
+) -> int | None:
     for index, candidate in enumerate(dims):
         if candidate.name == dim.name:
             return index
@@ -332,10 +332,14 @@ def _find_dim_index(dim: Dim, dims: collections.abc.Sequence[Dim]) -> int | None
     return None
 
 
-def _require_dim_index(dim: Dim, dims: collections.abc.Sequence[Dim]) -> int:
+def _require_dim_index(
+    dim: Dim,
+    dims: collections.abc.Sequence[Dim],
+) -> int:
     index = _find_dim_index(dim, dims)
 
     if index is None:
-        raise TensorDomainError(f"Dimension {dim.name!r} is not present.")
+        message = f"Dimension {dim.name!r} is not present."
+        raise TensorDomainError(message)
 
     return index

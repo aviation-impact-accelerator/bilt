@@ -16,6 +16,14 @@ dependencies = [
     { name = "numpy" },
 ]
 
+<<<<<<< Updated upstream
+=======
+[package.optional-dependencies]
+jax = [
+    { name = "jax" },
+]
+
+>>>>>>> Stashed changes
 [package.dev-dependencies]
 dev = [
     { name = "examples" },
@@ -30,7 +38,15 @@ docs = [
 ]
 
 [package.metadata]
+<<<<<<< Updated upstream
 requires-dist = [{ name = "numpy", specifier = ">=2.5.1" }]
+=======
+requires-dist = [
+    { name = "jax", marker = "extra == 'jax'", specifier = ">=0.10.2" },
+    { name = "numpy", specifier = ">=2.5.1" },
+]
+provides-extras = ["jax"]
+>>>>>>> Stashed changes
 
 [package.metadata.requires-dev]
 dev = [

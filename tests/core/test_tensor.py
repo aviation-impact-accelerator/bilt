@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from bilt.core._tensor._tensor import tensor, BiltTensor
 from bilt.core._tensor._error import TensorDomainError
+from bilt.core._tensor._tensor import BiltTensor, tensor
 from bilt.symbolic._dim import Dim
 from bilt.symbolic._domains import Domain
 
@@ -153,6 +153,7 @@ def test_rank_must_match_domain_rank() -> None:
     with pytest.raises(TensorDomainError):
         _ = BiltTensor(np.array([1.0, 2.0, 3.0]), Domain((time, node)))
 
+
 def test_bilt_tensor_accepts_matching_rank_domain() -> None:
     time = Dim("time")
 
@@ -177,11 +178,12 @@ def test_bilt_tensor_rejects_rank_domain_mismatch() -> None:
 
 
 def test_bilt_tensor_scalar_constructor() -> None:
-    value = BiltTensor.scalar(10.0)
+    test_value = 10.0
+    value = BiltTensor.scalar(test_value)
 
     assert value.domain == Domain.scalar()
     assert value.values.shape == ()
-    assert float(value.values) == 10.0
+    assert float(value.values) == test_value
 
 
 def test_bilt_tensor_scalar_constructor_rejects_non_scalar() -> None:
