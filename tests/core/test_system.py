@@ -205,7 +205,7 @@ def test_evaluation_with_single_implementation_and_backend(backend: Backend) -> 
     def e(c: float, d: float) -> float:
         return c + d
 
-    basic = Implementation(Demo, [c, d, e], backend=backend)
+    basic = Implementation(Demo, [c, d, e])
     a = 1.0
     b = 2.0
     demo = Demo(a=a, b=b)
@@ -213,7 +213,7 @@ def test_evaluation_with_single_implementation_and_backend(backend: Backend) -> 
     expected_c = 3.0
     expected_d = 4.0
     expected_e = 7.0
-    with basic:
+    with backend, basic:
         assert demo.c == expected_c
         assert demo.d == expected_d
         assert demo.e == expected_e

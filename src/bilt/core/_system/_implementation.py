@@ -3,7 +3,6 @@ __all__ = ["Implementation"]
 import types
 import typing
 
-from bilt._backend._python import PythonBackend
 from bilt.core._system._analysis import find_successful_case
 
 if typing.TYPE_CHECKING:
@@ -22,29 +21,27 @@ class Implementation:
         self,
         system: Interface,
         components: collections.abc.Iterable[BiltModelConstituent],
-        backend: Backend = PythonBackend(),  # noqa: B008
     ) -> None:
         self._system: Interface = system
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             {component.__bilt_name__: component for component in components}
         )
-        self._backend: Backend = backend
-        self._callable_cache: dict[tuple[str, tuple[str, ...]], BackendCallable] = {}
+        self._callable_cache: dict[tuple[str, tuple[str, ...], Backend], BackendCallable] = {}
         system.__bilt_system_registry__.add(self)
 
     @property
     def system(self) -> Interface:
         return self._system
 
-    def evaluate(self, inputs: dict[str, object], output: str) -> object:
+    def evaluate(self, inputs: dict[str, object], output: str, backend: Backend) -> object:
         if output in inputs:
             output_value = inputs[output]
-        elif self._callable_cache.get((output, tuple(inputs.keys()))):
-            output_value = self._callable_cache[(output, tuple(inputs.keys()))].callable(**inputs)
+        elif self._callable_cache.get((output, tuple(inputs.keys()), backend)):
+            output_value = self._callable_cache[(output, tuple(inputs.keys()), backend)].callable(**inputs)
         else:
-            backend_case = find_successful_case(self, inputs, output)
-            self._callable_cache[(output, tuple(inputs.keys()))] = self._backend.chain_case(backend_case)
-            output_value = self._callable_cache[(output, tuple(inputs.keys()))].callable(**inputs)
+            backend_case = find_successful_case(self, inputs, output, backend)
+            self._callable_cache[(output, tuple(inputs.keys()), backend)] = backend.chain_case(backend_case)
+            output_value = self._callable_cache[(output, tuple(inputs.keys()), backend)].callable(**inputs)
         return output_value
 
     def __enter__(self) -> typing.Self:

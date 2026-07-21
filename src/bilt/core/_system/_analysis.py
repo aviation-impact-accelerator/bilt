@@ -13,6 +13,7 @@ from bilt.core._system._interface import Interface
 from bilt.core._transform import BasicTransform
 
 if typing.TYPE_CHECKING:
+    from bilt._backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._system._implementation import Implementation
 
@@ -25,6 +26,7 @@ def find_successful_case(
     implementation: Implementation,
     inputs: dict[str, object],
     output: str,
+    backend: Backend,
 ) -> BackendCase:
     """Find a successful case for the given inputs and output."""
     if output not in implementation._components:  # noqa: SLF001
@@ -35,15 +37,20 @@ def find_successful_case(
         parameters=tuple(inputs.keys()),
         intermediates=list(
             map(
-                functools.partial(_operation_to_callable, implementation),
-                (implementation._components[x] for x in _path_through_graph(implementation, inputs, output)[::-1]),  # noqa: SLF001
+                functools.partial(_operation_to_callable, backend=backend),
+                (
+                    implementation._components[x]  # noqa: SLF001
+                    for x in _path_through_graph(implementation, inputs, output, backend)[::-1]
+                ),
             )
         ),
         return_name=output,
     )
 
 
-def _path_through_graph(implementation: Implementation, inputs: dict[str, object], output: str) -> list[str]:
+def _path_through_graph(
+    implementation: Implementation, inputs: dict[str, object], output: str, backend: Backend
+) -> list[str]:
     ordered_callables = []
     operation = implementation._components[output]  # noqa: SLF001
 
@@ -51,14 +58,14 @@ def _path_through_graph(implementation: Implementation, inputs: dict[str, object
     for parameter in parameters:
         if parameter not in inputs:
             ordered_callables.append(parameter)
-            ordered_callables.extend(_path_through_graph(implementation, inputs, parameter))
-            inputs[parameter] = implementation.evaluate(inputs=inputs, output=parameter)
+            ordered_callables.extend(_path_through_graph(implementation, inputs, parameter, backend))
+            inputs[parameter] = implementation.evaluate(inputs=inputs, output=parameter, backend=backend)
     ordered_callables.append(output)
 
     return ordered_callables
 
 
-def _operation_to_callable(implementation: Implementation, operation: BiltModelConstituent) -> BackendCallable:
+def _operation_to_callable(operation: BiltModelConstituent, *, backend: Backend) -> BackendCallable:
     match operation:
         case BasicTransform():
             function_ast = typing.cast(
@@ -68,7 +75,7 @@ def _operation_to_callable(implementation: Implementation, operation: BiltModelC
             function_ast.decorator_list = [
                 d for d in function_ast.decorator_list if not (isinstance(d, ast.Name) and d.id == "transform")
             ]
-            return implementation._backend.transpile(function_ast)  # noqa: SLF001
+            return backend.transpile(function_ast)
 
         case BasicEquation():
             msg = "Equation evaluation is not yet implemented."
