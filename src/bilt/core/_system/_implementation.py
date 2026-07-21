@@ -37,15 +37,15 @@ class Implementation:
         return self._system
 
     def evaluate(self, inputs: dict[str, object], output: str) -> object:
-        if self._callable_cache.get((output, tuple(inputs.keys()))):
-            return self._callable_cache[(output, tuple(inputs.keys()))].callable(**inputs)
         if output in inputs:
-            return inputs[output]
-
-        backend_case = find_successful_case(self, inputs, output)
-
-        self._callable_cache[(output, tuple(inputs.keys()))] = self._backend.chain_case(backend_case)
-        return self._callable_cache[(output, tuple(inputs.keys()))].callable(**inputs)
+            output_value = inputs[output]
+        elif self._callable_cache.get((output, tuple(inputs.keys()))):
+            output_value = self._callable_cache[(output, tuple(inputs.keys()))].callable(**inputs)
+        else:
+            backend_case = find_successful_case(self, inputs, output)
+            self._callable_cache[(output, tuple(inputs.keys()))] = self._backend.chain_case(backend_case)
+            output_value = self._callable_cache[(output, tuple(inputs.keys()))].callable(**inputs)
+        return output_value
 
     def __enter__(self) -> typing.Self:
         self._system.__bilt_system_implementation_default__.append(self)
