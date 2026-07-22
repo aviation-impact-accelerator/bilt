@@ -44,12 +44,7 @@ def find_successful_case(
                 ),
                 (
                     implementation._components[x]  # noqa: SLF001
-                    for x in _path_through_graph(
-                        implementation,
-                        inputs,
-                        output,
-                        backend,
-                    )[::-1]
+                    for x in _path_through_graph(implementation, inputs, output, backend)[::-1]
                 ),
             )
         ),
