@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 __all__ = ["BiltSystemEvaluationError", "find_successful_case"]
 
 import ast
