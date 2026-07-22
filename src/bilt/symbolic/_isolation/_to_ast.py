@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 import typing
 
-from bilt.symbolic._atoms import ADD, INV, MUL, NEG, POW, FloatType, IntType, SymbolType
+from bilt.symbolic._atoms import ADD, INV, MUL, NEG, POW, FloatType, IntType
 from bilt.symbolic._isolation._errors import UnsupportedIsolationError
 
 if typing.TYPE_CHECKING:
@@ -18,11 +18,8 @@ def isolated_tree_to_functiondef(
     parameter_order: tuple[str, ...],
 ) -> ast.FunctionDef:
     rhs_expr = _tree_to_ast_expr(isolated.rhs.rep)
-    function_name = isolated.target.rep.head.value
+    function_name = typing.cast("str", isolated.target.rep.head.value)
     parameter_order = tuple(name for name in parameter_order if name != function_name)
-    if not isinstance(function_name, str):
-        message = f"Unsupported symbolic leaf {isolated.target.rep.head!r} in AST conversion."
-        raise UnsupportedIsolationError(message)
 
     function_def = ast.FunctionDef(
         name=function_name,
@@ -46,41 +43,30 @@ def isolated_tree_to_functiondef(
 
 def _tree_to_ast_expr(tree: Tree) -> ast.expr:
     if tree.is_leaf:
-        return _leaf_to_ast_expr(tree)
+        if tree.head.atom_type in (IntType, FloatType):
+            return ast.Constant(value=typing.cast("int | float", tree.head.value))
+        message = f"Unsupported symbolic leaf {tree.head!r} in AST conversion."
+        raise UnsupportedIsolationError(message)
 
-    head = tree.head
-    if head is ADD:
+    if tree.head is ADD:
         return _fold_binop(tree.args, ast.Add)
-    if head is MUL:
+    if tree.head is MUL:
         return _fold_binop(tree.args, ast.Mult)
-    if head is POW:
+    if tree.head is POW:
         return ast.BinOp(
             left=_tree_to_ast_expr(tree.args[0]),
             op=ast.Pow(),
             right=_tree_to_ast_expr(tree.args[1]),
         )
-    if head is NEG:
+    if tree.head is NEG:
         return ast.UnaryOp(op=ast.USub(), operand=_tree_to_ast_expr(tree.args[0]))
-    if head is INV:
+    if tree.head is INV:
         return ast.BinOp(
             left=ast.Constant(value=1),
             op=ast.Div(),
             right=_tree_to_ast_expr(tree.args[0]),
         )
-    message = f"Unsupported symbolic head {head!r} in AST conversion."
-    raise UnsupportedIsolationError(message)
-
-
-def _leaf_to_ast_expr(tree: Tree) -> ast.expr:
-    atom = tree.head
-    atom_type = atom.atom_type
-    value = atom.value
-
-    if atom_type is SymbolType:
-        return ast.Name(id=typing.cast("str", value), ctx=ast.Load())
-    if atom_type in (IntType, FloatType):
-        return ast.Constant(value=typing.cast("int | float", value))
-    message = f"Unsupported symbolic leaf {atom!r} in AST conversion."
+    message = f"Unsupported symbolic head {tree.head!r} in AST conversion."
     raise UnsupportedIsolationError(message)
 
 
