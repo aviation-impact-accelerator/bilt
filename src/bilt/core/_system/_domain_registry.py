@@ -1,6 +1,8 @@
-from __future__ import annotations
-
-__all__ = ["DomainBindingError", "DomainRegistry", "DomainShapeError"]
+__all__ = [
+    "DomainBindingError",
+    "DomainRegistry",
+    "DomainShapeError",
+]
 
 import collections.abc
 import dataclasses
@@ -29,7 +31,10 @@ class DomainRegistry:
     __slots__ = ("_bindings",)
 
     def __init__(self) -> None:
-        self._bindings: dict[collections.abc.Hashable, _DomainBinding] = {}
+        self._bindings: dict[
+            collections.abc.Hashable,
+            _DomainBinding,
+        ] = {}
 
     def bind(
         self,
@@ -44,10 +49,7 @@ class DomainRegistry:
             return
 
         if existing != binding:
-            message = (
-                f"Dimension {dimension!r} is already bound to different "
-                "coordinates."
-            )
+            message = f"Dimension {dimension!r} is already bound to different coordinates."
             raise DomainBindingError(message)
 
     def coordinates(
@@ -56,7 +58,10 @@ class DomainRegistry:
     ) -> tuple[object, ...]:
         return self._binding(dimension).coordinates
 
-    def size(self, dimension: collections.abc.Hashable) -> int:
+    def size(
+        self,
+        dimension: collections.abc.Hashable,
+    ) -> int:
         return self._binding(dimension).size
 
     def validate_shape(
@@ -64,25 +69,17 @@ class DomainRegistry:
         domain: object,
         shape: tuple[int, ...],
     ) -> None:
-        dimensions = tuple(getattr(domain, "dims", domain))
+        dimensions = _dimensions(domain)
 
         if len(dimensions) != len(shape):
-            message = (
-                f"Domain rank {len(dimensions)} does not match shape "
-                f"{shape!r}."
-            )
+            message = f"Domain rank {len(dimensions)} does not match shape {shape!r}."
             raise DomainShapeError(message)
 
-        for axis, (dimension, actual) in enumerate(
-            zip(dimensions, shape, strict=True)
-        ):
+        for axis, (dimension, actual) in enumerate(zip(dimensions, shape, strict=True)):
             expected = self.size(dimension)
 
             if actual != expected:
-                message = (
-                    f"Axis {axis} for dimension {dimension!r} has size "
-                    f"{actual}; expected {expected}."
-                )
+                message = f"Axis {axis} for dimension {dimension!r} has size {actual}; expected {expected}."
                 raise DomainShapeError(message)
 
     def _binding(
@@ -94,3 +91,29 @@ class DomainRegistry:
         except KeyError:
             message = f"Dimension {dimension!r} has not been bound."
             raise DomainBindingError(message) from None
+
+
+def _dimensions(
+    domain: object,
+) -> tuple[collections.abc.Hashable, ...]:
+    """Extract and validate the dimensions represented by a domain."""
+    value = getattr(domain, "dims", domain)
+
+    if isinstance(value, (str, bytes, bytearray)):
+        message = "A domain must be an iterable of dimensions, not a string or bytes value."
+        raise TypeError(message)
+
+    if not isinstance(value, collections.abc.Iterable):
+        message = "A domain must be iterable or expose an iterable 'dims' attribute."
+        raise TypeError(message)
+
+    dimensions: list[collections.abc.Hashable] = []
+
+    for dimension in value:
+        if not isinstance(dimension, collections.abc.Hashable):
+            message = f"Dimension {dimension!r} is not hashable."
+            raise TypeError(message)
+
+        dimensions.append(dimension)
+
+    return tuple(dimensions)

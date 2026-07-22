@@ -112,10 +112,7 @@ def _operation_to_callable(
             function_ast.decorator_list = [
                 decorator
                 for decorator in function_ast.decorator_list
-                if not (
-                    isinstance(decorator, ast.Name)
-                    and decorator.id == "transform"
-                )
+                if not (isinstance(decorator, ast.Name) and decorator.id == "transform")
             ]
             return backend.transpile(function_ast)
 
@@ -128,8 +125,5 @@ def _operation_to_callable(
             raise NotImplementedError(msg)
 
         case _:
-            msg = (
-                f"Operation type {type(operation)} is not supported "
-                "for evaluation."
-            )
+            msg = f"Operation type {type(operation)} is not supported for evaluation."
             raise NotImplementedError(msg)

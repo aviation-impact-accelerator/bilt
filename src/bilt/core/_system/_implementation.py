@@ -29,12 +29,7 @@ class Implementation:
         self._components: types.MappingProxyType[
             str,
             BiltModelConstituent,
-        ] = types.MappingProxyType(
-            {
-                component.__bilt_name__: component
-                for component in components
-            }
-        )
+        ] = types.MappingProxyType({component.__bilt_name__: component for component in components})
         self._callable_cache: dict[
             tuple[str, tuple[str, ...], Backend],
             BackendCallable,
@@ -52,7 +47,6 @@ class Implementation:
         backend: Backend,
     ) -> object:
         """Evaluate an output in a private, evaluation-scoped registry."""
-
         with domain_registry_scope():
             if output in inputs:
                 return inputs[output]
@@ -83,10 +77,7 @@ class Implementation:
         if not isinstance(other, Implementation):
             return NotImplemented
 
-        return (
-            self.system == other.system
-            and self._components == other._components
-        )
+        return self.system == other.system and self._components == other._components
 
     def __hash__(self) -> int:
         return hash(
@@ -97,8 +88,4 @@ class Implementation:
         )
 
     def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}("
-            f"system={self.system}, "
-            f"transforms={frozenset(self._components.values())!r})"
-        )
+        return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self._components.values())!r})"
