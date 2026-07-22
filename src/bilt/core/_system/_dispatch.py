@@ -2,6 +2,9 @@ __all__ = []
 
 import typing
 
+from bilt._backend._base_backend import _backend_stack
+from bilt._backend._python import PythonBackend
+
 from ._error import BiltUnknownSystemAttributeError
 from ._sentinel import MISSING, _Missing
 
@@ -26,6 +29,7 @@ def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -
         name: value for name, value in instance.__bilt_system_instance_variables__.items() if value is not MISSING
     }
     output = attribute.name
-    result = typing.cast("T", implementation.evaluate(inputs=inputs, output=output))
+    backend = _backend_stack[-1] if _backend_stack else PythonBackend()
+    result = typing.cast("T", implementation.evaluate(inputs=inputs, output=output, backend=backend))
     instance.__bilt_system_instance_variables__[attribute.name] = result
     return result

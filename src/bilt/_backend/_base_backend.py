@@ -10,6 +10,8 @@ from bilt._backend._errors import CompilationError
 if typing.TYPE_CHECKING:
     from ._case import BackendCase
 
+_backend_stack: list[Backend] = []
+
 
 class Backend(abc.ABC):
     """Interface for methods to implement by the JAX backend."""
@@ -40,6 +42,13 @@ class Backend(abc.ABC):
             parameters=tuple(arg.arg for arg in function_definition.args.args),
             callable=self.compilation_namespace[function_definition.name],
         )
+
+    def __enter__(self) -> typing.Self:
+        _backend_stack.append(self)
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        _backend_stack.pop()
 
     @abc.abstractmethod
     def chain_case(self, case: BackendCase) -> BackendCallable:
