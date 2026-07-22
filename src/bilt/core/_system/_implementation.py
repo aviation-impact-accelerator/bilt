@@ -4,6 +4,7 @@ import types
 import typing
 
 from bilt.core._system._analysis import (
+    build_backend_case,
     find_successful_case,
     validate_broadcasts,
 )
@@ -20,6 +21,18 @@ if typing.TYPE_CHECKING:
     from ._interface import Interface
 
 
+type InputDomainSignature = tuple[
+    tuple[str, tuple[object, ...]],
+    ...,
+]
+
+type CallableCacheKey = tuple[
+    str,
+    InputDomainSignature,
+    Backend,
+]
+
+
 class Implementation:
     """Register a collection of transforms as an implementation of a system."""
 
@@ -28,15 +41,16 @@ class Implementation:
         system: Interface,
         components: collections.abc.Iterable[BiltModelConstituent],
     ) -> None:
-        self._system: Interface = system
+        self._system = system
         self._components: types.MappingProxyType[
             str,
             BiltModelConstituent,
         ] = types.MappingProxyType({component.__bilt_name__: component for component in components})
         self._callable_cache: dict[
-            tuple[str, tuple[str, ...], Backend],
+            CallableCacheKey,
             BackendCallable,
         ] = {}
+
         system.__bilt_system_registry__.add(self)
 
     @property
@@ -50,35 +64,46 @@ class Implementation:
         backend: Backend,
     ) -> object:
         with domain_registry_scope() as registry:
-            if output in inputs:
-                output_value = inputs[output]
-                _observe_tensor(output_value, registry)
-                return output_value
+            for value in inputs.values():
+                _observe_tensor(value, registry)
 
-            validate_broadcasts(
-                implementation=self,
-                inputs=inputs,
-                output=output,
-                registry=registry,
+            if output in inputs:
+                return inputs[output]
+
+            input_signature = _input_domain_signature(inputs)
+            cache_key = (
+                output,
+                input_signature,
+                backend,
             )
 
-            parameter_names = tuple(inputs.keys())
-            cache_key = (output, parameter_names, backend)
             backend_callable = self._callable_cache.get(cache_key)
 
             if backend_callable is None:
-                backend_case = find_successful_case(
+                transform_dag = find_successful_case(
                     self,
                     inputs,
                     output,
                     backend,
                 )
+
+                validated_dag = validate_broadcasts(
+                    case=transform_dag,
+                    inputs=inputs,
+                    registry=registry,
+                )
+
+                backend_case = build_backend_case(
+                    validated_dag,
+                    backend,
+                )
                 backend_callable = backend.chain_case(backend_case)
                 self._callable_cache[cache_key] = backend_callable
 
-            output_value = backend_callable.callable(**inputs)
-            _observe_tensor(output_value, registry)
-            return output_value
+            result = backend_callable.callable(**inputs)
+            _observe_tensor(result, registry)
+
+            return result
 
     def __enter__(self) -> typing.Self:
         self._system.__bilt_system_implementation_default__.append(self)
@@ -102,7 +127,31 @@ class Implementation:
         )
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self._components.values())!r})"
+        components = frozenset(self._components.values())
+
+        return f"{type(self).__name__}(system={self.system}, transforms={components!r})"
+
+
+def _input_domain_signature(
+    inputs: collections.abc.Mapping[str, object],
+) -> InputDomainSignature:
+    """Return input names and their ordered symbolic dimensions."""
+    return tuple(
+        (
+            name,
+            _tensor_domain_dimensions(value),
+        )
+        for name, value in inputs.items()
+    )
+
+
+def _tensor_domain_dimensions(
+    value: object,
+) -> tuple[object, ...]:
+    if not isinstance(value, BiltTensor):
+        return ()
+
+    return tuple(value.domain.dims)
 
 
 def _observe_tensor(
