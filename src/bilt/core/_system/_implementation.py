@@ -16,7 +16,8 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._system._domain_registry import DomainRegistry
-    from bilt.core._system._interface import Interface
+
+    from ._interface import Interface
 
 
 class Implementation:
@@ -28,17 +29,26 @@ class Implementation:
         components: collections.abc.Iterable[BiltModelConstituent],
     ) -> None:
         self._system: Interface = system
-        self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
-            {component.__bilt_name__: component for component in components}
-        )
-        self._callable_cache: dict[tuple[str, tuple[str, ...], Backend], BackendCallable] = {}
+        self._components: types.MappingProxyType[
+            str,
+            BiltModelConstituent,
+        ] = types.MappingProxyType({component.__bilt_name__: component for component in components})
+        self._callable_cache: dict[
+            tuple[str, tuple[str, ...], Backend],
+            BackendCallable,
+        ] = {}
         system.__bilt_system_registry__.add(self)
 
     @property
     def system(self) -> Interface:
         return self._system
 
-    def evaluate(self, inputs: dict[str, object], output: str, backend: Backend) -> object:
+    def evaluate(
+        self,
+        inputs: dict[str, object],
+        output: str,
+        backend: Backend,
+    ) -> object:
         with domain_registry_scope() as registry:
             if output in inputs:
                 output_value = inputs[output]
@@ -52,13 +62,21 @@ class Implementation:
                 registry=registry,
             )
 
-            if self._callable_cache.get((output, tuple(inputs.keys()), backend)):
-                output_value = self._callable_cache[(output, tuple(inputs.keys()), backend)].callable(**inputs)
-            else:
-                backend_case = find_successful_case(self, inputs, output, backend)
-                self._callable_cache[(output, tuple(inputs.keys()), backend)] = backend.chain_case(backend_case)
-                output_value = self._callable_cache[(output, tuple(inputs.keys()), backend)].callable(**inputs)
+            parameter_names = tuple(inputs.keys())
+            cache_key = (output, parameter_names, backend)
+            backend_callable = self._callable_cache.get(cache_key)
 
+            if backend_callable is None:
+                backend_case = find_successful_case(
+                    self,
+                    inputs,
+                    output,
+                    backend,
+                )
+                backend_callable = backend.chain_case(backend_case)
+                self._callable_cache[cache_key] = backend_callable
+
+            output_value = backend_callable.callable(**inputs)
             _observe_tensor(output_value, registry)
             return output_value
 
@@ -72,15 +90,24 @@ class Implementation:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Implementation):
             return NotImplemented
+
         return self.system == other.system and self._components == other._components
 
     def __hash__(self) -> int:
-        return hash((self.system, frozenset(self._components.items())))
+        return hash(
+            (
+                self.system,
+                frozenset(self._components.items()),
+            )
+        )
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self._components.values())!r})"
 
 
-def _observe_tensor(value: object, registry: DomainRegistry) -> None:
+def _observe_tensor(
+    value: object,
+    registry: DomainRegistry,
+) -> None:
     if isinstance(value, BiltTensor):
         value.observe(registry)
