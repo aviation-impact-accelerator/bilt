@@ -1,12 +1,13 @@
 __all__: list[str] = []
+
+import contextlib
+import contextvars
 import typing
+
+from bilt.core._system._domain_registry import DomainRegistry
 
 if typing.TYPE_CHECKING:
     import collections.abc
-import contextlib
-import contextvars
-
-from bilt.core._system._domain_registry import DomainRegistry
 
 _ACTIVE_DOMAIN_REGISTRY: contextvars.ContextVar[DomainRegistry | None] = contextvars.ContextVar(
     "_ACTIVE_DOMAIN_REGISTRY",
@@ -32,8 +33,7 @@ def domain_registry_scope() -> collections.abc.Iterator[DomainRegistry]:
         _ACTIVE_DOMAIN_REGISTRY.reset(token)
 
 
-def _active_domain_registry() -> DomainRegistry:
-    """Return the registry for internal evaluation code."""
+def active_domain_registry() -> DomainRegistry:
     registry = _ACTIVE_DOMAIN_REGISTRY.get()
 
     if registry is None:
