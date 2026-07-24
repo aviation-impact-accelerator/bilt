@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 __all__ = ["system"]
 
 import dataclasses
 import enum
 import typing
 
-from ._dispatch import _dispatch_evaluation
+from ._dispatch import _bind_known_children, _dispatch_evaluation
 from ._error import BiltSystemDefinitionError
 from ._interface import Interface
 from ._sentinel import MISSING
@@ -53,7 +55,10 @@ def _create_initialize_method(cls: Interface) -> None:
     args = ["self", "*", *(f"{parameter}=MISSING" for parameter in parameters)]
     body = [
         "self.__bilt_system_implementation__ = MISSING",
-        f"self.__bilt_system_instance_variables__ = {{{', '.join(f'"{parameter}": {parameter}' for parameter in parameters)}}}",
+        "self.__bilt_system_parent__ = MISSING",
+        "self.__bilt_system_parent_attribute__ = MISSING",
+        f"self.__bilt_system_instance_variables__ = {{{', '.join(f'\"{parameter}\": {parameter}' for parameter in parameters)}}}",
+        "_bind_known_children(self)",
     ]
     _create_method(
         cls,
@@ -62,7 +67,10 @@ def _create_initialize_method(cls: Interface) -> None:
         args=args,
         body=body,
         global_namespace=globals(),
-        local_namespace={"MISSING": MISSING},
+        local_namespace={
+            "MISSING": MISSING,
+            "_bind_known_children": _bind_known_children,
+        },
     )
 
 
@@ -73,7 +81,10 @@ def _create_properties(cls: Interface) -> None:
         "_dispatch_evaluation": _dispatch_evaluation,
     }
     for parameter in parameters:
-        body = [f"value = _dispatch_evaluation(self, self.__bilt_system_attributes__['{parameter}'])", "return value"]
+        body = [
+            f"value = _dispatch_evaluation(self, self.__bilt_system_attributes__['{parameter}'])",
+            "return value",
+        ]
         _create_method(
             cls,
             name=parameter,
