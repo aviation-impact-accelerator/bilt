@@ -12,6 +12,9 @@ members = [
 name = "bilt"
 version = "0.0.1"
 source = { editable = "." }
+dependencies = [
+    { name = "scipy" },
+]
 
 [package.optional-dependencies]
 jax = [
@@ -32,7 +35,10 @@ docs = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "jax", marker = "extra == 'jax'", specifier = ">=0.10.2" }]
+requires-dist = [
+    { name = "jax", marker = "extra == 'jax'", specifier = ">=0.10.2" },
+    { name = "scipy", specifier = ">=1.18.0" },
+]
 provides-extras = ["jax"]
 
 [package.metadata.requires-dev]
