@@ -1,6 +1,5 @@
 import bilt
 
-
 # Scalar quantities intentionally use plain ``float`` until units participate
 # in structural analysis and backend lowering.
 

@@ -10,11 +10,7 @@ def heat_release(
     fuel: FuelProperties,
     mass_flow_rate: float,
 ) -> float:
-    return (
-        fuel.combustion_efficiency
-        * fuel.lower_heating_value
-        * mass_flow_rate
-    )
+    return fuel.combustion_efficiency * fuel.lower_heating_value * mass_flow_rate
 
 
 simple_fuel_flow = bilt.core.Implementation(

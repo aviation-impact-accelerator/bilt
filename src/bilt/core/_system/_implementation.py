@@ -32,14 +32,11 @@ class Implementation:
         self,
         system: Interface,
         components: (
-            collections.abc.Iterable[BiltModelConstituent]
-            | collections.abc.Mapping[str, BiltModelConstituent]
+            collections.abc.Iterable[BiltModelConstituent] | collections.abc.Mapping[str, BiltModelConstituent]
         ),
         *,
         children: collections.abc.Mapping[str, Implementation] | None = None,
-        internal_systems: (
-            collections.abc.Mapping[str, Implementation] | None
-        ) = None,
+        internal_systems: (collections.abc.Mapping[str, Implementation] | None) = None,
         internal_values: collections.abc.Mapping[str, object] | None = None,
     ) -> None:
         self._system: Interface = system
@@ -47,10 +44,7 @@ class Implementation:
         if isinstance(components, collections.abc.Mapping):
             registered_components = dict(components)
         else:
-            registered_components = {
-                component.__bilt_name__: component
-                for component in components
-            }
+            registered_components = {component.__bilt_name__: component for component in components}
 
         self._components: types.MappingProxyType[
             str,
@@ -170,17 +164,11 @@ class Implementation:
             attribute = self.system.__bilt_system_attributes__.get(name)
 
             if attribute is None:
-                message = (
-                    f"System {self.system.__name__!r} has no child field "
-                    f"{name!r}."
-                )
+                message = f"System {self.system.__name__!r} has no child field {name!r}."
                 raise TypeError(message)
 
             if not isinstance(attribute.annotation, Interface):
-                message = (
-                    f"Field {name!r} on {self.system.__name__!r} is not "
-                    "a system-valued field."
-                )
+                message = f"Field {name!r} on {self.system.__name__!r} is not a system-valued field."
                 raise TypeError(message)
 
             if attribute.annotation is not implementation.system:
@@ -197,17 +185,11 @@ class Implementation:
 
         for name in self._internal_systems:
             if not name.isidentifier():
-                message = (
-                    f"Internal system name {name!r} must be a valid "
-                    "Python identifier."
-                )
+                message = f"Internal system name {name!r} must be a valid Python identifier."
                 raise TypeError(message)
 
             if name in public_names:
-                message = (
-                    f"Internal system name {name!r} conflicts with a "
-                    f"public field on {self.system.__name__!r}."
-                )
+                message = f"Internal system name {name!r} conflicts with a public field on {self.system.__name__!r}."
                 raise TypeError(message)
 
     def _validate_internal_values(self) -> None:
@@ -219,10 +201,7 @@ class Implementation:
             try:
                 hash(value)
             except TypeError:
-                message = (
-                    f"Internal value {name!r} must currently be hashable "
-                    "because implementations are hashable."
-                )
+                message = f"Internal value {name!r} must currently be hashable because implementations are hashable."
                 raise TypeError(message) from None
 
     def _collect_internal_values(
@@ -230,10 +209,7 @@ class Implementation:
         *,
         scope: tuple[str, ...] = (),
     ) -> dict[str, object]:
-        values = {
-            ".".join((*scope, name)): value
-            for name, value in self._internal_values.items()
-        }
+        values = {".".join((*scope, name)): value for name, value in self._internal_values.items()}
 
         for name, implementation in self._children.items():
             values.update(

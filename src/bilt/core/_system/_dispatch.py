@@ -55,10 +55,7 @@ def _dispatch_evaluation[T](
             attribute.name,
         )
         inputs = {
-            name: value
-            for name, value
-            in instance.__bilt_system_instance_variables__.items()
-            if value is not MISSING
+            name: value for name, value in instance.__bilt_system_instance_variables__.items() if value is not MISSING
         }
         backend = _current_backend()
         result = implementation.evaluate(
@@ -121,10 +118,7 @@ def _bind_child(
     if existing_parent is parent and existing_name == name:
         return
 
-    message = (
-        f"Child system instance {value!r} is already bound to a different "
-        "parent field."
-    )
+    message = f"Child system instance {value!r} is already bound to a different parent field."
     raise BiltSystemEvaluationError(message)
 
 
@@ -162,12 +156,7 @@ def _evaluate_from_root(
         root,
         ".".join(reversed(path)),
     )
-    inputs = {
-        name: value
-        for name, value
-        in root.__bilt_system_instance_variables__.items()
-        if value is not MISSING
-    }
+    inputs = {name: value for name, value in root.__bilt_system_instance_variables__.items() if value is not MISSING}
     backend = _current_backend()
 
     return implementation.evaluate(

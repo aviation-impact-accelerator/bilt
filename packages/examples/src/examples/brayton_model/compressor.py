@@ -16,16 +16,10 @@ def outlet_temperature(
     outlet: ThermodynamicState,
     isentropic_efficiency: float,
 ) -> float:
-    exponent = (
-        fluid.heat_capacity_ratio - 1.0
-    ) / fluid.heat_capacity_ratio
+    exponent = (fluid.heat_capacity_ratio - 1.0) / fluid.heat_capacity_ratio
     pressure_ratio = outlet.pressure / inlet.pressure
 
-    return (
-        inlet.temperature
-        * pressure_ratio**exponent
-        / isentropic_efficiency
-    )
+    return inlet.temperature * pressure_ratio**exponent / isentropic_efficiency
 
 
 @bilt.core.transform
@@ -34,10 +28,7 @@ def specific_work(
     inlet: ThermodynamicState,
     outlet: ThermodynamicState,
 ) -> float:
-    return (
-        fluid.specific_heat_capacity
-        * (outlet.temperature - inlet.temperature)
-    )
+    return fluid.specific_heat_capacity * (outlet.temperature - inlet.temperature)
 
 
 def isentropic_compressor(

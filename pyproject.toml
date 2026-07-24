@@ -73,7 +73,7 @@ parametrize-values-type = "tuple"
 known-first-party = ["bilt"]
 
 [tool.ruff.lint.per-file-ignores]
-"packages/*/src/examples/**/*.py" = ["D104"]
+"packages/*/src/examples/**/*.py" = ["D101", "D104"]
 "packages/*/tests/**/*.py" = ["D1", "FBT001", "INP001", "S101"]
 "src/*" = ["D1"]
 "tests/*" = ["D1", "FBT001", "INP001", "S101"]

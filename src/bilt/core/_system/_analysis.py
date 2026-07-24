@@ -88,7 +88,6 @@ def flatten_inputs(
     inputs: collections.abc.Mapping[str, object],
 ) -> dict[str, object]:
     """Flatten nested system instances into dotted leaf-field inputs."""
-
     flattened: dict[str, object] = {}
 
     def add(path: tuple[str, ...], value: object) -> None:
@@ -128,18 +127,11 @@ def encode_inputs(
     parameters: collections.abc.Iterable[str],
 ) -> dict[str, object]:
     """Select known inputs required by a generated backend callable."""
-
     flattened = flatten_inputs(inputs)
-    encoded = {
-        _FieldRef.parse(name).safe_name: value
-        for name, value in flattened.items()
-    }
+    encoded = {_FieldRef.parse(name).safe_name: value for name, value in flattened.items()}
 
     try:
-        return {
-            parameter: encoded[parameter]
-            for parameter in parameters
-        }
+        return {parameter: encoded[parameter] for parameter in parameters}
     except KeyError as error:
         parameter = typing.cast("str", error.args[0])
         message = f"Required backend input {parameter!r} is not available."
@@ -153,12 +145,8 @@ def find_successful_case(
     backend: Backend,
 ) -> BackendCase:
     """Find and lower a transform path, querying child systems lazily."""
-
     flattened = flatten_inputs(inputs)
-    known = {
-        _FieldRef.parse(name)
-        for name in flattened
-    }
+    known = {_FieldRef.parse(name) for name in flattened}
     target = _FieldRef.parse(output)
 
     transforms, required_inputs = _resolve_output(
@@ -170,10 +158,7 @@ def find_successful_case(
 
     return BackendCase(
         name=target.safe_name,
-        parameters=tuple(
-            field.safe_name
-            for field in required_inputs
-        ),
+        parameters=tuple(field.safe_name for field in required_inputs),
         intermediates=[
             _operation_to_callable(
                 transform,
@@ -198,10 +183,7 @@ def _resolve_output(
     if output in visiting:
         start = visiting.index(output)
         cycle = (*visiting[start:], output)
-        message = (
-            "Cyclic transform dependency: "
-            + " -> ".join(field.dotted for field in cycle)
-        )
+        message = "Cyclic transform dependency: " + " -> ".join(field.dotted for field in cycle)
         raise BiltSystemEvaluationError(message)
 
     failures: list[str] = []
@@ -233,10 +215,7 @@ def _resolve_output(
         return _deduplicate_operations(operations), required_inputs
 
     detail = f" Tried: {'; '.join(failures)}" if failures else ""
-    message = (
-        f"No transform path found for output {output.dotted!r}."
-        f"{detail}"
-    )
+    message = f"No transform path found for output {output.dotted!r}.{detail}"
     raise BiltSystemEvaluationError(message)
 
 
@@ -247,7 +226,6 @@ def _candidates_for(
     scope: tuple[str, ...],
 ) -> typing.Iterator[_BoundTransform]:
     """Try a transform owned by this level before inspecting the child."""
-
     relative_target = target.relative_to(scope)
 
     if relative_target is None:
@@ -335,8 +313,7 @@ def _infer_dependencies(
     if unsupported:
         names = ", ".join(sorted(unsupported))
         message = (
-            "System-valued transform parameters must be accessed through "
-            f"fields rather than used directly: {names}."
+            f"System-valued transform parameters must be accessed through fields rather than used directly: {names}."
         )
         raise BiltSystemEvaluationError(message)
 
@@ -358,9 +335,7 @@ def _infer_dependencies(
                 _Dependency(
                     parameter=parameter,
                     attribute=attribute,
-                    field=_FieldRef.parse(
-                        f"{parameter}.{attribute}"
-                    ).rebase(scope),
+                    field=_FieldRef.parse(f"{parameter}.{attribute}").rebase(scope),
                 )
             )
 
@@ -372,8 +347,7 @@ def _system_parameter_names(
 ) -> set[str]:
     public_children = {
         name
-        for name, attribute
-        in implementation.system.__bilt_system_attributes__.items()
+        for name, attribute in implementation.system.__bilt_system_attributes__.items()
         if isinstance(attribute.annotation, Interface)
     }
     return public_children | set(implementation._internal_systems)  # noqa: SLF001
@@ -394,10 +368,7 @@ class _DependencyVisitor(ast.NodeVisitor):
     def visit_Attribute(self, node: ast.Attribute) -> None:
         reference = _attribute_reference(node)
 
-        if (
-            reference is not None
-            and reference[0] in self._child_parameters
-        ):
+        if reference is not None and reference[0] in self._child_parameters:
             parameter, attribute = reference
             attributes = self.attributes.setdefault(parameter, [])
 
@@ -409,10 +380,7 @@ class _DependencyVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Name(self, node: ast.Name) -> None:
-        if (
-            node.id in self._parameters
-            and node.id in self._child_parameters
-        ):
+        if node.id in self._parameters and node.id in self._child_parameters:
             self.plain_child_uses.add(node.id)
 
 
@@ -469,9 +437,7 @@ def _function_ast(
         ).body[0],
     )
     function_ast.decorator_list = [
-        decorator
-        for decorator in function_ast.decorator_list
-        if not _is_transform_decorator(decorator)
+        decorator for decorator in function_ast.decorator_list if not _is_transform_decorator(decorator)
     ]
     return function_ast
 
@@ -485,10 +451,7 @@ def _is_transform_decorator(
     if isinstance(decorator, ast.Name):
         return decorator.id == "transform"
 
-    return (
-        isinstance(decorator, ast.Attribute)
-        and decorator.attr == "transform"
-    )
+    return isinstance(decorator, ast.Attribute) and decorator.attr == "transform"
 
 
 class _RewriteDependencies(ast.NodeTransformer):
@@ -502,8 +465,7 @@ class _RewriteDependencies(ast.NodeTransformer):
             if dependency.attribute is None
         }
         self._attributes = {
-            (dependency.parameter, dependency.attribute):
-            dependency.field.safe_name
+            (dependency.parameter, dependency.attribute): dependency.field.safe_name
             for dependency in dependencies
             if dependency.attribute is not None
         }
@@ -555,8 +517,7 @@ def _operation_to_callable(
         or function_ast.args.defaults
     ):
         message = (
-            "Hierarchical transform lowering currently supports only "
-            "ordinary positional parameters without defaults."
+            "Hierarchical transform lowering currently supports only ordinary positional parameters without defaults."
         )
         raise BiltSystemEvaluationError(message)
 
@@ -571,9 +532,7 @@ def _operation_to_callable(
 
     function_ast = typing.cast(
         "ast.FunctionDef",
-        _RewriteDependencies(
-            transform.dependencies
-        ).visit(function_ast),
+        _RewriteDependencies(transform.dependencies).visit(function_ast),
     )
     ast.fix_missing_locations(function_ast)
 

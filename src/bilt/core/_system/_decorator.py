@@ -57,7 +57,7 @@ def _create_initialize_method(cls: Interface) -> None:
         "self.__bilt_system_implementation__ = MISSING",
         "self.__bilt_system_parent__ = MISSING",
         "self.__bilt_system_parent_attribute__ = MISSING",
-        f"self.__bilt_system_instance_variables__ = {{{', '.join(f'\"{parameter}\": {parameter}' for parameter in parameters)}}}",
+        f"self.__bilt_system_instance_variables__ = {{{', '.join(f'"{parameter}": {parameter}' for parameter in parameters)}}}",
         "_bind_known_children(self)",
     ]
     _create_method(
