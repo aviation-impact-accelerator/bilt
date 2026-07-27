@@ -1,7 +1,12 @@
 import ast
 import inspect
+import typing
 
-from bilt._backend import Backend, BackendCallable, BackendCase
+from bilt._backend import Backend, BackendCallable
+
+if typing.TYPE_CHECKING:
+    from bilt._backend._case import BackendCase
+    from bilt.core._system._analysis import BroadcastPlan
 
 
 class PythonBackend(Backend):
@@ -10,6 +15,14 @@ class PythonBackend(Backend):
     def __init__(self) -> None:
         self.ast_transformer = ast.NodeTransformer()
         self.compilation_namespace = {"__builtins__": __builtins__}
+
+    def apply_broadcast_plan(
+        self, function_definition: ast.FunctionDef, broadcast_plan: BroadcastPlan
+    ) -> ast.FunctionDef:
+        # Don't currently need to do anything as PythonBackend is using BiltTensor operator overloads. Will need in future.
+        _ = broadcast_plan
+
+        return function_definition
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
         """Chain a BackendCase into a single callable function."""

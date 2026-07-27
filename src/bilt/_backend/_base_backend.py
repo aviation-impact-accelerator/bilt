@@ -8,6 +8,8 @@ from bilt._backend._callable import BackendCallable
 from bilt._backend._errors import CompilationError
 
 if typing.TYPE_CHECKING:
+    from bilt.core._system._analysis import BroadcastPlan
+
     from ._case import BackendCase
 
 _backend_stack: list[Backend] = []
@@ -24,6 +26,11 @@ class Backend(abc.ABC):
         self,
     ) -> None:
         """Must at minimum initialise the ast_transformer and compilation_namespace attributes."""
+
+    @abc.abstractmethod
+    def apply_broadcast_plan(
+        self, function_definition: ast.FunctionDef, broadcast_plan: BroadcastPlan
+    ) -> ast.FunctionDef: ...
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Used to compile a single transform AST into a callable function, that can then be chained into the execution pipeline."""

@@ -3,8 +3,12 @@ __all__ = ["Implementation"]
 import types
 import typing
 
+import numpy as np
+
+from bilt._backend._python._backend import PythonBackend
 from bilt.core._system._analysis import (
     build_backend_case,
+    build_broadcast_plan,
     find_successful_case,
     validate_broadcasts,
 )
@@ -79,6 +83,8 @@ class Implementation:
 
             backend_callable = self._callable_cache.get(cache_key)
 
+            broadcast_plan = build_broadcast_plan(inputs, registry)
+
             if backend_callable is None:
                 transform_dag = find_successful_case(
                     self,
@@ -96,14 +102,30 @@ class Implementation:
                 backend_case = build_backend_case(
                     validated_dag,
                     backend,
+                    broadcast_plan,
                 )
+
                 backend_callable = backend.chain_case(backend_case)
                 self._callable_cache[cache_key] = backend_callable
 
-            result = backend_callable.callable(**inputs)
-            _observe_tensor(result, registry)
+            # Note that the Python backend is still relying on the BiltTensor operator overloads,
+            # so for now we forego the conversion to raw arrays to keep the current Python backend
+            # working.
+
+            if not isinstance(backend, PythonBackend):
+                inputs = self._tensor_inputs_to_raw_array_type(inputs)
+
+            result = typing.cast("object", backend_callable.callable(**inputs))  # pyright: ignore[reportUnknownMemberType]
+
+            if not broadcast_plan.is_scalar_only and not isinstance(backend, PythonBackend):
+                # If there are any tensor inputs (i.e. this isn't a strictly scalar calculation) we will have a tensor output
+                result = BiltTensor(np.asarray(result), broadcast_plan.output_domain)
+                _observe_tensor(result, registry)
 
             return result
+
+    def _tensor_inputs_to_raw_array_type(self, inputs: dict[str, object]) -> dict[str, object]:
+        return {name: (obj.values if isinstance(obj, BiltTensor) else obj) for name, obj in inputs.items()}
 
     def __enter__(self) -> typing.Self:
         self._system.__bilt_system_implementation_default__.append(self)
