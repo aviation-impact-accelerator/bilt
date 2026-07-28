@@ -39,11 +39,13 @@ class Implementation:
         if output in inputs:
             output_value = inputs[output]
         elif self._callable_cache.get(cache_key):
-            output_value = self._callable_cache[cache_key].callable(**inputs)
+            cached = self._callable_cache[cache_key]
+            output_value = cached.callable(**{k: inputs[k] for k in cached.parameters})
         else:
             plan = exhaustive_structural_backend(tuple(self._components.values()), frozenset(inputs.keys()), output)
-            self._callable_cache[cache_key] = backend.chain_case(realize_plan(plan, backend))
-            output_value = self._callable_cache[cache_key].callable(**inputs)
+            cached = backend.chain_case(realize_plan(plan, backend))
+            self._callable_cache[cache_key] = cached
+            output_value = cached.callable(**{k: inputs[k] for k in cached.parameters})
         return output_value
 
     def __enter__(self) -> typing.Self:
