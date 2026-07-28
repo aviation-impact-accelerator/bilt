@@ -87,8 +87,10 @@ def test_backtracking_selects_satisfiable_component() -> None:
     c_needs_a = c
 
     plan = exhaustive_structural_backend((c_needs_x, c_needs_a), frozenset({"a"}), "c")
-
     assert plan.steps == (PlanStep(operation=c_needs_a, output="c"),)
+
+    plan = exhaustive_structural_backend((c_needs_x, c_needs_a), frozenset({"x"}), "c")
+    assert plan.steps == (PlanStep(operation=c_needs_x, output="c"),)
 
 
 def test_equation_isolated_as_any_parameter() -> None:
