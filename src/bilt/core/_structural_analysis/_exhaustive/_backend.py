@@ -58,6 +58,7 @@ def _dfs(
     steps: list[PlanStep],
     visiting: frozenset[str] = frozenset(),
 ) -> bool:
+    """Recursively visits output and its required parameters to find a valid execution path, backtracking in a dead-end, in-place updating steps and available inputs."""
     if output in visiting:
         return False
 
@@ -100,7 +101,10 @@ def extract_required_parameters(component: BiltModelConstituent, output: str) ->
 
 
 def collect_used_inputs(steps: list[PlanStep]) -> set[str]:
-    """Collect all used inputs from the steps."""
+    """Collect only the inputs required by the constructed plan.
+
+    Instead of all non-missing system parameters, which is what is given to the structural analysis.
+    """
     used_inputs: set[str] = set()
     for step in steps:
         used_inputs.update(extract_required_parameters(step.operation, step.output))
