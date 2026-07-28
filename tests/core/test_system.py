@@ -14,6 +14,7 @@ from bilt.core import (
     system,
     transform,
 )
+from bilt.core._equation import equation
 
 if TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -233,3 +234,156 @@ def test_evaluation_of_attribute_with_no_path_raises_system_evaluation_error() -
 
     with basic, pytest.raises(BiltSystemEvaluationError):
         _ = demo.c
+
+
+def test_evaluation_with_single_equation() -> None:
+    @system
+    class NewtonsSecondLaw(metaclass=Interface):
+        f: float = field()
+        m: float = field()
+        a: float = field()
+
+    @equation
+    def force_law(f: float, m: float, a: float) -> bool:
+        return m * a == f
+
+    impl = Implementation(NewtonsSecondLaw, [force_law])
+    instance = NewtonsSecondLaw(m=2.0, a=3.0)
+
+    expected_f = 2.0 * 3.0
+
+    with impl:
+        assert instance.f == expected_f
+
+
+def test_evaluation_with_single_equation_solve_for_different_target() -> None:
+    @system
+    class NewtonsSecondLaw(metaclass=Interface):
+        f: float = field()
+        m: float = field()
+        a: float = field()
+
+    @equation
+    def force_law(f: float, m: float, a: float) -> bool:
+        return m * a == f
+
+    impl = Implementation(NewtonsSecondLaw, [force_law])
+    instance = NewtonsSecondLaw(f=6.0, m=2.0)
+
+    expected_a = 6.0 / 2.0
+
+    with impl:
+        assert instance.a == expected_a
+
+
+@pytest.mark.parametrize(
+    ("backend"),
+    (
+        PythonBackend(),
+        JAXBackend(),
+    ),
+)
+def test_evaluation_with_equation_and_backend(backend: Backend) -> None:
+    @system
+    class NewtonsSecondLaw(metaclass=Interface):
+        f: float = field()
+        m: float = field()
+        a: float = field()
+
+    @equation
+    def force_law(f: float, m: float, a: float) -> bool:
+        return m * a == f
+
+    impl = Implementation(NewtonsSecondLaw, [force_law])
+    instance = NewtonsSecondLaw(m=2.0, a=3.0)
+
+    expected_f = 3.0 * 2.0
+    with backend, impl:
+        assert instance.f == expected_f
+
+
+def test_evaluation_with_transform_then_equation() -> None:
+    """Transform computes an intermediate that is consumed by the equation."""
+
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        d: float = field()
+
+    @transform
+    def c(a: float, b: float) -> float:
+        return a + b
+
+    @equation
+    def sum_eq(a: float, c: float, d: float) -> bool:
+        return d == a + c
+
+    impl = Implementation(Demo, [c, sum_eq])
+    instance = Demo(a=1.0, b=2.0)
+
+    expected_d = 1.0 + (1.0 + 2.0)
+
+    with impl:
+        assert instance.d == expected_d
+
+
+def test_evaluation_with_equation_then_transform() -> None:
+    """Equation computes an intermediate that is consumed by the transform."""
+
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        d: float = field()
+
+    @equation
+    def sum_eq(a: float, b: float, c: float) -> bool:
+        return c == a + b
+
+    @transform
+    def d(a: float, c: float) -> float:
+        return a * c
+
+    impl = Implementation(Demo, [sum_eq, d])
+    instance = Demo(a=2.0, b=3.0)
+
+    expected_d = (2.0 + 3.0) * 2.0
+    with impl:
+        assert instance.d == expected_d
+
+
+@pytest.mark.parametrize(
+    ("inputs", "output", "expected"),
+    (
+        ({"i": 2.0, "r": 3.0}, "v", 6.0),
+        ({"v": 6.0, "r": 3.0}, "i", 2.0),
+        ({"v": 6.0, "i": 2.0}, "r", 3.0),
+        ({"v": 6.0, "i": 2.0}, "p", 12.0),
+        ({"p": 12.0, "v": 6.0}, "i", 2.0),
+        ({"p": 12.0, "i": 2.0}, "v", 6.0),
+    ),
+)
+def test_evaluation_with_multiple_equations_many_directions(
+    inputs: dict[str, float], output: str, expected: float
+) -> None:
+    @system
+    class ElectricalCircuit(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+        p: float = field()
+
+    @equation
+    def ohms_law(v: float, i: float, r: float) -> bool:
+        return v == i * r
+
+    @equation
+    def power_law(p: float, v: float, i: float) -> bool:
+        return p == v * i
+
+    impl = Implementation(ElectricalCircuit, [ohms_law, power_law])
+    instance = ElectricalCircuit(**inputs)
+
+    with impl:
+        assert getattr(instance, output) == expected

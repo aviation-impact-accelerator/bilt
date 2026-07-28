@@ -3,7 +3,8 @@ __all__ = ["Implementation"]
 import types
 import typing
 
-from bilt.core._system._analysis import find_successful_case
+from bilt.core._realize_analysis import realize_plan
+from bilt.core._structural_analysis._exhaustive import exhaustive_structural_backend
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -26,7 +27,7 @@ class Implementation:
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             {component.__bilt_name__: component for component in components}
         )
-        self._callable_cache: dict[tuple[str, tuple[str, ...], Backend], BackendCallable] = {}
+        self._callable_cache: dict[tuple[str, frozenset[str], Backend], BackendCallable] = {}
         system.__bilt_system_registry__.add(self)
 
     @property
@@ -34,14 +35,15 @@ class Implementation:
         return self._system
 
     def evaluate(self, inputs: dict[str, object], output: str, backend: Backend) -> object:
+        cache_key = (output, frozenset(inputs.keys()), backend)
         if output in inputs:
             output_value = inputs[output]
-        elif self._callable_cache.get((output, tuple(inputs.keys()), backend)):
-            output_value = self._callable_cache[(output, tuple(inputs.keys()), backend)].callable(**inputs)
+        elif self._callable_cache.get(cache_key):
+            output_value = self._callable_cache[cache_key].callable(**inputs)
         else:
-            backend_case = find_successful_case(self, inputs, output, backend)
-            self._callable_cache[(output, tuple(inputs.keys()), backend)] = backend.chain_case(backend_case)
-            output_value = self._callable_cache[(output, tuple(inputs.keys()), backend)].callable(**inputs)
+            plan = exhaustive_structural_backend(tuple(self._components.values()), frozenset(inputs.keys()), output)
+            self._callable_cache[cache_key] = backend.chain_case(realize_plan(plan, backend))
+            output_value = self._callable_cache[cache_key].callable(**inputs)
         return output_value
 
     def __enter__(self) -> typing.Self:
