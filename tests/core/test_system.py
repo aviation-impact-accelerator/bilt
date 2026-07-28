@@ -245,7 +245,7 @@ def test_evaluation_with_single_equation() -> None:
 
     @equation
     def force_law(f: float, m: float, a: float) -> bool:
-        return m * a == f
+        return f == m * a
 
     impl = Implementation(NewtonsSecondLaw, [force_law])
     instance = NewtonsSecondLaw(m=2.0, a=3.0)
@@ -265,7 +265,7 @@ def test_evaluation_with_single_equation_solve_for_different_target() -> None:
 
     @equation
     def force_law(f: float, m: float, a: float) -> bool:
-        return m * a == f
+        return f == m * a
 
     impl = Implementation(NewtonsSecondLaw, [force_law])
     instance = NewtonsSecondLaw(f=6.0, m=2.0)
@@ -292,7 +292,7 @@ def test_evaluation_with_equation_and_backend(backend: Backend) -> None:
 
     @equation
     def force_law(f: float, m: float, a: float) -> bool:
-        return m * a == f
+        return f == m * a
 
     impl = Implementation(NewtonsSecondLaw, [force_law])
     instance = NewtonsSecondLaw(m=2.0, a=3.0)
