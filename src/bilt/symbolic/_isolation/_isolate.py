@@ -39,17 +39,14 @@ def equation_to_ast(
         message = f"Target {target!r} is not a parameter of the equation {equation!s}."
         raise TargetNotFoundError(message)
     target_expr = Expr.symbol(target)
-    simplified = simplify_tree(equation.__bilt_equation_tree__)
-    analysed = analyse_occurrences(simplified, target_expr)
-    planned = choose_isolation_plan(analysed)
-    isolated = isolate_by_inverse_rules(planned)
+    isolated = isolate(equation.__bilt_equation_tree__, target_expr)
     return isolated_tree_to_functiondef(
         isolated,
         parameter_order=equation.__bilt_parameters__,
     )
 
 
-def isolate(equation: Tree, target: Expr) -> Tree:
+def isolate(equation: Tree, target: Expr) -> IsolatedTree:
     """Return a relation tree with ``target`` isolated on the left-hand side.
 
     ``equation`` is expected to be a binary relation tree whose two children are
@@ -65,7 +62,7 @@ def isolate(equation: Tree, target: Expr) -> Tree:
         relation_head=isolated.relation_head,
         target=isolated.target,
         rhs=simplify(isolated.rhs),
-    ).as_tree()
+    )
 
 
 def simplify_tree(tree: Tree) -> SimplifiedTree:
