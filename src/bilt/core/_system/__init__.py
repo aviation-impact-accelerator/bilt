@@ -8,7 +8,8 @@ __all__ = [
     "system",
 ]
 
-from ._analysis import BiltSystemEvaluationError as BiltSystemEvaluationError
+from bilt.core._structural_analysis import BiltSystemEvaluationError as BiltSystemEvaluationError
+
 from ._decorator import system as system
 from ._error import BiltSystemDefinitionError as BiltSystemDefinitionError
 from ._error import BiltUnknownSystemAttributeError as BiltUnknownSystemAttributeError
