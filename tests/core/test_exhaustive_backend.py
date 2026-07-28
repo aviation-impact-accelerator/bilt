@@ -6,8 +6,6 @@ from bilt.core._structural_analysis._exhaustive._backend import exhaustive_struc
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 from bilt.core._transform import transform
 
-# Expr is used in @equation function annotations at runtime, not just for type checking.
-
 
 def test_unregistered_output_raises() -> None:
     with pytest.raises(BiltSystemEvaluationError, match="No operation registered"):
