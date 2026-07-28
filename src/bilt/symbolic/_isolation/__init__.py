@@ -1,3 +1,3 @@
-__all__ = ["isolate"]
+__all__ = ["equation_to_ast", "isolate"]
 
-from bilt.symbolic._isolation._isolate import isolate as isolate
+from bilt.symbolic._isolation._isolate import equation_to_ast, isolate

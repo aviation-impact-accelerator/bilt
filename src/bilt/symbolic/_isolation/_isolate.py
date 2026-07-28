@@ -1,5 +1,6 @@
-__all__ = ["isolate"]
+__all__ = ["equation_to_ast", "isolate"]
 
+import typing
 
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import (
@@ -12,6 +13,7 @@ from bilt.symbolic._isolation._expr_ops import (
     simplify,
 )
 from bilt.symbolic._isolation._rules import isolate_by_inverse_rules
+from bilt.symbolic._isolation._to_ast import isolated_tree_to_functiondef
 from bilt.symbolic._isolation._types import (
     AnalysedTree,
     IsolatedTree,
@@ -23,8 +25,28 @@ from bilt.symbolic._isolation._types import (
 from bilt.symbolic._tree import Tree
 from bilt.symbolic._walk import count_occurrences
 
+if typing.TYPE_CHECKING:
+    import ast
 
-def isolate(equation: Tree, target: Expr) -> Tree:
+    from bilt.core._equation import BasicEquation
+
+
+def equation_to_ast(
+    equation: BasicEquation,
+    target: str,
+) -> ast.FunctionDef:
+    if target not in equation.__bilt_equation_symbols__:
+        message = f"Target {target!r} is not a parameter of the equation {equation!s}."
+        raise TargetNotFoundError(message)
+    target_expr = Expr.symbol(target)
+    isolated = isolate(equation.__bilt_equation_tree__, target_expr)
+    return isolated_tree_to_functiondef(
+        isolated,
+        parameter_order=equation.__bilt_parameters__,
+    )
+
+
+def isolate(equation: Tree, target: Expr) -> IsolatedTree:
     """Return a relation tree with ``target`` isolated on the left-hand side.
 
     ``equation`` is expected to be a binary relation tree whose two children are
@@ -40,7 +62,7 @@ def isolate(equation: Tree, target: Expr) -> Tree:
         relation_head=isolated.relation_head,
         target=isolated.target,
         rhs=simplify(isolated.rhs),
-    ).as_tree()
+    )
 
 
 def simplify_tree(tree: Tree) -> SimplifiedTree:

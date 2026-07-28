@@ -31,7 +31,7 @@ def test_isolate_already_isolated() -> None:
 
     actual = isolate(x == y, x)
 
-    assert_same_tree(actual, x == y)
+    assert_same_tree(actual.as_tree(), x == y)
 
 
 def test_isolate_swaps_sides_when_target_is_rhs() -> None:
@@ -40,7 +40,7 @@ def test_isolate_swaps_sides_when_target_is_rhs() -> None:
 
     actual = isolate(y == x, x)
 
-    assert_same_tree(actual, x == y)
+    assert_same_tree(actual.as_tree(), x == y)
 
 
 def test_isolate_additive_term() -> None:
@@ -51,7 +51,7 @@ def test_isolate_additive_term() -> None:
     actual = isolate(make_add(x, a) == y, x)
 
     expected_rhs = make_add(y, make_neg(a))
-    assert_same_tree(actual, x == expected_rhs)
+    assert_same_tree(actual.as_tree(), x == expected_rhs)
 
 
 def test_isolate_additive_term_after_swapping_sides() -> None:
@@ -62,7 +62,7 @@ def test_isolate_additive_term_after_swapping_sides() -> None:
     actual = isolate(y == make_add(x, a), x)
 
     expected_rhs = make_add(y, make_neg(a))
-    assert_same_tree(actual, x == expected_rhs)
+    assert_same_tree(actual.as_tree(), x == expected_rhs)
 
 
 def test_isolate_multiplicative_factor() -> None:
@@ -73,7 +73,7 @@ def test_isolate_multiplicative_factor() -> None:
     actual = isolate(make_mul(a, x) == y, x)
 
     expected_rhs = make_mul(y, make_inv(a))
-    assert_same_tree(actual, x == expected_rhs)
+    assert_same_tree(actual.as_tree(), x == expected_rhs)
 
 
 def test_isolate_multiplicative_factor_after_swapping_sides() -> None:
@@ -84,7 +84,7 @@ def test_isolate_multiplicative_factor_after_swapping_sides() -> None:
     actual = isolate(y == make_mul(a, x), x)
 
     expected_rhs = make_mul(y, make_inv(a))
-    assert_same_tree(actual, x == expected_rhs)
+    assert_same_tree(actual.as_tree(), x == expected_rhs)
 
 
 def test_isolate_nested_add_inside_mul() -> None:
@@ -96,7 +96,7 @@ def test_isolate_nested_add_inside_mul() -> None:
     actual = isolate(make_mul(a, make_add(x, b)) == y, x)
 
     expected_rhs = make_add(make_mul(y, make_inv(a)), make_neg(b))
-    assert_same_tree(actual, x == expected_rhs)
+    assert_same_tree(actual.as_tree(), x == expected_rhs)
 
 
 def test_isolate_nested_add_inside_mul_after_swapping_sides() -> None:
@@ -108,7 +108,7 @@ def test_isolate_nested_add_inside_mul_after_swapping_sides() -> None:
     actual = isolate(y == make_mul(a, make_add(x, b)), x)
 
     expected_rhs = make_add(make_mul(y, make_inv(a)), make_neg(b))
-    assert_same_tree(actual, x == expected_rhs)
+    assert_same_tree(actual.as_tree(), x == expected_rhs)
 
 
 def test_isolate_raises_when_target_missing() -> None:
