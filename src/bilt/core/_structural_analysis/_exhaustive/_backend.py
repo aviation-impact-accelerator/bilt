@@ -64,12 +64,11 @@ def _dfs(
 
     visiting = visiting | {output}
 
+    checkpoint_len = len(steps)
+    checkpoint_available = frozenset(available)
+
     for component in output_to_constituent_map.get(output, []):
         required = extract_required_parameters(component, output)
-
-        checkpoint_len = len(steps)
-        checkpoint_available = frozenset(available)
-
         if all(
             param in available or _dfs(output_to_constituent_map, available, param, steps, visiting)
             for param in required
