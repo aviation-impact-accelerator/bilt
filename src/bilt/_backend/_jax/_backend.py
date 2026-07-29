@@ -7,6 +7,7 @@ import jax.numpy as jnp
 from bilt._backend import Backend, BackendCallable, BackendCase
 from bilt._backend._jax._ast import JAXASTTransformer
 from bilt._backend._jax._supports import _validate
+from bilt._backend._jax._tensor_handling import align_array
 
 if typing.TYPE_CHECKING:
     from bilt.core._system._analysis import BroadcastPlan
@@ -21,7 +22,7 @@ class JAXBackend(Backend):
             "jax": jax,
             "jax.jit": jax.jit,
             "jnp": jnp,
-            "_align_array": JAXBackend._align_array,
+            "align_array": align_array,
             "__builtins__": __builtins__,
         }
 
@@ -69,7 +70,7 @@ class JAXBackend(Backend):
             if tensor_plan.name not in param_names:
                 continue
 
-            prelude_str += f"{tensor_plan.name} = _align_array({tensor_plan.name}, {len(broadcast_plan.output_domain.dims)}, {tensor_plan.dimension_indices_in_output})\n"
+            prelude_str += f"{tensor_plan.name} = align_array({tensor_plan.name}, {len(broadcast_plan.output_domain.dims)}, {tensor_plan.input_to_output_dim_mapping})\n"
 
         prelude_ast = ast.parse(prelude_str).body
 
@@ -83,28 +84,3 @@ class JAXBackend(Backend):
             decorator_list=func_def.decorator_list,
             returns=func_def.returns,
         )
-
-    @staticmethod
-    def _align_array(array: jax.Array, num_output_dimensions: int, broadcast_dimensions: tuple[int, ...]) -> jax.Array:
-        """Transposes and inserts dimensions in input array based on `shape` and `broadcast_dimensions`.
-
-        jax.lax.broadcast_in_dim doesn't transpose square matrices for some bizarre reason, so this makes the transposition explicit and fixes that bug.
-
-        This function is jittable.
-        """
-        num_input_dimensions = array.ndim
-
-        extra_dims_required = num_output_dimensions - num_input_dimensions
-        array = array[(...,) + (jnp.newaxis,) * extra_dims_required]
-
-        permutation: list[int] = []
-        next_extra_dim = num_input_dimensions
-        for output_dim in range(num_output_dimensions):
-            if output_dim in broadcast_dimensions:
-                input_dim = broadcast_dimensions.index(output_dim)
-                permutation.append(input_dim)
-            else:
-                permutation.append(next_extra_dim)
-                next_extra_dim += 1
-
-        return jax.lax.transpose(array, tuple(permutation))

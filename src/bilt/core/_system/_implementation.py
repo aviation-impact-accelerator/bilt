@@ -83,7 +83,7 @@ class Implementation:
 
             backend_callable = self._callable_cache.get(cache_key)
 
-            broadcast_plan = build_broadcast_plan(inputs, registry)
+            broadcast_plan = build_broadcast_plan(inputs)
 
             if backend_callable is None:
                 transform_dag = find_successful_case(

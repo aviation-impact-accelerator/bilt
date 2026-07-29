@@ -19,17 +19,17 @@ def test_two_1d_tensors_on_different_dimensions() -> None:
         a.observe(registry)
         b.observe(registry)
 
-        broadcast_plan = build_broadcast_plan({"a": a, "b": b}, registry)
+        broadcast_plan = build_broadcast_plan({"a": a, "b": b})
 
         assert broadcast_plan == BroadcastPlan(
             [
                 TensorPlan(
                     name="a",
-                    dimension_indices_in_output=(0,),
+                    input_to_output_dim_mapping=(0,),
                 ),
                 TensorPlan(
                     name="b",
-                    dimension_indices_in_output=(1,),
+                    input_to_output_dim_mapping=(1,),
                 ),
             ],
             output_domain=Domain(
@@ -60,17 +60,17 @@ def test_2d_and_1d_tensor_with_shared_dimension() -> None:
         a.observe(registry)
         b.observe(registry)
 
-        broadcast_plan = build_broadcast_plan({"a": a, "b": b}, registry)
+        broadcast_plan = build_broadcast_plan({"a": a, "b": b})
 
         assert broadcast_plan == BroadcastPlan(
             [
                 TensorPlan(
                     name="a",
-                    dimension_indices_in_output=(0, 1),
+                    input_to_output_dim_mapping=(0, 1),
                 ),
                 TensorPlan(
                     name="b",
-                    dimension_indices_in_output=(1,),
+                    input_to_output_dim_mapping=(1,),
                 ),
             ],
             output_domain=Domain(
@@ -108,17 +108,17 @@ def test_two_2d_tensors_with_overlapping_dimension() -> None:
         a.observe(registry)
         b.observe(registry)
 
-        broadcast_plan = build_broadcast_plan({"a": a, "b": b}, registry)
+        broadcast_plan = build_broadcast_plan({"a": a, "b": b})
 
         assert broadcast_plan == BroadcastPlan(
             [
                 TensorPlan(
                     name="a",
-                    dimension_indices_in_output=(0, 1),
+                    input_to_output_dim_mapping=(0, 1),
                 ),
                 TensorPlan(
                     name="b",
-                    dimension_indices_in_output=(1, 2),
+                    input_to_output_dim_mapping=(1, 2),
                 ),
             ],
             output_domain=Domain(
@@ -142,17 +142,17 @@ def test_two_1d_tensors_with_same_size_but_different_dimensions() -> None:
         a.observe(registry)
         b.observe(registry)
 
-        broadcast_plan = build_broadcast_plan({"a": a, "b": b}, registry)
+        broadcast_plan = build_broadcast_plan({"a": a, "b": b})
 
         assert broadcast_plan == BroadcastPlan(
             [
                 TensorPlan(
                     name="a",
-                    dimension_indices_in_output=(0,),
+                    input_to_output_dim_mapping=(0,),
                 ),
                 TensorPlan(
                     name="b",
-                    dimension_indices_in_output=(1,),
+                    input_to_output_dim_mapping=(1,),
                 ),
             ],
             output_domain=Domain(
@@ -176,17 +176,17 @@ def test_scalar_omitted_from_broadcast_plan() -> None:
         a.observe(registry)
         b.observe(registry)
 
-        broadcast_plan = build_broadcast_plan({"a": a, "b": b, "scale": scale}, registry)
+        broadcast_plan = build_broadcast_plan({"a": a, "b": b, "scale": scale})
 
         assert broadcast_plan == BroadcastPlan(
             [
                 TensorPlan(
                     name="a",
-                    dimension_indices_in_output=(0,),
+                    input_to_output_dim_mapping=(0,),
                 ),
                 TensorPlan(
                     name="b",
-                    dimension_indices_in_output=(1,),
+                    input_to_output_dim_mapping=(1,),
                 ),
             ],
             output_domain=Domain(
@@ -223,17 +223,17 @@ def test_two_2d_tensors_with_same_dimensions_with_different_size_but_one_transpo
         a.observe(registry)
         b.observe(registry)
 
-        broadcast_plan = build_broadcast_plan({"a": a, "b": b}, registry)
+        broadcast_plan = build_broadcast_plan({"a": a, "b": b})
 
         assert broadcast_plan == BroadcastPlan(
             [
                 TensorPlan(
                     name="a",
-                    dimension_indices_in_output=(0, 1),
+                    input_to_output_dim_mapping=(0, 1),
                 ),
                 TensorPlan(
                     name="b",
-                    dimension_indices_in_output=(1, 0),
+                    input_to_output_dim_mapping=(1, 0),
                 ),
             ],
             output_domain=Domain(
@@ -269,17 +269,17 @@ def test_two_2d_tensors_with_same_dimensions_with_same_size_but_one_transposed()
         a.observe(registry)
         b.observe(registry)
 
-        broadcast_plan = build_broadcast_plan({"a": a, "b": b}, registry)
+        broadcast_plan = build_broadcast_plan({"a": a, "b": b})
 
         assert broadcast_plan == BroadcastPlan(
             [
                 TensorPlan(
                     name="a",
-                    dimension_indices_in_output=(0, 1),
+                    input_to_output_dim_mapping=(0, 1),
                 ),
                 TensorPlan(
                     name="b",
-                    dimension_indices_in_output=(1, 0),
+                    input_to_output_dim_mapping=(1, 0),
                 ),
             ],
             output_domain=Domain(
@@ -331,22 +331,21 @@ def test_three_tensors() -> None:
                 "b": b,
                 "c": c,
             },
-            registry,
         )
 
         assert broadcast_plan == BroadcastPlan(
             [
                 TensorPlan(
                     name="a",
-                    dimension_indices_in_output=(0, 1),
+                    input_to_output_dim_mapping=(0, 1),
                 ),
                 TensorPlan(
                     name="b",
-                    dimension_indices_in_output=(1, 2),
+                    input_to_output_dim_mapping=(1, 2),
                 ),
                 TensorPlan(
                     name="c",
-                    dimension_indices_in_output=(2, 0),
+                    input_to_output_dim_mapping=(2, 0),
                 ),
             ],
             output_domain=Domain(
@@ -372,17 +371,17 @@ def test_separately_constructed_dimensions_with_same_name_align() -> None:
         a.observe(registry)
         b.observe(registry)
 
-        broadcast_plan = build_broadcast_plan({"a": a, "b": b}, registry)
+        broadcast_plan = build_broadcast_plan({"a": a, "b": b})
 
         assert broadcast_plan == BroadcastPlan(
             [
                 TensorPlan(
                     name="a",
-                    dimension_indices_in_output=(0,),
+                    input_to_output_dim_mapping=(0,),
                 ),
                 TensorPlan(
                     name="b",
-                    dimension_indices_in_output=(0,),
+                    input_to_output_dim_mapping=(0,),
                 ),
             ],
             output_domain=Domain((Dim("time"),)),
