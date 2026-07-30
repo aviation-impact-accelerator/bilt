@@ -42,10 +42,12 @@ class Implementation:
             output_value = cached.callable(**{k: inputs[k] for k in cached.parameters})
         else:
             structural_analysis_backend = get_current_structural_analysis_backend()
-            plan = structural_analysis_backend(tuple(self._components.values()), set(inputs.keys()), output, backend)
-            cached = backend.chain_case(plan)
-            self._callable_cache[cache_key] = cached
-            output_value = cached.callable(**{k: inputs[k] for k in cached.parameters})
+            planned_case = structural_analysis_backend(
+                tuple(self._components.values()), set(inputs.keys()), output, backend
+            )
+            final_callable = backend.chain_case(planned_case)
+            self._callable_cache[cache_key] = final_callable
+            output_value = final_callable.callable(**{k: inputs[k] for k in final_callable.parameters})
         return output_value
 
     def __enter__(self) -> typing.Self:
