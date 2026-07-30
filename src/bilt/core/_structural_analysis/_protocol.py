@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import typing
 
+from bilt.core._structural_analysis._exhaustive._backend import exhaustive_structural_backend
+
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
     from bilt._backend._case import BackendCase
@@ -16,3 +18,8 @@ class StructuralAnalysisBackend(typing.Protocol):
         output: str,
         concrete_backend: Backend,
     ) -> BackendCase: ...
+
+
+def get_current_structural_analysis_backend() -> StructuralAnalysisBackend:
+    """Get the current structural analysis backend."""
+    return exhaustive_structural_backend
