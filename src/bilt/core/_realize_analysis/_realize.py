@@ -35,22 +35,20 @@ def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | Realizat
 
 
 def _operation_to_callable(plan_step: PlanStep, backend: Backend) -> BackendCallable | RealizationFailure:
-    operation = plan_step.operation
-    output = plan_step.output
-    match operation:
-        case BasicTransform():
+    match plan_step.operation:
+        case BasicTransform() as transform:
             function_ast = typing.cast(
                 "ast.FunctionDef",
-                ast.parse(textwrap.dedent(inspect.getsource(operation._function))).body[0],  # noqa: SLF001
+                ast.parse(textwrap.dedent(inspect.getsource(transform._function))).body[0],  # noqa: SLF001
             )
             function_ast.decorator_list = [
                 d for d in function_ast.decorator_list if not (isinstance(d, ast.Name) and d.id == "transform")
             ]
             return backend.transpile(function_ast)
 
-        case BasicEquation():
+        case BasicEquation() as equation:
             try:
-                function_ast = equation_to_ast(operation, output)
+                function_ast = equation_to_ast(equation, plan_step.output)
                 return backend.transpile(function_ast)
             except IsolationError:
                 return RealizationFailure(failed_plan_step=plan_step)
@@ -58,7 +56,7 @@ def _operation_to_callable(plan_step: PlanStep, backend: Backend) -> BackendCall
             msg = "Interface evaluation is not yet implemented."
             raise NotImplementedError(msg)
         case _:
-            msg = f"Operation type {type(operation)} is not supported for evaluation."
+            msg = f"Operation type {type(plan_step.operation)} is not supported for evaluation."
             raise NotImplementedError(msg)
 
 
