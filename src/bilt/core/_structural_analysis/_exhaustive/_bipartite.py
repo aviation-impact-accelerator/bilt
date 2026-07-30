@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class BipartiteGraph:
-    def __init__(self, constituents: collections.abc.Collection[BiltModelConstituent]) -> None:
+    def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent]) -> None:
         self.graph = nx.DiGraph()
         for constituent in constituents:
             match constituent:
@@ -39,18 +39,12 @@ class BipartiteGraph:
                         for param2 in constituent.__bilt_parameters__:
                             if param2 != param:
                                 self.graph.add_edge(param2, equation_name)
-        if not self.is_bipartite():
-            msg = "The graph is not bipartite. Please check the constituents provided."
-            raise ValueError(msg)
-
-    def is_bipartite(self) -> bool:
-        return nx.is_bipartite(self.graph)
 
     def remove_failed_plan_step(
         self,
         plan_step: PlanStep,
     ) -> None:
-        """If an System or Equation is not able to be used in a certain direction, remove it from the graph."""
+        """If an System or Equation is found to be unable to be used in a certain direction after a realization, remove it from the graph."""
         self.graph.remove_node(plan_step.operation.__bilt_name__ + "_" + plan_step.output)
 
     def search(self, available: set[str], output: str, visited: list) -> list[PlanStep] | None:
