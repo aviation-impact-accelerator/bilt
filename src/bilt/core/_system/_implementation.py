@@ -3,7 +3,6 @@ __all__ = ["Implementation"]
 import types
 import typing
 
-from bilt.core._realize_analysis import realize_plan
 from bilt.core._structural_analysis._exhaustive import exhaustive_structural_backend
 
 if typing.TYPE_CHECKING:
@@ -42,8 +41,8 @@ class Implementation:
             cached = self._callable_cache[cache_key]
             output_value = cached.callable(**{k: inputs[k] for k in cached.parameters})
         else:
-            plan = exhaustive_structural_backend(tuple(self._components.values()), frozenset(inputs.keys()), output)
-            cached = backend.chain_case(realize_plan(plan, backend))
+            plan = exhaustive_structural_backend(tuple(self._components.values()), set(inputs.keys()), output, backend)
+            cached = backend.chain_case(plan)
             self._callable_cache[cache_key] = cached
             output_value = cached.callable(**{k: inputs[k] for k in cached.parameters})
         return output_value
