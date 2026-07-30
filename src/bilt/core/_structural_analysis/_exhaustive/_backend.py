@@ -25,11 +25,12 @@ def exhaustive_structural_backend(
         if steps is None:
             msg = f"Cannot compute {output} from available inputs {available}."
             raise BiltSystemEvaluationError(msg)
+
         realised_plan = realize_plan(
             AnalysisPlan(inputs=frozenset(available), output=output, steps=tuple(steps)), concrete_backend
         )
         match realised_plan:
-            case BackendCase():
-                return realised_plan
-            case RealizationFailure():
-                bipartite_graph.remove_failed_plan_step(realised_plan.failed_plan_step)
+            case BackendCase() as successful_plan:
+                return successful_plan
+            case RealizationFailure() as failure:
+                bipartite_graph.remove_failed_plan_step(failure.failed_plan_step)
