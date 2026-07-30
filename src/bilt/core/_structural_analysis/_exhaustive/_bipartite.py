@@ -69,7 +69,6 @@ class BipartiteGraph:
                 path.extend(step for step in sub_path if step not in path)
             path.append(
                 PlanStep(
-                    inputs=frozenset(predecessors),
                     operation=self.graph.nodes[output]["obj"],
                     output=self.graph.nodes[output]["target"],
                 )

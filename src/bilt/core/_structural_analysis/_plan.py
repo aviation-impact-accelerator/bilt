@@ -19,7 +19,6 @@ class PlanStep:
     We are only looking to determine if the path is valid through the system graph rather than if the steps can actually be performed.
     """
 
-    inputs: frozenset[str]
     operation: BiltModelConstituent
     output: str
 
