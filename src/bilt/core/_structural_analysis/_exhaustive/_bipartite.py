@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
     from bilt.core._model_constituent import BiltModelConstituent
 
-Attribute = str
+type Attribute = str
 
 
 class BipartiteGraph:
