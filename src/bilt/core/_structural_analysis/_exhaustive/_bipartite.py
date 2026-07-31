@@ -17,35 +17,60 @@ class BipartiteGraph:
     def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent]) -> None:
         self.graph = nx.DiGraph()
         for constituent in constituents:
-            match constituent:
-                case BasicTransform():
-                    transform_name = constituent.__bilt_name__ + "_transform"
-                    self.graph.add_node(
-                        transform_name, bipartite="constituent", obj=constituent, target=constituent.__bilt_name__
-                    )
-                    self.graph.add_node(constituent.__bilt_name__, bipartite="attribute")
-                    self.graph.add_edge(transform_name, constituent.__bilt_name__)
-                    for param in constituent.__bilt_parameters__:
-                        self.graph.add_node(param, bipartite="attribute")
-                        self.graph.add_edge(param, transform_name)
-                case BasicEquation():
-                    for param in constituent.__bilt_parameters__:
-                        self.graph.add_node(param, bipartite="attribute")
+            self._add_constituent(constituent)
 
-                    for param in constituent.__bilt_parameters__:
-                        equation_name = constituent.__bilt_name__ + "_" + param
-                        self.graph.add_node(equation_name, bipartite="constituent", obj=constituent, target=param)
-                        self.graph.add_edge(equation_name, param)
-                        for param2 in constituent.__bilt_parameters__:
-                            if param2 != param:
-                                self.graph.add_edge(param2, equation_name)
+    def _add_constituent(self, constituent: BiltModelConstituent) -> None:
+        """Add a new constituent to the graph."""
+        match constituent:
+            case BasicTransform() as transform:
+                self._add_transform(transform)
+            case BasicEquation() as equation:
+                self._add_equation(equation)
+            case _:
+                msg = f"Constituent type {type(constituent)} is not supported in the bipartite graph."
+                raise NotImplementedError(msg)
+
+    def _add_equation(self, equation: BasicEquation) -> None:
+        """Add a new equation to the graph."""
+        for param in equation.__bilt_parameters__:
+            self.graph.add_node(param, bipartite="attribute")
+
+        for param in equation.__bilt_parameters__:
+            equation_name = equation.__bilt_name__ + "_" + param
+            self.graph.add_node(equation_name, bipartite="constituent", obj=equation, target=param)
+            self.graph.add_edge(equation_name, param)
+            for param2 in equation.__bilt_parameters__:
+                if param2 != param:
+                    self.graph.add_edge(param2, equation_name)
+
+    def _add_transform(self, transform: BasicTransform) -> None:
+        """Add a new transform to the graph."""
+        transform_name = transform.__bilt_name__ + "_transform"
+        self.graph.add_node(transform_name, bipartite="constituent", obj=transform, target=transform.__bilt_name__)
+        self.graph.add_node(transform.__bilt_name__, bipartite="attribute")
+        self.graph.add_edge(transform_name, transform.__bilt_name__)
+        for param in transform.__bilt_parameters__:
+            self.graph.add_node(param, bipartite="attribute")
+            self.graph.add_edge(param, transform_name)
+
+    def _remove_equation(self, equation: BasicEquation, output: str) -> None:
+        """Remove an equation from the graph."""
+        self.graph.remove_node(equation.__bilt_name__ + "_" + output)
+
+    def _remove_transform(self, transform: BasicTransform) -> None:
+        """Remove a transform from the graph."""
+        self.graph.remove_node(transform.__bilt_name__ + "_transform")
 
     def remove_failed_plan_step(
         self,
         plan_step: PlanStep,
     ) -> None:
         """If an System or Equation is found to be unable to be used in a certain direction after a realization, remove it from the graph."""
-        self.graph.remove_node(plan_step.operation.__bilt_name__ + "_" + plan_step.output)
+        match plan_step.operation:
+            case BasicTransform() as transform:
+                self._remove_transform(transform)
+            case BasicEquation() as equation:
+                self._remove_equation(equation, plan_step.output)
 
     def search(self, available: set[str], output: str, visited: list) -> list[PlanStep] | None:
         """Perform a depth-first search to find a path from available inputs to the desired output."""
