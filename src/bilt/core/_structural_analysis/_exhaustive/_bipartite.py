@@ -1,3 +1,5 @@
+__all__ = ["BipartiteGraph"]
+import typing
 from typing import TYPE_CHECKING
 
 import networkx as nx
@@ -11,6 +13,8 @@ if TYPE_CHECKING:
     import collections.abc
 
     from bilt.core._model_constituent import BiltModelConstituent
+
+Attribute = str
 
 
 class BipartiteGraph:
@@ -36,43 +40,31 @@ class BipartiteGraph:
             self.graph.add_node(param, bipartite="attribute")
 
         for param in equation.__bilt_parameters__:
-            equation_name = equation.__bilt_name__ + "_" + param
-            self.graph.add_node(equation_name, bipartite="constituent", obj=equation, target=param)
-            self.graph.add_edge(equation_name, param)
+            plan_step = PlanStep(operation=equation, output=param)
+            self.graph.add_node(plan_step, bipartite="constituent")
+            self.graph.add_edge(plan_step, param)
             for param2 in equation.__bilt_parameters__:
                 if param2 != param:
-                    self.graph.add_edge(param2, equation_name)
+                    self.graph.add_edge(param2, plan_step)
 
     def _add_transform(self, transform: BasicTransform) -> None:
         """Add a new transform to the graph."""
-        transform_name = transform.__bilt_name__ + "_transform"
-        self.graph.add_node(transform_name, bipartite="constituent", obj=transform, target=transform.__bilt_name__)
+        plan_step = PlanStep(operation=transform, output=transform.__bilt_name__)
+        self.graph.add_node(plan_step, bipartite="constituent")
         self.graph.add_node(transform.__bilt_name__, bipartite="attribute")
-        self.graph.add_edge(transform_name, transform.__bilt_name__)
+        self.graph.add_edge(plan_step, transform.__bilt_name__)
         for param in transform.__bilt_parameters__:
             self.graph.add_node(param, bipartite="attribute")
-            self.graph.add_edge(param, transform_name)
-
-    def _remove_equation(self, equation: BasicEquation, output: str) -> None:
-        """Remove an equation from the graph."""
-        self.graph.remove_node(equation.__bilt_name__ + "_" + output)
-
-    def _remove_transform(self, transform: BasicTransform) -> None:
-        """Remove a transform from the graph."""
-        self.graph.remove_node(transform.__bilt_name__ + "_transform")
+            self.graph.add_edge(param, plan_step)
 
     def remove_failed_plan_step(
         self,
         plan_step: PlanStep,
     ) -> None:
         """If an System or Equation is found to be unable to be used in a certain direction after a realization, remove it from the graph."""
-        match plan_step.operation:
-            case BasicTransform() as transform:
-                self._remove_transform(transform)
-            case BasicEquation() as equation:
-                self._remove_equation(equation, plan_step.output)
+        self.graph.remove_node(plan_step)
 
-    def search(self, available: set[str], output: str, visited: list) -> list[PlanStep] | None:
+    def search(self, available: set[str], output: Attribute | PlanStep, visited: list) -> list[PlanStep] | None:
         """Perform a depth-first search to find a path from available inputs to the desired output."""
         if output not in self.graph:
             msg = f"Output {output} is not in the graph. Please check the constituents provided."
@@ -92,12 +84,7 @@ class BipartiteGraph:
                 if sub_path is None:
                     return None
                 path.extend(step for step in sub_path if step not in path)
-            path.append(
-                PlanStep(
-                    operation=self.graph.nodes[output]["obj"],
-                    output=self.graph.nodes[output]["target"],
-                )
-            )
+            path.append(typing.cast("PlanStep", output))
             return path
 
         for neighbor in predecessors:
