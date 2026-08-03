@@ -4,7 +4,7 @@ import typing
 
 from bilt._backend import Backend, BackendCase
 from bilt.core._realize_analysis._realize import RealizationFailure, realize_plan
-from bilt.core._structural_analysis._errors import BiltSystemEvaluationError
+from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
 from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
 from bilt.core._structural_analysis._plan import AnalysisPlan
 
@@ -24,7 +24,7 @@ def exhaustive_structural_backend(
         steps = bipartite_graph.search(available, output, [])
         if steps is None:
             msg = f"Cannot compute {output} from available inputs {available}."
-            raise BiltSystemEvaluationError(msg)
+            raise BiltSystemAnalysisError(msg)
 
         realised_plan = realize_plan(
             AnalysisPlan(inputs=frozenset(available), output=output, steps=tuple(steps)), concrete_backend
