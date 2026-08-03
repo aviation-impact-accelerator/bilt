@@ -3,11 +3,7 @@ import typing
 
 from bilt.units._category import UnitCategory
 from bilt.units._conversion import convert_quantity_value
-from bilt.units._validation import (
-    validate_addition,
-    validate_cast,
-    validate_comparison,
-)
+from bilt.units._validation import validate_addition, validate_cast, validate_comparison
 
 if typing.TYPE_CHECKING:
     from bilt.units._units import Unit
@@ -75,10 +71,7 @@ class Quantity:
 
     def __mul__(self, other: Quantity | float) -> typing.Self:
         if isinstance(other, self.__class__):
-            return self.__class__(
-                self.value * other.value,
-                self.unit * other.unit,
-            )
+            return self.__class__(self.value * other.value, self.unit * other.unit)
         if isinstance(other, float):
             return self.__class__(self.value * other, self.unit)
         return NotImplemented
@@ -90,10 +83,7 @@ class Quantity:
 
     def __truediv__(self, other: Quantity | float) -> typing.Self:
         if isinstance(other, self.__class__):
-            return self.__class__(
-                self.value / other.value,
-                self.unit / other.unit,
-            )
+            return self.__class__(self.value / other.value, self.unit / other.unit)
         if isinstance(other, float):
             return self.__class__(self.value / other, self.unit)
         return NotImplemented
@@ -106,20 +96,11 @@ class Quantity:
     def __pow__(self, other: float | Quantity) -> typing.Self:
         match other:
             case int():
-                return self.__class__(
-                    self.value**other,
-                    self.unit**other,
-                )
+                return self.__class__(self.value**other, self.unit**other)
             case float() if self.unit.is_dimensionless:
-                return self.__class__(
-                    self.value**other,
-                    self.unit,
-                )
+                return self.__class__(self.value**other, self.unit)
             case Quantity() if self.unit.is_dimensionless and self.unit.relation.scale == 1.0:
-                return self.__class__(
-                    self.value**other.value,
-                    self.unit,
-                )
+                return self.__class__(self.value**other.value, self.unit)
         return NotImplemented
 
     def __rpow__(self, other: float) -> typing.Self:
@@ -128,15 +109,12 @@ class Quantity:
         return NotImplemented
 
     def __round__(self, ndigits: int | None = None) -> typing.Self:
-        return self.__class__(
-            round(self.value, ndigits=ndigits),
-            self.unit,
-        )
+        return self.__class__(round(self.value, ndigits=ndigits), self.unit)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return NotImplemented
-        return self.value == other.value and self.unit == other.unit
+        return (self.value == other.value) and (self.unit == other.unit)
 
     def __lt__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
