@@ -8,7 +8,7 @@ import typing
 
 from bilt._backend._case import BackendCase
 from bilt.core._equation import BasicEquation
-from bilt.core._system._interface import Interface
+from bilt.core._interface import Interface
 from bilt.core._transform import BasicTransform
 from bilt.symbolic._isolation._errors import IsolationError
 from bilt.symbolic._isolation._isolate import equation_to_ast

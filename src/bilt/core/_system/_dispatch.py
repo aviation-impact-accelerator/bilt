@@ -9,9 +9,10 @@ from ._error import BiltUnknownSystemAttributeError
 from ._sentinel import MISSING, _Missing
 
 if typing.TYPE_CHECKING:
+    from bilt.core._interface import Interface
+
     from ._decorator import Attribute
     from ._instance import SystemInstance
-    from ._interface import Interface
 
 
 def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -> T:

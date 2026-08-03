@@ -12,12 +12,8 @@ __all__ = [
     "transform",
 ]
 
-from ._error import BiltCoreError  # noqa: I001
-from ._system import BiltSystemDefinitionError
+from ._error import BiltCoreError
+from ._interface import Interface
 from ._structural_analysis import BiltSystemAnalysisError
-from ._system import BiltUnknownSystemAttributeError
-from ._system import Implementation
-from ._system import Interface
-from ._system import field
-from ._system import system
+from ._system import BiltSystemDefinitionError, BiltUnknownSystemAttributeError, Implementation, field, system
 from ._transform import transform
