@@ -9,11 +9,12 @@ from bilt.symbolic._domains import domain
 
 def test_scalar_tensor() -> None:
     result = tensor(2.0)
+    expected = 2.0
 
     assert result.domain.is_scalar
     assert result.shape == ()
     assert result.ndim == 0
-    assert result.values == 2.0
+    assert result.values == expected
 
 
 def test_tensor_over_dimension() -> None:
