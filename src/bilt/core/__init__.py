@@ -12,8 +12,8 @@ __all__ = [
     "transform",
 ]
 
-from ._error import BiltCoreError
-from ._interface import Interface
-from ._structural_analysis import BiltSystemAnalysisError
-from ._system import BiltSystemDefinitionError, BiltUnknownSystemAttributeError, Implementation, field, system
-from ._transform import transform
+from bilt.core._error import BiltCoreError
+from bilt.core._interface import Interface
+from bilt.core._structural_analysis import BiltSystemAnalysisError
+from bilt.core._system import BiltSystemDefinitionError, BiltUnknownSystemAttributeError, Implementation, field, system
+from bilt.core._transform import transform
