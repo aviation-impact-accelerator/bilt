@@ -28,6 +28,23 @@ def validate_addition(
         if left.unit.category is UnitCategory.ABSOLUTE and right.unit.category is UnitCategory.ABSOLUTE:
             message = f"Cannot add two quantities with absolute units of {left.unit!s} and {right.unit!s}"
             raise UnitError(message)
+        if left.unit.dimension != right.unit.dimension:
+            message = (
+                f"Cannot add quantity {left!s} with unit {left.unit!s} and "
+                f"dimensionality {left.unit.dimension!s} to quantity "
+                f"{right!s} with unit {right.unit!s} and "
+                f"{right.unit.dimension!s} as they are dimensionally "
+                f"inconsistent"
+            )
+            raise DimensionalityError(message)
+        if left.unit.metadata != right.unit.metadata:
+            message = (
+                f"Cannot add quantity {left!s} with unit {left.unit!s} and "
+                f"metadata {left.unit.metadata!s} to quantity {right!s} with "
+                f"unit {right.unit!s} and metadata {right.unit.metadata!s} "
+                f"because the units do not have consistent metadata"
+            )
+            raise UnitError(message)
     elif left.unit is not right.unit:
         if left.unit.dimension != right.unit.dimension:
             message = (
