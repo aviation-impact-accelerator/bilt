@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import typing
 
 from bilt.symbolic._atoms import (
