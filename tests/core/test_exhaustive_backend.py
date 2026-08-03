@@ -2,8 +2,8 @@ import typing
 
 from bilt._backend._python._backend import PythonBackend
 from bilt.core import transform
+from bilt.core._structural_analysis import StructuralAnalysisBackend
 from bilt.core._structural_analysis._exhaustive import exhaustive_structural_backend
-from bilt.core._structural_analysis._protocol import StructuralAnalysisBackend
 
 
 def test_exhaustive_backend_is_a_structural_analysis_backend() -> None:

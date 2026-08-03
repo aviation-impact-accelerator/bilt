@@ -1,6 +1,5 @@
 __all__ = [
     "BiltSystemDefinitionError",
-    "BiltSystemEvaluationError",
     "BiltUnknownSystemAttributeError",
     "Implementation",
     "Interface",
@@ -8,7 +7,6 @@ __all__ = [
     "system",
 ]
 
-from bilt.core._structural_analysis import BiltSystemEvaluationError as BiltSystemEvaluationError
 from bilt.core._system._decorator import system as system
 from bilt.core._system._error import BiltSystemDefinitionError as BiltSystemDefinitionError
 from bilt.core._system._error import BiltUnknownSystemAttributeError as BiltUnknownSystemAttributeError

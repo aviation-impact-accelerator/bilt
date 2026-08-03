@@ -1,5 +1,7 @@
+__all__ = ["BiltSystemAnalysisError"]
+
 from bilt.core._error import BiltCoreError
 
 
-class BiltSystemEvaluationError(BiltCoreError):
+class BiltSystemAnalysisError(BiltCoreError):
     pass
