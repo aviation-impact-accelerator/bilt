@@ -9,9 +9,8 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt._backend import Backend, BackendCallable
+    from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
-
-    from ._interface import Interface
 
 
 class Implementation:
