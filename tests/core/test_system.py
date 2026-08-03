@@ -231,7 +231,7 @@ def test_evaluation_of_attribute_with_no_path_raises_system_evaluation_error() -
     def d(a: float, b: float) -> float:
         return a + b
 
-    basic = Implementation(Demo, [])
+    basic = Implementation(Demo, [d])
     a = 1.0
     b = 2.0
     demo = Demo(a=a, b=b)
