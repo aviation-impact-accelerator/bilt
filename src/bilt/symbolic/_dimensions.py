@@ -1,12 +1,24 @@
-__all__ = ["CoordinateAxis", "Dim", "coordinate_axis", "dim"]
+__all__ = [
+    "Coordinate",
+    "CoordinateAxis",
+    "Dim",
+    "coordinate_axis",
+    "dim",
+]
 
 import dataclasses
+import datetime
 import typing
 
+if typing.TYPE_CHECKING:
+    import collections.abc
 
-@dataclasses.dataclass(frozen=True, slots=True, eq=False)
+type Coordinate = str | int | float | datetime.date | datetime.datetime
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class Dim:
-    """A symbolic axis identified by its declaration."""
+    """A named symbolic tensor dimension."""
 
     name: str
 
@@ -16,25 +28,25 @@ class Dim:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class CoordinateAxis:
-    """Concrete coordinates associated with a symbolic dimension."""
+    """Ordered coordinates associated with a symbolic dimension."""
 
     dimension: Dim
-    coordinates: tuple[object, ...]
+    coordinates: tuple[Coordinate, ...]
 
     def __len__(self) -> int:
         return len(self.coordinates)
 
 
 def dim(name: str) -> Dim:
-    """Create a symbolic dimension."""
+    """Create a named symbolic dimension."""
     return Dim(name)
 
 
 def coordinate_axis(
     dimension: Dim,
-    coordinates: typing.Iterable[object],
+    coordinates: collections.abc.Iterable[Coordinate],
 ) -> CoordinateAxis:
-    """Associate concrete coordinates with a dimension."""
+    """Associate ordered coordinate values with a dimension."""
     return CoordinateAxis(
         dimension=dimension,
         coordinates=tuple(coordinates),
