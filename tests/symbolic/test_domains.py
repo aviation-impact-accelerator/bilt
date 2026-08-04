@@ -43,10 +43,12 @@ def test_domain_rejects_repeated_dimension() -> None:
         domain(time, time)
 
 
-def test_same_name_dimensions_remain_distinct() -> None:
+def test_domain_rejects_dimensions_with_same_name() -> None:
     first_time = dim("time")
     second_time = dim("time")
 
-    result = domain(first_time, second_time)
-
-    assert result.dims == (first_time, second_time)
+    with pytest.raises(
+        ValueError,
+        match="cannot contain the same dimension more than once",
+    ):
+        domain(first_time, second_time)
