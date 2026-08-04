@@ -4,25 +4,19 @@ from bilt.units._category import UnitCategory
 from bilt.units._errors import DimensionalityError, UnitError
 
 if typing.TYPE_CHECKING:
+    from bilt.units._conversion import QuantityLike
     from bilt.units._units import Unit
 
 
-class _QuantityLike(typing.Protocol):
-    @property
-    def unit(self) -> Unit: ...
-
-    def __str__(self) -> str: ...
-
-
-def validate_cast(quantity: _QuantityLike, unit: Unit) -> None:
+def validate_cast(quantity: QuantityLike, unit: Unit) -> None:
     if (quantity.unit != unit) and (quantity.unit.strip_metadata() != unit.strip_metadata()):
         message = f"Cannot cast quantity {quantity!s} to unit {unit!s} as the two units are not equivalent"
         raise UnitError(message)
 
 
 def validate_addition(
-    left: _QuantityLike,
-    right: _QuantityLike,
+    left: QuantityLike,
+    right: QuantityLike,
 ) -> None:
     if left.unit.category is UnitCategory.ABSOLUTE or right.unit.category is UnitCategory.ABSOLUTE:
         if left.unit.category is UnitCategory.ABSOLUTE and right.unit.category is UnitCategory.ABSOLUTE:
@@ -81,8 +75,8 @@ def validate_addition(
 
 
 def validate_comparison(
-    left: _QuantityLike,
-    right: _QuantityLike,
+    left: QuantityLike,
+    right: QuantityLike,
 ) -> None:
     if left.unit != right.unit:
         message = (

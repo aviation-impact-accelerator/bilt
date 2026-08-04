@@ -7,7 +7,7 @@ if typing.TYPE_CHECKING:
     from bilt.units._units import Unit
 
 
-class _QuantityLike(typing.Protocol):
+class QuantityLike(typing.Protocol):
     @property
     def value(self) -> float: ...
 
@@ -67,7 +67,7 @@ def _find_common_unit_index(
 
 
 def _convert_absolute_quantity_value(
-    quantity: _QuantityLike,
+    quantity: QuantityLike,
     unit: Unit,
 ) -> float | None:
     if quantity.unit is unit:
@@ -110,7 +110,7 @@ def _convert_absolute_quantity_value(
 
 
 def _convert_relative_quantity_value(
-    quantity: _QuantityLike,
+    quantity: QuantityLike,
     unit: Unit,
 ) -> float:
     _validate_matching_dimensions(quantity.unit, unit)
@@ -129,7 +129,7 @@ def _convert_relative_quantity_value(
 
 
 def _raise_relative_to_absolute_error(
-    quantity: _QuantityLike,
+    quantity: QuantityLike,
     unit: Unit,
 ) -> typing.Never:
     message = (
@@ -141,7 +141,7 @@ def _raise_relative_to_absolute_error(
 
 
 def _raise_absolute_to_relative_error(
-    quantity: _QuantityLike,
+    quantity: QuantityLike,
     unit: Unit,
 ) -> typing.Never:
     message = (
@@ -153,7 +153,7 @@ def _raise_absolute_to_relative_error(
 
 
 def convert_quantity_value(
-    quantity: _QuantityLike,
+    quantity: QuantityLike,
     unit: Unit,
 ) -> float | None:
     """Return the converted value.
