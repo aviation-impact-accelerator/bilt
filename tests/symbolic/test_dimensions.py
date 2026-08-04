@@ -27,4 +27,5 @@ def test_coordinate_axis_binds_coordinates_to_dimension() -> None:
 
     assert axis.dimension is time
     assert axis.coordinates == coordinates
-    assert len(axis) == 3
+    length = 3
+    assert len(axis) == length
