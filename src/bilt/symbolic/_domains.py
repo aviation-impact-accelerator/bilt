@@ -1,6 +1,4 @@
 __all__ = [
-    "Domain",
-    "DomainLike",
     "as_domain",
     "domain",
 ]
