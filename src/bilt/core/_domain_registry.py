@@ -7,8 +7,12 @@ import typing
 
 import numpy as np
 
+from bilt.symbolic._dimensions import CoordinateAxis
+
 if typing.TYPE_CHECKING:
-    from bilt.symbolic._dimensions import CoordinateAxis, Dim
+    import collections.abc
+
+    from bilt.symbolic._dimensions import Dim
     from bilt.symbolic._domains import Domain
 
 
@@ -16,6 +20,7 @@ class DomainRegistryError(ValueError):
     """Raised when dimensions have conflicting evaluation bindings."""
 
 
+@typing.runtime_checkable
 class _DomainValue(typing.Protocol):
     """A concrete value associated with a domain."""
 
@@ -35,6 +40,21 @@ class DomainRegistry:
 
     def __init__(self) -> None:
         self._bindings: dict[Dim, int | CoordinateAxis] = {}
+
+    def bind(self, value: object) -> None:
+        """Bind any domain information exposed by a value."""
+        if isinstance(value, CoordinateAxis):
+            self.bind_axis(value)
+        elif isinstance(value, _DomainValue):
+            self.bind_value(value)
+
+    def bind_all(
+        self,
+        values: collections.abc.Iterable[object],
+    ) -> None:
+        """Bind domain information from multiple values."""
+        for value in values:
+            self.bind(value)
 
     def bind_value(self, value: _DomainValue) -> None:
         """Bind the dimensions discovered from a concrete value."""

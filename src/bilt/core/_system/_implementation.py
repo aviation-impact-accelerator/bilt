@@ -4,6 +4,7 @@ import dataclasses
 import types
 import typing
 
+from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._protocol import (
     get_current_structural_analysis_backend,
 )
@@ -52,17 +53,23 @@ class Implementation:
         output: str,
         backend: Backend,
     ) -> object:
-        if output in inputs:
-            return inputs[output]
+        with EvaluationContext() as evaluation:
+            evaluation.domains.bind_all(inputs.values())
 
-        request = _EvaluationRequest(
-            output=output,
-            available=frozenset(inputs),
-        )
+            if output in inputs:
+                output_value = inputs[output]
+            else:
+                request = _EvaluationRequest(
+                    output=output,
+                    available=frozenset(inputs),
+                )
 
-        evaluation = self._get_evaluation(request, backend)
+                backend_callable = self._get_evaluation(request, backend)
+                output_value = backend_callable.evaluate(inputs)
 
-        return evaluation.evaluate(inputs)
+            evaluation.domains.bind(output_value)
+
+        return output_value
 
     def _get_evaluation(
         self,
