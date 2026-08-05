@@ -117,12 +117,8 @@ def _operation_result_domain(
     parameter_domains: tuple[Domain, ...],
 ) -> Domain:
     match step.operation:
-        case BasicTransform():
+        case BasicTransform() | BasicEquation():
             return _broadcast_domains(parameter_domains)
-
-        case BasicEquation():
-            message = "Equation domain analysis is not yet implemented."
-            raise NotImplementedError(message)
 
         case Interface():
             message = "Interface domain analysis is not yet implemented."
