@@ -8,7 +8,7 @@ from bilt.core._tensors._tensors import tensor
 from bilt.symbolic._dimensions import coordinate_axis, dim
 
 
-def test_registry_binds_dimensions_from_tensor() -> None:
+def test_registry_binds_domain_values() -> None:
     location = dim("location")
     time = dim("time")
 
@@ -21,10 +21,11 @@ def test_registry_binds_dimensions_from_tensor() -> None:
     )
 
     registry = DomainRegistry()
-    registry.bind_value(value)
+    registry.bind_all((1.0, value))
 
     size_location = 2
     size_time = 3
+
     assert registry.size(location) == size_location
     assert registry.size(time) == size_time
 
@@ -34,13 +35,13 @@ def test_registry_rejects_inconsistent_dimension_sizes() -> None:
     second_time = dim("time")
 
     registry = DomainRegistry()
-    registry.bind_value(tensor([1.0, 2.0], over=first_time))
+    registry.bind(tensor([1.0, 2.0], over=first_time))
 
     with pytest.raises(
         DomainRegistryError,
         match="inconsistent sizes",
     ):
-        registry.bind_value(
+        registry.bind(
             tensor([1.0, 2.0, 3.0], over=second_time),
         )
 
@@ -53,7 +54,7 @@ def test_registry_binds_coordinate_axis() -> None:
     )
 
     registry = DomainRegistry()
-    registry.bind_axis(axis)
+    registry.bind(axis)
 
     size_location = 2
     position_location = 1
@@ -67,7 +68,7 @@ def test_registry_rejects_conflicting_coordinates() -> None:
     location = dim("location")
 
     registry = DomainRegistry()
-    registry.bind_axis(
+    registry.bind(
         coordinate_axis(
             location,
             ("London", "Manchester"),
@@ -78,7 +79,7 @@ def test_registry_rejects_conflicting_coordinates() -> None:
         DomainRegistryError,
         match="conflicting coordinate definitions",
     ):
-        registry.bind_axis(
+        registry.bind(
             coordinate_axis(
                 location,
                 ("London", "Birmingham"),
