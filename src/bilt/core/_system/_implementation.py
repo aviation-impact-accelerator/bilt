@@ -3,6 +3,7 @@ __all__ = ["Implementation"]
 import types
 import typing
 
+from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._protocol import get_current_structural_analysis_backend
 
 if typing.TYPE_CHECKING:
@@ -33,20 +34,26 @@ class Implementation:
         return self._system
 
     def evaluate(self, inputs: dict[str, object], output: str, backend: Backend) -> object:
-        cache_key = (output, frozenset(inputs.keys()), backend)
-        if output in inputs:
-            output_value = inputs[output]
-        elif self._callable_cache.get(cache_key):
-            cached = self._callable_cache[cache_key]
-            output_value = cached.callable(**{k: inputs[k] for k in cached.parameters})
-        else:
-            structural_analysis_backend = get_current_structural_analysis_backend()
-            planned_case = structural_analysis_backend(
-                tuple(self._components.values()), set(inputs.keys()), output, backend
-            )
-            final_callable = backend.chain_case(planned_case)
-            self._callable_cache[cache_key] = final_callable
-            output_value = final_callable.callable(**{k: inputs[k] for k in final_callable.parameters})
+        with EvaluationContext() as evaluation:
+            evaluation.domains.bind_all(inputs.values())
+
+            cache_key = (output, frozenset(inputs.keys()), backend)
+            if output in inputs:
+                output_value = inputs[output]
+            elif self._callable_cache.get(cache_key):
+                cached = self._callable_cache[cache_key]
+                output_value = cached.callable(**{k: inputs[k] for k in cached.parameters})
+            else:
+                structural_analysis_backend = get_current_structural_analysis_backend()
+                planned_case = structural_analysis_backend(
+                    tuple(self._components.values()), set(inputs.keys()), output, backend
+                )
+                final_callable = backend.chain_case(planned_case)
+                self._callable_cache[cache_key] = final_callable
+                output_value = final_callable.callable(**{k: inputs[k] for k in final_callable.parameters})
+
+            evaluation.domains.bind(output_value)
+
         return output_value
 
     def __enter__(self) -> typing.Self:
