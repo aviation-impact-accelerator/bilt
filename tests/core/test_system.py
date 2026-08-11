@@ -1,3 +1,4 @@
+import contextlib
 from typing import TYPE_CHECKING
 
 import pytest
@@ -17,6 +18,8 @@ from bilt.core import (
 from bilt.core._equation import equation
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from bilt._backend._base_backend import Backend
 
 
@@ -394,31 +397,20 @@ def test_evaluation_with_multiple_equations_many_directions(
         assert getattr(instance, output) == expected
 
 
-def test_repeated_evaluation_without_backend_context_reuses_one_cache_entry() -> None:
-    @system
-    class Demo(metaclass=Interface):
-        a: float = field()
-        b: float = field()
-        c: float = field()
+@pytest.mark.parametrize(
+    ("backend_context"),
+    (
+        contextlib.nullcontext,
+        PythonBackend,
+    ),
+)
+def test_repeated_evaluation_reuses_one_cache_entry(
+    backend_context: Callable[[], contextlib.AbstractContextManager[object]],
+) -> None:
+    """Repeated evaluation collapses to one cache entry, with or without an explicit backend context.
 
-    @transform
-    def c(a: float, b: float) -> float:
-        return a + b
-
-    implementation = Implementation(Demo, [c])
-
-    with implementation:
-        for value in range(20):
-            assert Demo(a=float(value), b=2.0).c == value + 2.0
-
-    assert len(implementation._callable_cache) == 1  # noqa: SLF001
-
-
-def test_repeated_evaluation_with_fresh_backend_contexts_reuses_one_cache_entry() -> None:
-    """Cache should reuse entries even when entering fresh backend contexts on each iteration.
-
-    This validates that Backend value semantics (equality and hashing) work correctly
-    so that freshly-constructed backends that are equivalent still hit the same cache entry.
+    Backend value semantics (equality and hashing) mean equivalent backends - including ones
+    freshly constructed on every iteration - still key the same cache entry.
     """
 
     @system
@@ -435,7 +427,7 @@ def test_repeated_evaluation_with_fresh_backend_contexts_reuses_one_cache_entry(
 
     with implementation:
         for value in range(20):
-            with PythonBackend():
+            with backend_context():
                 assert Demo(a=float(value), b=2.0).c == value + 2.0
 
     assert len(implementation._callable_cache) == 1  # noqa: SLF001

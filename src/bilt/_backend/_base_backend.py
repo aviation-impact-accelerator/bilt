@@ -57,15 +57,17 @@ class Backend(abc.ABC):
         """Execute the compiled function with the provided keyword arguments."""
 
     def _identity(self) -> tuple[collections.abc.Hashable, ...]:
-        """Define when two backend instances are interchangeable for cache keying.."""
-        return (type(self),)
+        """Define when two backend instances are interchangeable for cache keying.
+
+        Subclasses carrying further configuration must extend this, or instances differing
+        only in that configuration will collapse to the same cache entry.
+        """
+        return (type(self), type(self.ast_transformer))
 
     def __eq__(self, other: object) -> bool:
-        """Compare two backend instances for equality based on their identity."""
         if not isinstance(other, Backend):
             return NotImplemented
         return self._identity() == other._identity()
 
     def __hash__(self) -> int:
-        """Return hash of this backend instance's identity."""
         return hash(self._identity())

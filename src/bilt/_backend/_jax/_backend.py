@@ -8,9 +8,6 @@ from bilt._backend import Backend, BackendCallable, BackendCase
 from bilt._backend._jax._ast import JAXASTTransformer
 from bilt._backend._jax._supports import _validate
 
-if typing.TYPE_CHECKING:
-    import collections.abc
-
 
 class JAXBackend(Backend):
     """JAX backend implementation of the Bilt backend interface."""
@@ -18,10 +15,6 @@ class JAXBackend(Backend):
     def __init__(self, ast_transformer: ast.NodeTransformer = JAXASTTransformer()) -> None:  # noqa: B008
         self.ast_transformer = ast_transformer
         self.compilation_namespace = {"jnp": jnp, "jax.jit": jax.jit, "__builtins__": __builtins__}
-
-    def _identity(self) -> tuple[collections.abc.Hashable, ...]:
-        """Define identity including the transformer type for cache keying."""
-        return (*super()._identity(), type(self.ast_transformer))
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Compile a single transform AST into a callable function."""
