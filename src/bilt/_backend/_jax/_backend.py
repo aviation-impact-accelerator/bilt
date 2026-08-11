@@ -8,7 +8,7 @@ from bilt._backend import Backend, BackendCallable, BackendCase
 from bilt._backend._callable import CallableType
 from bilt._backend._jax._ast import JAXASTTransformer
 from bilt._backend._jax._supports import _validate
-from bilt.core._tensors._tensor_analysis import DomainedVar, add_dimensions, derive_reshape_slices, identify_extra_dims, is_scalar_reshape, is_unchanged_reshape, make_slice_ast, union
+from bilt.core._tensors._tensor_analysis import DomainedVar, add_dimensions, canonicalised, derive_reshape_slices, identify_extra_dims, is_scalar_reshape, is_unchanged_reshape, make_slice_ast, union
 from bilt.symbolic._domains import Domain
 
 
@@ -56,17 +56,14 @@ class JAXBackend(Backend):
                 for param in callable.parameters.values()
             }
 
-            union_input_domain = union(*[vars_to_use[name].domain for name in callable.parameters.keys()])
-            extra_dimensions = identify_extra_dims(union_input_domain, callable.union_domain)
-
-            target_param_domains: dict[str, Domain] = {
-                param.name: add_dimensions(param.domain, extra_dimensions)
-                for param in callable.parameters.values()
-            }
+            union_input_domain = canonicalised(union(*[vars_to_use[name].domain for name in callable.parameters.keys()]))
+            union_callable_domain = callable.union_domain
+            extra_dimensions = identify_extra_dims(union_input_domain, union_callable_domain)
+            union_domain = canonicalised(union(union_input_domain, union_callable_domain))
 
             # Now we've traced through extra dimensions within this scope up to this point, update our understanding
             # of the domains of the variable assigned the output of this callable.
-            actual_output_domain = add_dimensions(callable.return_domain, extra_dimensions)
+            actual_output_domain = union_domain  # Assuming no reduction
             vars[callable.name + "_"] = DomainedVar(callable.name + "_", actual_output_domain)
 
             call_args: list[ast.expr] = []
@@ -75,7 +72,7 @@ class JAXBackend(Backend):
                 source_var = vars_to_use[param.name]
                 source_name = source_var.name
                 source_domain = source_var.domain
-                target_domain = target_param_domains[param.name]
+                target_domain = union_domain
                 reshape_slices = derive_reshape_slices(source_domain, target_domain)
 
                 if is_unchanged_reshape(reshape_slices) or is_scalar_reshape(reshape_slices):

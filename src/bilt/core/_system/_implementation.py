@@ -91,7 +91,7 @@ class Implementation:
                 if any_tensor_inputs:
                     output_value = tensor(
                         output_value,
-                        over=planned_case.returns.domain.dims + extra_dims
+                        over=canonicalised(Domain(planned_case.returns.domain.dims + extra_dims)).dims
                     )
                 else:
                     output_value = output_value.item()
