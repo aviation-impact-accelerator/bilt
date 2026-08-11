@@ -1,6 +1,6 @@
 from bilt.symbolic._atoms import symbol
 from bilt.symbolic._tree import Tree, symbol_tree
-from bilt.symbolic._walk import contains
+from bilt.symbolic._walk import contains, subtrees
 
 
 def test_contains_leaf_self() -> None:
@@ -107,3 +107,29 @@ def test_contains_similar_but_different_subtree() -> None:
     expr = Tree(add, (neg_x,))
 
     assert not contains(expr, neg_y)
+
+
+def test_subtrees_returns_root_and_every_nested_node() -> None:
+    add = symbol("+")
+    mul = symbol("*")
+
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+    z = symbol_tree("z")
+
+    product = Tree(mul, (y, z))
+    expr = Tree(add, (x, product))
+
+    assert subtrees(expr) == {expr, x, product, y, z}
+
+
+def test_subtrees_collapses_shared_subtree() -> None:
+    add = symbol("+")
+    neg = symbol("neg")
+
+    x = symbol_tree("x")
+    shared = Tree(neg, (x,))
+    expr = Tree(add, (shared, shared))
+
+    assert subtrees(expr) == {expr, shared, x}
+    assert all(contains(expr, node) for node in subtrees(expr))
