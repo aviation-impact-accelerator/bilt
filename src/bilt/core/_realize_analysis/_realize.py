@@ -14,8 +14,8 @@ import typing
 
 from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
-from bilt._port import DOTTED_SEPARATOR
 from bilt.core._equation import BasicEquation
+from bilt.core._port import DOTTED_SEPARATOR
 from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform

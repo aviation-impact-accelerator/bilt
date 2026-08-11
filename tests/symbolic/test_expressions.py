@@ -224,7 +224,7 @@ def test_expr_cannot_be_used_as_bool() -> None:
 
 def test_subsystem_expr_port_access_returns_leaf_symbol() -> None:
     """SubSystemExpr port access returns a flat leaf symbol with compound name."""
-    resistor = SubSystemExpr("resistor", ("v", "i", "r"))
+    resistor = SubSystemExpr("resistor", {"v": "resistor.v", "i": "resistor.i", "r": "resistor.r"})
     v_expr = resistor.v
 
     assert isinstance(v_expr, Expr)
@@ -236,7 +236,7 @@ def test_subsystem_expr_port_access_returns_leaf_symbol() -> None:
 
 def test_subsystem_expr_invalid_port_raises_attribute_error() -> None:
     """Accessing an invalid port raises AttributeError with descriptive message."""
-    resistor = SubSystemExpr("resistor", ("v", "i", "r"))
+    resistor = SubSystemExpr("resistor", {"v": "resistor.v", "i": "resistor.i", "r": "resistor.r"})
 
     with pytest.raises(
         AttributeError,
@@ -260,7 +260,7 @@ def test_plain_expr_no_attribute_access() -> None:
 
 def test_subsystem_expr_private_attribute_access() -> None:
     """SubSystemExpr allows normal Python private/dunder attribute access."""
-    resistor = SubSystemExpr("resistor", ("v", "i", "r"))
+    resistor = SubSystemExpr("resistor", {"v": "resistor.v", "i": "resistor.i", "r": "resistor.r"})
 
     assert repr(resistor) == "SubSystemExpr('resistor', ports=('v', 'i', 'r'))"
     with pytest.raises(AttributeError):
@@ -270,7 +270,7 @@ def test_subsystem_expr_private_attribute_access() -> None:
 def test_subsystem_expr_cannot_be_used_as_operand() -> None:
     """SubSystemExpr cannot be used as an operand to prevent silent garbage trees."""
     voltage = symbol_expr("voltage")
-    resistor = SubSystemExpr("resistor", ("v", "i", "r"))
+    resistor = SubSystemExpr("resistor", {"v": "resistor.v", "i": "resistor.i", "r": "resistor.r"})
 
     with pytest.raises(
         TypeError,

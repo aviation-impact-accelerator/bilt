@@ -31,13 +31,7 @@ class QualifiedPort:
 
     @staticmethod
     def unqualify(qualified: str, sub_system: str, ports: collections.abc.Container[str]) -> str | None:
-        """Return the child-local port name, or None when ``qualified`` is not one of ``sub_system``'s ports.
-
-        Args:
-            qualified: A parent-facing name, e.g. ``resistor.v``.
-            sub_system: The name the parent system knows the sub-system by, e.g. ``resistor``.
-            ports: The sub-system's valid port names, e.g. ``("v", "i")``.
-        """
+        """Return the child-local port name, or None when ``qualified`` is not one of ``sub_system``'s ports."""
         prefix = f"{sub_system}{DOTTED_SEPARATOR}"
         if not qualified.startswith(prefix):
             return None

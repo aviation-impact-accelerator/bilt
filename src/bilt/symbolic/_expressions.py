@@ -1,6 +1,5 @@
 import typing
 
-from bilt._port import QualifiedPort
 from bilt.symbolic._atoms import (
     ADD,
     INV,
@@ -12,6 +11,9 @@ from bilt.symbolic._atoms import (
     SymbolType,
 )
 from bilt.symbolic._tree import Tree, float_tree, int_tree, relation_tree, symbol_tree
+
+if typing.TYPE_CHECKING:
+    import collections.abc
 
 __all__ = [
     "Expr",
@@ -150,18 +152,21 @@ class Expr:
 
 
 class SubSystemExpr:
-    """Reference to a sub-system inside an equation.
-
-    Provides port-validated access to sub-system attributes. For example,
-    `resistor.v` accesses the 'v' port of the 'resistor' reference.
-    """
+    """Reference to a sub-system inside an equation."""
 
     __slots__ = ("_name", "_ports")
 
     _name: str
-    _ports: tuple[str, ...]
+    _ports: collections.abc.Mapping[str, str]
 
-    def __init__(self, name: str, ports: tuple[str, ...]) -> None:
+    def __init__(self, name: str, ports: collections.abc.Mapping[str, str]) -> None:
+        """Build a reference to ``name``.
+
+        Args:
+            name: The name the equation knows the sub-system by, e.g. ``resistor``.
+            ports: Each valid port mapped to the symbol name it stands for, e.g.
+                ``{"v": "resistor.v"}``.
+        """
         self._name = name
         self._ports = ports
 
@@ -174,15 +179,16 @@ class SubSystemExpr:
             msg = f"SubSystemExpr has no attribute {port!r}"
             raise AttributeError(msg)
 
-        if port not in self._ports:
+        symbol = self._ports.get(port)
+        if symbol is None:
             valid_ports_str = ", ".join(self._ports)
             msg = f"'{self._name}' has no port {port!r}. Valid ports: {valid_ports_str}"
             raise AttributeError(msg)
 
-        return symbol_expr(QualifiedPort(self._name, port).dotted)
+        return symbol_expr(symbol)
 
     def __repr__(self) -> str:
-        return f"SubSystemExpr({self._name!r}, ports={self._ports!r})"
+        return f"SubSystemExpr({self._name!r}, ports={tuple(self._ports)!r})"
 
 
 def as_tree(value: object) -> Tree:

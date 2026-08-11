@@ -19,12 +19,7 @@ class ExhaustiveStructuralAnalyser:
         self.bipartite_graph = BipartiteGraph(constituents)
 
     def analyse(self, available: set[str], output: str, concrete_backend: Backend) -> BackendCase:
-        """Perform analysis to find a plan to compute the desired output.
-
-        Steps that fail realization are routed around for this query only. Whether a step can be
-        realized depends on the inputs and the backend, so excluding it from the shared graph
-        would disable it for every later query too.
-        """
+        """Perform analysis to find a plan to compute the desired output."""
         excluded: frozenset[PlanStep] = frozenset()
         while True:
             steps = self.bipartite_graph.search(available, output, excluded=excluded)

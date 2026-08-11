@@ -2,7 +2,7 @@ __all__ = ["SubSystemConstituent"]
 
 import typing
 
-from bilt._port import QualifiedPort
+from bilt.core._port import QualifiedPort
 
 if typing.TYPE_CHECKING:
     from bilt.core._interface import Interface

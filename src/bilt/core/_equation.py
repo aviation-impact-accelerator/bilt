@@ -8,9 +8,9 @@ import inspect
 import types
 import typing
 
-from bilt._port import QualifiedPort
 from bilt.core._error import EquationReturnError
 from bilt.core._interface import Interface
+from bilt.core._port import QualifiedPort
 from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
 from bilt.symbolic._walk import subtrees
@@ -50,7 +50,10 @@ class BasicEquation[R, **P]:
             annotation = param.annotation
             if isinstance(annotation, Interface):
                 sub_systems[param_name] = annotation
-                symbols[param_name] = SubSystemExpr(param_name, annotation.__bilt_parameters__)
+                symbols[param_name] = SubSystemExpr(
+                    param_name,
+                    {port: QualifiedPort(param_name, port).dotted for port in annotation.__bilt_parameters__},
+                )
             else:
                 symbols[param_name] = symbol_expr(param_name)
 

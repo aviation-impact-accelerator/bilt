@@ -9,9 +9,6 @@ from bilt.core._error import (
     EquationReturnError,
 )
 from bilt.symbolic._atoms import ADD, EQUALS
-
-# Expr is used in @equation function annotations. Those annotations are part of
-# the runtime behaviour being tested, so this must stay as a runtime import.
 from bilt.symbolic._expressions import (
     Expr,
     SubSystemExpr,
@@ -131,9 +128,6 @@ def test_equation_error_mentions_return_type() -> None:
 
     with pytest.raises(EquationReturnError, match="int"):
         equation(bad_model)
-
-
-# Sub-system parameter tests
 
 
 def test_equation_with_sub_system_parameter_has_correct_parameters() -> None:
@@ -258,7 +252,7 @@ def test_sub_system_dunder_access_still_raises_attribute_error() -> None:
     class Sensor(metaclass=Interface):
         reading: float = field()
 
-    sub_system_expr = SubSystemExpr("sensor", Sensor.__bilt_parameters__)
+    sub_system_expr = SubSystemExpr("sensor", {port: f"sensor.{port}" for port in Sensor.__bilt_parameters__})
 
     with pytest.raises(AttributeError, match="has no attribute '__deepcopy__'"):
         _ = sub_system_expr.__deepcopy__
