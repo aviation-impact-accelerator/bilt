@@ -5,11 +5,15 @@ __all__ = [
 ]
 
 import inspect
+import types
 import typing
 
+from bilt._port import QualifiedPort
 from bilt.core._error import EquationReturnError
-from bilt.symbolic._expressions import Expr, symbol_expr
-from bilt.symbolic._tree import Tree
+from bilt.core._interface import Interface
+from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr
+from bilt.symbolic._tree import Tree, symbol_tree
+from bilt.symbolic._walk import subtrees
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -20,6 +24,7 @@ class Equation[R, **P](typing.Protocol):
     __bilt_parameters__: tuple[str, ...]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
+    __bilt_sub_systems__: types.MappingProxyType[str, Interface]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
@@ -29,6 +34,7 @@ class BasicEquation[R, **P]:
     __bilt_parameters__: tuple[str, ...]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
+    __bilt_sub_systems__: types.MappingProxyType[str, Interface]
     _function: collections.abc.Callable[P, R]
 
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
@@ -37,14 +43,25 @@ class BasicEquation[R, **P]:
 
         _validate_equation_signature(name, signature)
 
-        parameters = tuple(signature.parameters.keys())
-        symbols = _build_symbols(parameters)
+        symbols: dict[str, Expr | SubSystemExpr] = {}
+        sub_systems: dict[str, Interface] = {}
+
+        for param_name, param in signature.parameters.items():
+            annotation = param.annotation
+            if isinstance(annotation, Interface):
+                sub_systems[param_name] = annotation
+                symbols[param_name] = SubSystemExpr(param_name, annotation.__bilt_parameters__)
+            else:
+                symbols[param_name] = symbol_expr(param_name)
+
         tree = _build_equation_tree(name, function, symbols)
+        equation_symbols = _expand_sub_system_parameters(symbols, sub_systems, tree)
 
         self.__bilt_name__ = name
-        self.__bilt_parameters__ = parameters
-        self.__bilt_equation_symbols__ = symbols
+        self.__bilt_parameters__ = tuple(equation_symbols)
+        self.__bilt_equation_symbols__ = equation_symbols
         self.__bilt_equation_tree__ = tree
+        self.__bilt_sub_systems__ = types.MappingProxyType(sub_systems)
         self._function = function
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
@@ -79,14 +96,41 @@ def _validate_equation_signature(
             raise TypeError(msg)
 
 
-def _build_symbols(parameters: tuple[str, ...]) -> dict[str, Expr]:
-    return {name: symbol_expr(name) for name in parameters}
+def _expand_sub_system_parameters(
+    symbols: dict[str, Expr | SubSystemExpr],
+    sub_systems: dict[str, Interface],
+    tree: Tree,
+) -> dict[str, Expr]:
+    """Expand each sub-system parameter into the dotted ports the equation actually uses.
+
+    Keys keep signature order, so the caller can read the parameter tuple straight off the result.
+    """
+    occurring = subtrees(tree)
+    equation_symbols: dict[str, Expr] = {}
+
+    for param_name, symbol in symbols.items():
+        interface = sub_systems.get(param_name)
+        if interface is None:
+            equation_symbols[param_name] = typing.cast("Expr", symbol)
+            continue
+
+        used_ports = sorted(
+            port
+            for port in interface.__bilt_parameters__
+            if symbol_tree(QualifiedPort(param_name, port).dotted) in occurring
+        )
+
+        for port in used_ports:
+            qualified_name = QualifiedPort(param_name, port).dotted
+            equation_symbols[qualified_name] = symbol_expr(qualified_name)
+
+    return equation_symbols
 
 
 def _build_equation_tree[R, **P](
     name: str,
     function: collections.abc.Callable[P, R],
-    symbols: dict[str, Expr],
+    symbols: dict[str, Expr | SubSystemExpr],
 ) -> Tree:
     symbolic_function = typing.cast(
         "collections.abc.Callable[..., object]",

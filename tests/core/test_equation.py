@@ -1,14 +1,21 @@
+import types
 import typing
 
 import pytest
 
+from bilt.core import Interface, field, system
 from bilt.core._equation import equation
-from bilt.core._error import EquationReturnError
+from bilt.core._error import (
+    EquationReturnError,
+)
 from bilt.symbolic._atoms import ADD, EQUALS
 
 # Expr is used in @equation function annotations. Those annotations are part of
 # the runtime behaviour being tested, so this must stay as a runtime import.
-from bilt.symbolic._expressions import Expr  # noqa: TC001
+from bilt.symbolic._expressions import (
+    Expr,
+    SubSystemExpr,
+)
 from bilt.symbolic._tree import Tree
 
 
@@ -124,3 +131,134 @@ def test_equation_error_mentions_return_type() -> None:
 
     with pytest.raises(EquationReturnError, match="int"):
         equation(bad_model)
+
+
+# Sub-system parameter tests
+
+
+def test_equation_with_sub_system_parameter_has_correct_parameters() -> None:
+    """Test that sub-system parameter is expanded to used ports, bare name not included."""
+
+    @system
+    class Resistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+
+    @equation
+    def voltage_eq(voltage: float, resistor: Resistor) -> bool:
+        return voltage == resistor.v
+
+    assert voltage_eq.__bilt_parameters__ == ("voltage", "resistor.v")
+    assert "resistor" not in voltage_eq.__bilt_parameters__
+
+
+def test_equation_records_sub_systems() -> None:
+    """Test that __bilt_sub_systems__ maps parameter name to system class."""
+
+    @system
+    class Resistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+
+    @equation
+    def voltage_eq(voltage: float, resistor: Resistor) -> bool:
+        return voltage == resistor.v
+
+    assert isinstance(voltage_eq.__bilt_sub_systems__, types.MappingProxyType)
+    assert voltage_eq.__bilt_sub_systems__["resistor"] is Resistor
+
+
+def test_equation_with_multiple_ports_of_one_sub_system() -> None:
+    """Test that multiple ports from same sub-system are expanded in sorted order."""
+
+    @system
+    class Resistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+
+    @equation
+    def power_eq(resistor: Resistor) -> bool:
+        return resistor.v == resistor.i * resistor.r
+
+    assert power_eq.__bilt_parameters__ == ("resistor.i", "resistor.r", "resistor.v")
+
+
+def test_equation_with_two_sub_systems_of_same_type() -> None:
+    """Test that two sub-system parameters of same type are expanded independently."""
+
+    @system
+    class Resistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+
+    @equation
+    def voltage_balance(r1: Resistor, r2: Resistor) -> bool:
+        return r1.v + r2.v == 0
+
+    assert "r1.v" in voltage_balance.__bilt_parameters__
+    assert "r2.v" in voltage_balance.__bilt_parameters__
+    r1_idx = voltage_balance.__bilt_parameters__.index("r1.v")
+    r2_idx = voltage_balance.__bilt_parameters__.index("r2.v")
+    assert r1_idx < r2_idx
+
+    assert "r1" in voltage_balance.__bilt_sub_systems__
+    assert "r2" in voltage_balance.__bilt_sub_systems__
+
+
+def test_ordinary_equation_with_no_sub_systems_unaffected() -> None:
+    """Test that equations without sub-systems have empty __bilt_sub_systems__."""
+
+    @equation
+    def ohms_law(v: float, i: float, r: float) -> bool:
+        return v == i * r
+
+    assert ohms_law.__bilt_parameters__ == ("v", "i", "r")
+    assert ohms_law.__bilt_sub_systems__ == {}
+
+
+def test_sub_system_port_access_with_invalid_port_raises_attribute_error() -> None:
+    """Test that accessing non-existent port raises AttributeError at definition time."""
+
+    @system
+    class Resistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+
+    with pytest.raises(AttributeError, match="'resistor' has no port 'typo'"):
+
+        @equation
+        def bad_eq(resistor: Resistor) -> bool:
+            return resistor.typo == 1  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
+
+
+def test_sub_system_port_with_leading_underscore_is_usable() -> None:
+    """A single leading underscore is a legal port name and must not be mistaken for a private attribute."""
+
+    @system
+    class Sensor(metaclass=Interface):
+        _flux: float = field()
+        reading: float = field()
+
+    @equation
+    def flux_eq(value: float, sensor: Sensor) -> bool:
+        return value == sensor._flux  # noqa: SLF001
+
+    assert flux_eq.__bilt_parameters__ == ("value", "sensor._flux")
+
+
+def test_sub_system_dunder_access_still_raises_attribute_error() -> None:
+    """Dunder probes are never ports, so they must keep raising rather than becoming symbols."""
+
+    @system
+    class Sensor(metaclass=Interface):
+        reading: float = field()
+
+    sub_system_expr = SubSystemExpr("sensor", Sensor.__bilt_parameters__)
+
+    with pytest.raises(AttributeError, match="has no attribute '__deepcopy__'"):
+        _ = sub_system_expr.__deepcopy__

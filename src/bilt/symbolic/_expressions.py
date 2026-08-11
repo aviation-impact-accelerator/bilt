@@ -1,5 +1,6 @@
 import typing
 
+from bilt._port import QualifiedPort
 from bilt.symbolic._atoms import (
     ADD,
     INV,
@@ -14,6 +15,7 @@ from bilt.symbolic._tree import Tree, float_tree, int_tree, relation_tree, symbo
 
 __all__ = [
     "Expr",
+    "SubSystemExpr",
     "as_expr",
     "as_tree",
     "symbol_expr",
@@ -145,6 +147,44 @@ class Expr:
 
     def __str__(self) -> str:
         return str(self._rep)
+
+
+class SubSystemExpr:
+    """Reference to a sub-system inside an equation.
+
+    Provides port-validated access to sub-system attributes. For example,
+    `resistor.v` accesses the 'v' port of the 'resistor' reference.
+    """
+
+    __slots__ = ("_name", "_ports")
+
+    _name: str
+    _ports: tuple[str, ...]
+
+    def __init__(self, name: str, ports: tuple[str, ...]) -> None:
+        self._name = name
+        self._ports = ports
+
+    def __getattr__(self, port: str) -> Expr:
+        """Return a leaf symbol for a valid port, or raise AttributeError.
+
+        Only dunders are rejected outright: they are never port names, and screening them here
+        keeps `copy`/`pickle` probes from being reported as missing ports. A single leading
+        underscore is a legal port name, so `_flux` must reach the port check below.
+        """
+        if port.startswith("__"):
+            msg = f"SubSystemExpr has no attribute {port!r}"
+            raise AttributeError(msg)
+
+        if port not in self._ports:
+            valid_ports_str = ", ".join(self._ports)
+            msg = f"'{self._name}' has no port {port!r}. Valid ports: {valid_ports_str}"
+            raise AttributeError(msg)
+
+        return symbol_expr(QualifiedPort(self._name, port).dotted)
+
+    def __repr__(self) -> str:
+        return f"SubSystemExpr({self._name!r}, ports={self._ports!r})"
 
 
 def as_tree(value: object) -> Tree:

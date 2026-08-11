@@ -6,7 +6,30 @@ if typing.TYPE_CHECKING:
 
 __all__ = [
     "contains",
+    "subtrees",
 ]
+
+
+def subtrees(root: Tree) -> set[Tree]:
+    """Return every distinct subtree of root, in a single DAG walk.
+
+    Trees are hash-consed, so testing `target in subtrees(root)` is equivalent to
+    `contains(root, target)`. Prefer this when several targets are tested against
+    one root: it pays for a single traversal rather than one per target.
+    """
+    seen: set[Tree] = set()
+    stack: list[Tree] = [root]
+
+    while stack:
+        node = stack.pop()
+
+        if node in seen:
+            continue
+
+        seen.add(node)
+        stack.extend(node.args)
+
+    return seen
 
 
 def contains(root: Tree, target: Tree) -> bool:

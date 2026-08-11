@@ -10,7 +10,7 @@ from bilt.symbolic._atoms import (
     POW,
     SymbolType,
 )
-from bilt.symbolic._expressions import Expr, as_expr, as_tree, symbol_expr
+from bilt.symbolic._expressions import Expr, SubSystemExpr, as_expr, as_tree, symbol_expr
 from bilt.symbolic._tree import Tree, int_tree, symbol_tree
 
 
@@ -220,3 +220,60 @@ def test_expr_cannot_be_used_as_bool() -> None:
 
     with pytest.raises(TypeError, match="Symbolic expressions cannot be used as booleans"):
         bool(x)
+
+
+def test_subsystem_expr_port_access_returns_leaf_symbol() -> None:
+    """SubSystemExpr port access returns a flat leaf symbol with compound name."""
+    resistor = SubSystemExpr("resistor", ("v", "i", "r"))
+    v_expr = resistor.v
+
+    assert isinstance(v_expr, Expr)
+    assert v_expr.rep.is_leaf is True
+    assert v_expr.rep.head.atom_type is SymbolType
+    assert v_expr.rep.head.value == "resistor.v"
+    assert v_expr.structurally_equal(symbol_expr("resistor.v"))
+
+
+def test_subsystem_expr_invalid_port_raises_attribute_error() -> None:
+    """Accessing an invalid port raises AttributeError with descriptive message."""
+    resistor = SubSystemExpr("resistor", ("v", "i", "r"))
+
+    with pytest.raises(
+        AttributeError,
+        match=r"'resistor' has no port 'typo'\. Valid ports: v, i, r",
+    ):
+        _ = resistor.typo
+
+
+def test_plain_expr_no_attribute_access() -> None:
+    """Plain Expr should raise AttributeError for attribute access (regression test)."""
+    x = symbol_expr("x")
+    y = symbol_expr("y")
+    sum_expr = x + y
+
+    with pytest.raises(AttributeError):
+        _ = x.v  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
+
+    with pytest.raises(AttributeError):
+        _ = sum_expr.v  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
+
+
+def test_subsystem_expr_private_attribute_access() -> None:
+    """SubSystemExpr allows normal Python private/dunder attribute access."""
+    resistor = SubSystemExpr("resistor", ("v", "i", "r"))
+
+    assert repr(resistor) == "SubSystemExpr('resistor', ports=('v', 'i', 'r'))"
+    with pytest.raises(AttributeError):
+        _ = resistor.__nonexistent__
+
+
+def test_subsystem_expr_cannot_be_used_as_operand() -> None:
+    """SubSystemExpr cannot be used as an operand to prevent silent garbage trees."""
+    voltage = symbol_expr("voltage")
+    resistor = SubSystemExpr("resistor", ("v", "i", "r"))
+
+    with pytest.raises(
+        TypeError,
+        match=r"Cannot convert 'SubSystemExpr' to symbolic Tree",
+    ):
+        _ = voltage == resistor
