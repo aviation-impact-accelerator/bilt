@@ -1,5 +1,3 @@
-"""A sub-system port's dotted spelling, e.g. ``resistor.v``."""
-
 __all__ = [
     "DOTTED_SEPARATOR",
     "QualifiedPort",

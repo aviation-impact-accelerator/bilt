@@ -1,9 +1,3 @@
-"""Compile an analysis plan into a backend case.
-
-Everything the plan names is dotted; everything the compiled case names is mangled, because
-generated code has to spell names as Python identifiers. This module is that boundary.
-"""
-
 __all__ = ["RealizationFailure", "canonicalize_backend_callable", "realize_plan"]
 
 import ast
