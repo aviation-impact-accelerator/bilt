@@ -504,3 +504,12 @@ def test_one_chained_callable_uses_the_others_extra_dims():
                 [10.34, 10.35, 10.32, 10.33, 10.34, 10.35, 10.34],
                 [ 7.31,  7.32,  7.29,  7.30,  7.31,  7.32,  7.31],
             ]))
+
+def test_domain_registry_ordering_is_stable():
+    with EvaluationContext() as evaluation:
+        a = tensor([1., 2., 3.], over=(i,))
+        b = 3
+        e = tensor([2., 4., 6.], over=(j,))
+
+        evaluation.domains.bind_all([a, b, e])
+        assert list(evaluation.domains._bindings.keys()) == [i,j]

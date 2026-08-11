@@ -67,7 +67,7 @@ def _operation_to_callable(plan_step: PlanStep, backend: Backend) -> BackendCall
             # code to insert the alignment prelude, when that is only relevant when transpiling an
             # operation to callable and not for a chain case, *in* transpile, seems silly.
             analysis = analyse_domains_in_signature(function_ast)
-            add_alignment_prelude(function_ast, analysis)
+            # add_alignment_prelude(function_ast, analysis)
             clear_signature_type_hints(function_ast)
 
             callable = backend.transpile(function_ast)
