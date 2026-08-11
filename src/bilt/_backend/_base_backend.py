@@ -57,7 +57,7 @@ class Backend(abc.ABC):
         """Execute the compiled function with the provided keyword arguments."""
 
     def _identity(self) -> tuple[collections.abc.Hashable, ...]:
-        """Define when two backend instances are interchangeable for caching compiled callables."""
+        """Define when two backend instances are interchangeable for cache keying.."""
         return (type(self),)
 
     def __eq__(self, other: object) -> bool:
