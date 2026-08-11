@@ -2,10 +2,12 @@
 
 import abc
 import ast
+import collections
 import typing
 
-from bilt._backend._callable import BackendCallable
+from bilt._backend._callable import BackendCallable, CallableType, DomainedVar
 from bilt._backend._errors import CompilationError
+from bilt.core._tensors._tensor_analysis import *
 
 if typing.TYPE_CHECKING:
     from ._case import BackendCase
@@ -25,9 +27,10 @@ class Backend(abc.ABC):
     ) -> None:
         """Must at minimum initialise the ast_transformer and compilation_namespace attributes."""
 
-    def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
+    def transpile(self, function_definition: ast.FunctionDef) -> CallableType:
         """Used to compile a single transform AST into a callable function, that can then be chained into the execution pipeline."""
-        transformed = self.ast_transformer.visit(function_definition)
+        transformed = typing.cast(ast.FunctionDef, self.ast_transformer.visit(function_definition))
+
         module = ast.Module(body=[transformed], type_ignores=[])
         ast.fix_missing_locations(module)
         try:
@@ -37,11 +40,12 @@ class Backend(abc.ABC):
             raise CompilationError(msg) from e
 
         exec(code, self.compilation_namespace)  # noqa: S102
-        return BackendCallable(
-            name=function_definition.name,
-            parameters=tuple(arg.arg for arg in function_definition.args.args),
-            callable=self.compilation_namespace[function_definition.name],
-        )
+
+        print()
+        print("===== TRANSPILE =====")
+        print(ast.unparse(transformed))
+
+        return typing.cast(CallableType, self.compilation_namespace[function_definition.name])
 
     def __enter__(self) -> typing.Self:
         _backend_stack.append(self)
