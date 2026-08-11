@@ -14,9 +14,8 @@ type DomainLike = Domain | Dim | tuple[Dim, ...] | list[Dim] | None
 class Domain:
     """An ordered collection of symbolic dimensions.
 
-    A scalar has an empty domain. Dimensions are compared by object
-    identity, so sharing a dimension represents an intentional shared
-    coordinate space.
+    A scalar has an empty domain. Dimensions are compared by string, so
+    Dim("i") == Dim("i")
     """
 
     dims: tuple[Dim, ...] = ()

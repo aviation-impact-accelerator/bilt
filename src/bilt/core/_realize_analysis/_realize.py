@@ -6,33 +6,49 @@ import inspect
 import textwrap
 import typing
 
+from bilt._backend._callable import BackendCallable, DomainedVar
 from bilt._backend._case import BackendCase
 from bilt.core._equation import BasicEquation
 from bilt.core._interface import Interface
+from bilt.core._tensors._tensor_analysis import add_alignment_prelude, analyse_domains_in_signature, clear_signature_type_hints, union
 from bilt.core._transform import BasicTransform
 from bilt.symbolic._isolation._errors import IsolationError
 from bilt.symbolic._isolation._isolate import equation_to_ast
 
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
-    from bilt._backend._callable import BackendCallable
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 
 
 def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
     """Convert an AnalysisPlan into a BackendCase by compiling each step to a callable."""
-    intermediates = []
+    intermediates: list[BackendCallable] = []
+    parameters: dict[str, DomainedVar] = {}
+    intermediate_opts: dict[str, DomainedVar] = {}
+
     for step in plan.steps:
         result = _operation_to_callable(step, backend=backend)
+
         if isinstance(result, RealizationFailure):
             return result
+        
+        parameters |= {
+            domained_var.name: domained_var
+            for domained_var in result.parameters.values()
+        }
+
+        intermediate_opts[step.output] = DomainedVar(step.output, result.return_domain)
         intermediates.append(result)
+
+    # Assuming no reduction
+    output_domain = union(*[var.domain for var in parameters.values()],
+                          *[var.domain for var in intermediate_opts.values()])
 
     return BackendCase(
         name=plan.output,
-        parameters=tuple(sorted(plan.inputs)),
-        intermediates=intermediates,
-        return_name=plan.output,
+        parameters={name: parameters[name] for name in plan.inputs},
+        intermediates={intermediate.name: intermediate for intermediate in intermediates},
+        returns=DomainedVar(plan.output, output_domain),
     )
 
 
@@ -46,11 +62,28 @@ def _operation_to_callable(plan_step: PlanStep, backend: Backend) -> BackendCall
             function_ast.decorator_list = [
                 d for d in function_ast.decorator_list if not (isinstance(d, ast.Name) and d.id == "transform")
             ]
-            return backend.transpile(function_ast)
 
+            # TODO: Nic said we should be doing this after ast transforming in transpile... but having
+            # code to insert the alignment prelude, when that is only relevant when transpiling an
+            # operation to callable and not for a chain case, *in* transpile, seems silly.
+            analysis = analyse_domains_in_signature(function_ast)
+            add_alignment_prelude(function_ast, analysis)
+            clear_signature_type_hints(function_ast)
+
+            callable = backend.transpile(function_ast)
+
+            return BackendCallable(
+                name=function_ast.name,
+                parameters={param.name: param for param in analysis.parameters.values()},
+                return_domain=analysis.return_domain,
+                union_domain=analysis.union_domain,
+                callable=callable,
+            )
         case BasicEquation() as equation:
             try:
                 function_ast = equation_to_ast(equation, plan_step.output)
+                msg = "Equation tensor analysis is not yet implemented."
+                raise NotImplementedError(msg)
                 return backend.transpile(function_ast)
             except IsolationError:
                 return RealizationFailure(failed_plan_step=plan_step)
