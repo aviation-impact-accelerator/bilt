@@ -412,3 +412,30 @@ def test_repeated_evaluation_without_backend_context_reuses_one_cache_entry() ->
             assert Demo(a=float(value), b=2.0).c == value + 2.0
 
     assert len(implementation._callable_cache) == 1  # noqa: SLF001
+
+
+def test_repeated_evaluation_with_fresh_backend_contexts_reuses_one_cache_entry() -> None:
+    """Cache should reuse entries even when entering fresh backend contexts on each iteration.
+
+    This validates that Backend value semantics (equality and hashing) work correctly
+    so that freshly-constructed backends that are equivalent still hit the same cache entry.
+    """
+
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        c: float = field()
+
+    @transform
+    def c(a: float, b: float) -> float:
+        return a + b
+
+    implementation = Implementation(Demo, [c])
+
+    with implementation:
+        for value in range(20):
+            with PythonBackend():
+                assert Demo(a=float(value), b=2.0).c == value + 2.0
+
+    assert len(implementation._callable_cache) == 1  # noqa: SLF001

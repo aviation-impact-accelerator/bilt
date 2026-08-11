@@ -53,3 +53,26 @@ class Backend(abc.ABC):
     @abc.abstractmethod
     def chain_case(self, case: BackendCase) -> BackendCallable:
         """Execute the compiled function with the provided keyword arguments."""
+
+    def _identity(self) -> tuple[object, ...]:
+        """Define when two backend instances are interchangeable for caching compiled callables.
+
+        Subclasses MUST override this method whenever the backend carries constructor
+        configuration that changes generated code. Everything included in the returned tuple
+        must be hashable and must not mutate over the instance's lifetime.
+
+        Returns:
+            A tuple of hashable objects that uniquely identify this backend instance for
+            caching purposes.
+        """
+        return (type(self),)
+
+    def __eq__(self, other: object) -> bool:
+        """Compare two backend instances for equality based on their identity."""
+        if not isinstance(other, Backend):
+            return NotImplemented
+        return self._identity() == other._identity()
+
+    def __hash__(self) -> int:
+        """Return hash of this backend instance's identity."""
+        return hash(self._identity())
