@@ -13,9 +13,7 @@ __all__ = [
 def subtrees(root: Tree) -> set[Tree]:
     """Return every distinct subtree of root, in a single DAG walk.
 
-    Trees are hash-consed, so testing `target in subtrees(root)` is equivalent to
-    `contains(root, target)`. Prefer this when several targets are tested against
-    one root: it pays for a single traversal rather than one per target.
+    Cheaper for multiple `contain` checks.
     """
     seen: set[Tree] = set()
     stack: list[Tree] = [root]
