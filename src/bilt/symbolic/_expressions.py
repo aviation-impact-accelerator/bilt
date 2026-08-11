@@ -168,9 +168,7 @@ class SubSystemExpr:
     def __getattr__(self, port: str) -> Expr:
         """Return a leaf symbol for a valid port, or raise AttributeError.
 
-        Only dunders are rejected outright: they are never port names, and screening them here
-        keeps `copy`/`pickle` probes from being reported as missing ports. A single leading
-        underscore is a legal port name, so `_flux` must reach the port check below.
+        Dunders are rejected outright so that users can't mess with internals
         """
         if port.startswith("__"):
             msg = f"SubSystemExpr has no attribute {port!r}"
