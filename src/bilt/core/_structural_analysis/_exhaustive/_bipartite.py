@@ -20,14 +20,7 @@ type Node = Attribute | PlanStep
 
 
 def required_inputs_for_target(plan_step: PlanStep) -> frozenset[str] | None:
-    """Return the inputs a plan step consumes, or None when no path exists to compute it.
-
-    Transforms and equations derive this directly from their own parameters, raising if
-    asked about an output they don't produce (which real search never triggers, since a
-    PlanStep's output always comes from that same operation's own parameters/ports). A
-    sub-system delegates into its own inner implementation's structural search instead,
-    which can genuinely have no path — that case returns None, not an error.
-    """
+    """Return the inputs a plan step consumes, or None when no path exists to compute it."""
     match plan_step.operation:
         case BasicTransform() as transform:
             if plan_step.output != transform.__bilt_name__:
@@ -74,12 +67,7 @@ class BipartiteGraph:
                 raise NotImplementedError(msg)
 
     def _add_relation(self, relation: BasicEquation | SubSystemConstituent) -> None:
-        """Add a constituent that can be solved for any one of its parameters given the others.
-
-        Every other parameter is wired as a candidate input. These edges are deliberately an
-        over-approximation: which subset is actually required is settled during search by asking
-        the constituent, which matters for sub-systems, where one port rarely needs all the rest.
-        """
+        """Add a constituent that can be solved for any one of its parameters given the others."""
         parameters = relation.__bilt_parameters__
         self.graph.add_nodes_from(parameters, bipartite="attribute")
 
@@ -134,7 +122,7 @@ class BipartiteGraph:
         self, plan_step: PlanStep, available: set[str], visited: set[Node], excluded: frozenset[PlanStep]
     ) -> list[PlanStep] | None:
         """Search for a path through a constituent node, resolving every input it needs."""
-        required = self._constituent_inputs(plan_step)
+        required = required_inputs_for_target(plan_step)
         if required is None:
             return None
 
@@ -150,11 +138,6 @@ class BipartiteGraph:
                     path.append(step)
         path.append(plan_step)
         return path
-
-    def _constituent_inputs(self, plan_step: PlanStep) -> list[Attribute] | None:
-        """Return the attributes a plan step consumes, or None when it cannot be satisfied at all."""
-        required = required_inputs_for_target(plan_step)
-        return None if required is None else sorted(required)
 
     def _search_attribute(
         self, attribute: Attribute, available: set[str], visited: set[Node], excluded: frozenset[PlanStep]
