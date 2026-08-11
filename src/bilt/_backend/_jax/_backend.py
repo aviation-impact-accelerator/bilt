@@ -8,6 +8,9 @@ from bilt._backend import Backend, BackendCallable, BackendCase
 from bilt._backend._jax._ast import JAXASTTransformer
 from bilt._backend._jax._supports import _validate
 
+if typing.TYPE_CHECKING:
+    import collections.abc
+
 
 class JAXBackend(Backend):
     """JAX backend implementation of the Bilt backend interface."""
@@ -16,18 +19,8 @@ class JAXBackend(Backend):
         self.ast_transformer = ast_transformer
         self.compilation_namespace = {"jnp": jnp, "jax.jit": jax.jit, "__builtins__": __builtins__}
 
-    def _identity(self) -> tuple[object, ...]:
-        """Define identity including the transformer type for cache keying.
-
-        The transformer's type (rather than instance) is used because ast.NodeTransformer
-        has no value equality, so keying on the instance would reintroduce cache-miss bugs
-        from identity-based hashing. The trade-off is that a stateful user-supplied
-        transformer class with two different configurations will compare equal.
-
-        Returns:
-            A tuple including the transformer type to distinguish backends with different
-            transformer implementations.
-        """
+    def _identity(self) -> tuple[collections.abc.Hashable, ...]:
+        """Define identity including the transformer type for cache keying."""
         return (*super()._identity(), type(self.ast_transformer))
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:

@@ -8,6 +8,8 @@ from bilt._backend._callable import BackendCallable
 from bilt._backend._errors import CompilationError
 
 if typing.TYPE_CHECKING:
+    import collections.abc
+
     from ._case import BackendCase
 
 _backend_stack: list[Backend] = []
@@ -54,17 +56,8 @@ class Backend(abc.ABC):
     def chain_case(self, case: BackendCase) -> BackendCallable:
         """Execute the compiled function with the provided keyword arguments."""
 
-    def _identity(self) -> tuple[object, ...]:
-        """Define when two backend instances are interchangeable for caching compiled callables.
-
-        Subclasses MUST override this method whenever the backend carries constructor
-        configuration that changes generated code. Everything included in the returned tuple
-        must be hashable and must not mutate over the instance's lifetime.
-
-        Returns:
-            A tuple of hashable objects that uniquely identify this backend instance for
-            caching purposes.
-        """
+    def _identity(self) -> tuple[collections.abc.Hashable, ...]:
+        """Define when two backend instances are interchangeable for caching compiled callables."""
         return (type(self),)
 
     def __eq__(self, other: object) -> bool:
