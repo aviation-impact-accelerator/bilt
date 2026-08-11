@@ -3,15 +3,14 @@ __all__ = ["Implementation"]
 import types
 import typing
 
-from bilt.core._system._analysis import find_successful_case
+from bilt.core._structural_analysis._protocol import get_current_structural_analysis_backend
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt._backend import Backend, BackendCallable
+    from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
-
-    from ._interface import Interface
 
 
 class Implementation:
@@ -26,7 +25,7 @@ class Implementation:
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             {component.__bilt_name__: component for component in components}
         )
-        self._callable_cache: dict[tuple[str, tuple[str, ...], Backend], BackendCallable] = {}
+        self._callable_cache: dict[tuple[str, frozenset[str], Backend], BackendCallable] = {}
         system.__bilt_system_registry__.add(self)
 
     @property
@@ -34,14 +33,20 @@ class Implementation:
         return self._system
 
     def evaluate(self, inputs: dict[str, object], output: str, backend: Backend) -> object:
+        cache_key = (output, frozenset(inputs.keys()), backend)
         if output in inputs:
             output_value = inputs[output]
-        elif self._callable_cache.get((output, tuple(inputs.keys()), backend)):
-            output_value = self._callable_cache[(output, tuple(inputs.keys()), backend)].callable(**inputs)
+        elif self._callable_cache.get(cache_key):
+            cached = self._callable_cache[cache_key]
+            output_value = cached.callable(**{k: inputs[k] for k in cached.parameters})
         else:
-            backend_case = find_successful_case(self, inputs, output, backend)
-            self._callable_cache[(output, tuple(inputs.keys()), backend)] = backend.chain_case(backend_case)
-            output_value = self._callable_cache[(output, tuple(inputs.keys()), backend)].callable(**inputs)
+            structural_analysis_backend = get_current_structural_analysis_backend()
+            planned_case = structural_analysis_backend(
+                tuple(self._components.values()), set(inputs.keys()), output, backend
+            )
+            final_callable = backend.chain_case(planned_case)
+            self._callable_cache[cache_key] = final_callable
+            output_value = final_callable.callable(**{k: inputs[k] for k in final_callable.parameters})
         return output_value
 
     def __enter__(self) -> typing.Self:

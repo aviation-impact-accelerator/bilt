@@ -3,9 +3,9 @@ __all__ = ["Interface"]
 import typing
 
 if typing.TYPE_CHECKING:
-    from ._decorator import Attribute
-    from ._implementation import Implementation
-    from ._sentinel import _Missing
+    from ._system._decorator import Attribute
+    from ._system._implementation import Implementation
+    from ._system._sentinel import _Missing
 
 
 @typing.dataclass_transform(kw_only_default=True)
