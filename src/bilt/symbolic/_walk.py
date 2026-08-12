@@ -1,8 +1,9 @@
 import typing
 
 if typing.TYPE_CHECKING:
-    from bilt.symbolic._tree import Tree
+    import collections.abc
 
+    from bilt.symbolic._tree import Tree
 
 __all__ = [
     "contains",
@@ -10,13 +11,10 @@ __all__ = [
 ]
 
 
-def subtrees(root: Tree) -> set[Tree]:
-    """Return every distinct subtree of root, in a single DAG walk.
-
-    Cheaper for multiple `contain` checks.
-    """
+def _walk_subtrees(root: Tree) -> collections.abc.Iterator[Tree]:
+    """Yield each distinct subtree of root once."""
     seen: set[Tree] = set()
-    stack: list[Tree] = [root]
+    stack = [root]
 
     while stack:
         node = stack.pop()
@@ -25,33 +23,18 @@ def subtrees(root: Tree) -> set[Tree]:
             continue
 
         seen.add(node)
+        yield node
         stack.extend(node.args)
 
-    return seen
+
+def subtrees(root: Tree) -> set[Tree]:
+    """Return every distinct subtree of root."""
+    return set(_walk_subtrees(root))
 
 
 def contains(root: Tree, target: Tree) -> bool:
-    """Return True if target occurs anywhere inside root.
-
-    Uses hash-consing by treating the expression as a DAG and avoiding
-    repeated visits to shared subtrees.
-    """
-    seen: set[Tree] = set()
-    stack: list[Tree] = [root]
-
-    while stack:
-        node = stack.pop()
-
-        if node is target:
-            return True
-
-        if node in seen:
-            continue
-
-        seen.add(node)
-        stack.extend(node.args)
-
-    return False
+    """Return True if target occurs anywhere inside root."""
+    return any(node is target for node in _walk_subtrees(root))
 
 
 def count_occurrences(root: Tree, target: Tree) -> int:
