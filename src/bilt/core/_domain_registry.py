@@ -7,12 +7,12 @@ import dataclasses
 import typing
 
 from bilt.symbolic._dimensions import CoordinateAxis
+from bilt.symbolic._domains import CanonicalisedDomain, Domain
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt.symbolic._dimensions import Coordinate, Dim
-    from bilt.symbolic._domains import Domain
 
 
 class DomainRegistryError(ValueError):
@@ -134,3 +134,6 @@ class DomainRegistry:
         except KeyError:
             message = f"Dimension {dimension!s} is not bound."
             raise DomainRegistryError(message) from None
+
+    def get_canonical_domain(self) -> CanonicalisedDomain:
+        return CanonicalisedDomain(Domain(tuple(self._bindings.keys())))
