@@ -7,7 +7,10 @@ import jax.numpy as jnp
 import pytest
 
 from bilt._backend import BackendCase
-from bilt._backend._jax import JAXBackend, UnsupportedNodeError
+from bilt._backend._jax import JAX_BACKEND, UnsupportedNodeError
+
+if typing.TYPE_CHECKING:
+    from bilt._backend._jax._backend import JAXBackend
 
 
 def parse_to_ast(src: str) -> ast.FunctionDef:
@@ -16,15 +19,15 @@ def parse_to_ast(src: str) -> ast.FunctionDef:
 
 @pytest.fixture
 def jax_backend() -> JAXBackend:
-    return JAXBackend()
+    return JAX_BACKEND
 
 
 SIMPLE_CASE = BackendCase(
     name="test_case",
     parameters=("a", "b", "d"),
     intermediates=[
-        JAXBackend().transpile(parse_to_ast("def c(a: int, b: int) -> int:\n    return a + b")),
-        JAXBackend().transpile(parse_to_ast("def e(c: int, d: int) -> int:\n    return c * d")),
+        JAX_BACKEND.transpile(parse_to_ast("def c(a: int, b: int) -> int:\n    return a + b")),
+        JAX_BACKEND.transpile(parse_to_ast("def e(c: int, d: int) -> int:\n    return c * d")),
     ],
     return_name="e",
 )
@@ -34,10 +37,10 @@ DIAMOND_CASE = BackendCase(
     name="test_case",
     parameters=("x",),
     intermediates=[
-        JAXBackend().transpile(parse_to_ast("def f(x: int) -> int:\n    return x + 1")),
-        JAXBackend().transpile(parse_to_ast("def g(f: int, x: int) -> int:\n        return f * x")),
-        JAXBackend().transpile(parse_to_ast("def h(f: int, x: int) -> int:\n    return f - x")),
-        JAXBackend().transpile(parse_to_ast("def i(g: int, h: int) -> int:\n        return g + h")),
+        JAX_BACKEND.transpile(parse_to_ast("def f(x: int) -> int:\n    return x + 1")),
+        JAX_BACKEND.transpile(parse_to_ast("def g(f: int, x: int) -> int:\n        return f * x")),
+        JAX_BACKEND.transpile(parse_to_ast("def h(f: int, x: int) -> int:\n    return f - x")),
+        JAX_BACKEND.transpile(parse_to_ast("def i(g: int, h: int) -> int:\n        return g + h")),
     ],
     return_name="i",
 )
@@ -46,8 +49,8 @@ LIST_CASE = BackendCase(
     name="test_case",
     parameters=(),
     intermediates=[
-        JAXBackend().transpile(parse_to_ast("def l1() -> list[float]:\n    return [1.0, 2.0, 3.0, 4.0, 5.0]")),
-        JAXBackend().transpile(parse_to_ast("def l2(l1: float) -> float:\n    return l1 + 1.0")),
+        JAX_BACKEND.transpile(parse_to_ast("def l1() -> list[float]:\n    return [1.0, 2.0, 3.0, 4.0, 5.0]")),
+        JAX_BACKEND.transpile(parse_to_ast("def l2(l1: float) -> float:\n    return l1 + 1.0")),
     ],
     return_name="l2",
 )

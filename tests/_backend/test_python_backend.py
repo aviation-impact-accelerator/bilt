@@ -6,7 +6,10 @@ import typing
 import pytest
 
 from bilt._backend import BackendCase
-from bilt._backend._python import PythonBackend
+from bilt._backend._python import PYTHON_BACKEND
+
+if typing.TYPE_CHECKING:
+    from bilt._backend._python._backend import PythonBackend
 
 
 def parse_to_ast(src: str) -> ast.FunctionDef:
@@ -15,15 +18,15 @@ def parse_to_ast(src: str) -> ast.FunctionDef:
 
 @pytest.fixture
 def python_backend() -> PythonBackend:
-    return PythonBackend()
+    return PYTHON_BACKEND
 
 
 SIMPLE_CASE = BackendCase(
     name="test_case",
     parameters=("a", "b", "d"),
     intermediates=[
-        PythonBackend().transpile(parse_to_ast("def c(a: int, b: int) -> int:\n    return a + b")),
-        PythonBackend().transpile(parse_to_ast("def e(c: int, d: int) -> int:\n    return c * d")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def c(a: int, b: int) -> int:\n    return a + b")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def e(c: int, d: int) -> int:\n    return c * d")),
     ],
     return_name="e",
 )
@@ -33,10 +36,10 @@ DIAMOND_CASE = BackendCase(
     name="test_case",
     parameters=("x",),
     intermediates=[
-        PythonBackend().transpile(parse_to_ast("def f(x: int) -> int:\n    return x + 1")),
-        PythonBackend().transpile(parse_to_ast("def g(f: int, x: int) -> int:\n        return f * x")),
-        PythonBackend().transpile(parse_to_ast("def h(f: int, x: int) -> int:\n    return f - x")),
-        PythonBackend().transpile(parse_to_ast("def i(g: int, h: int) -> int:\n        return g + h")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def f(x: int) -> int:\n    return x + 1")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def g(f: int, x: int) -> int:\n        return f * x")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def h(f: int, x: int) -> int:\n    return f - x")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def i(g: int, h: int) -> int:\n        return g + h")),
     ],
     return_name="i",
 )

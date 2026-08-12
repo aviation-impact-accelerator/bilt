@@ -33,3 +33,6 @@ class PythonBackend(Backend):
             expected_signature
         )
         return BackendCallable(name=case.name, parameters=case.parameters, callable=final_callable)
+
+
+PYTHON_BACKEND = PythonBackend()

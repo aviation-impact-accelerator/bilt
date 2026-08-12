@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from bilt._backend._jax._backend import JAXBackend
-from bilt._backend._python._backend import PythonBackend
+from bilt._backend._jax._backend import JAX_BACKEND
+from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core import (
     BiltSystemAnalysisError,
     BiltSystemDefinitionError,
@@ -18,8 +18,6 @@ from bilt.core import (
 from bilt.core._equation import equation
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from bilt._backend._base_backend import Backend
 
 
@@ -184,8 +182,8 @@ def test_evaluation_with_single_implementation() -> None:
 @pytest.mark.parametrize(
     ("backend"),
     (
-        PythonBackend(),
-        JAXBackend(),
+        PYTHON_BACKEND,
+        JAX_BACKEND,
     ),
 )
 def test_evaluation_with_single_implementation_and_backend(backend: Backend) -> None:
@@ -286,8 +284,8 @@ def test_evaluation_with_single_equation_solve_for_different_target() -> None:
 @pytest.mark.parametrize(
     ("backend"),
     (
-        PythonBackend(),
-        JAXBackend(),
+        PYTHON_BACKEND,
+        JAX_BACKEND,
     ),
 )
 def test_evaluation_with_equation_and_backend(backend: Backend) -> None:
@@ -400,17 +398,17 @@ def test_evaluation_with_multiple_equations_many_directions(
 @pytest.mark.parametrize(
     ("backend_context"),
     (
-        contextlib.nullcontext,
-        PythonBackend,
+        contextlib.nullcontext(),
+        PYTHON_BACKEND,
     ),
 )
 def test_repeated_evaluation_reuses_one_cache_entry(
-    backend_context: Callable[[], contextlib.AbstractContextManager[object]],
+    backend_context: contextlib.AbstractContextManager[object],
 ) -> None:
     """Repeated evaluation collapses to one cache entry, with or without an explicit backend context.
 
-    Backend value semantics (equality and hashing) mean equivalent backends - including ones
-    freshly constructed on every iteration - still key the same cache entry.
+    Each backend is a single shared instance, so entering that instance on every iteration - or
+    falling back to the default backend - keys the same cache entry every time.
     """
 
     @system
@@ -427,7 +425,7 @@ def test_repeated_evaluation_reuses_one_cache_entry(
 
     with implementation:
         for value in range(20):
-            with backend_context():
+            with backend_context:
                 assert Demo(a=float(value), b=2.0).c == value + 2.0
 
     assert len(implementation._callable_cache) == 1  # noqa: SLF001
