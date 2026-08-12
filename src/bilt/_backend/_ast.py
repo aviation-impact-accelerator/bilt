@@ -2,8 +2,9 @@ import ast
 
 from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
-from bilt._backend._jax._tensor_handling import IntermediateAnalysis, analyse_intermediates
-from bilt.core._tensors._tensor_analysis import SLICE_COLON, SLICE_NEWAXIS, ReshapeSlices
+from bilt.core._tensors._intermediates_analysis import IntermediateAnalysis
+from bilt.core._tensors._intermediates_analysis import analyse_intermediates
+from bilt.core._tensors._reshaping import ReshapeSlices, SLICE_COLON, SLICE_NEWAXIS
 
 
 def generate_function_args_ast(case: BackendCase) -> ast.arguments:
@@ -40,8 +41,8 @@ def _generate_intermediate_call_ast(callable: BackendCallable, call_arg_analysis
 def generate_call_args(callable: BackendCallable, intermediate_analysis: IntermediateAnalysis) -> list[ast.expr]:
     call_args: list[ast.expr] = []
 
-    for expected_param in callable.expected_parameters.values():
-        analysed_param = intermediate_analysis.parameters[expected_param.name]
+    for expected_param_name in callable.expected_parameters.keys():
+        analysed_param = intermediate_analysis.parameters[expected_param_name]
         actual_name = analysed_param.var.actual_name
 
         if analysed_param.reshape_slices is not None:
@@ -57,7 +58,7 @@ def generate_call_args(callable: BackendCallable, intermediate_analysis: Interme
 def generate_function_return(case: BackendCase) -> ast.Return:
     return ast.Return(
         value=ast.Name(
-            id=f"{case.returns.name}_",
+            id=f"{case.return_name}_",
             ctx=ast.Load()
         )
     )
@@ -94,3 +95,10 @@ def generate_reshaping_assignment(param_name: str, reshape_slices: ReshapeSlices
         targets=[ast.Name(id=param_name, ctx=ast.Store())],
         value=generate_slice_ast(param_name, reshape_slices),
     )
+
+def clear_signature_type_hints(func_def: ast.FunctionDef) -> None:
+    # TODO: What about posonly and kwonly args - will we ever have any?
+    for arg in func_def.args.args:
+        arg.annotation = None
+
+    func_def.returns = None

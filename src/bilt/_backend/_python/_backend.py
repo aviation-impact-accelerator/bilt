@@ -1,7 +1,10 @@
 import ast
 import inspect
+import typing
 
 from bilt._backend import Backend, BackendCallable, BackendCase
+from bilt._backend._callable import CallableType
+from bilt.core._tensors._backend_analysis import derive_union_domain
 
 
 class PythonBackend(Backend):
@@ -27,9 +30,15 @@ class PythonBackend(Backend):
                 args_for_intermediate = [inputs[name] for name in intermediate.expected_parameters.keys()]
                 result = intermediate.callable(*args_for_intermediate)
                 inputs[intermediate.name] = result
-            return inputs[case.returns.name]
+            return inputs[case.return_name]
 
         final_callable.__signature__ = (  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
             expected_signature
         )
-        return BackendCallable(name=case.name, expected_parameters=case.parameters, callable=final_callable)
+
+        return BackendCallable(
+            name=case.name,
+            expected_parameters=case.parameters,
+            expected_return_domain=case.return_domain,
+            expected_union_domain=derive_union_domain(case),
+            callable=typing.cast(CallableType, final_callable))

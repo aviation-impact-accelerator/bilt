@@ -6,7 +6,6 @@ import typing
 
 from bilt._backend._callable import BackendCallable, CallableType
 from bilt._backend._errors import CompilationError
-from bilt.core._tensors._tensor_analysis import *
 
 if typing.TYPE_CHECKING:
     from ._case import BackendCase

@@ -6,19 +6,23 @@ import typing
 import numpy as np
 import pytest
 
-from bilt._backend._jax._ast import generate_reshaping_assignment
+from bilt._backend._ast import generate_reshaping_assignment
 from bilt._backend._jax._backend import JAXBackend
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._interface import Interface
 from bilt.core._system._decorator import system
 from bilt.core._system._field import field
 from bilt.core._system._implementation import Implementation
-from bilt.core._tensors._tensor_analysis import CanonicalisedDomain, align_extra_dims, canonicalised, convert_any_tensors_to_raw_arrays, derive_reshape_slices, domain_to_tensor_type_string, extract_domains_from_transform_signature, identify_extra_dims, transpose_tensor_to_canonical_order
+from bilt.core._tensors._evaluation_domain_analysis import identify_extra_dims
+from bilt.core._tensors._lowering_and_lifting import _align_extra_dims, _transpose_tensor_to_canonical_order  # pyright: ignore[reportPrivateUsage]
+from bilt.core._tensors._reshaping import derive_reshape_slices
 from bilt.core._tensors._tensors import Tensor, tensor
+from bilt.core._tensors._transform_domain_analysis import _extract_domains_from_transform_signature  # pyright: ignore[reportPrivateUsage]
 from bilt.core._transform import transform
 from bilt.symbolic._dimensions import dim
 
-from bilt.symbolic._domains import Domain, domain, union
+from bilt.symbolic._domain_handling import canonicalised, union
+from bilt.symbolic._domains import CanonicalisedDomain, Domain, domain
 
 i = dim("i")
 j = dim("j")
@@ -163,7 +167,7 @@ def test_extract_domains_from_func_def_signature():
                             )
                         ).body[0])
 
-    c_extracted = extract_domains_from_transform_signature(c_def)
+    c_extracted = _extract_domains_from_transform_signature(c_def)
     c_expected = {
         "a": domain(i),
         "b": domain(j),
@@ -172,7 +176,7 @@ def test_extract_domains_from_func_def_signature():
 
     assert c_extracted == c_expected
 
-    d_extracted = extract_domains_from_transform_signature(d_def)
+    d_extracted = _extract_domains_from_transform_signature(d_def)
     d_expected = {
         "c": domain(i,j),
         "m": Domain.scalar(),
@@ -240,33 +244,6 @@ def test_make_reshaping_assignment():
     assert ast.unparse(assignment5) == "a = a[:, None, :]"
     assert ast.unparse(assignment6) == "a = a[:, :, :]"
 
-def test_domain_to_tensor_type_string():
-    assert domain_to_tensor_type_string(domain(i)) == "Tensor[i]"
-    assert domain_to_tensor_type_string(domain(j)) == "Tensor[j]"
-    assert domain_to_tensor_type_string(domain(i,j)) == "Tensor[i,j]"
-    assert domain_to_tensor_type_string(domain(j,i)) == "Tensor[j,i]"
-    assert domain_to_tensor_type_string(Domain.scalar()) == "Tensor[None]"
-
-def test_convert_tensors_to_raw_arrays_in_inputs():
-    inputs: dict[str, object] = {
-        "a": 5,
-        "b": 2,
-        "c": tensor([1, 2, 3], over=i),
-        "d": 4,
-        "e": tensor([[1, 2, 3], [4, 5, 6]], over=(j,k)),
-    }
-
-    result = convert_any_tensors_to_raw_arrays(inputs)
-    expected = {
-        "a": 5,
-        "b": 2,
-        "c": np.array([1, 2, 3]),
-        "d": 4,
-        "e": np.array([[1, 2, 3], [4, 5, 6]])
-    }
-
-    np.testing.assert_equal(result, expected)
-
 def test_identify_extra_dims():
     assert identify_extra_dims(Domain.scalar(), Domain.scalar()) == Domain(())
     assert identify_extra_dims(domain(i, j, k), domain(i, j)) == Domain((k,))
@@ -282,7 +259,7 @@ def test_transpose_tensor_to_canonical_order():
         [7, 8, 9],
     ], over=(i,j))
 
-    a_canonical = transpose_tensor_to_canonical_order(a, canonical_order)
+    a_canonical = _transpose_tensor_to_canonical_order(a, canonical_order)
 
     np.testing.assert_allclose(a_canonical.values, [
         [1, 2, 3],
@@ -300,7 +277,7 @@ def test_transpose_tensor_to_canonical_order():
 
     assert b.domain.dims == (j,i)
 
-    b_canonical = transpose_tensor_to_canonical_order(b, canonical_order)
+    b_canonical = _transpose_tensor_to_canonical_order(b, canonical_order)
 
     np.testing.assert_allclose(b_canonical.values, [
         [1, 2, 3],
@@ -449,15 +426,15 @@ def test_align_extra_dims():
 
         extra_dims = CanonicalisedDomain(domain(m, n))
 
-        res_a = align_extra_dims(a, extra_dims)
+        res_a = _align_extra_dims(a, extra_dims)
         np.testing.assert_allclose(res_a.values, a.values[:,:,:,None])
         assert res_a.domain == domain(i, j, m, n)
 
-        res_b = align_extra_dims(b, extra_dims)
+        res_b = _align_extra_dims(b, extra_dims)
         np.testing.assert_allclose(res_b.values, b.values[:,:,None,:])
         assert res_b.domain == domain(i, j, m, n)
 
-        res_c = align_extra_dims(c, extra_dims)
+        res_c = _align_extra_dims(c, extra_dims)
         np.testing.assert_allclose(res_c.values, c.values[:,None,None])
         assert res_c.domain == domain(i, m, n)
 
