@@ -4,10 +4,11 @@ __all__ = [
 ]
 
 import dataclasses
+from collections.abc import Iterable
 
 from bilt.symbolic._dimensions import Dim
 
-type DomainLike = Domain | Dim | tuple[Dim, ...] | list[Dim] | None
+type DomainLike = Domain | Dim | Iterable[Dim]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -46,9 +47,6 @@ def domain(*dims: Dim) -> Domain:
 
 
 def as_domain(value: DomainLike) -> Domain:
-    if value is None:
-        return Domain.scalar()
-
     if isinstance(value, Domain):
         return value
 

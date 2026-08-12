@@ -26,7 +26,6 @@ def test_as_domain_converts_supported_values() -> None:
     time = dim("time")
     existing = domain(time)
 
-    assert as_domain(None) == Domain.scalar()
     assert as_domain(time) == existing
     assert as_domain((time,)) == existing
     assert as_domain([time]) == existing
