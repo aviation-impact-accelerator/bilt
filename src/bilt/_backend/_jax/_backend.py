@@ -6,10 +6,10 @@ import jax.numpy as jnp
 
 from bilt._backend import Backend, BackendCallable, BackendCase
 from bilt._backend._callable import CallableType
-from bilt._backend._jax._ast import generate_chain_case_ast, generate_function_args_ast, generate_function_return, generate_intermediate_calls_ast
+from bilt._backend._ast import generate_chain_case_ast, generate_function_args_ast, generate_function_return, generate_intermediate_calls_ast
 from bilt._backend._jax._ast_transformer import JAXASTTransformer
-from bilt._backend._jax._supports import _validate  # pyright: ignore[reportPrivateUsage]
-from bilt._backend._jax._tensor_handling import derive_union_domain
+from bilt._backend._jax._supports import _validate
+from bilt.core._tensors._backend_analysis import derive_union_domain  # pyright: ignore[reportPrivateUsage]
 
 
 class JAXBackend(Backend):
@@ -40,7 +40,7 @@ class JAXBackend(Backend):
         return BackendCallable(
             case.name,
             case.parameters,
-            case.returns.domain,
+            case.return_domain,
             derive_union_domain(case),
             final_callable,
         )

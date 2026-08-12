@@ -7,7 +7,8 @@ import numpy as np
 
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._protocol import get_current_structural_analysis_backend
-from bilt.core._tensors._tensor_analysis import lift_output, prepare_any_tensor_inputs_for_lowering_to_callable
+from bilt.core._tensors._lowering_and_lifting import prepare_any_tensor_inputs_for_lowering_to_callable
+from bilt.core._tensors._lowering_and_lifting import lift_output
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -55,7 +56,7 @@ class Implementation:
                 final_callable = backend.chain_case(planned_case)
                 self._callable_cache[cache_key] = final_callable
 
-            inputs_to_use = {var.name: inputs[var.name] for var in final_callable.expected_parameters.values()}
+            inputs_to_use = {var_name: inputs[var_name] for var_name in final_callable.expected_parameters.keys()}
             result = prepare_any_tensor_inputs_for_lowering_to_callable(inputs_to_use, final_callable)
 
             output_value = typing.cast(
