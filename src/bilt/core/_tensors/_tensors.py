@@ -1,6 +1,5 @@
 import collections.abc
 import dataclasses
-import typing
 
 import numpy as np
 
@@ -31,16 +30,9 @@ class Tensor:
 
         _check_rank(values, self.domain)
 
-    # Purely for being able to read expected dimensions from signature
-    def __class_getitem__(cls, item: str | tuple[str, ...] | None) -> typing.Annotated[..., ...]:
-        if item is None:
-            domain = Domain.scalar()
-        elif isinstance(item, tuple):
-            domain = Domain(tuple(Dim(dim_str) for dim_str in item))
-        else:
-            domain = Domain((Dim(item),))
-
-        return typing.Annotated[cls, domain]
+    # Purely for being able to put expected dimensions in signature
+    def __class_getitem__(cls, item: object) -> type[Tensor]:
+        return cls
 
     @classmethod
     def scalar(cls, value: object) -> Tensor:

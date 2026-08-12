@@ -14,9 +14,9 @@ from bilt.core._system._decorator import system
 from bilt.core._system._field import field
 from bilt.core._system._implementation import Implementation
 from bilt.core._tensors._evaluation_domain_analysis import identify_extra_dims
-from bilt.core._tensors._lowering_and_lifting import (  # pyright: ignore[reportPrivateUsage]
-    _align_extra_dims,
-    _transpose_tensor_to_canonical_order,
+from bilt.core._tensors._lowering_and_lifting import (
+    _align_extra_dims,  # pyright: ignore[reportPrivateUsage]
+    _transpose_tensor_to_canonical_order,  # pyright: ignore[reportPrivateUsage]
 )
 from bilt.core._tensors._reshaping import derive_reshape_slices
 from bilt.core._tensors._tensors import Tensor, tensor
@@ -28,34 +28,36 @@ from bilt.symbolic._dimensions import dim
 from bilt.symbolic._domain_handling import canonicalised, union
 from bilt.symbolic._domains import CanonicalisedDomain, Domain, domain
 
-i = dim("i")
-j = dim("j")
-k = dim("k")
-m = dim("m")
-n = dim("n")
+i = j = k = m = n = typing.Any
+
+dim_i = dim("i")
+dim_j = dim("j")
+dim_k = dim("k")
+dim_m = dim("m")
+dim_n = dim("n")
 
 
 def test_jax_tensor_evaluation() -> None:
     @system
     class Demo(metaclass=Interface):
-        a: Tensor["i"] = field()
-        b: Tensor["j"] = field()
-        c: Tensor["i", "j"] = field()
+        a: Tensor[i] = field()
+        b: Tensor[j] = field()
+        c: Tensor[i, j] = field()
         m: Tensor[None] = field()
 
-        d: Tensor["i", "j"] = field()
+        d: Tensor[i, j] = field()
 
     @transform
-    def c(a: Tensor["i"], b: Tensor["j"]) -> Tensor["i", "j"]:
+    def c(a: Tensor[i], b: Tensor[j]) -> Tensor[i, j]:
         return a * b
 
     @transform
-    def d(c: Tensor["i", "j"], m: Tensor[None]) -> Tensor["i", "j"]:
+    def d(c: Tensor[i, j], m: Tensor[None]) -> Tensor[i, j]:
         return m * (c * c)
 
     basic = Implementation(Demo, [c, d])
-    a: Tensor["i"] = tensor([12.0, 58.0, 23.0, 91.0, 16.0], over=i)
-    b: Tensor["j"] = tensor([0.7, 0.2, 0.35], over=j)
+    a: Tensor[i] = tensor([12.0, 58.0, 23.0, 91.0, 16.0], over=dim_i)
+    b: Tensor[j] = tensor([0.7, 0.2, 0.35], over=dim_j)
     m: Tensor[None] = tensor(5)
     demo = Demo(a=a, b=b, m=m)
 
@@ -67,7 +69,7 @@ def test_jax_tensor_evaluation() -> None:
             [20288.45, 1656.2, 5072.1125],
             [627.2, 51.2, 156.8],
         ],
-        over=(i, j),
+        over=(dim_i, dim_j),
     )
 
     with basic, JAXBackend():
@@ -80,14 +82,14 @@ def test_jax_tensor_evaluation() -> None:
 
 def test_swapped_input_dimensions() -> None:
     @transform
-    def c(a: Tensor["i", "j"], b: Tensor["i", "j"]) -> Tensor["i", "j"]:
+    def c(a: Tensor[i, j], b: Tensor[i, j]) -> Tensor[i, j]:
         return b - a
 
     @system
     class Demo(metaclass=Interface):
-        a: Tensor["i", "j"] = field()
-        b: Tensor["i", "j"] = field()
-        c: Tensor["i", "j"] = field()
+        a: Tensor[i, j] = field()
+        b: Tensor[i, j] = field()
+        c: Tensor[i, j] = field()
 
     basic = Implementation(Demo, [c])
 
@@ -97,7 +99,7 @@ def test_swapped_input_dimensions() -> None:
             [4, 5, 6],
             [7, 8, 9],
         ],
-        over=(i, j),
+        over=(dim_i, dim_j),
     )
 
     b: Tensor = tensor(
@@ -106,12 +108,12 @@ def test_swapped_input_dimensions() -> None:
             [2, 5, 8],
             [3, 6, 9],
         ],
-        over=(j, i),
+        over=(dim_j, dim_i),
     )
 
     demo = Demo(a=a, b=b)
 
-    expected = tensor(np.zeros((3, 3)), over=(i, j))
+    expected = tensor(np.zeros((3, 3)), over=(dim_i, dim_j))
 
     with basic, JAXBackend():
         result = demo.c
@@ -121,14 +123,14 @@ def test_swapped_input_dimensions() -> None:
 
 def test_transform_callables_expect_dimensions_in_canonical_order() -> None:
     @transform
-    def c(a: Tensor["i", "j"], b: Tensor["j", "i"]) -> Tensor["i", "j"]:
+    def c(a: Tensor[i, j], b: Tensor[j, i]) -> Tensor[i, j]:
         return b - a
 
     @system
     class Demo(metaclass=Interface):
-        a: Tensor["i", "j"] = field()
-        b: Tensor["i", "j"] = field()
-        c: Tensor["i", "j"] = field()
+        a: Tensor[i, j] = field()
+        b: Tensor[i, j] = field()
+        c: Tensor[i, j] = field()
 
     basic = Implementation(Demo, [c])
 
@@ -138,7 +140,7 @@ def test_transform_callables_expect_dimensions_in_canonical_order() -> None:
             [4, 5, 6],
             [7, 8, 9],
         ],
-        over=(i, j),
+        over=(dim_i, dim_j),
     )
 
     b: Tensor = tensor(
@@ -147,12 +149,12 @@ def test_transform_callables_expect_dimensions_in_canonical_order() -> None:
             [4, 5, 6],
             [7, 8, 9],
         ],
-        over=(i, j),
+        over=(dim_i, dim_j),
     )
 
     demo = Demo(a=a, b=b)
 
-    expected = tensor(np.zeros((3, 3)), over=(i, j))
+    expected = tensor(np.zeros((3, 3)), over=(dim_i, dim_j))
 
     with basic, JAXBackend():
         result = demo.c
@@ -162,11 +164,11 @@ def test_transform_callables_expect_dimensions_in_canonical_order() -> None:
 
 def test_extract_domains_from_func_def_signature() -> None:
     @transform
-    def c(a: Tensor["i"], b: Tensor["j"]) -> Tensor["i", "j"]:
+    def c(a: Tensor[i], b: Tensor[j]) -> Tensor[i, j]:
         return a * b
 
     @transform
-    def d(c: Tensor["i", "j"], m: Tensor[None]) -> Tensor["i", "j"]:
+    def d(c: Tensor[i, j], m: Tensor[None]) -> Tensor[i, j]:
         return m * (c * c)
 
     c_def = typing.cast(
@@ -189,39 +191,39 @@ def test_extract_domains_from_func_def_signature() -> None:
 
     c_extracted = _extract_domains_from_transform_signature(c_def)
     c_expected = {
-        "a": domain(i),
-        "b": domain(j),
-        "return": domain(i, j),
+        "a": domain(dim_i),
+        "b": domain(dim_j),
+        "return": domain(dim_i, dim_j),
     }
 
     assert c_extracted == c_expected
 
     d_extracted = _extract_domains_from_transform_signature(d_def)
     d_expected = {
-        "c": domain(i, j),
+        "c": domain(dim_i, dim_j),
         "m": Domain.scalar(),
-        "return": domain(i, j),
+        "return": domain(dim_i, dim_j),
     }
 
     assert d_extracted == d_expected
 
 
 def test_domain_union() -> None:
-    domain1 = Domain((i, j))
-    domain2 = Domain((k, j))
+    domain1 = Domain((dim_i, dim_j))
+    domain2 = Domain((dim_k, dim_j))
 
     union_ = union(domain1, domain2)
 
-    assert union_ == Domain((i, j, k))
+    assert union_ == Domain((dim_i, dim_j, dim_k))
 
 
 def test_derive_reshape_slices() -> None:
-    domain1 = CanonicalisedDomain(domain(i))
-    domain2 = CanonicalisedDomain(domain(j))
-    domain3 = CanonicalisedDomain(domain(i, j))
-    domain4 = CanonicalisedDomain(domain(i, j, k))
-    domain5 = CanonicalisedDomain(domain(j, k))
-    domain6 = CanonicalisedDomain(domain(i, k))
+    domain1 = CanonicalisedDomain(domain(dim_i))
+    domain2 = CanonicalisedDomain(domain(dim_j))
+    domain3 = CanonicalisedDomain(domain(dim_i, dim_j))
+    domain4 = CanonicalisedDomain(domain(dim_i, dim_j, dim_k))
+    domain5 = CanonicalisedDomain(domain(dim_j, dim_k))
+    domain6 = CanonicalisedDomain(domain(dim_i, dim_k))
 
     assert derive_reshape_slices(domain1, domain3) == (slice(None), None)
     assert derive_reshape_slices(domain2, domain3) == (None, slice(None))
@@ -232,8 +234,8 @@ def test_derive_reshape_slices() -> None:
 
 
 def test_derive_reshape_slices_in_different_order_errors() -> None:
-    domain1 = CanonicalisedDomain(domain(i, j))
-    domain3 = CanonicalisedDomain(domain(j, i))
+    domain1 = CanonicalisedDomain(domain(dim_i, dim_j))
+    domain3 = CanonicalisedDomain(domain(dim_j, dim_i))
 
     with pytest.raises(RuntimeError):
         _ = derive_reshape_slices(domain1, domain3)
@@ -271,13 +273,13 @@ def test_make_reshaping_assignment() -> None:
 
 def test_identify_extra_dims() -> None:
     assert identify_extra_dims(Domain.scalar(), Domain.scalar()) == Domain(())
-    assert identify_extra_dims(domain(i, j, k), domain(i, j)) == Domain((k,))
-    assert identify_extra_dims(domain(i, j), domain(i, j)) == Domain(())
-    assert identify_extra_dims(domain(k, i), domain(i, j)) == Domain((k,))
+    assert identify_extra_dims(domain(dim_i, dim_j, dim_k), domain(dim_i, dim_j)) == Domain((dim_k,))
+    assert identify_extra_dims(domain(dim_i, dim_j), domain(dim_i, dim_j)) == Domain(())
+    assert identify_extra_dims(domain(dim_k, dim_i), domain(dim_i, dim_j)) == Domain((dim_k,))
 
 
 def test_transpose_tensor_to_canonical_order() -> None:
-    canonical_order = CanonicalisedDomain(domain(i, j, k))
+    canonical_order = CanonicalisedDomain(domain(dim_i, dim_j, dim_k))
 
     a = tensor(
         [
@@ -285,7 +287,7 @@ def test_transpose_tensor_to_canonical_order() -> None:
             [4, 5, 6],
             [7, 8, 9],
         ],
-        over=(i, j),
+        over=(dim_i, dim_j),
     )
 
     a_canonical = _transpose_tensor_to_canonical_order(a, canonical_order)
@@ -299,11 +301,11 @@ def test_transpose_tensor_to_canonical_order() -> None:
         ],
     )
 
-    assert a_canonical.domain.dims == (i, j)
+    assert a_canonical.domain.dims == (dim_i, dim_j)
 
-    b = tensor([[1, 4, 7], [2, 5, 8], [3, 6, 9]], over=(j, i))
+    b = tensor([[1, 4, 7], [2, 5, 8], [3, 6, 9]], over=(dim_j, dim_i))
 
-    assert b.domain.dims == (j, i)
+    assert b.domain.dims == (dim_j, dim_i)
 
     b_canonical = _transpose_tensor_to_canonical_order(b, canonical_order)
 
@@ -316,7 +318,7 @@ def test_transpose_tensor_to_canonical_order() -> None:
         ],
     )
 
-    assert b_canonical.domain.dims == (i, j)
+    assert b_canonical.domain.dims == (dim_i, dim_j)
 
 
 def test_canonicalised() -> None:
@@ -326,7 +328,7 @@ def test_canonicalised() -> None:
                 [1, 2],
                 [3, 4],
             ],
-            over=(i, j),
+            over=(dim_i, dim_j),
         )
 
         b = tensor(
@@ -334,15 +336,15 @@ def test_canonicalised() -> None:
                 [1, 3],
                 [2, 4],
             ],
-            over=(j, i),
+            over=(dim_j, dim_i),
         )
 
         evaluation.domains.bind_all([a, b])
 
-        assert evaluation.domains.get_canonical_domain() == CanonicalisedDomain(domain(i, j))
+        assert evaluation.domains.get_canonical_domain() == CanonicalisedDomain(domain(dim_i, dim_j))
 
-        assert canonicalised(domain(i, j)) == CanonicalisedDomain(domain(i, j))
-        assert canonicalised(domain(j, i)) == CanonicalisedDomain(domain(i, j))
+        assert canonicalised(domain(dim_i, dim_j)) == CanonicalisedDomain(domain(dim_i, dim_j))
+        assert canonicalised(domain(dim_j, dim_i)) == CanonicalisedDomain(domain(dim_i, dim_j))
 
 
 def test_scalar_transform_still_works() -> None:
@@ -386,16 +388,16 @@ def test_extra_dims_in_scalar_computation_single_dim() -> None:
         return c + e
 
     basic = Implementation(Demo, [c, d])
-    a = tensor([1.0, 2.0, 3.0], over=(i,))
+    a = tensor([1.0, 2.0, 3.0], over=(dim_i,))
     b = 3.0
-    e = tensor([2.0, 4.0, 6.0], over=(i,))
+    e = tensor([2.0, 4.0, 6.0], over=(dim_i,))
     demo = Demo(a=a, b=b, e=e)
 
     with basic, JAXBackend():
         result = demo.d
 
         assert isinstance(result, Tensor)
-        assert result.domain == domain(i)
+        assert result.domain == domain(dim_i)
         np.testing.assert_allclose(result.values, np.array([5.0, 10.0, 15.0]))
 
 
@@ -418,19 +420,19 @@ def test_extra_dims_in_scalar_computation_two_dims() -> None:
 
     with EvaluationContext() as evaluation:
         basic = Implementation(Demo, [c, d])
-        a = tensor([1.0, 2.0, 3.0], over=(i,))
+        a = tensor([1.0, 2.0, 3.0], over=(dim_i,))
         b = 3
-        e = tensor([2.0, 4.0, 6.0], over=(j,))
+        e = tensor([2.0, 4.0, 6.0], over=(dim_j,))
         demo = Demo(a=a, b=b, e=e)
 
         evaluation.domains.bind_all([a, b, e])
-        assert evaluation.domains.get_canonical_domain() == CanonicalisedDomain(domain(i, j))
+        assert evaluation.domains.get_canonical_domain() == CanonicalisedDomain(domain(dim_i, dim_j))
 
         with basic, JAXBackend():
             result = demo.d
 
             assert isinstance(result, Tensor)
-            assert result.domain == domain(i, j)
+            assert result.domain == domain(dim_i, dim_j)
             np.testing.assert_allclose(
                 result.values,
                 np.array(
@@ -456,7 +458,7 @@ def test_align_extra_dims() -> None:
                     [7, 8],
                 ],
             ],
-            over=(i, j, m),
+            over=(dim_i, dim_j, dim_m),
         )
 
         b = tensor(
@@ -470,50 +472,52 @@ def test_align_extra_dims() -> None:
                     [4, 2],
                 ],
             ],
-            over=(i, j, n),
+            over=(dim_i, dim_j, dim_n),
         )
 
-        c = tensor([1, 2], over=(i,))
+        c = tensor([1, 2], over=(dim_i,))
 
         evaluation.domains.bind_all([a, b, c])
 
-        assert evaluation.domains.get_canonical_domain() == CanonicalisedDomain(domain(i, j, m, n))
+        assert evaluation.domains.get_canonical_domain() == CanonicalisedDomain(domain(dim_i, dim_j, dim_m, dim_n))
 
-        extra_dims = CanonicalisedDomain(domain(m, n))
+        extra_dims = CanonicalisedDomain(domain(dim_m, dim_n))
 
         res_a = _align_extra_dims(a, extra_dims)
         np.testing.assert_allclose(res_a.values, a.values[:, :, :, None])
-        assert res_a.domain == domain(i, j, m, n)
+        assert res_a.domain == domain(dim_i, dim_j, dim_m, dim_n)
 
         res_b = _align_extra_dims(b, extra_dims)
         np.testing.assert_allclose(res_b.values, b.values[:, :, None, :])
-        assert res_b.domain == domain(i, j, m, n)
+        assert res_b.domain == domain(dim_i, dim_j, dim_m, dim_n)
 
         res_c = _align_extra_dims(c, extra_dims)
         np.testing.assert_allclose(res_c.values, c.values[:, None, None])
-        assert res_c.domain == domain(i, m, n)
+        assert res_c.domain == domain(dim_i, dim_m, dim_n)
 
 
 def test_one_chained_callable_uses_the_others_extra_dims() -> None:
-    component = dim("C")
-    time = dim("t")
+    component = dim("component")
+    time = dim("time")
+
+    c = t = typing.Any
 
     @system
     class Demo(metaclass=Interface):
-        voltage: Tensor["C"] = field()
-        current: Tensor["C"] = field()
-        power: Tensor["C"] = field()
-        noise: Tensor["t"] = field()
-        noisy_power: Tensor["t"] = field()
+        voltage: Tensor[c] = field()
+        current: Tensor[c] = field()
+        power: Tensor[c] = field()
+        noise: Tensor[t] = field()
+        noisy_power: Tensor[t] = field()
 
     # Component is expected, Time is extra
     @transform
-    def power(voltage: Tensor["C"], current: Tensor["C"]) -> Tensor["C"]:
+    def power(voltage: Tensor[c], current: Tensor[c]) -> Tensor[c]:
         return voltage * current
 
     # Time is expected, Component is extra
     @transform
-    def noisy_power(power: Tensor["t"], noise: Tensor["t"]) -> Tensor["t"]:
+    def noisy_power(power: Tensor[t], noise: Tensor[t]) -> Tensor[t]:
         return power + noise
 
     with EvaluationContext() as evaluation:
