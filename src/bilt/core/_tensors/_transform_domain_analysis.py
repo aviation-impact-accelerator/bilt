@@ -29,27 +29,38 @@ def _extract_domains_from_transform_signature(func_def: ast.FunctionDef) -> dict
                 dims: list[Dim] = []
 
                 if value != "Tensor":
-                    message = f"Expecting `float` or `Tensor` in signature, got `f{value}`."
+                    message = f"Expecting `float` or `Tensor` in signature, got `{value}`."
                     raise UnsupportedSignatureTypeHintError(message)
+
+                def add_dim_from_ast_constant(constant: ast.Constant) -> None:
+                    if constant.value is None:
+                        # Don't add anything to dims (None means scalar, which has no dim)
+                        return
+
+                    if not isinstance(constant.value, str):
+                        message = f"Expected string dimensions or `None` inside the `Tensor[...]` type hint, but got type `{type(constant.value)}`."
+                        raise ValueError(message)
+
+                    dims.append(dim(constant.value))
 
                 match slice_expr:
                     case ast.Tuple():
-                        dims.extend([dim(elem.id) for elem in typing.cast("list[ast.Name]", slice_expr.elts)])
+                        for elt in slice_expr.elts:
+                            if not isinstance(elt, ast.Constant):
+                                message = f"Expected `ast.Constant` string dimension inside `Tensor[...]`, but instead got type `{type(elt)}`. Make sure you're not passing a runtime object (such as a `Dim` object) directly."
+                                raise ValueError(message)
+
+                            add_dim_from_ast_constant(elt)
                     case ast.Constant():
-                        if slice_expr.value is not None:
-                            message = f"Expected `Tensor[None]` but given `Tensor[f{slice_expr.value}]"
-                            raise UnsupportedSignatureTypeHintError(message)
-                        # dims will be left empty (scalar domain)
-                    case ast.Name():
-                        dims.append(dim(slice_expr.id))
+                        add_dim_from_ast_constant(slice_expr)
                     case _:
-                        message = f"Expected Tuple/Constant/Name slice expression but got {slice_expr}."
+                        message = f"Expected `ast.Tuple`/`ast.Constant` string slice expression inside `Tensor[...]` type hint, but got type `{type(slice_expr)}`."
                         raise ValueError(message)
 
                 res[name] = Domain(tuple(dims))
             case ast.Name():
                 if annotation.id != "float":
-                    message = f"Expecting `float` or `Tensor` in signature, got `f{annotation.id}`."
+                    message = f"Expecting `float` or `Tensor` in signature, got `{annotation.id}`."
                     raise UnsupportedSignatureTypeHintError(message)
 
                 res[name] = Domain.scalar()
