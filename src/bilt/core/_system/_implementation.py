@@ -3,15 +3,14 @@ __all__ = ["Implementation"]
 import types
 import typing
 
-import numpy as np
-
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._protocol import get_current_structural_analysis_backend
-from bilt.core._tensors._lowering_and_lifting import prepare_any_tensor_inputs_for_lowering_to_callable
-from bilt.core._tensors._lowering_and_lifting import lift_output
+from bilt.core._tensors._lowering_and_lifting import lift_output, prepare_any_tensor_inputs_for_lowering_to_callable
 
 if typing.TYPE_CHECKING:
     import collections.abc
+
+    import numpy as np
 
     from bilt._backend import Backend, BackendCallable
     from bilt.core._interface import Interface
@@ -56,13 +55,10 @@ class Implementation:
                 final_callable = backend.chain_case(planned_case)
                 self._callable_cache[cache_key] = final_callable
 
-            inputs_to_use = {var_name: inputs[var_name] for var_name in final_callable.expected_parameters.keys()}
+            inputs_to_use = {var_name: inputs[var_name] for var_name in final_callable.expected_parameters}
             result = prepare_any_tensor_inputs_for_lowering_to_callable(inputs_to_use, final_callable)
 
-            output_value = typing.cast(
-                np.ndarray,
-                final_callable.callable(**result.prepared_inputs)
-            )
+            output_value = typing.cast("np.ndarray", final_callable.callable(**result.prepared_inputs))
 
             output_value = lift_output(output_value, result)
             evaluation.domains.bind(output_value)

@@ -1,5 +1,7 @@
-from bilt.symbolic._domains import CanonicalisedDomain
+import typing
 
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._domains import CanonicalisedDomain
 
 type ReshapeSlices = tuple[slice | None, ...]
 
@@ -12,7 +14,7 @@ def derive_reshape_slices(domain: CanonicalisedDomain, target_domain: Canonicali
 
     domain_index = 0
 
-    def any_domain_dims_left():
+    def any_domain_dims_left() -> bool:
         return domain_index < len(domain.domain.dims)
 
     for target_domain_index in range(len(target_domain.domain.dims)):
@@ -25,9 +27,11 @@ def derive_reshape_slices(domain: CanonicalisedDomain, target_domain: Canonicali
             reshape_slices.append(SLICE_NEWAXIS)
 
     if any_domain_dims_left():
-        message = "Went all the way through `target_domain` and still have `domain` dims left - " \
-        "`domain` and `target_domain` not in the same order? Shouldn't be possible now we're taking " \
-        "in `CanonicalisedDomain`s."
+        message = (
+            "Went all the way through `target_domain` and still have `domain` dims left - "
+            "`domain` and `target_domain` not in the same order? Shouldn't be possible now we're taking "
+            "in `CanonicalisedDomain`s."
+        )
 
         raise RuntimeError(message)
 
@@ -35,16 +39,8 @@ def derive_reshape_slices(domain: CanonicalisedDomain, target_domain: Canonicali
 
 
 def is_scalar_reshape(reshape_slices: ReshapeSlices) -> bool:
-    for slice in reshape_slices:
-        if slice != SLICE_NEWAXIS:
-            return False
-
-    return True
+    return all(reshape_slice == SLICE_NEWAXIS for reshape_slice in reshape_slices)
 
 
 def is_unchanged_reshape(reshape_slices: ReshapeSlices) -> bool:
-    for slice in reshape_slices:
-        if slice != SLICE_COLON:
-            return False
-
-    return True
+    return all(reshape_slice == SLICE_COLON for reshape_slice in reshape_slices)

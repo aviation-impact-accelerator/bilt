@@ -4,11 +4,11 @@ import abc
 import ast
 import typing
 
-from bilt._backend._callable import BackendCallable, CallableType
 from bilt._backend._errors import CompilationError
 
 if typing.TYPE_CHECKING:
-    from ._case import BackendCase
+    from bilt._backend._callable import BackendCallable, CallableType
+    from bilt._backend._case import BackendCase
 
 _backend_stack: list[Backend] = []
 
@@ -27,7 +27,7 @@ class Backend(abc.ABC):
 
     def transpile(self, function_definition: ast.FunctionDef) -> CallableType:
         """Used to compile a single transform AST into a callable function, that can then be chained into the execution pipeline."""
-        transformed = typing.cast(ast.FunctionDef, self.ast_transformer.visit(function_definition))
+        transformed = typing.cast("ast.FunctionDef", self.ast_transformer.visit(function_definition))
 
         module = ast.Module(body=[transformed], type_ignores=[])
         ast.fix_missing_locations(module)
@@ -39,11 +39,7 @@ class Backend(abc.ABC):
 
         exec(code, self.compilation_namespace)  # noqa: S102
 
-        print()
-        print("===== TRANSPILE =====")
-        print(ast.unparse(transformed))
-
-        return typing.cast(CallableType, self.compilation_namespace[function_definition.name])
+        return typing.cast("CallableType", self.compilation_namespace[function_definition.name])
 
     def __enter__(self) -> typing.Self:
         _backend_stack.append(self)

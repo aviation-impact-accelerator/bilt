@@ -1,15 +1,23 @@
-import ast
 import typing
 
 import jax
 import jax.numpy as jnp
 
 from bilt._backend import Backend, BackendCallable, BackendCase
-from bilt._backend._callable import CallableType
-from bilt._backend._ast import generate_chain_case_ast, generate_function_args_ast, generate_function_return, generate_intermediate_calls_ast
+from bilt._backend._ast import (
+    generate_chain_case_ast,
+    generate_function_args_ast,
+    generate_function_return,
+    generate_intermediate_calls_ast,
+)
 from bilt._backend._jax._ast_transformer import JAXASTTransformer
 from bilt._backend._jax._supports import _validate
 from bilt.core._tensors._backend_analysis import derive_union_domain  # pyright: ignore[reportPrivateUsage]
+
+if typing.TYPE_CHECKING:
+    import ast
+
+    from bilt._backend._callable import CallableType
 
 
 class JAXBackend(Backend):
@@ -24,19 +32,21 @@ class JAXBackend(Backend):
         _validate(function_definition)
         return super().transpile(function_definition)
 
-    def chain_case(self, case: BackendCase) -> BackendCallable:        
+    def chain_case(self, case: BackendCase) -> BackendCallable:
         new_namespace: dict[str, typing.Any] = {}
 
         function_args = generate_function_args_ast(case)
         function_intermediate_calls = generate_intermediate_calls_ast(case)
         function_return = generate_function_return(case)
-        chained_callable_ast = generate_chain_case_ast(f"{case.name}_", function_args, function_intermediate_calls, function_return)
+        chained_callable_ast = generate_chain_case_ast(
+            f"{case.name}_", function_args, function_intermediate_calls, function_return
+        )
 
         old_namespace = self.compilation_namespace.copy()
         self.compilation_namespace.update(new_namespace)
         final_callable = self.transpile(chained_callable_ast)
         self.compilation_namespace = old_namespace
-        
+
         return BackendCallable(
             case.name,
             case.parameters,
