@@ -1,3 +1,9 @@
+__all__ = [
+    "OverArg",
+    "Tensor",
+    "tensor",
+]
+
 import collections.abc
 import dataclasses
 
@@ -6,13 +12,6 @@ import numpy as np
 from bilt.core._tensors._errors import TensorDomainError
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain
-
-__all__ = [
-    "OverArg",
-    "Tensor",
-    "tensor",
-]
-
 
 OverArg = Dim | collections.abc.Iterable[Dim]
 
@@ -96,17 +95,19 @@ def tensor(
 
     array = np.asarray(values)
 
-    if domain is None:
-        if over is None:
-            if array.ndim == 0:
-                return Tensor.scalar(array)
-
-            message = (
-                "Non-scalar values need an explicit domain. Use tensor(values, over=...) or tensor(values, domain=...)."
-            )
+    match over, domain:
+        case None, Domain():
+            pass
+        case over, None if over is not None:
+            domain = _domain_from_over(over)
+        case None, None if array.ndim == 0:
+            return Tensor.scalar(array)
+        case None, None:
+            message = "Non-scalar values need an explicit domain"
             raise TensorDomainError(message)
-
-        domain = _domain_from_over(over)
+        case _:
+            message = "Pass either over= or domain=, not both."
+            raise TensorDomainError(message)
 
     return Tensor(
         values=array,
