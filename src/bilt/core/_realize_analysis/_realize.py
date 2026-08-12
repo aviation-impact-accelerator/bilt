@@ -6,12 +6,13 @@ import inspect
 import textwrap
 import typing
 
-from bilt._backend._callable import BackendCallable, DomainedVar
+from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt.core._equation import BasicEquation
 from bilt.core._interface import Interface
-from bilt.core._tensors._tensor_analysis import add_alignment_prelude, analyse_domains_in_signature, clear_signature_type_hints, union
+from bilt.core._tensors._tensor_analysis import DomainedVar, analyse_domains_in_signature, canonicalised, clear_signature_type_hints
 from bilt.core._transform import BasicTransform
+from bilt.symbolic._domains import union
 from bilt.symbolic._isolation._errors import IsolationError
 from bilt.symbolic._isolation._isolate import equation_to_ast
 
@@ -34,15 +35,15 @@ def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | Realizat
         
         parameters |= {
             domained_var.name: domained_var
-            for domained_var in result.parameters.values()
+            for domained_var in result.expected_parameters.values()
         }
 
-        intermediate_opts[step.output] = DomainedVar(step.output, result.return_domain)
+        intermediate_opts[step.output] = DomainedVar(step.output, result.expected_return_domain)
         intermediates.append(result)
 
     # Assuming no reduction
-    output_domain = union(*[var.domain for var in parameters.values()],
-                          *[var.domain for var in intermediate_opts.values()])
+    output_domain = canonicalised(union(*[var.domain.domain for var in parameters.values()],
+                                        *[var.domain.domain for var in intermediate_opts.values()]))
 
     return BackendCase(
         name=plan.output,
@@ -67,16 +68,15 @@ def _operation_to_callable(plan_step: PlanStep, backend: Backend) -> BackendCall
             # code to insert the alignment prelude, when that is only relevant when transpiling an
             # operation to callable and not for a chain case, *in* transpile, seems silly.
             analysis = analyse_domains_in_signature(function_ast)
-            # add_alignment_prelude(function_ast, analysis)
             clear_signature_type_hints(function_ast)
 
             callable = backend.transpile(function_ast)
 
             return BackendCallable(
                 name=function_ast.name,
-                parameters={param.name: param for param in analysis.parameters.values()},
-                return_domain=analysis.return_domain,
-                union_domain=analysis.union_domain,
+                expected_parameters={param.name: param for param in analysis.parameters.values()},
+                expected_return_domain=analysis.return_domain,
+                expected_union_domain=analysis.union_domain,
                 callable=callable,
             )
         case BasicEquation() as equation:

@@ -6,19 +6,19 @@ import typing
 import numpy as np
 import pytest
 
+from bilt._backend._jax._ast import generate_reshaping_assignment
 from bilt._backend._jax._backend import JAXBackend
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._interface import Interface
 from bilt.core._system._decorator import system
 from bilt.core._system._field import field
 from bilt.core._system._implementation import Implementation
-#from bilt.core._tensors._tensor_analysis import extract_domains_from_signature
+from bilt.core._tensors._tensor_analysis import CanonicalisedDomain, align_extra_dims, canonicalised, convert_any_tensors_to_raw_arrays, derive_reshape_slices, domain_to_tensor_type_string, extract_domains_from_transform_signature, identify_extra_dims, transpose_tensor_to_canonical_order
 from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.core._transform import transform
 from bilt.symbolic._dimensions import dim
-from bilt.core._tensors._tensor_analysis import *
 
-from bilt.symbolic._domains import Domain, domain
+from bilt.symbolic._domains import Domain, domain, union
 
 i = dim("i")
 j = dim("j")
@@ -163,7 +163,7 @@ def test_extract_domains_from_func_def_signature():
                             )
                         ).body[0])
 
-    c_extracted = extract_domains_from_func_def_signature(c_def)
+    c_extracted = extract_domains_from_transform_signature(c_def)
     c_expected = {
         "a": domain(i),
         "b": domain(j),
@@ -172,7 +172,7 @@ def test_extract_domains_from_func_def_signature():
 
     assert c_extracted == c_expected
 
-    d_extracted = extract_domains_from_func_def_signature(d_def)
+    d_extracted = extract_domains_from_transform_signature(d_def)
     d_expected = {
         "c": domain(i,j),
         "m": Domain.scalar(),
@@ -190,12 +190,12 @@ def test_domain_union():
     assert union_ == Domain((i, j, k))
 
 def test_derive_reshape_slices():
-    domain1 = domain(i)
-    domain2 = domain(j)
-    domain3 = domain(i, j)
-    domain4 = domain(i, j, k)
-    domain5 = domain(j, k)
-    domain6 = domain(i, k)
+    domain1 = CanonicalisedDomain(domain(i))
+    domain2 = CanonicalisedDomain(domain(j))
+    domain3 = CanonicalisedDomain(domain(i, j))
+    domain4 = CanonicalisedDomain(domain(i, j, k))
+    domain5 = CanonicalisedDomain(domain(j, k))
+    domain6 = CanonicalisedDomain(domain(i, k))
 
     assert derive_reshape_slices(domain1, domain3) == (slice(None), None)
     assert derive_reshape_slices(domain2, domain3) == (None, slice(None))
@@ -205,8 +205,8 @@ def test_derive_reshape_slices():
     assert derive_reshape_slices(domain4, domain4) == (slice(None),)*3
 
 def test_derive_reshape_slices_in_different_order_errors():
-    domain1 = domain(i, j)
-    domain3 = domain(j, i)
+    domain1 = CanonicalisedDomain(domain(i, j))
+    domain3 = CanonicalisedDomain(domain(j, i))
 
     with pytest.raises(RuntimeError):
         _ = derive_reshape_slices(domain1, domain3)
@@ -219,12 +219,12 @@ def test_make_reshaping_assignment():
     reshape5 = (slice(None), None, slice(None))
     reshape6 = (slice(None),)*3
 
-    assignment1 = make_reshaping_assignment("a", reshape1)
-    assignment2 = make_reshaping_assignment("a", reshape2)
-    assignment3 = make_reshaping_assignment("a", reshape3)
-    assignment4 = make_reshaping_assignment("a", reshape4)
-    assignment5 = make_reshaping_assignment("a", reshape5)
-    assignment6 = make_reshaping_assignment("a", reshape6)
+    assignment1 = generate_reshaping_assignment("a", reshape1)
+    assignment2 = generate_reshaping_assignment("a", reshape2)
+    assignment3 = generate_reshaping_assignment("a", reshape3)
+    assignment4 = generate_reshaping_assignment("a", reshape4)
+    assignment5 = generate_reshaping_assignment("a", reshape5)
+    assignment6 = generate_reshaping_assignment("a", reshape6)
 
     ast.fix_missing_locations(assignment1)
     ast.fix_missing_locations(assignment2)
@@ -268,13 +268,13 @@ def test_convert_tensors_to_raw_arrays_in_inputs():
     np.testing.assert_equal(result, expected)
 
 def test_identify_extra_dims():
-    assert identify_extra_dims(Domain.scalar(), Domain.scalar()) == tuple()
-    assert identify_extra_dims(domain(i, j, k), domain(i, j)) == (k,)
-    assert identify_extra_dims(domain(i, j), domain(i, j)) == tuple()
-    assert identify_extra_dims(domain(k, i), domain(i, j)) == (k,)
+    assert identify_extra_dims(Domain.scalar(), Domain.scalar()) == Domain(())
+    assert identify_extra_dims(domain(i, j, k), domain(i, j)) == Domain((k,))
+    assert identify_extra_dims(domain(i, j), domain(i, j)) == Domain(())
+    assert identify_extra_dims(domain(k, i), domain(i, j)) == Domain((k,))
 
 def test_transpose_tensor_to_canonical_order():
-    canonical_order = [i, j, k]
+    canonical_order = CanonicalisedDomain(domain(i, j, k))
 
     a = tensor([
         [1, 2, 3],
@@ -324,10 +324,10 @@ def test_canonicalised():
 
         evaluation.domains.bind_all([a, b])
 
-        assert list(evaluation.domains._bindings.keys()) == [i,j]
+        assert evaluation.domains.get_canonical_domain() == CanonicalisedDomain(domain(i, j))
 
-        assert canonicalised(domain(i,j)) == domain(i,j)
-        assert canonicalised(domain(j,i)) == domain(i,j)
+        assert canonicalised(domain(i,j)) == CanonicalisedDomain(domain(i,j))
+        assert canonicalised(domain(j,i)) == CanonicalisedDomain(domain(i,j))
 
 def test_scalar_transform_still_works():
     @system
@@ -404,7 +404,7 @@ def test_extra_dims_in_scalar_computation_two_dims():
         demo = Demo(a=a, b=b, e=e)
 
         evaluation.domains.bind_all([a, b, e])
-        assert list(evaluation.domains._bindings.keys()) == [i,j]
+        assert evaluation.domains.get_canonical_domain() == CanonicalisedDomain(domain(i, j))
 
         with basic, JAXBackend():
             result = demo.d
@@ -445,9 +445,9 @@ def test_align_extra_dims():
 
         evaluation.domains.bind_all([a, b, c])
 
-        assert list(evaluation.domains._bindings.keys()) == [i, j, m, n]
+        assert evaluation.domains.get_canonical_domain() == CanonicalisedDomain(domain(i, j, m, n))
 
-        extra_dims = [m, n]
+        extra_dims = CanonicalisedDomain(domain(m, n))
 
         res_a = align_extra_dims(a, extra_dims)
         np.testing.assert_allclose(res_a.values, a.values[:,:,:,None])
@@ -490,7 +490,7 @@ def test_one_chained_callable_uses_the_others_extra_dims():
         noise = tensor([0.11, 0.12, 0.09, 0.10, 0.11, 0.12, 0.11], over=(Time,))
 
         evaluation.domains.bind_all([voltage, current, noise])
-        assert list(evaluation.domains._bindings.keys()) == [Component,Time]
+        assert evaluation.domains.get_canonical_domain() == CanonicalisedDomain(domain(Component, Time))
 
         demo = Demo(voltage=voltage, current=current, noise=noise)
 
@@ -512,4 +512,4 @@ def test_domain_registry_ordering_is_stable():
         e = tensor([2., 4., 6.], over=(j,))
 
         evaluation.domains.bind_all([a, b, e])
-        assert list(evaluation.domains._bindings.keys()) == [i,j]
+        assert evaluation.domains.get_canonical_domain() == CanonicalisedDomain(domain(i, j))

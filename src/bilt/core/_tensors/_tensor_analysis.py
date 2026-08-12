@@ -1,57 +1,23 @@
-__all__ = [
-    #"extract_domains_from_signature",
-    "extract_domains_from_func_def_signature",
-    "union",
-    "derive_reshape_slices",
-    "ReshapeSlices",
-    "make_reshaping_assignment",
-    "is_scalar_reshape",
-    "is_unchanged_reshape",
-    "domain_to_tensor_type_string",
-    "add_alignment_prelude",
-    "clear_signature_type_hints",
-    "analyse_domains_in_signature",
-    "DomainedVar",
-    "DomainAnalysis",
-    "convert_any_tensors_to_raw_arrays",
-    "identify_extra_dims",
-    "add_dimensions",
-    "make_slice_ast",
-    "transpose_tensor_to_canonical_order",
-    "transpose_any_tensors_to_canonical_order",
-    "canonicalised",
-    "any_tensors",
-    "align_extra_dims",
-]
-
 import ast
 import dataclasses
-import itertools
 import typing
 
 import numpy as np
 
+from bilt._backend._callable import BackendCallable
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors import _tensors
-from bilt.core._tensors._tensors import Tensor
+from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.symbolic._dimensions import Dim, dim
-from bilt.symbolic._domains import Domain, domain
+from bilt.symbolic._domains import CanonicalisedDomain, Domain, domain
+from bilt.symbolic._domains import union
 
 SLICE_COLON = slice(None)
 SLICE_NEWAXIS = None
 
 type ReshapeSlices = tuple[slice | None, ...]
 
-# def extract_domains_from_signature[R, **P](func: collections.abc.Callable[P, R]) -> dict[str, Domain]:
-#     res: dict[str, Domain] = {}
-
-#     for name, annotated in func.__annotations__.items():  # pyright: ignore[reportPrivateUsage]
-#         _, domain = typing.get_args(annotated)
-#         res[name] = domain
-    
-#     return res
-
-def extract_domains_from_func_def_signature(func_def: ast.FunctionDef) -> dict[str, Domain]:
+def extract_domains_from_transform_signature(func_def: ast.FunctionDef) -> dict[str, Domain]:
     res: dict[str, Domain] = {}
 
     # TODO: What about posonly and kwonly args
@@ -88,58 +54,31 @@ def extract_domains_from_func_def_signature(func_def: ast.FunctionDef) -> dict[s
 
     return res
 
-def union(*domains: Domain) -> Domain:
-    flattened_dims_in_original_order = itertools.chain.from_iterable(domain.dims for domain in domains)
-    unique_dims_in_original_order = tuple(dict.fromkeys(flattened_dims_in_original_order))
-    return Domain(unique_dims_in_original_order)
-
-def derive_reshape_slices(domain: Domain, target_domain: Domain) -> ReshapeSlices:
+def derive_reshape_slices(domain: CanonicalisedDomain, target_domain: CanonicalisedDomain) -> ReshapeSlices:
     reshape_slices: list[slice | None] = []
 
     domain_index = 0
 
     def any_domain_dims_left():
-        return domain_index < len(domain.dims)
+        return domain_index < len(domain.domain.dims)
 
-    for target_domain_index in range(len(target_domain.dims)):
-        target_domain_dim = target_domain.dims[target_domain_index]
+    for target_domain_index in range(len(target_domain.domain.dims)):
+        target_domain_dim = target_domain.domain.dims[target_domain_index]
 
-        if any_domain_dims_left() and domain.dims[domain_index] == target_domain_dim:
+        if any_domain_dims_left() and domain.domain.dims[domain_index] == target_domain_dim:
             reshape_slices.append(SLICE_COLON)
             domain_index += 1
         else:
             reshape_slices.append(SLICE_NEWAXIS)
 
     if any_domain_dims_left():
-        message = "Went all the way through `target_domain` and still have `domain` dims left - `domain` and `target_domain` not in the same order?"
+        message = "Went all the way through `target_domain` and still have `domain` dims left - " \
+        "`domain` and `target_domain` not in the same order? Shouldn't be possible now we're taking " \
+        "in `CanonicalisedDomain`s."
+        
         raise RuntimeError(message)
 
     return tuple(reshape_slices)
-
-def make_slice_ast(param_name: str, reshape_slices: ReshapeSlices) -> ast.Subscript:
-    elts: list[ast.expr] = []
-    
-    for slice in reshape_slices:
-        if slice == SLICE_COLON:
-            elts.append(ast.Slice(lower=None, upper=None, step=None))
-        elif slice == SLICE_NEWAXIS:
-            elts.append(ast.Constant(value=None))
-        else:
-            assert False
-
-    return ast.Subscript(
-        value=ast.Name(id=param_name, ctx=ast.Load()),
-        slice=ast.Tuple(elts=elts, ctx=ast.Load()),
-        ctx=ast.Load(),
-    )
-
-
-def make_reshaping_assignment(param_name: str, reshape_slices: ReshapeSlices) -> ast.Assign:
-    """Generates an AST Assign node for: target_name = target_name[reshape_slices]"""
-    return ast.Assign(
-        targets=[ast.Name(id=param_name, ctx=ast.Store())],
-        value=make_slice_ast(param_name, reshape_slices),
-    )
 
 def is_scalar_reshape(reshape_slices: ReshapeSlices) -> bool:
     for slice in reshape_slices:
@@ -161,21 +100,6 @@ def domain_to_tensor_type_string(domain: Domain) -> str:
     
     return f"Tensor[{','.join(dim.name for dim in domain.dims)}]"
 
-def add_alignment_prelude(func_def: ast.FunctionDef, analysis: DomainAnalysis) -> None:
-    reshape_slices: dict[str, ReshapeSlices] = {
-        name: derive_reshape_slices(param.domain, analysis.union_domain)
-        for (name, param) in analysis.parameters.items()
-    }
-
-    reshaping_assignments: list[ast.Assign] = [
-        make_reshaping_assignment(name, reshape_slices)
-        for (name, reshape_slices) in reshape_slices.items()
-        if not is_scalar_reshape(reshape_slices)
-        and not is_unchanged_reshape(reshape_slices)
-    ]
-
-    func_def.body[0:0] = reshaping_assignments
-
 def clear_signature_type_hints(func_def: ast.FunctionDef) -> None:
     # TODO: What about posonly and kwonly args - will we ever have any?
     for arg in func_def.args.args:
@@ -186,19 +110,19 @@ def clear_signature_type_hints(func_def: ast.FunctionDef) -> None:
 @dataclasses.dataclass(frozen=True)
 class DomainAnalysis:
     parameters: dict[str, DomainedVar]
-    return_domain: Domain
-    union_domain: Domain
+    return_domain: CanonicalisedDomain
+    union_domain: CanonicalisedDomain
 
 @dataclasses.dataclass(frozen=True)
 class DomainedVar:
     name: str
-    domain: Domain
+    domain: CanonicalisedDomain
 
 
-def analyse_domains_in_signature(func_def: ast.FunctionDef) -> DomainAnalysis:
-    domains = extract_domains_from_func_def_signature(func_def)
+def analyse_domains_in_transform_signature(func_def: ast.FunctionDef) -> DomainAnalysis:
+    domains = extract_domains_from_transform_signature(func_def)
     domains = {name: canonicalised(domain) for name, domain in domains.items()}
-    union_domain = union(*domains.values())
+    union_domain = canonicalised(union(*[domain.domain for domain in domains.values()]))
 
     return_domain = domains.pop("return")
     parameters = {
@@ -226,29 +150,89 @@ def convert_any_tensors_to_raw_arrays(inputs: dict[str, object]) -> dict[str, ob
 
     return res
 
-def identify_extra_dims(domain: Domain, relative_to: Domain) -> tuple[Dim, ...]:
-    return tuple(set(domain.dims) - set(relative_to.dims))
+def identify_extra_dims(domain: Domain, relative_to: Domain) -> Domain:
+    return Domain(tuple(set(domain.dims) - set(relative_to.dims)))
 
 def add_dimensions(domain: Domain, extra_dims: tuple[Dim, ...]) -> Domain:
     return Domain(domain.dims + extra_dims)
 
-def transpose_any_tensors_to_canonical_order(inputs: dict[str, object], canonical_order: list[Dim]) -> dict[str, object]:
+@dataclasses.dataclass(frozen=True)
+class LoweringPreparationResult:
+    prepared_inputs: dict[str, object]
+    any_tensors: bool
+    output_domain: CanonicalisedDomain
+
+def prepare_any_tensor_inputs_for_lowering_to_callable(inputs: dict[str, object], callable: BackendCallable) -> LoweringPreparationResult:
+    prepared_inputs: dict[str, object] = {}
+    any_tensors = False
+
+    analysis = analyse_evaluation_domains(inputs, callable)
+
+    for name, input in inputs.items():
+        if isinstance(input, Tensor):
+            prepared_inputs[name] = prepare_tensor_for_lowering(input, analysis.extra_dims)
+            any_tensors = True
+        else:
+            prepared_inputs[name] = input
+
+    return LoweringPreparationResult(
+        prepared_inputs,
+        any_tensors,
+        analysis.output_domain,
+    )
+
+@dataclasses.dataclass(frozen=True)
+class EvaluationDomainsAnalysis:
+    extra_dims: CanonicalisedDomain
+    output_domain: CanonicalisedDomain
+
+def analyse_evaluation_domains(inputs: dict[str, object], callable: BackendCallable) -> EvaluationDomainsAnalysis:
+    input_domains: list[Domain] = []
+    
+    for name in inputs.keys():
+        input = inputs[name]
+        if isinstance(input, Tensor):
+            input_domains.append(input.domain)
+
+    input_union = canonicalised(union(*input_domains))
+    callable_union = callable.expected_union_domain
+    extra_dims = canonicalised(identify_extra_dims(input_union.domain, callable_union.domain))
+
+    return EvaluationDomainsAnalysis(
+        extra_dims, output_domain=input_union  # Assuming no domain addition or reduction
+    )    
+
+def prepare_tensor_for_lowering(tensor: Tensor, extra_dims: CanonicalisedDomain) -> np.ndarray:
+    prepared_tensor = transpose_tensor_to_canonical_order(tensor, current_evaluation().domains.get_canonical_domain())
+    prepared_tensor = align_extra_dims(prepared_tensor, extra_dims)
+    return prepared_tensor.values
+
+def lift_output(output_value: np.ndarray, result: LoweringPreparationResult):
+    if result.any_tensors:
+        return tensor(
+            output_value,
+            over=result.output_domain.domain.dims
+        )
+    else:
+        return output_value.item()
+
+def transpose_any_tensors_to_canonical_order(inputs: dict[str, object], canonical_domain: CanonicalisedDomain) -> dict[str, object]:
     res: dict[str, object] = {}
 
     for name, value in inputs.items():
         if isinstance(value, Tensor):
-            value = transpose_tensor_to_canonical_order(value, canonical_order)
+            value = transpose_tensor_to_canonical_order(value, canonical_domain)
 
         res[name] = value
 
     return res
 
-def transpose_tensor_to_canonical_order(tensor: Tensor, canonical_order: list[Dim]) -> Tensor:
+def transpose_tensor_to_canonical_order(tensor: Tensor, canonical_domain: CanonicalisedDomain) -> Tensor:
     """If a dim in `new_dim_order` is absent in `tensor`, that dim is ignored."""
     transposition_axes: list[int] = []
     transposed_dims: list[Dim] = []
 
-    for dim in canonical_order:
+    for dim in canonical_domain.domain.dims:
         if dim in tensor.domain.dims:
             transposition_axes.append(tensor.domain.dims.index(dim))
             transposed_dims.append(dim)
@@ -257,21 +241,21 @@ def transpose_tensor_to_canonical_order(tensor: Tensor, canonical_order: list[Di
 
     return _tensors.tensor(transposed_values, over=transposed_dims)
 
-def canonicalised(domain: Domain) -> Domain:
+def canonicalised(domain: Domain) -> CanonicalisedDomain:
     """Canonicalises order of passed domain.
     
     Order determined by the order of dimensions in the current
     evaluation's domain registry.
     """
 
-    canonical_order = list(current_evaluation().domains._bindings.keys())
+    canonical_domain = current_evaluation().domains.get_canonical_domain()
     canonicalised_dims: list[Dim] = []
 
-    for dim in canonical_order:
+    for dim in canonical_domain.domain.dims:
         if dim in domain.dims:            
             canonicalised_dims.append(dim)
 
-    return Domain(tuple(canonicalised_dims))
+    return CanonicalisedDomain(Domain(tuple(canonicalised_dims)))
 
 def any_tensors(values: list[object]) -> bool:
     for value in values:
@@ -280,16 +264,17 @@ def any_tensors(values: list[object]) -> bool:
 
     return False
 
-def align_extra_dims(tensor: Tensor, extra_dims: list[Dim]) -> Tensor:
-    """Align pre-supposes that everything is in canonical order and so we only need
-    to add singleton dimensions to get extra dimensions to align. We also assume that
-    extra_dims is in canonical order too."""
+def align_extra_dims(tensor: Tensor, extra_dims: CanonicalisedDomain) -> Tensor:
+    """Important: `tensor` must already be in canonical order."""
+    if len(extra_dims.domain.dims) == 0:
+        return tensor
+
     new_values = tensor.values.copy()
 
-    new_domain = canonicalised(domain(*list(set(tensor.domain.dims) | set(extra_dims))))
+    new_domain = canonicalised(domain(*list(set(tensor.domain.dims) | set(extra_dims.domain.dims))))
 
-    for i, dim in enumerate(new_domain.dims):
-        if not dim in tensor.domain.dims and dim in extra_dims:
+    for i, dim in enumerate(new_domain.domain.dims):
+        if not dim in tensor.domain.dims and dim in extra_dims.domain.dims:
             new_values = np.expand_dims(new_values, axis=i)
 
-    return Tensor(new_values, new_domain)
+    return Tensor(new_values, new_domain.domain)

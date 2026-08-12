@@ -23,13 +23,13 @@ class PythonBackend(Backend):
             values = bound.arguments
             inputs = dict(values)
 
-            for intermediate in case.intermediates:
-                args_for_intermediate = [inputs[name] for name in intermediate.parameters]
+            for intermediate in case.intermediates.values():
+                args_for_intermediate = [inputs[name] for name in intermediate.expected_parameters.keys()]
                 result = intermediate.callable(*args_for_intermediate)
                 inputs[intermediate.name] = result
-            return inputs[case.return_name]
+            return inputs[case.returns.name]
 
         final_callable.__signature__ = (  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
             expected_signature
         )
-        return BackendCallable(name=case.name, parameters=case.parameters, callable=final_callable)
+        return BackendCallable(name=case.name, expected_parameters=case.parameters, callable=final_callable)
