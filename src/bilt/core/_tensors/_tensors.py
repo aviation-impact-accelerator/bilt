@@ -32,14 +32,14 @@ class Tensor:
         _check_rank(values, self.domain)
 
     # Purely for being able to read expected dimensions from signature
-    def __class_getitem__(cls, item: Dim | tuple[Dim] | None):
+    def __class_getitem__(cls, item: Dim | tuple[Dim, ...] | None) -> typing.Annotated[..., ...]:
         if item is None:
             domain = Domain.scalar()
         elif isinstance(item, tuple):
             domain = Domain(item)
         else:
             domain = Domain((item,))
-        
+
         return typing.Annotated[cls, domain]
 
     @classmethod

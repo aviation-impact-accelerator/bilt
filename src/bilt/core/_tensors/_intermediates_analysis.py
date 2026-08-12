@@ -1,26 +1,28 @@
 import dataclasses
 import typing
 
-from bilt._backend._callable import BackendCallable
-from bilt._backend._case import BackendCase
 from bilt.core._tensors._reshaping import ReshapeSlices, derive_reshape_slices, is_scalar_reshape, is_unchanged_reshape
 from bilt.symbolic._domain_handling import canonicalised, union
-from bilt.symbolic._domains import CanonicalisedDomain
 
+if typing.TYPE_CHECKING:
+    from bilt._backend._callable import BackendCallable
+    from bilt._backend._case import BackendCase
+    from bilt.symbolic._domains import CanonicalisedDomain
 
 type ExpectedName = str
 
 
 @dataclasses.dataclass(frozen=True)
 class Var:
-    """
-    The `ExpectedName` is 'a' or 'c'.
+    """The `ExpectedName` is 'a' or 'c'.
 
     But for a variable that's the output of a previous intermediate,
     `actual_name` would be 'c_'.
     """
+
     actual_name: str
     domain: CanonicalisedDomain
+
 
 @dataclasses.dataclass
 class IntermediateParameterAnalysis:
@@ -42,14 +44,11 @@ class IntermediatesAnalysis:
 def analyse_intermediates(case: BackendCase) -> IntermediatesAnalysis:
     vars_in_scope: dict[ExpectedName, Var] = {}
 
-    vars_in_scope |= {
-        var_name: Var(var_name, var_domain)
-        for var_name, var_domain in case.parameters.items()
-    }
+    vars_in_scope |= {var_name: Var(var_name, var_domain) for var_name, var_domain in case.parameters.items()}
 
     vars_in_scope |= {
-        callable.name: Var(f"{callable.name}_", callable.expected_return_domain)
-        for callable in case.intermediates.values()
+        intermediate.name: Var(f"{intermediate.name}_", intermediate.expected_return_domain)
+        for intermediate in case.intermediates.values()
     }
 
     analysed_intermediates: dict[ExpectedName, IntermediateAnalysis] = {}
@@ -65,9 +64,12 @@ def analyse_intermediates(case: BackendCase) -> IntermediatesAnalysis:
     return IntermediatesAnalysis(analysed_intermediates)
 
 
-def _analyse_intermediate(intermediate: BackendCallable, vars_in_scope: typing.Mapping[ExpectedName, Var]) -> IntermediateAnalysis:
-    vars_to_use: dict[ExpectedName, Var] = {param_name: vars_in_scope[param_name]
-                                            for param_name in intermediate.expected_parameters.keys()}
+def _analyse_intermediate(
+    intermediate: BackendCallable, vars_in_scope: typing.Mapping[ExpectedName, Var]
+) -> IntermediateAnalysis:
+    vars_to_use: dict[ExpectedName, Var] = {
+        param_name: vars_in_scope[param_name] for param_name in intermediate.expected_parameters
+    }
 
     actual_union_input_domain = union(*[var.domain.domain for var in vars_to_use.values()])
     actual_union_domain = canonicalised(union(actual_union_input_domain, intermediate.expected_union_domain.domain))
@@ -75,7 +77,7 @@ def _analyse_intermediate(intermediate: BackendCallable, vars_in_scope: typing.M
 
     analysed_parameters: dict[ExpectedName, IntermediateParameterAnalysis] = {}
 
-    for expected_param_name in intermediate.expected_parameters.keys():
+    for expected_param_name in intermediate.expected_parameters:
         actual_var = vars_to_use[expected_param_name]
         reshape_slices = derive_reshape_slices(actual_var.domain, actual_union_domain)
 
@@ -84,7 +86,4 @@ def _analyse_intermediate(intermediate: BackendCallable, vars_in_scope: typing.M
 
         analysed_parameters[expected_param_name] = IntermediateParameterAnalysis(actual_var, reshape_slices)
 
-    return IntermediateAnalysis(
-        parameters=analysed_parameters,
-        actual_output_domain=actual_output_domain
-    )
+    return IntermediateAnalysis(parameters=analysed_parameters, actual_output_domain=actual_output_domain)

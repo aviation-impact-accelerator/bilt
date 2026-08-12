@@ -60,5 +60,3 @@ def as_domain(value: DomainLike) -> Domain:
 @dataclasses.dataclass(frozen=True)
 class CanonicalisedDomain:
     domain: Domain
-
-

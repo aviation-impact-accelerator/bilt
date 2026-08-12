@@ -1,9 +1,11 @@
+import itertools
+import typing
+
 from bilt.core._evaluation_context import current_evaluation
-from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import CanonicalisedDomain, Domain
 
-
-import itertools
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._dimensions import Dim
 
 
 def union(*domains: Domain) -> Domain:
@@ -18,12 +20,7 @@ def canonicalised(domain: Domain) -> CanonicalisedDomain:
     Order determined by the order of dimensions in the current
     evaluation's domain registry.
     """
-
     canonical_domain = current_evaluation().domains.get_canonical_domain()
-    canonicalised_dims: list[Dim] = []
-
-    for dim in canonical_domain.domain.dims:
-        if dim in domain.dims:
-            canonicalised_dims.append(dim)
+    canonicalised_dims: list[Dim] = [dim for dim in canonical_domain.domain.dims if dim in domain.dims]
 
     return CanonicalisedDomain(Domain(tuple(canonicalised_dims)))

@@ -1,17 +1,18 @@
+import dataclasses
+import typing
+
 import numpy as np
 
-from bilt._backend._callable import BackendCallable
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors import _tensors
 from bilt.core._tensors._evaluation_domain_analysis import analyse_evaluation_domains
 from bilt.core._tensors._tensors import Tensor, tensor
-from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domain_handling import canonicalised
 from bilt.symbolic._domains import CanonicalisedDomain, domain
 
-
-import dataclasses
-
+if typing.TYPE_CHECKING:
+    from bilt._backend._callable import BackendCallable
+    from bilt.symbolic._dimensions import Dim
 
 @dataclasses.dataclass(frozen=True)
 class LoweringPreparationResult:
@@ -20,18 +21,20 @@ class LoweringPreparationResult:
     output_domain: CanonicalisedDomain
 
 
-def prepare_any_tensor_inputs_for_lowering_to_callable(inputs: dict[str, object], callable: BackendCallable) -> LoweringPreparationResult:
+def prepare_any_tensor_inputs_for_lowering_to_callable(
+    inputs: dict[str, object], backend_callable: BackendCallable
+) -> LoweringPreparationResult:
     prepared_inputs: dict[str, object] = {}
     any_tensors = False
 
-    analysis = analyse_evaluation_domains(inputs, callable)
+    analysis = analyse_evaluation_domains(inputs, backend_callable)
 
-    for name, input in inputs.items():
-        if isinstance(input, Tensor):
-            prepared_inputs[name] = _prepare_tensor_for_lowering(input, analysis.extra_dims)
+    for input_name, input_value in inputs.items():
+        if isinstance(input_value, Tensor):
+            prepared_inputs[input_name] = _prepare_tensor_for_lowering(input_value, analysis.extra_dims)
             any_tensors = True
         else:
-            prepared_inputs[name] = input
+            prepared_inputs[input_name] = input_value
 
     return LoweringPreparationResult(
         prepared_inputs,
@@ -40,14 +43,10 @@ def prepare_any_tensor_inputs_for_lowering_to_callable(inputs: dict[str, object]
     )
 
 
-def lift_output(output_value: np.ndarray, result: LoweringPreparationResult):
+def lift_output(output_value: np.ndarray, result: LoweringPreparationResult) -> Tensor | object:
     if result.any_tensors:
-        return tensor(
-            output_value,
-            over=result.output_domain.domain.dims
-        )
-    else:
-        return output_value.item()
+        return tensor(output_value, over=result.output_domain.domain.dims)
+    return output_value.item()
 
 
 def _transpose_tensor_to_canonical_order(tensor: Tensor, canonical_domain: CanonicalisedDomain) -> Tensor:
@@ -75,7 +74,7 @@ def _align_extra_dims(tensor: Tensor, extra_dims: CanonicalisedDomain) -> Tensor
     new_domain = canonicalised(domain(*list(set(tensor.domain.dims) | set(extra_dims.domain.dims))))
 
     for i, dim in enumerate(new_domain.domain.dims):
-        if not dim in tensor.domain.dims and dim in extra_dims.domain.dims:
+        if dim not in tensor.domain.dims and dim in extra_dims.domain.dims:
             new_values = np.expand_dims(new_values, axis=i)
 
     return Tensor(new_values, new_domain.domain)

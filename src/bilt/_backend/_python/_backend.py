@@ -3,8 +3,10 @@ import inspect
 import typing
 
 from bilt._backend import Backend, BackendCallable, BackendCase
-from bilt._backend._callable import CallableType
 from bilt.core._tensors._backend_analysis import derive_union_domain
+
+if typing.TYPE_CHECKING:
+    from bilt._backend._callable import CallableType
 
 
 class PythonBackend(Backend):
@@ -27,7 +29,7 @@ class PythonBackend(Backend):
             inputs = dict(values)
 
             for intermediate in case.intermediates.values():
-                args_for_intermediate = [inputs[name] for name in intermediate.expected_parameters.keys()]
+                args_for_intermediate = [inputs[name] for name in intermediate.expected_parameters]
                 result = intermediate.callable(*args_for_intermediate)
                 inputs[intermediate.name] = result
             return inputs[case.return_name]
@@ -41,4 +43,5 @@ class PythonBackend(Backend):
             expected_parameters=case.parameters,
             expected_return_domain=case.return_domain,
             expected_union_domain=derive_union_domain(case),
-            callable=typing.cast(CallableType, final_callable))
+            callable=typing.cast("CallableType", final_callable),
+        )
