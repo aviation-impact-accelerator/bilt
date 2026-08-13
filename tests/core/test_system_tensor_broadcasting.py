@@ -9,7 +9,6 @@ from bilt.core._domain_registry import DomainRegistryError
 from bilt.core._interface import Interface
 from bilt.core._system._field import field
 from bilt.core._system._implementation import Implementation
-from bilt.core._tensors._errors import TensorDomainError
 from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain
@@ -604,7 +603,7 @@ def test_conflicting_sizes_for_same_dimension_raise(
         basic,
         pytest.raises(
             DomainRegistryError,
-            match="Dimension time has inconsistent sizes: 3 and 2.",
+            match=r"Dimension time has inconsistent sizes: 3 and 2",
         ),
     ):
         _ = demo.c
@@ -640,7 +639,7 @@ def test_size_one_does_not_broadcast_over_same_named_dimension(
         basic,
         pytest.raises(
             DomainRegistryError,
-            match="Dimension time has inconsistent sizes: 1 and 3.",
+            match="Dimension time has inconsistent sizes: 1 and 3",
         ),
     ):
         _ = demo.c

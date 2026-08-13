@@ -1,11 +1,12 @@
 import dataclasses
 import typing
 
-import numpy as np
-
 from bilt.core._tensors._canonical_ordering import CanonicalDomain, canonicalised, transpose_and_align_to_canonical
 from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.symbolic._domains import Domain, union
+
+if typing.TYPE_CHECKING:
+    import numpy as np
 
 
 @dataclasses.dataclass(frozen=True)
@@ -15,9 +16,7 @@ class LoweringPreparationResult:
     output_domain: CanonicalDomain
 
 
-def prepare_any_tensor_inputs_for_lowering_to_callable(
-    inputs: dict[str, object]
-) -> LoweringPreparationResult:
+def prepare_any_tensor_inputs_for_lowering_to_callable(inputs: dict[str, object]) -> LoweringPreparationResult:
     prepared_inputs: dict[str, object] = {}
     any_tensors = False
 
@@ -37,24 +36,20 @@ def prepare_any_tensor_inputs_for_lowering_to_callable(
     )
 
 
-def lift_output(output_value: typing.Any, result: LoweringPreparationResult) -> Tensor | object:
+def lift_output(output_value: object, result: LoweringPreparationResult) -> Tensor | object:
     if result.any_tensors:
         return tensor(output_value, over=result.output_domain.domain.dims)
-    else:
-        return output_value
+    return output_value
 
 
 def _prepare_tensor_for_lowering(tensor: Tensor) -> np.ndarray:
-    res = transpose_and_align_to_canonical(tensor)
-    res = res.values
-    return res
+    canonical_tensor = transpose_and_align_to_canonical(tensor)
+    return canonical_tensor.values
 
 
 def _derive_output_domain(inputs: dict[str, object]) -> CanonicalDomain:
-    input_domains: list[Domain] = [input_value.domain
-                                   for input_value in inputs.values()
-                                   if isinstance(input_value, Tensor)]
+    input_domains: list[Domain] = [
+        input_value.domain for input_value in inputs.values() if isinstance(input_value, Tensor)
+    ]
 
-    input_union = canonicalised(union(*input_domains))
-
-    return input_union  # assuming no addition/reduction
+    return canonicalised(union(*input_domains))  # assuming no addition/reduction

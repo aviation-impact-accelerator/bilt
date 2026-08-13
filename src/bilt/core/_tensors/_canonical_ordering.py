@@ -1,12 +1,15 @@
 import dataclasses
+import typing
 
 import numpy as np
 
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors import _tensors
 from bilt.core._tensors._tensors import Tensor
-from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain
+
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._dimensions import Dim
 
 
 @dataclasses.dataclass(frozen=True)
@@ -27,11 +30,8 @@ def canonicalised(domain: Domain) -> CanonicalDomain:
 
 def transpose_and_align_to_canonical(tensor: Tensor) -> Tensor:
     canonical_domain = _get_canonical_domain()
-
-    new_tensor = _transpose_tensor_to_domain_order(tensor, canonical_domain.domain)
-    new_tensor = _align_tensor_to_domain_order(new_tensor, canonical_domain.domain)
-
-    return new_tensor
+    transposed = _transpose_tensor_to_domain_order(tensor, canonical_domain.domain)
+    return _align_tensor_to_domain_order(transposed, canonical_domain.domain)
 
 
 def _transpose_tensor_to_domain_order(tensor: Tensor, domain: Domain) -> Tensor:
@@ -60,4 +60,4 @@ def _align_tensor_to_domain_order(tensor: Tensor, order: Domain) -> Tensor:
 
 
 def _get_canonical_domain() -> CanonicalDomain:
-    return CanonicalDomain(Domain(tuple(current_evaluation().domains._bindings.keys())))  # pyright: ignore[reportPrivateUsage]
+    return CanonicalDomain(Domain(tuple(current_evaluation().domains._bindings.keys())))  # pyright: ignore[reportPrivateUsage] # noqa: SLF001

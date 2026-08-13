@@ -4,8 +4,8 @@ __all__ = [
 ]
 
 import dataclasses
-from collections.abc import Iterable
 import itertools
+from collections.abc import Iterable
 
 from bilt.symbolic._dimensions import Dim
 

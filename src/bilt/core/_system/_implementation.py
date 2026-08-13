@@ -58,7 +58,7 @@ class Implementation:
 
                 output_value = final_callable.callable(**lowering_result.prepared_inputs)
                 output_value = lift_output(output_value, lowering_result)
-            
+
             evaluation.domains.bind(output_value)
 
         return output_value
