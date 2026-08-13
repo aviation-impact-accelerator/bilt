@@ -1,7 +1,7 @@
 import dataclasses
-from typing import TYPE_CHECKING
+import typing
 
-if TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     import collections.abc
 
 
@@ -9,4 +9,4 @@ if TYPE_CHECKING:
 class BackendCallable:
     name: str
     parameters: tuple[str, ...]
-    callable: collections.abc.Callable
+    callable: collections.abc.Callable[..., typing.Any]

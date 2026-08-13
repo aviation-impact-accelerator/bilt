@@ -5,6 +5,7 @@ import typing
 
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._protocol import get_current_structural_analysis_backend
+from bilt.core._tensors._lowering_and_lifting import lift_output, prepare_any_tensor_inputs_for_lowering_to_callable
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -38,20 +39,26 @@ class Implementation:
             evaluation.domains.bind_all(inputs.values())
 
             cache_key = (output, frozenset(inputs.keys()), backend)
+
             if output in inputs:
                 output_value = inputs[output]
-            elif self._callable_cache.get(cache_key):
-                cached = self._callable_cache[cache_key]
-                output_value = cached.callable(**{k: inputs[k] for k in cached.parameters})
             else:
-                structural_analysis_backend = get_current_structural_analysis_backend()
-                planned_case = structural_analysis_backend(
-                    tuple(self._components.values()), set(inputs.keys()), output, backend
-                )
-                final_callable = backend.chain_case(planned_case)
-                self._callable_cache[cache_key] = final_callable
-                output_value = final_callable.callable(**{k: inputs[k] for k in final_callable.parameters})
+                if self._callable_cache.get(cache_key):
+                    final_callable = self._callable_cache[cache_key]
+                else:
+                    structural_analysis_backend = get_current_structural_analysis_backend()
+                    planned_case = structural_analysis_backend(
+                        tuple(self._components.values()), set(inputs.keys()), output, backend
+                    )
+                    final_callable = backend.chain_case(planned_case)
+                    self._callable_cache[cache_key] = final_callable
 
+                inputs_to_use = {param_name: inputs[param_name] for param_name in final_callable.parameters}
+                lowering_result = prepare_any_tensor_inputs_for_lowering_to_callable(inputs_to_use)
+
+                output_value = final_callable.callable(**lowering_result.prepared_inputs)
+                output_value = lift_output(output_value, lowering_result)
+            
             evaluation.domains.bind(output_value)
 
         return output_value

@@ -5,6 +5,7 @@ __all__ = [
 
 import dataclasses
 from collections.abc import Iterable
+import itertools
 
 from bilt.symbolic._dimensions import Dim
 
@@ -54,3 +55,9 @@ def as_domain(value: DomainLike) -> Domain:
         return Domain((value,))
 
     return Domain(tuple(value))
+
+
+def union(*domains: Domain) -> Domain:
+    flattened_dims_in_original_order = itertools.chain.from_iterable(domain.dims for domain in domains)
+    unique_dims_in_original_order = tuple(dict.fromkeys(flattened_dims_in_original_order))
+    return Domain(unique_dims_in_original_order)
