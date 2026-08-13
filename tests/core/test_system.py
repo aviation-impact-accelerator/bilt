@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from bilt._backend._jax._backend import JAX_BACKEND
-from bilt._backend._python._backend import PYTHON_BACKEND
+from bilt._backend._python_interpretable._jax._backend import JAX_BACKEND
+from bilt._backend._python_interpretable._python._backend import PYTHON_BACKEND
 from bilt.core import (
     BiltSystemAnalysisError,
     BiltSystemDefinitionError,

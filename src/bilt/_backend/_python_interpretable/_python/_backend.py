@@ -1,15 +1,16 @@
 import ast
 import inspect
 
-from bilt._backend import Backend, BackendCallable, BackendCase
+from bilt._backend import BackendCallable, BackendCase
+from bilt._backend._base_backend import BaseBackend
+from bilt._backend._python_interpretable import PythonInterpretable
 
 
-class PythonBackend(Backend):
+class PythonBackend(PythonInterpretable, BaseBackend):
     """Python backend implementation of the Bilt backend interface."""
 
     def __init__(self) -> None:
-        self.ast_transformer = ast.NodeTransformer()
-        self.compilation_namespace = {"__builtins__": __builtins__}
+        super().__init__(ast_transformer=ast.NodeTransformer(), compilation_namespace={"__builtins__": __builtins__})
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
         """Chain a BackendCase into a single callable function."""

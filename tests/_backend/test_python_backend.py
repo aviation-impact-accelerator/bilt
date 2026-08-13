@@ -6,10 +6,10 @@ import typing
 import pytest
 
 from bilt._backend import BackendCase
-from bilt._backend._python import PYTHON_BACKEND
+from bilt._backend._python_interpretable._python import PYTHON_BACKEND
 
 if typing.TYPE_CHECKING:
-    from bilt._backend._python._backend import PythonBackend
+    from bilt._backend._python_interpretable._python._backend import PythonBackend
 
 
 def parse_to_ast(src: str) -> ast.FunctionDef:

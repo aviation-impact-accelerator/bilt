@@ -4,17 +4,23 @@ import typing
 import jax
 import jax.numpy as jnp
 
-from bilt._backend import Backend, BackendCallable, BackendCase
-from bilt._backend._jax._ast import JAXASTTransformer
-from bilt._backend._jax._supports import _validate
+from bilt._backend._base_backend import BaseBackend
+from bilt._backend._python_interpretable import PythonInterpretable
+from bilt._backend._python_interpretable._jax._ast import JAXASTTransformer
+from bilt._backend._python_interpretable._jax._supports import _validate
+
+if typing.TYPE_CHECKING:
+    from bilt._backend import BackendCallable, BackendCase
 
 
-class JAXBackend(Backend):
+class JAXBackend(PythonInterpretable, BaseBackend):
     """JAX backend implementation of the Bilt backend interface."""
 
     def __init__(self) -> None:
-        self.ast_transformer = JAXASTTransformer()
-        self.compilation_namespace = {"jnp": jnp, "jax.jit": jax.jit, "__builtins__": __builtins__}
+        super().__init__(
+            ast_transformer=JAXASTTransformer(),
+            compilation_namespace={"jnp": jnp, "jax.jit": jax.jit, "__builtins__": __builtins__},
+        )
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Compile a single transform AST into a callable function."""

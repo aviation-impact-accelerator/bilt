@@ -1,4 +1,4 @@
-"""Interface for methods to implement by the JAX backend."""
+"""Interface classes for using backends in bilt.core."""
 
 __all__ = ("Backend", "BackendCallable", "BackendCase")
 

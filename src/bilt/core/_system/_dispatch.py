@@ -3,7 +3,7 @@ __all__ = []
 import typing
 
 from bilt._backend._base_backend import _backend_stack
-from bilt._backend._python import PYTHON_BACKEND
+from bilt._backend._python_interpretable._python import PYTHON_BACKEND
 
 from ._error import BiltUnknownSystemAttributeError
 from ._sentinel import MISSING, _Missing
