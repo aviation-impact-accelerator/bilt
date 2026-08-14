@@ -174,8 +174,6 @@ def test_domain_registry_copes_with_float_coordinates(index: int) -> None:
     registry = DomainRegistry()
     registry.bind_axis(coordinate_axis(time, COORDS))
 
-    np.set_printoptions(floatmode="unique")
-
     expected_value = EXPECTED[index]
 
     assert registry.position(time, expected_value) == index
