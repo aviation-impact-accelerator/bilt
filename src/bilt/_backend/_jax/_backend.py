@@ -6,7 +6,7 @@ import jax.numpy as jnp
 
 from bilt._backend import Backend, BackendCallable, BackendCase
 from bilt._backend._jax._ast import JAXASTTransformer
-from bilt._backend._jax._supports import _validate
+from bilt._backend._jax._supports import validate
 
 
 class JAXBackend(Backend):
@@ -18,7 +18,7 @@ class JAXBackend(Backend):
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Compile a single transform AST into a callable function."""
-        _validate(function_definition)
+        validate(function_definition)
         return super().transpile(function_definition)
 
     def chain_case(self, case: BackendCase) -> BackendCallable:

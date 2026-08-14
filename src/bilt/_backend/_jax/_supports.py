@@ -64,7 +64,7 @@ _SUPPORTED_NODES = frozenset(
 )
 
 
-def _validate(fdef: ast.FunctionDef) -> None:
+def validate(fdef: ast.FunctionDef) -> None:
     for node in ast.walk(fdef):
         if type(node) not in _SUPPORTED_NODES:
             lineno = getattr(node, "lineno", "?")
