@@ -10,7 +10,8 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin):
     """Python backend implementation of the Bilt backend interface."""
 
     def __init__(self) -> None:
-        super().__init__(ast_transformer=ast.NodeTransformer(), compilation_namespace={"__builtins__": __builtins__})
+        self.ast_transformer = ast.NodeTransformer()
+        self.compilation_namespace = {"__builtins__": __builtins__}
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
         """Chain a BackendCase into a single callable function."""

@@ -12,9 +12,8 @@ from bilt._backend._errors import CompilationError
 class InProcessPythonMixin:
     """Rewrites the transform AST, then compiles and executes it on the host interpreter rather than out of process."""
 
-    def __init__(self, ast_transformer: ast.NodeTransformer, compilation_namespace: dict[str, typing.Any]) -> None:
-        self.ast_transformer = ast_transformer
-        self.compilation_namespace = compilation_namespace
+    ast_transformer: ast.NodeTransformer
+    compilation_namespace: dict[str, typing.Any]
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Rewrite the definition with `ast_transformer`, then compile and exec it into `compilation_namespace`."""

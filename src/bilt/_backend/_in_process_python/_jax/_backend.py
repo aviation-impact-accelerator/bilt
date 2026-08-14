@@ -17,10 +17,8 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin):
     """JAX backend implementation of the Bilt backend interface."""
 
     def __init__(self) -> None:
-        super().__init__(
-            ast_transformer=JAXASTTransformer(),
-            compilation_namespace={"jnp": jnp, "jax.jit": jax.jit, "__builtins__": __builtins__},
-        )
+        self.ast_transformer = JAXASTTransformer()
+        self.compilation_namespace = {"jnp": jnp, "jax.jit": jax.jit, "__builtins__": __builtins__}
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Compile a single transform AST into a callable function."""
