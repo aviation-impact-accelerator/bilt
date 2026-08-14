@@ -14,6 +14,11 @@ from bilt.core._structural_analysis._plan import PlanStep
 from bilt.symbolic._isolation._errors import IsolationError
 
 
+@typing.runtime_checkable
+class _RuntimeStructuralAnalyser(StructuralAnalyser, typing.Protocol):
+    """An isinstance-able view of the protocol, so it need not be runtime checkable in the source."""
+
+
 def _refuse_to_compile(_function_definition: object) -> typing.NoReturn:
     """Stand in for a backend meeting a construct it does not support."""
     msg = "AST node 'While' is unsupported by this backend."
@@ -27,7 +32,7 @@ def test_exhaustive_analyser_conforms_to_the_structural_analyser_protocol() -> N
 
     analyser = ExhaustiveStructuralAnalyser([c])
 
-    assert isinstance(analyser, StructuralAnalyser)
+    assert isinstance(analyser, _RuntimeStructuralAnalyser)
 
 
 def test_exhaustive_analyser_produces_a_working_callable() -> None:

@@ -7,7 +7,6 @@ if typing.TYPE_CHECKING:
     from bilt._backend._case import BackendCase
 
 
-@typing.runtime_checkable
 class StructuralAnalyser(typing.Protocol):
     """Protocol for a structural analyser that searches for a solution plan."""
 
