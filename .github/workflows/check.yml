@@ -73,6 +73,48 @@ jobs:
       - name: Check with prek
         run: uv run prek run --all-files
 
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@4
+      - uses: ./.github/actions/setup_python
+      - uses: ./.github/actions/job_url
+        id: job_url
+        with:
+          step_name: 'pytest'
+      - name: pytest
+        run: |
+          pytest
+      - name: Test coverage summary report
+        id: coverage_report
+        if: always()
+        run: |
+          {
+            echo "COVERAGE_REPORT<<EOF"
+            coverage report --format=markdown --show-missing --skip-covered
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Remove previous coverage comments
+        uses: ./.github/actions/remove_comments
+        if: always()
+        with:
+          identifier: coverage
+      - name: Test coverage PR comment
+        id: coverage_comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `[coverage](${{steps.job_url.outputs.job_url}})
+              \r\n\r\n${{steps.coverage_report.outputs.COVERAGE_REPORT}}`
+            })
+
+
   check:
     name: Checks and tests
     runs-on: ubuntu-latest
