@@ -21,11 +21,18 @@ class ExhaustiveStructuralAnalyser:
     def analyse(self, available: set[str], output: str, concrete_backend: Backend) -> BackendCase:
         """Find a plan to compute the desired output, routing around steps that cannot be realized."""
         excluded: frozenset[PlanStep] = frozenset()
+        last_failure: RealizationFailure | None = None
         while True:
             steps = self.bipartite_graph.search(available, output, excluded=excluded)
             if steps is None:
                 msg = f"Cannot compute {output} from available inputs {available}."
-                raise BiltSystemAnalysisError(msg)
+                if last_failure is None or last_failure.cause is None:
+                    raise BiltSystemAnalysisError(msg)
+                msg = (
+                    f"{msg} The last route tried was rejected with: "
+                    f"{type(last_failure.cause).__name__}: {last_failure.cause}"
+                )
+                raise BiltSystemAnalysisError(msg) from last_failure.cause
 
             realised_plan = realize_plan(
                 AnalysisPlan(inputs=frozenset(available), output=output, steps=tuple(steps)),
@@ -35,6 +42,8 @@ class ExhaustiveStructuralAnalyser:
                 case BackendCase() as successful_plan:
                     return successful_plan
                 case RealizationFailure(permanent=True) as failure:
+                    last_failure = failure
                     self.bipartite_graph.remove_failed_plan_step(failure.failed_plan_step)
                 case RealizationFailure() as failure:
+                    last_failure = failure
                     excluded |= {failure.failed_plan_step}

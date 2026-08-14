@@ -2,17 +2,22 @@ import typing
 
 import pytest
 
+from bilt._backend._errors import UnsupportedNodeError
 from bilt._backend._python._backend import PythonBackend
 from bilt.core import BiltSystemAnalysisError, transform
 from bilt.core._equation import equation
 from bilt.core._realize_analysis._realize import RealizationFailure
 from bilt.core._structural_analysis import StructuralAnalyser
-from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser, _backend
+from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph, required_inputs_for_target
-from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
+from bilt.core._structural_analysis._plan import PlanStep
+from bilt.symbolic._isolation._errors import IsolationError
 
-if typing.TYPE_CHECKING:
-    from bilt._backend import Backend
+
+def _refuse_to_compile(_function_definition: object) -> typing.NoReturn:
+    """Stand in for a backend meeting a construct it does not support."""
+    msg = "AST node 'While' is unsupported by this backend."
+    raise UnsupportedNodeError(msg)
 
 
 def test_exhaustive_analyser_conforms_to_the_structural_analyser_protocol() -> None:
@@ -263,27 +268,53 @@ def test_analyser_raises_when_no_route_survives_pruning_but_other_routes_still_w
     assert surviving_case.callable(y=4.0) == expected_z
 
 
-def test_analyser_excludes_a_query_scoped_failure_without_pruning_the_graph(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_backend_rejection_is_not_pruned_from_the_graph(monkeypatch: pytest.MonkeyPatch) -> None:
+    @equation
+    def from_w(x: float, w: float) -> bool:
+        return x == w + 1.0
+
+    expected_x = 5.0
+    backend = PythonBackend()
+    analyser = ExhaustiveStructuralAnalyser([from_w])
+    nodes_before = set(analyser.bipartite_graph.graph.nodes)
+
+    monkeypatch.setattr(backend, "transpile", _refuse_to_compile)
+    with pytest.raises(BiltSystemAnalysisError):
+        analyser.analyse({"w"}, "x", backend)
+
+    assert set(analyser.bipartite_graph.graph.nodes) == nodes_before
+
+    monkeypatch.undo()
+    surviving_case = backend.chain_case(analyser.analyse({"w"}, "x", backend))
+    assert surviving_case.callable(w=4.0) == expected_x
+
+
+def test_exhausted_search_reports_why_the_last_route_was_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    @equation
+    def from_w(x: float, w: float) -> bool:
+        return x == w + 1.0
+
+    backend = PythonBackend()
+    analyser = ExhaustiveStructuralAnalyser([from_w])
+    monkeypatch.setattr(backend, "transpile", _refuse_to_compile)
+
+    with pytest.raises(BiltSystemAnalysisError, match="unsupported") as raised:
+        analyser.analyse({"w"}, "x", backend)
+
+    assert isinstance(raised.value.__cause__, UnsupportedNodeError)
+
+
+def test_exhausted_search_reports_an_isolation_failure_as_the_cause() -> None:
     @equation
     def square(z: float, x: float) -> bool:
         return z == x * x
 
-    @equation
-    def linear(x: float, w: float) -> bool:
-        return x == w + 1.0
+    analyser = ExhaustiveStructuralAnalyser([square])
 
-    def always_fails_for_this_query(plan: AnalysisPlan, _concrete_backend: Backend) -> RealizationFailure:
-        return RealizationFailure(failed_plan_step=plan.steps[0], permanent=False)
+    with pytest.raises(BiltSystemAnalysisError) as raised:
+        analyser.analyse({"z"}, "x", PythonBackend())
 
-    monkeypatch.setattr(_backend, "realize_plan", always_fails_for_this_query)
-
-    analyser = ExhaustiveStructuralAnalyser([square, linear])
-    nodes_before = set(analyser.bipartite_graph.graph.nodes)
-
-    with pytest.raises(BiltSystemAnalysisError, match="Cannot compute x"):
-        analyser.analyse({"z", "w"}, "x", PythonBackend())
-
-    assert set(analyser.bipartite_graph.graph.nodes) == nodes_before
+    assert isinstance(raised.value.__cause__, IsolationError)
 
 
 def test_realization_failure_is_permanent_by_default() -> None:
