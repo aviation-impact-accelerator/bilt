@@ -55,12 +55,12 @@ LIST_CASE = BackendCase(
 
 def test_transpile_simple_arithmetic(jax_backend: JAXBackend) -> None:
     fn = jax_backend.transpile(parse_to_ast("def f(x, y):\n    return x + y"))
-    assert float(fn.callable(jnp.array(2.0), jnp.array(3.0))) == pytest.approx(5.0)
+    assert typing.cast("jnp.ndarray", fn.callable(jnp.array(2.0), jnp.array(3.0))).item() == pytest.approx(5.0)  # pyright: ignore[reportUnknownMemberType]
 
 
 def test_transpile_jnp_call(jax_backend: JAXBackend) -> None:
     fn = jax_backend.transpile(parse_to_ast("def f(x):\n    return jnp.sqrt(x)"))
-    assert float(fn.callable(jnp.array(9.0))) == pytest.approx(3.0)
+    assert typing.cast("jnp.ndarray", fn.callable(jnp.array(9.0))).item() == pytest.approx(3.0)  # pyright: ignore[reportUnknownMemberType]
 
 
 def test_transpile_raises_on_unsupported_node(jax_backend: JAXBackend) -> None:
@@ -101,7 +101,7 @@ def test_build_pipeline_for_cases(
     case: BackendCase, inputs: tuple[float, ...], expected: float, jax_backend: JAXBackend
 ) -> None:
     pipeline = jax_backend.chain_case(case)
-    assert float(pipeline.callable(*inputs)) == pytest.approx(expected)
+    assert typing.cast("float", pipeline.callable(*inputs)) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(

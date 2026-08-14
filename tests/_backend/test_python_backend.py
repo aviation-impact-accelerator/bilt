@@ -44,7 +44,7 @@ DIAMOND_CASE = BackendCase(
 
 def test_transpile_simple_arithmetic(python_backend: PythonBackend) -> None:
     fn = python_backend.transpile(parse_to_ast("def f(x, y):\n    return x + y"))
-    assert float(fn.callable(2.0, 3.0)) == pytest.approx(5.0)
+    assert typing.cast("float", fn.callable(2.0, 3.0)) == pytest.approx(5.0)
 
 
 @pytest.mark.parametrize(
@@ -66,7 +66,7 @@ def test_build_pipeline_for_cases(
     case: BackendCase, inputs: dict[str, float], expected: float, python_backend: PythonBackend
 ) -> None:
     pipeline = python_backend.chain_case(case)
-    assert float(pipeline.callable(**inputs)) == pytest.approx(expected)
+    assert typing.cast("float", pipeline.callable(**inputs)) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(
