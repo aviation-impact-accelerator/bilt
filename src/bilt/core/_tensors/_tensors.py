@@ -1,5 +1,4 @@
 __all__ = [
-    "Float",
     "OverArg",
     "Tensor",
     "tensor",
