@@ -19,7 +19,7 @@ type Attribute = str
 
 class BipartiteGraph:
     def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent]) -> None:
-        self.graph = nx.DiGraph()
+        self.graph: nx.DiGraph[PlanStep | str, dict[str, str], dict[str, None]] = nx.DiGraph()
         for constituent in constituents:
             self._add_constituent(constituent)
 
@@ -64,7 +64,9 @@ class BipartiteGraph:
         """If an System or Equation is found to be unable to be used in a certain direction after a realization, remove it from the graph."""
         self.graph.remove_node(plan_step)
 
-    def search(self, available: set[str], output: Attribute | PlanStep, visited: list) -> list[PlanStep] | None:
+    def search(
+        self, available: set[str], output: Attribute | PlanStep, visited: list[Attribute | PlanStep]
+    ) -> list[PlanStep] | None:
         """Perform a depth-first search to find a path from available inputs to the desired output."""
         if output not in self.graph:
             msg = f"Output {output} is not in the graph. Please check the constituents provided."
