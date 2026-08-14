@@ -11,7 +11,7 @@ from bilt.core._structural_analysis._protocol import (
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt._backend import Backend, BackendCallable
+    from bilt._backend import Backend, BackendCallable, BackendCase
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
 
@@ -24,8 +24,21 @@ class _EvaluationRequest:
     available: frozenset[str]
 
 
+@dataclasses.dataclass(frozen=True, slots=True)
+class _Executable:
+    """A backend callable ready for evaluation."""
+
+    backend_callable: BackendCallable
+
+    def evaluate(
+        self,
+        inputs: collections.abc.Mapping[str, object],
+    ) -> object:
+        return self.backend_callable.callable(**{name: inputs[name] for name in self.backend_callable.parameters})
+
+
 class Implementation:
-    """Register a collection of transforms as an implementation of a system."""
+    """Register a collection of components as an implementation of a system."""
 
     def __init__(
         self,
@@ -101,6 +114,7 @@ class Implementation:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Implementation):
             return NotImplemented
+
         return self.system == other.system and self._components == other._components
 
     def __hash__(self) -> int:
@@ -112,4 +126,4 @@ class Implementation:
         )
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self._components.values())!r})"
+        return f"{self.__class__.__name__}(system={self.system}, components={frozenset(self._components.values())!r})"
