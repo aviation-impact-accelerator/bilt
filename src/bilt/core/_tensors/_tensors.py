@@ -78,9 +78,6 @@ class Tensor[T: float]:
         raise _arithmetic_not_implemented()
 
 
-type Float = float | Tensor[float]
-
-
 def tensor(
     values: object,
     *,
