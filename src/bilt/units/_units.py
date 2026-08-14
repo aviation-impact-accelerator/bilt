@@ -130,7 +130,7 @@ class UnitComposition:
         if all(term.unit.is_si_base_unit for term in self.composition):
             return self
 
-        terms = []
+        terms: list[UnitOrder] = []
         scale = self.scale
         for term in self.composition:
             if term.unit.is_si_base_unit:
