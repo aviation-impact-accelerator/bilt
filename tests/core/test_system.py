@@ -47,7 +47,7 @@ def test_system_requires_interface_metaclass() -> None:
         match="Cannot apply `@system` to 'NotAnInterface' because it does not declare `metaclass=Interface`",
     ):
 
-        @system  # ty: ignore[invalid-argument-type]
+        @system  # pyright: ignore[reportUntypedClassDecorator, reportArgumentType] # ty: ignore[invalid-argument-type]
         class NotAnInterface:
             pass
 
