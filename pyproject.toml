@@ -38,6 +38,10 @@ python_version = "3.14"
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 xfail_strict = true
+testpaths = [
+    "tests",
+    "packages/examples/tests"
+]
 
 [tool.ruff]
 line-length = 120
