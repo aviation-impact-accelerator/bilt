@@ -630,17 +630,17 @@ def _create_name(relation: UnitComposition, metadata: Metadata | None) -> str:
 
 def _define_base_unit(name: str, dimension: Dimension, prefix: Prefix | None = None) -> Unit:
     base_unit = object.__new__(Unit)
-    base_unit._name = name  # noqa: SLF001
-    base_unit._prefix = prefix  # noqa: SLF001
-    base_unit._dimension = dimension  # noqa: SLF001
+    base_unit._name = name  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
+    base_unit._prefix = prefix  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
+    base_unit._dimension = dimension  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
     relation = UnitComposition(UnitOrder(base_unit, 1))
-    base_unit._relation = relation  # noqa: SLF001
-    base_unit._metadata = None  # noqa: SLF001
-    base_unit._offset = None  # noqa: SLF001
-    base_unit._category = UnitCategory.BASE  # noqa: SLF001
+    base_unit._relation = relation  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
+    base_unit._metadata = None  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
+    base_unit._offset = None  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
+    base_unit._category = UnitCategory.BASE  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
 
-    Unit._cache[(name, relation, None)] = base_unit  # noqa: SLF001
-    Unit._name_cache[name] = base_unit  # noqa: SLF001
+    Unit._cache[(name, relation, None)] = base_unit  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
+    Unit._name_cache[name] = base_unit  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
 
     return base_unit
 
