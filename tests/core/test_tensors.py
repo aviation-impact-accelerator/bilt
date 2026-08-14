@@ -70,4 +70,4 @@ def test_tensor_arithmetic_is_not_implemented() -> None:
         NotImplementedError,
         match="Operations will be dispatched through an active backend",
     ):
-        left + right
+        _ = left + right
