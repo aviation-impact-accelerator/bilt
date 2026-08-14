@@ -64,4 +64,12 @@ def _operation_to_callable(plan_step: PlanStep, backend: Backend) -> BackendCall
 
 @dataclasses.dataclass
 class RealizationFailure:
+    """A plan step that could not be compiled to a callable.
+
+    ``permanent`` distinguishes a step that can never produce its output -- an equation that
+    cannot be isolated for the requested parameter -- from one that merely failed for this
+    query's inputs or backend.
+    """
+
     failed_plan_step: PlanStep
+    permanent: bool = True
