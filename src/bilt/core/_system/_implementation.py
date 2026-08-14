@@ -11,7 +11,7 @@ from bilt.core._structural_analysis._protocol import (
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt._backend import Backend, BackendCallable, BackendCase
+    from bilt._backend import Backend, BackendCallable
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
 
@@ -24,34 +24,22 @@ class _EvaluationRequest:
     available: frozenset[str]
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
-class _Executable:
-    """A backend callable ready for evaluation."""
-
-    backend_callable: BackendCallable
-
-    def evaluate(
-        self,
-        inputs: collections.abc.Mapping[str, object],
-    ) -> object:
-        return self.backend_callable.callable(**{name: inputs[name] for name in self.backend_callable.parameters})
-
-
 class Implementation:
-    """Register a collection of components as an implementation of a system."""
+    """Register a collection of transforms as an implementation of a system."""
 
     def __init__(
         self,
         system: Interface,
         components: collections.abc.Iterable[BiltModelConstituent],
     ) -> None:
-        self._system = system
-        self._components = types.MappingProxyType({component.__bilt_name__: component for component in components})
-        self._executable_cache: dict[
-            tuple[_EvaluationRequest, Backend, object],
-            _Executable,
+        self._system: Interface = system
+        self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
+            {component.__bilt_name__: component for component in components}
+        )
+        self._evaluation_cache: dict[
+            tuple[_EvaluationRequest, Backend],
+            BackendCallable,
         ] = {}
-
         system.__bilt_system_registry__.add(self)
 
     @property
@@ -72,62 +60,36 @@ class Implementation:
             available=frozenset(inputs),
         )
 
-        executable = self._get_executable(request, backend)
+        evaluation = self._get_evaluation(request, backend)
 
-        return executable.evaluate(inputs)
+        return evaluation.evaluate(inputs)
 
-    def _get_executable(
+    def _get_evaluation(
         self,
         request: _EvaluationRequest,
         backend: Backend,
-    ) -> _Executable:
-        structural_analysis = get_current_structural_analysis_backend()
-
+    ) -> BackendCallable:
         cache_key = (
             request,
             backend,
-            structural_analysis,
         )
 
-        try:
-            return self._executable_cache[cache_key]
-        except KeyError:
-            pass
+        if cached := self._evaluation_cache.get(cache_key):
+            return cached
 
-        planned_case = self._plan(
-            request,
-            backend,
-            structural_analysis,
-        )
+        structural_analysis_backend = get_current_structural_analysis_backend()
 
-        executable = self._compile(
-            planned_case,
-            backend,
-        )
-
-        self._executable_cache[cache_key] = executable
-
-        return executable
-
-    def _plan(
-        self,
-        request: _EvaluationRequest,
-        backend: Backend,
-        structural_analysis: typing.Callable[..., BackendCase],
-    ) -> BackendCase:
-        return structural_analysis(
+        planned_case = structural_analysis_backend(
             tuple(self._components.values()),
             set(request.available),
             request.output,
             backend,
         )
 
-    @staticmethod
-    def _compile(
-        planned_case: BackendCase,
-        backend: Backend,
-    ) -> _Executable:
-        return _Executable(backend_callable=backend.chain_case(planned_case))
+        backend_callable = backend.chain_case(planned_case)
+        self._evaluation_cache[cache_key] = backend_callable
+
+        return backend_callable
 
     def __enter__(self) -> typing.Self:
         self._system.__bilt_system_implementation_default__.append(self)
@@ -139,7 +101,6 @@ class Implementation:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Implementation):
             return NotImplemented
-
         return self.system == other.system and self._components == other._components
 
     def __hash__(self) -> int:
@@ -151,4 +112,4 @@ class Implementation:
         )
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(system={self.system}, components={frozenset(self._components.values())!r})"
+        return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self._components.values())!r})"
