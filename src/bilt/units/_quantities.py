@@ -101,7 +101,8 @@ class Quantity:
                 return self.__class__(self.value**other, self.unit)
             case Quantity() if self.unit.is_dimensionless and self.unit.relation.scale == 1.0:
                 return self.__class__(self.value**other.value, self.unit)
-        return NotImplemented
+            case _:
+                return NotImplemented
 
     def __rpow__(self, other: float) -> typing.Self:
         if self.unit.is_dimensionless and self.unit.relation.scale == 1.0:
