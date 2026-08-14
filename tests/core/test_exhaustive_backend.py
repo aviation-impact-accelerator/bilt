@@ -10,7 +10,9 @@ def test_exhaustive_backend_is_a_structural_analysis_backend() -> None:
     # pyrefly: ignore[isinstance-against-protocol]
     assert isinstance(  # ty: ignore[isinstance-against-protocol]
         exhaustive_structural_backend,
-        typing.runtime_checkable(StructuralAnalysisBackend),  # pyrefly: ignore[invalid-argument]
+        typing.runtime_checkable(  # pyrefly: ignore[invalid-argument] # pyright: ignore[reportArgumentType]
+            StructuralAnalysisBackend
+        ),
     )
 
 
