@@ -21,7 +21,7 @@ if typing.TYPE_CHECKING:
 
 def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
     """Convert an AnalysisPlan into a BackendCase by compiling each step to a callable."""
-    intermediates = []
+    intermediates: list[BackendCallable] = []
     for step in plan.steps:
         result = _operation_to_callable(step, backend=backend)
         if isinstance(result, RealizationFailure):
