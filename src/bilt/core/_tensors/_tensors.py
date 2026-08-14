@@ -1,4 +1,5 @@
 __all__ = [
+    "Float",
     "OverArg",
     "Tensor",
     "tensor",
@@ -17,7 +18,7 @@ OverArg = Dim | collections.abc.Iterable[Dim]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
-class Tensor:
+class Tensor[T: float]:
     """Concrete values over a Bilt domain."""
 
     values: np.ndarray
@@ -30,7 +31,7 @@ class Tensor:
         _check_rank(values, self.domain)
 
     @classmethod
-    def scalar(cls, value: object) -> Tensor:
+    def scalar(cls, value: T) -> Tensor[T]:
         values = np.asarray(value)
 
         if values.ndim != 0:
@@ -50,32 +51,35 @@ class Tensor:
     def ndim(self) -> int:
         return self.values.ndim
 
-    def __add__(self, other: object) -> Tensor:
+    def __add__(self, other: object) -> Tensor[T]:
         raise _arithmetic_not_implemented()
 
-    def __radd__(self, other: object) -> Tensor:
+    def __radd__(self, other: object) -> Tensor[T]:
         raise _arithmetic_not_implemented()
 
-    def __sub__(self, other: object) -> Tensor:
+    def __sub__(self, other: object) -> Tensor[T]:
         raise _arithmetic_not_implemented()
 
-    def __rsub__(self, other: object) -> Tensor:
+    def __rsub__(self, other: object) -> Tensor[T]:
         raise _arithmetic_not_implemented()
 
-    def __mul__(self, other: object) -> Tensor:
+    def __mul__(self, other: object) -> Tensor[T]:
         raise _arithmetic_not_implemented()
 
-    def __rmul__(self, other: object) -> Tensor:
+    def __rmul__(self, other: object) -> Tensor[T]:
         raise _arithmetic_not_implemented()
 
-    def __truediv__(self, other: object) -> Tensor:
+    def __truediv__(self, other: object) -> Tensor[T]:
         raise _arithmetic_not_implemented()
 
-    def __rtruediv__(self, other: object) -> Tensor:
+    def __rtruediv__(self, other: object) -> Tensor[T]:
         raise _arithmetic_not_implemented()
 
-    def __neg__(self) -> Tensor:
+    def __neg__(self) -> Tensor[T]:
         raise _arithmetic_not_implemented()
+
+
+type Float = float | Tensor[float]
 
 
 def tensor(
@@ -83,7 +87,7 @@ def tensor(
     *,
     over: OverArg | None = None,
     domain: Domain | None = None,
-) -> Tensor:
+) -> Tensor[float]:
     """Create a Bilt tensor from concrete user data.
 
     Scalars may omit a domain. Non-scalar values must provide either
@@ -101,7 +105,7 @@ def tensor(
         case over, None if over is not None:
             domain = _domain_from_over(over)
         case None, None if array.ndim == 0:
-            return Tensor.scalar(array)
+            return Tensor.scalar(float(array))
         case None, None:
             message = "Non-scalar values need an explicit domain"
             raise TensorDomainError(message)
