@@ -4,16 +4,16 @@ import typing
 import jax
 import jax.numpy as jnp
 
-from bilt._backend._base_backend import BaseBackend
-from bilt._backend._python_interpretable import PythonInterpretable
-from bilt._backend._python_interpretable._jax._ast import JAXASTTransformer
-from bilt._backend._python_interpretable._jax._supports import _validate
+from bilt._backend._base_backend import ActivatableBackendMixin
+from bilt._backend._in_process_python import InProcessPythonMixin
+from bilt._backend._in_process_python._jax._ast import JAXASTTransformer
+from bilt._backend._in_process_python._jax._supports import _validate
 
 if typing.TYPE_CHECKING:
     from bilt._backend import BackendCallable, BackendCase
 
 
-class JAXBackend(PythonInterpretable, BaseBackend):
+class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin):
     """JAX backend implementation of the Bilt backend interface."""
 
     def __init__(self) -> None:

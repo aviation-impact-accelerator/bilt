@@ -12,7 +12,7 @@ _backend_stack: list[Backend] = []
 
 
 class Backend(typing.Protocol):
-    """Interface a backend must expose. `BaseBackend` supplies the context manager half."""
+    """Interface a backend must expose. `ActivatableBackendMixin` supplies the context manager half."""
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Compile a single transform AST into a callable function, that can then be chained into the execution pipeline."""
@@ -27,8 +27,8 @@ class Backend(typing.Protocol):
     def __exit__(self, *_: object) -> None: ...
 
 
-class BaseBackend:
-    """Mixin making a backend the one dispatch selects for the duration of a `with` block."""
+class ActivatableBackendMixin:
+    """Makes a backend the one dispatch selects for the duration of a `with` block."""
 
     def __enter__[T: Backend](self: T) -> T:  # noqa: PYI019
         _backend_stack.append(self)

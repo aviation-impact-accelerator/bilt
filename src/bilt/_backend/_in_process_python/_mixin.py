@@ -1,6 +1,6 @@
-"""Behaviour shared by backends that interpret the transform AST as Python."""
+"""Behaviour shared by backends that run the transform AST in this Python process."""
 
-__all__ = ["PythonInterpretable"]
+__all__ = ["InProcessPythonMixin"]
 
 import ast
 import typing
@@ -9,8 +9,8 @@ from bilt._backend._callable import BackendCallable
 from bilt._backend._errors import CompilationError
 
 
-class PythonInterpretable:
-    """Mixin for backends that rewrite the transform AST, then compile and execute it as Python."""
+class InProcessPythonMixin:
+    """Rewrites the transform AST, then compiles and executes it on the host interpreter rather than out of process."""
 
     def __init__(self, ast_transformer: ast.NodeTransformer, compilation_namespace: dict[str, typing.Any]) -> None:
         self.ast_transformer = ast_transformer

@@ -2,11 +2,11 @@ import ast
 import inspect
 
 from bilt._backend import BackendCallable, BackendCase
-from bilt._backend._base_backend import BaseBackend
-from bilt._backend._python_interpretable import PythonInterpretable
+from bilt._backend._base_backend import ActivatableBackendMixin
+from bilt._backend._in_process_python import InProcessPythonMixin
 
 
-class PythonBackend(PythonInterpretable, BaseBackend):
+class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin):
     """Python backend implementation of the Bilt backend interface."""
 
     def __init__(self) -> None:
