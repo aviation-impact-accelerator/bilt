@@ -166,7 +166,6 @@ EXPECTED = [
 ]
 
 
-@pytest.mark.xfail(reason="TODO: Implement float `.position` is close logic", strict=False)
 @pytest.mark.parametrize("index", range(len(COORDS)))  # pyright: ignore[reportDeprecated]
 def test_domain_registry_copes_with_float_coordinates(index: int) -> None:
     time = dim("time")

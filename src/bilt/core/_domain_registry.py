@@ -5,8 +5,10 @@ __all__ = [
 
 import typing
 
+import numpy as np
+
 if typing.TYPE_CHECKING:
-    from bilt.symbolic._dimensions import Coordinate, CoordinateAxis, Dim
+    from bilt.symbolic._dimensions import CoordinateAxis, Dim
     from bilt.symbolic._domains import Domain
 
 
@@ -86,19 +88,20 @@ class DomainRegistry:
 
         return binding
 
-    def position(
-        self,
-        dimension: Dim,
-        coordinate: Coordinate,
-    ) -> int:
-        """Return the position of a coordinate on a dimension."""
-        axis = self.axis(dimension)
+    def position(self, dim: Dim, coordinate: object) -> int:
+        axis = self.axis(dim)
 
-        try:
-            return axis.coordinates.index(coordinate)
-        except ValueError:
-            message = f"Coordinate {coordinate!r} is not present on dimension {dimension!s}."
-            raise DomainRegistryError(message) from None
+        for position, candidate in enumerate(axis.coordinates):
+            if candidate == coordinate:
+                return position
+
+            if isinstance(candidate, float) and isinstance(coordinate, float):
+                tolerance = 8 * np.finfo(float).eps * max(1.0, abs(candidate), abs(coordinate))
+                if abs(candidate - coordinate) <= tolerance:
+                    return position
+
+        message = f"Coordinate {coordinate!r} is not present on dimension {dim!r}."
+        raise DomainRegistryError(message)
 
     def _bind_size(
         self,
