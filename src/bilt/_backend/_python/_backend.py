@@ -17,7 +17,7 @@ class PythonBackend(Backend):
             parameters=[inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in case.parameters]
         )
 
-        def final_callable(*args, **kwargs) -> object:  # noqa: ANN002, ANN003
+        def final_callable(*args: object, **kwargs: object) -> object:
             bound = expected_signature.bind(*args, **kwargs)
             bound.apply_defaults()
             values = bound.arguments
@@ -29,7 +29,7 @@ class PythonBackend(Backend):
                 inputs[intermediate.name] = result
             return inputs[case.return_name]
 
-        final_callable.__signature__ = (  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
+        final_callable.__signature__ = (  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]  # pyright: ignore[reportFunctionMemberAccess]
             expected_signature
         )
         return BackendCallable(name=case.name, parameters=case.parameters, callable=final_callable)
