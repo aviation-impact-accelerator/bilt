@@ -1,15 +1,15 @@
 __all__ = ["isolate"]
 
 
+from bilt.symbolic._algebra._expr_ops import (
+    assert_binary_relation_tree,
+    simplify,
+)
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import (
     BiltTargetNotFoundError,
     BiltTargetOnBothSidesError,
     BiltUnsupportedIsolationError,
-)
-from bilt.symbolic._isolation._expr_ops import (
-    assert_binary_relation_tree,
-    simplify,
 )
 from bilt.symbolic._isolation._rules import isolate_by_inverse_rules
 from bilt.symbolic._isolation._types import (
