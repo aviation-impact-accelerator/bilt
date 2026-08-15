@@ -20,7 +20,10 @@ from bilt.core import (
 )
 from bilt.core._equation import equation
 from bilt.core._structural_analysis._exhaustive._bipartite import required_inputs_for_target
-from bilt.core._structural_analysis._plan import PlanStep
+from bilt.core._structural_analysis._plan import CoupledBlock, PlanStep
+from bilt.core._structural_analysis._scc._dependencies import (
+    sub_system_plan_for_step,
+)
 
 if TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -850,3 +853,151 @@ def test_child_cannot_solve_direction_raises() -> None:
     instance = Component(voltage=10.0, resistance=3.0)
     with resistor_impl, component_impl, pytest.raises(BiltSystemAnalysisError):
         _ = instance.current
+
+
+def test_sub_system_plan_preserves_child_plan() -> None:
+    @system
+    class Child(metaclass=Interface):
+        x: float = field()
+        y: float = field()
+
+    @equation
+    def relation(x: float, y: float) -> bool:
+        return x == y
+
+    child_impl = Implementation(Child, [relation])
+
+    sub_system = SubSystemConstituent(
+        __bilt_name__="child",
+        interface=Child,
+        implementation=child_impl,
+    )
+
+    step = PlanStep(
+        operation=sub_system,
+        output="child.x",
+    )
+
+    result = sub_system_plan_for_step(step)
+
+    assert result is not None
+    assert result.plan.output == "x"
+    assert result.inputs == frozenset({"child.y"})
+
+
+def test_nested_series_springs_form_cross_boundary_coupled_block() -> None:
+    @system
+    class Spring(metaclass=Interface):
+        force: float = field()
+        extension: float = field()
+        stiffness: float = field()
+
+    @equation
+    def hookes_law(
+        force: float,
+        extension: float,
+        stiffness: float,
+    ) -> bool:
+        return force == stiffness * extension
+
+    spring_impl = Implementation(
+        Spring,
+        [hookes_law],
+    )
+
+    @system
+    class DoubleSpring(metaclass=Interface):
+        force: float = field()
+        total_extension: float = field()
+        first_stiffness: float = field()
+        second_stiffness: float = field()
+
+    @equation
+    def first_force(
+        force: float,
+        first: Spring,
+    ) -> bool:
+        return force == first.force
+
+    @equation
+    def second_force(
+        force: float,
+        second: Spring,
+    ) -> bool:
+        return force == second.force
+
+    @equation
+    def extensions(
+        total_extension: float,
+        first: Spring,
+        second: Spring,
+    ) -> bool:
+        return total_extension == first.extension + second.extension
+
+    @equation
+    def first_stiffness(
+        first_stiffness: float,
+        first: Spring,
+    ) -> bool:
+        return first_stiffness == first.stiffness
+
+    @equation
+    def second_stiffness(
+        second_stiffness: float,
+        second: Spring,
+    ) -> bool:
+        return second_stiffness == second.stiffness
+
+    implementation = Implementation(
+        DoubleSpring,
+        [
+            first_force,
+            second_force,
+            extensions,
+            first_stiffness,
+            second_stiffness,
+        ],
+        internal_implementations={
+            "first": spring_impl,
+            "second": spring_impl,
+        },
+    )
+
+    plan = implementation.analyser.plan_for_target(
+        {
+            "total_extension",
+            "first_stiffness",
+            "second_stiffness",
+        },
+        "force",
+    )
+
+    assert plan is not None
+
+    blocks = [item for item in plan.steps if isinstance(item, CoupledBlock)]
+
+    assert len(blocks) == 1
+
+    block = blocks[0]
+
+    assert block.outputs == frozenset(
+        {
+            "force",
+            "first.force",
+            "first.extension",
+            "second.force",
+            "second.extension",
+        }
+    )
+
+    sub_system_steps = [step for step in block.steps if isinstance(step.operation, SubSystemConstituent)]
+
+    assert len(sub_system_steps) == 2
+
+    for step in sub_system_steps:
+        assert step.sub_system_plan is not None
+
+        child_output = step.operation.unqualify(step.output)
+
+        assert child_output is not None
+        assert step.sub_system_plan.plan.output == child_output
