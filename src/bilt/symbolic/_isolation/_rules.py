@@ -7,9 +7,6 @@ __all__ = [
 
 from typing import TYPE_CHECKING
 
-from bilt.symbolic._atoms import ADD, INV, MUL, NEG
-from bilt.symbolic._expressions import Expr
-from bilt.symbolic._isolation._errors import UnsupportedIsolationError
 from bilt.symbolic._algebra._expr_ops import (
     make_add,
     make_div,
@@ -22,6 +19,9 @@ from bilt.symbolic._algebra._expr_ops import (
     split_exprs_by_target,
     unary_child,
 )
+from bilt.symbolic._atoms import ADD, INV, MUL, NEG
+from bilt.symbolic._expressions import Expr
+from bilt.symbolic._isolation._errors import UnsupportedIsolationError
 from bilt.symbolic._isolation._types import IsolatedTree, PlannedTree
 
 if TYPE_CHECKING:

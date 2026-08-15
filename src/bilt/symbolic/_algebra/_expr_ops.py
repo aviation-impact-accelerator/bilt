@@ -1,16 +1,25 @@
 __all__ = [
     "BINARY_ARG_COUNT",
     "UNARY_ARG_COUNT",
+    "add",
     "assert_binary_relation_tree",
     "count_tree_occurrences",
+    "divide",
     "expr_args",
     "expr_contains",
+    "is_minus_one",
+    "is_one",
+    "is_zero",
     "make_add",
     "make_div",
     "make_inv",
     "make_mul",
     "make_neg",
     "make_sub",
+    "multiply",
+    "multiply_many",
+    "negate",
+    "one",
     "relation_lhs",
     "relation_rhs",
     "same_expr",
@@ -21,16 +30,30 @@ __all__ = [
     "simplify_mul",
     "simplify_neg",
     "split_exprs_by_target",
+    "subtract",
     "tree_lhs_expr",
     "tree_rhs_expr",
     "unary_child",
+    "zero",
 ]
+import typing
 
-from bilt.symbolic._atoms import ADD, INV, MUL, NEG
+from bilt.symbolic._atoms import (
+    ADD,
+    INV,
+    MUL,
+    NEG,
+    FloatType,
+    IntType,
+)
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import UnsupportedIsolationError
-from bilt.symbolic._tree import Tree
+from bilt.symbolic._tree import Tree, int_tree
 from bilt.symbolic._walk import contains, count_occurrences
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Iterable
+
 
 BINARY_ARG_COUNT = 2
 UNARY_ARG_COUNT = 1
@@ -100,6 +123,135 @@ def simplify_inv(expr: Expr) -> Expr:
         return unary_child(child)
 
     return make_inv(child)
+
+
+def add(
+    left: Tree,
+    right: Tree,
+) -> Tree:
+    """Add two expression trees and simplify trivial identities."""
+    if is_zero(left):
+        return right
+
+    if is_zero(right):
+        return left
+
+    return simplify(
+        make_add(
+            Expr(left),
+            Expr(right),
+        )
+    ).rep
+
+
+def subtract(
+    left: Tree,
+    right: Tree,
+) -> Tree:
+    """Subtract ``right`` from ``left``."""
+    if same_tree(left, right):
+        return zero()
+
+    if is_zero(right):
+        return left
+
+    if is_zero(left):
+        return negate(right)
+
+    return add(
+        left,
+        negate(right),
+    )
+
+
+def multiply(
+    left: Tree,
+    right: Tree,
+) -> Tree:
+    """Multiply two expression trees and simplify trivial identities."""
+    if is_zero(left) or is_zero(right):
+        return zero()
+
+    if is_one(left):
+        return right
+
+    if is_one(right):
+        return left
+
+    if is_minus_one(left):
+        return negate(right)
+
+    if is_minus_one(right):
+        return negate(left)
+
+    return simplify(
+        make_mul(
+            Expr(left),
+            Expr(right),
+        )
+    ).rep
+
+
+def multiply_many(
+    trees: Iterable[Tree],
+) -> Tree:
+    """Multiply a sequence of expression trees."""
+    result = one()
+
+    for tree in trees:
+        result = multiply(result, tree)
+
+    return result
+
+
+def negate(tree: Tree) -> Tree:
+    """Negate an expression tree."""
+    if is_zero(tree):
+        return tree
+
+    return simplify(make_neg(Expr(tree))).rep
+
+
+def divide(
+    numerator: Tree,
+    denominator: Tree,
+) -> Tree:
+    """Divide one expression tree by another."""
+    if is_zero(numerator):
+        return zero()
+
+    if is_one(denominator):
+        return numerator
+
+    if is_minus_one(denominator):
+        return negate(numerator)
+
+    return simplify(
+        make_div(
+            Expr(numerator),
+            Expr(denominator),
+        )
+    ).rep
+
+
+def zero() -> Tree:
+    return int_tree(0)
+
+
+def one() -> Tree:
+    return int_tree(1)
+
+
+def is_zero(tree: Tree) -> bool:
+    return tree.is_leaf and tree.head.atom_type in (IntType, FloatType) and tree.head.value == 0
+
+
+def is_one(tree: Tree) -> bool:
+    return tree.is_leaf and tree.head.atom_type in (IntType, FloatType) and tree.head.value == 1
+
+
+def is_minus_one(tree: Tree) -> bool:
+    return tree.head is NEG and len(tree.args) == UNARY_ARG_COUNT and is_one(tree.args[0])
 
 
 def split_exprs_by_target(
@@ -213,5 +365,10 @@ def same_tree(left: Tree, right: Tree) -> bool:
         return False
 
     return all(
-        same_tree(left_child, right_child) for left_child, right_child in zip(left.args, right.args, strict=True)
+        same_tree(left_child, right_child)
+        for left_child, right_child in zip(
+            left.args,
+            right.args,
+            strict=True,
+        )
     )
