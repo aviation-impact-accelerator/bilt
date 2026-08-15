@@ -4,7 +4,6 @@ import pytest
 
 from bilt.errors import (
     BiltTargetNotFoundError,
-    BiltTargetOnBothSidesError,
     BiltUnsupportedIsolationError,
 )
 from bilt.symbolic._algebra._expr_ops import (
@@ -17,6 +16,7 @@ from bilt.symbolic._algebra._expr_ops import (
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._expressions import Expr, tensor_symbol_expr
 from bilt.symbolic._isolation._isolate import isolate
+from bilt.symbolic._tree import int_tree
 
 if typing.TYPE_CHECKING:
     from bilt.symbolic._tree import Tree
@@ -121,20 +121,53 @@ def test_isolate_raises_when_target_missing() -> None:
         isolate(a == y, x)
 
 
-def test_isolate_raises_when_target_on_both_sides() -> None:
+def test_isolate_raises_when_target_cancels() -> None:
     x = Expr.symbol("x")
     a = Expr.symbol("a")
 
-    with pytest.raises(BiltTargetOnBothSidesError):
+    with pytest.raises(BiltUnsupportedIsolationError, match="cancels"):
         isolate(make_add(x, a) == x, x)
 
 
-def test_isolate_raises_when_target_occurs_more_than_once() -> None:
+def test_isolate_affine_target_occurring_more_than_once() -> None:
     x = Expr.symbol("x")
     y = Expr.symbol("y")
 
-    with pytest.raises(BiltUnsupportedIsolationError):
-        isolate(make_add(x, x) == y, x)
+    actual = isolate(make_add(x, x) == y, x)
+
+    two = make_add(
+        Expr(int_tree(1)),
+        Expr(int_tree(1)),
+    )
+    expected_rhs = make_mul(y, make_inv(two))
+    assert_same_tree(actual.as_tree(), x == expected_rhs)
+
+
+def test_isolate_affine_target_on_both_sides_with_constant_difference() -> None:
+    x = Expr.symbol("x")
+    a = Expr.symbol("a")
+    b = Expr.symbol("b")
+    c = Expr.symbol("c")
+    d = Expr.symbol("d")
+
+    actual = isolate(
+        make_add(make_mul(a, x), b) == make_add(make_mul(c, x), d),
+        x,
+    )
+
+    expected_rhs = make_mul(
+        make_neg(make_add(b, make_neg(d))),
+        make_inv(make_add(a, make_neg(c))),
+    )
+    assert_same_tree(actual.as_tree(), x == expected_rhs)
+
+
+def test_isolate_raises_when_repeated_target_is_nonlinear() -> None:
+    x = Expr.symbol("x")
+    y = Expr.symbol("y")
+
+    with pytest.raises(BiltUnsupportedIsolationError, match="not affine"):
+        isolate(make_mul(x, x) == y, x)
 
 
 def test_isolate_allows_mean_on_rhs() -> None:
