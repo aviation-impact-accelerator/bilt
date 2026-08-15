@@ -198,3 +198,97 @@ def test_series_springs_coupled_result_is_consumed_by_outer_transform(
 
     with backend, double_spring_impl:
         assert instance.stored_energy == pytest.approx(0.375)
+
+@pytest.mark.parametrize(
+    "backend",
+    (PythonBackend(), JAXBackend()),
+)
+def test_evaluation_with_multiple_dag_and_coupled_regions(
+    backend: Backend,
+) -> None:
+    """Separate coupled regions are solved independently within one evaluation."""
+
+    @system
+    class Model(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        d: float = field()
+        offset: float = field()
+
+        p: float = field()
+        x: float = field()
+        y: float = field()
+        q: float = field()
+        u: float = field()
+        v: float = field()
+        result: float = field()
+
+    @transform
+    def p(a: float) -> float:
+        return 2.0 * a
+
+    @equation
+    def first_x(
+        x: float,
+        y: float,
+        p: float,
+    ) -> bool:
+        return x == p + y
+
+    @equation
+    def first_y(
+        y: float,
+        x: float,
+        b: float,
+    ) -> bool:
+        return y == b - 0.5 * x
+
+    @transform
+    def q(x: float) -> float:
+        return 3.0 * x
+
+    @equation
+    def second_u(
+        u: float,
+        v: float,
+        q: float,
+    ) -> bool:
+        return u == q + v
+
+    @equation
+    def second_v(
+        v: float,
+        u: float,
+        d: float,
+    ) -> bool:
+        return v == d - 0.25 * u
+
+    @transform
+    def result(
+        u: float,
+        offset: float,
+    ) -> float:
+        return u + offset
+
+    implementation = Implementation(
+        Model,
+        [
+            p,
+            first_x,
+            first_y,
+            q,
+            second_u,
+            second_v,
+            result,
+        ],
+    )
+
+    instance = Model(
+        a=2.0,
+        b=5.0,
+        d=12.0,
+        offset=1.0,
+    )
+
+    with backend, implementation:
+        assert instance.result == pytest.approx(25.0)
