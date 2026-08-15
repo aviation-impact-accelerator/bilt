@@ -7,6 +7,7 @@ import jax.numpy as jnp
 from bilt._backend._base_backend import ActivatableBackendMixin
 from bilt._backend._in_process_python_mixin import InProcessPythonMixin
 from bilt._backend._jax._ast import JAXASTTransformer
+from bilt._backend._jax._numerics import JaxNumerics
 from bilt._backend._jax._supports import _validate
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
@@ -20,6 +21,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
     def __init__(self) -> None:
         self.ast_transformer = JAXASTTransformer()
         self.compilation_namespace = {"jnp": jnp, "jax.jit": jax.jit, "__builtins__": __builtins__}
+        self.numerics = JaxNumerics()
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Compile a single transform AST into a callable function."""
@@ -30,14 +32,40 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
         new_namespace: dict[str, typing.Any] = {}
         chained_callable_as_string = f"def {case.name}_({', '.join(f'{x}' for x in case.parameters)}):\n"
         case_parameters = set(case.parameters)
-        for interim_callable in case.intermediates:
-            new_namespace[interim_callable.name] = interim_callable.callable
-            chained_callable_as_string += f"    {interim_callable.name}_={interim_callable.name}({
-                ', '.join(
-                    parameter if parameter in case_parameters else f'{parameter}_'
-                    for parameter in interim_callable.parameters
+        for index, intermediate in enumerate(case.intermediates):
+            if isinstance(intermediate, BackendLinearSystem):
+                callable_name = f"__bilt_linear_system_{index}"
+
+                def solve_linear_system(
+                    *args: object,
+                    system: BackendLinearSystem = intermediate,
+                ) -> tuple[object, ...]:
+                    inputs = dict(zip(system.parameters, args, strict=True))
+                    result = self.solve_linear(system, inputs)
+
+                    return tuple(result[unknown] for unknown in system.unknowns)
+
+                new_namespace[callable_name] = solve_linear_system
+
+                arguments = ", ".join(
+                    parameter if parameter in case_parameters else f"{parameter}_"
+                    for parameter in intermediate.parameters
                 )
-            })\n"
+
+                unknowns = ", ".join(f"{unknown}_" for unknown in intermediate.unknowns)
+
+                chained_callable_as_string += f"    {unknowns} = {callable_name}({arguments})\n"
+
+                continue
+
+            new_namespace[intermediate.name] = intermediate.callable
+
+            arguments = ", ".join(
+                parameter if parameter in case_parameters else f"{parameter}_" for parameter in intermediate.parameters
+            )
+
+            chained_callable_as_string += f"    {intermediate.name}_ = {intermediate.name}({arguments})\n"
+
         chained_callable_as_string += f"    return {case.return_name}_\n"
         chained_callable_ast = typing.cast("ast.FunctionDef", ast.parse(chained_callable_as_string).body[0])
 

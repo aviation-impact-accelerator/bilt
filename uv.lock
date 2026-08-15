@@ -14,6 +14,7 @@ version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "networkx" },
+    { name = "scipy" },
 ]
 
 [package.optional-dependencies]
@@ -41,6 +42,7 @@ docs = [
 requires-dist = [
     { name = "jax", marker = "extra == 'jax'", specifier = ">=0.10.2" },
     { name = "networkx", specifier = ">=3.6.1" },
+    { name = "scipy", specifier = ">=1.18.0" },
 ]
 provides-extras = ["jax"]
 
