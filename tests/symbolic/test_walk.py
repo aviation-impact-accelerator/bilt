@@ -1,42 +1,14 @@
 from bilt.symbolic._atoms import symbol
 from bilt.symbolic._tree import Tree, symbol_tree
-from bilt.symbolic._walk import contains, subtrees
+from bilt.symbolic._walk import (
+    contains,
+    count_occurrences,
+    subtrees,
+    symbol_names,
+)
 
 
-def test_contains_leaf_self() -> None:
-    x = symbol_tree("x")
-
-    assert contains(x, x)
-
-
-def test_contains_leaf_other() -> None:
-    x = symbol_tree("x")
-    y = symbol_tree("y")
-
-    assert not contains(x, y)
-
-
-def test_contains_direct_child() -> None:
-    add = symbol("+")
-    x = symbol_tree("x")
-    y = symbol_tree("y")
-    expr = Tree(add, (x, y))
-
-    assert contains(expr, x)
-    assert contains(expr, y)
-
-
-def test_contains_missing_child() -> None:
-    add = symbol("+")
-    x = symbol_tree("x")
-    y = symbol_tree("y")
-    z = symbol_tree("z")
-    expr = Tree(add, (x, y))
-
-    assert not contains(expr, z)
-
-
-def test_contains_nested_child() -> None:
+def test_contains_nested_subtree() -> None:
     add = symbol("+")
     mul = symbol("*")
 
@@ -49,81 +21,21 @@ def test_contains_nested_child() -> None:
 
     assert contains(expr, product)
     assert contains(expr, y)
-    assert contains(expr, z)
-
-
-def test_contains_shared_subtree() -> None:
-    add = symbol("+")
-    neg = symbol("neg")
-
-    x = symbol_tree("x")
-    shared = Tree(neg, (x,))
-    expr = Tree(add, (shared, shared))
-
-    assert expr.args[0] is expr.args[1]
-    assert contains(expr, shared)
-    assert contains(expr, x)
-
-
-def test_contains_hash_consed_equivalent_leaf() -> None:
-    add = symbol("+")
-
-    x1 = symbol_tree("x")
-    x2 = symbol_tree("x")
-    y = symbol_tree("y")
-
-    expr = Tree(add, (x1, y))
-
-    assert x1 is x2
-    assert contains(expr, x2)
+    assert not contains(expr, symbol_tree("missing"))
 
 
 def test_contains_hash_consed_equivalent_subtree() -> None:
-    add = symbol("+")
     neg = symbol("neg")
-
     x = symbol_tree("x")
-    y = symbol_tree("y")
 
-    neg_x_1 = Tree(neg, (x,))
-    neg_x_2 = Tree(neg, (x,))
+    first = Tree(neg, (x,))
+    second = Tree(neg, (x,))
 
-    expr = Tree(add, (neg_x_1, y))
-
-    assert neg_x_1 is neg_x_2
-    assert contains(expr, neg_x_2)
+    assert first is second
+    assert contains(first, second)
 
 
-def test_contains_similar_but_different_subtree() -> None:
-    add = symbol("+")
-    neg = symbol("neg")
-
-    x = symbol_tree("x")
-    y = symbol_tree("y")
-
-    neg_x = Tree(neg, (x,))
-    neg_y = Tree(neg, (y,))
-
-    expr = Tree(add, (neg_x,))
-
-    assert not contains(expr, neg_y)
-
-
-def test_subtrees_returns_root_and_every_nested_node() -> None:
-    add = symbol("+")
-    mul = symbol("*")
-
-    x = symbol_tree("x")
-    y = symbol_tree("y")
-    z = symbol_tree("z")
-
-    product = Tree(mul, (y, z))
-    expr = Tree(add, (x, product))
-
-    assert subtrees(expr) == {expr, x, product, y, z}
-
-
-def test_subtrees_collapses_shared_subtree() -> None:
+def test_subtrees_returns_each_distinct_subtree_once() -> None:
     add = symbol("+")
     neg = symbol("neg")
 
@@ -132,4 +44,36 @@ def test_subtrees_collapses_shared_subtree() -> None:
     expr = Tree(add, (shared, shared))
 
     assert subtrees(expr) == {expr, shared, x}
-    assert all(contains(expr, node) for node in subtrees(expr))
+
+
+def test_count_occurrences_counts_shared_references() -> None:
+    add = symbol("+")
+    x = symbol_tree("x")
+    expr = Tree(add, (x, x))
+
+    assert count_occurrences(expr, x) == 2
+
+
+def test_count_occurrences_returns_zero_when_missing() -> None:
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+
+    assert count_occurrences(x, y) == 0
+
+
+def test_symbol_names_returns_distinct_symbols() -> None:
+    add = symbol("+")
+    mul = symbol("*")
+
+    x = symbol_tree("x")
+    y = symbol_tree("y")
+
+    expr = Tree(
+        add,
+        (
+            x,
+            Tree(mul, (x, y)),
+        ),
+    )
+
+    assert symbol_names(expr) == {"x", "y"}

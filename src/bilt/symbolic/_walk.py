@@ -1,14 +1,18 @@
+__all__ = [
+    "contains",
+    "count_occurrences",
+    "subtrees",
+    "symbol_names",
+]
+
 import typing
+
+from bilt.symbolic._atoms import SymbolType
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt.symbolic._tree import Tree
-
-__all__ = [
-    "contains",
-    "subtrees",
-]
 
 
 def _walk_subtrees(root: Tree) -> collections.abc.Iterator[Tree]:
@@ -37,13 +41,15 @@ def contains(root: Tree, target: Tree) -> bool:
     return any(node is target for node in _walk_subtrees(root))
 
 
+def symbol_names(root: Tree) -> set[str]:
+    """Return the names of all symbols occurring in root."""
+    return {str(node.head.value) for node in _walk_subtrees(root) if node.is_leaf and node.head.atom_type is SymbolType}
+
+
 def count_occurrences(root: Tree, target: Tree) -> int:
     """Count how many times target occurs inside root.
 
     Repeated references are counted as repeated occurrences.
-
-    This matters for hash-consed trees, where x + x may contain the same
-    target node twice.
     """
     count = 0
     stack = [root]

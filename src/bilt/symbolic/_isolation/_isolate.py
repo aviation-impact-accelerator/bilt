@@ -44,10 +44,7 @@ def equation_to_ast(
     target: str,
 ) -> ast.FunctionDef:
     if target not in equation.__bilt_equation_symbols__:
-        message = (
-            f"Target {target!r} is not a parameter "
-            f"of the equation {equation!s}."
-        )
+        message = f"Target {target!r} is not a parameter of the equation {equation!s}."
         raise TargetNotFoundError(message)
 
     isolated = isolate(
@@ -147,14 +144,8 @@ def _isolate_affine(
 ) -> IsolatedTree:
     tree = simplified.tree
 
-    if not (
-        target.rep.is_leaf
-        and target.rep.head.atom_type is SymbolType
-    ):
-        message = (
-            "Affine isolation requires a symbolic target, "
-            f"got {target!r}."
-        )
+    if not (target.rep.is_leaf and target.rep.head.atom_type is SymbolType):
+        message = f"Affine isolation requires a symbolic target, got {target!r}."
         raise UnsupportedIsolationError(message)
 
     symbol = str(target.rep.head.value)
@@ -170,10 +161,7 @@ def _isolate_affine(
             symbols,
         )
     except AffineAnalysisError as error:
-        message = (
-            f"Target {target!r} occurs more than once "
-            "and the equation is not affine in the target."
-        )
+        message = f"Target {target!r} occurs more than once and the equation is not affine in the target."
         raise UnsupportedIsolationError(message) from error
 
     form = subtract_affine(left, right)
@@ -184,9 +172,7 @@ def _isolate_affine(
     )
 
     if is_zero(coefficient):
-        message = (
-            f"Target {target!r} cancels from the equation."
-        )
+        message = f"Target {target!r} cancels from the equation."
         raise UnsupportedIsolationError(message)
 
     rhs = divide(

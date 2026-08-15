@@ -142,6 +142,7 @@ def test_isolate_affine_target_occurring_more_than_once() -> None:
 
     assert_same_tree(actual.as_tree(), x == expected_rhs)
 
+
 def test_isolate_affine_target_on_both_sides_with_constant_difference() -> None:
     x = Expr.symbol("x")
     a = Expr.symbol("a")
@@ -150,8 +151,7 @@ def test_isolate_affine_target_on_both_sides_with_constant_difference() -> None:
     d = Expr.symbol("d")
 
     actual = isolate(
-        make_add(make_mul(a, x), b)
-        == make_add(make_mul(c, x), d),
+        make_add(make_mul(a, x), b) == make_add(make_mul(c, x), d),
         x,
     )
 
