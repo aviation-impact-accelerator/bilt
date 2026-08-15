@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from bilt.symbolic._atoms import ADD, INV, MUL, NEG
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import UnsupportedIsolationError
-from bilt.symbolic._isolation._expr_ops import (
+from bilt.symbolic._algebra._expr_ops import (
     make_add,
     make_div,
     make_inv,

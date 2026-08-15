@@ -8,7 +8,7 @@ from bilt.symbolic._isolation._errors import (
     TargetOnBothSidesError,
     UnsupportedIsolationError,
 )
-from bilt.symbolic._isolation._expr_ops import (
+from bilt.symbolic._algebra._expr_ops import (
     make_add,
     make_inv,
     make_mul,
