@@ -1,9 +1,12 @@
 __all__ = ["Implementation"]
 
+import dataclasses
 import types
 import typing
 
-from bilt.core._structural_analysis._protocol import get_current_structural_analysis_backend
+from bilt.core._structural_analysis._protocol import (
+    get_current_structural_analysis_backend,
+)
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -11,6 +14,14 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _EvaluationRequest:
+    """A request to compute an output from a set of available values."""
+
+    output: str
+    available: frozenset[str]
 
 
 class Implementation:
@@ -25,29 +36,60 @@ class Implementation:
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             {component.__bilt_name__: component for component in components}
         )
-        self._callable_cache: dict[tuple[str, frozenset[str], Backend], BackendCallable] = {}
+        self._evaluation_cache: dict[
+            tuple[_EvaluationRequest, Backend],
+            BackendCallable,
+        ] = {}
         system.__bilt_system_registry__.add(self)
 
     @property
     def system(self) -> Interface:
         return self._system
 
-    def evaluate(self, inputs: dict[str, object], output: str, backend: Backend) -> object:
-        cache_key = (output, frozenset(inputs.keys()), backend)
+    def evaluate(
+        self,
+        inputs: dict[str, object],
+        output: str,
+        backend: Backend,
+    ) -> object:
         if output in inputs:
-            output_value = inputs[output]
-        elif self._callable_cache.get(cache_key):
-            cached = self._callable_cache[cache_key]
-            output_value = cached.callable(**{k: inputs[k] for k in cached.parameters})
-        else:
-            structural_analysis_backend = get_current_structural_analysis_backend()
-            planned_case = structural_analysis_backend(
-                tuple(self._components.values()), set(inputs.keys()), output, backend
-            )
-            final_callable = backend.chain_case(planned_case)
-            self._callable_cache[cache_key] = final_callable
-            output_value = final_callable.callable(**{k: inputs[k] for k in final_callable.parameters})
-        return output_value
+            return inputs[output]
+
+        request = _EvaluationRequest(
+            output=output,
+            available=frozenset(inputs),
+        )
+
+        evaluation = self._get_evaluation(request, backend)
+
+        return evaluation.evaluate(inputs)
+
+    def _get_evaluation(
+        self,
+        request: _EvaluationRequest,
+        backend: Backend,
+    ) -> BackendCallable:
+        cache_key = (
+            request,
+            backend,
+        )
+
+        if cached := self._evaluation_cache.get(cache_key):
+            return cached
+
+        structural_analysis_backend = get_current_structural_analysis_backend()
+
+        planned_case = structural_analysis_backend(
+            tuple(self._components.values()),
+            set(request.available),
+            request.output,
+            backend,
+        )
+
+        backend_callable = backend.chain_case(planned_case)
+        self._evaluation_cache[cache_key] = backend_callable
+
+        return backend_callable
 
     def __enter__(self) -> typing.Self:
         self._system.__bilt_system_implementation_default__.append(self)
@@ -62,7 +104,12 @@ class Implementation:
         return self.system == other.system and self._components == other._components
 
     def __hash__(self) -> int:
-        return hash((self.system, frozenset(self._components.items())))
+        return hash(
+            (
+                self.system,
+                frozenset(self._components.items()),
+            )
+        )
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self._components.values())!r})"

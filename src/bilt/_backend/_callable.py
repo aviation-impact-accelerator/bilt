@@ -1,7 +1,7 @@
 import dataclasses
-from typing import TYPE_CHECKING
+import typing
 
-if TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     import collections.abc
 
 
@@ -10,3 +10,9 @@ class BackendCallable:
     name: str
     parameters: tuple[str, ...]
     callable: collections.abc.Callable
+
+    def evaluate(
+        self,
+        inputs: collections.abc.Mapping[str, object],
+    ) -> object:
+        return self.callable(**{name: inputs[name] for name in self.parameters})
