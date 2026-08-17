@@ -28,6 +28,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install uv
+        if: ${{ !env.ACT }}
         uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
@@ -35,11 +36,13 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install Rust
+        if: ${{ !env.ACT }}
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
       - name: Install dependencies
+        if: ${{ !env.ACT }}
         run: uv sync --python ${{ matrix.python-version }} --all-packages --extra jax
 
       - name: Configure PyO3 Python
@@ -76,43 +79,37 @@ jobs:
   coverage:
     name: coverage
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup_python
-      - uses: ./.github/actions/job_url
-        id: job_url
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        if: ${{ !env.ACT }}
+        uses: astral-sh/setup-uv@v7
         with:
-          step_name: 'pytest'
-      - name: pytest
-        run: |
-          pytest
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Rust
+        if: ${{ !env.ACT }}
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install dependencies
+        if: ${{ !env.ACT }}
+        run: uv sync --python ${{ matrix.python-version }} --all-packages --extra jax
+
       - name: Test coverage summary report
-        id: coverage_report
-        if: always()
         run: |
-          {
-            echo "COVERAGE_REPORT<<EOF"
-            coverage report --format=markdown --show-missing --skip-covered
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-      - name: Remove previous coverage comments
-        uses: ./.github/actions/remove_comments
-        if: always()
-        with:
-          identifier: coverage
-      - name: Test coverage PR comment
-        id: coverage_comment
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `[coverage](${{steps.job_url.outputs.job_url}})
-              \r\n\r\n${{steps.coverage_report.outputs.COVERAGE_REPORT}}`
-            })
+          uv run pytest --cov=. \
+            --cov-report=term-missing:skip-covered \
+            --cov-report=markdown:coverage.md
+
+            echo "### TEST COVERAGE REPORT ###" >> $GITHUB_STEP_SUMMARY
+            cat coverage.md >> $GITHUB_STEP_SUMMARY
 
 
   check:
