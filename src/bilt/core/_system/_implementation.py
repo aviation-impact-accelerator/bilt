@@ -1,13 +1,12 @@
 __all__ = ["Implementation"]
 
 import dataclasses
+import functools
 import types
 import typing
 
 from bilt.core._evaluation_context import EvaluationContext
-from bilt.core._structural_analysis._protocol import (
-    get_current_structural_analysis_backend,
-)
+from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -15,6 +14,7 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
+    from bilt.core._structural_analysis import StructuralAnalyser
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -46,6 +46,11 @@ class Implementation:
     @property
     def system(self) -> Interface:
         return self._system
+
+    @functools.cached_property
+    def analyser(self) -> StructuralAnalyser:
+        """The structural analyser for this implementation's components."""
+        return ExhaustiveStructuralAnalyser(tuple(self._components.values()))
 
     def evaluate(
         self,
@@ -84,10 +89,7 @@ class Implementation:
         if cached := self._evaluation_cache.get(cache_key):
             return cached
 
-        structural_analysis_backend = get_current_structural_analysis_backend()
-
-        planned_case = structural_analysis_backend(
-            tuple(self._components.values()),
+        planned_case = self.analyser.analyse(
             set(request.available),
             request.output,
             backend,
