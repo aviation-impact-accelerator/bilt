@@ -88,7 +88,7 @@ jobs:
         if: ${{ !env.ACT }}
         uses: astral-sh/setup-uv@v7
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.14
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -100,7 +100,7 @@ jobs:
 
       - name: Install dependencies
         if: ${{ !env.ACT }}
-        run: uv sync --python ${{ matrix.python-version }} --all-packages --extra jax
+        run: uv sync --python 3.14 --all-packages --extra jax
 
       - name: Test coverage summary report
         run: |
