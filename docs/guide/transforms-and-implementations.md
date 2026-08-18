@@ -1,6 +1,26 @@
 ## Transforms and implementations
 
-In the previous chapter, we defined a system with three values:
+In the previous chapter, we used an equation to describe a mathematical relationship:
+
+```python
+@equation
+def kinematic_relation(distance: float, speed: float, time: float) -> bool:
+    return distance == speed * time
+```
+
+Equations are useful when the relationship itself is important and Bilt may need to use it in different directions.
+
+Not every part of a model works like that.
+
+Sometimes we simply want to say:
+
+> Given these values, here is how to calculate another one.
+
+For that, Bilt provides **transforms**.
+
+### Transforms describe calculations
+
+Consider a small system:
 
 ```python
 from bilt import Interface, field, system
@@ -13,21 +33,7 @@ class Demo(metaclass=Interface):
     c: float = field()
 ```
 
-and created an instance with two known values:
-
-```python
-demo = Demo(a=1.0, b=2.0)
-```
-
-At this point, Bilt knows that `c` exists, but it still has no way to calculate it.
-
-To give the system some behaviour, we need to describe a relationship between its values.
-
-### Transforms describe calculations
-
-A **transform** is a directed calculation from one or more values to another.
-
-For our `Demo` system, we can define:
+We can define a transform that calculates `c` from `a` and `b`:
 
 ```python
 from bilt import transform
@@ -46,7 +52,9 @@ a ──┐
 b ──┘
 ```
 
-The function itself is ordinary Python. The parameter names identify the values it needs, while the function name identifies the value it provides.
+Unlike an equation, a transform has a fixed computational direction.
+
+The parameter names identify the values it requires, while the function name identifies the value it provides.
 
 So:
 
@@ -59,19 +67,43 @@ def c(a: float, b: float) -> float:
 means:
 
 ```text
-given:    a, b
+requires: a, b
 provides: c
 ```
 
-A transform has a fixed computational direction. Bilt can use this transform to calculate `c` from `a` and `b`, but it cannot use it to calculate `a` from `b` and `c`.
+Bilt can use this transform to calculate `c` from `a` and `b`. It cannot use the same transform to calculate `a` from `b` and `c`.
 
-We will introduce relationships that can be used in more than one direction in the next chapter.
+### Transforms are ordinary calculations
 
-### Implementations collect the relationships for a system
+A transform contains ordinary Python code.
 
-Defining the transform still doesn't attach it to `Demo`.
+For example:
 
-For that we create an **implementation**:
+```python
+@transform
+def magnitude(value: float) -> float:
+    return abs(value)
+```
+
+Given `value`, we can calculate its magnitude. But knowing the magnitude does not tell us whether the original value was positive or negative.
+
+There is no unique way to run the calculation backwards.
+
+Transforms can also contain conditionals, lookups, calls to other software, or other computations that cannot sensibly be represented as an algebraic relationship.
+
+This is the main distinction between the two relationship types we have seen:
+
+> An equation describes a relationship between values.
+
+> A transform describes how to calculate one value from others.
+
+Use an equation when the mathematical relationship is the important thing. Use a transform when the computation is the important thing.
+
+### Implementations collect relationships for a system
+
+We used an implementation in the previous chapter to connect an equation to a system.
+
+Now we can look at its role more closely.
 
 ```python
 from bilt import Implementation
@@ -80,7 +112,7 @@ from bilt import Implementation
 basic = Implementation(Demo, [c])
 ```
 
-The system and its implementation have different jobs.
+A system and its implementation have different jobs.
 
 `Demo` describes the boundary:
 
@@ -91,44 +123,50 @@ Demo
 └── c
 ```
 
-while `basic` describes one way those values can be related:
+while `basic` supplies relationships that can be used to obtain those values:
 
 ```text
 a, b ──► c
 ```
 
-Keeping these separate means the same system can later have more than one implementation without changing the code that uses its interface.
+An implementation can contain equations, transforms, or a mixture of both.
+
+Keeping the system boundary separate from its implementation also allows the same system to be realised in different ways.
 
 ### Evaluating with an implementation
 
-To use an implementation, make it active while evaluating the system:
+Create an instance with the values we already know:
 
 ```python
-with basic:
-    result = demo.c
+demo = Demo(
+    a=1.0,
+    b=2.0,
+)
 ```
 
-Here, Bilt knows:
-
-```text
-a = 1.0
-b = 2.0
-```
-
-and we request:
-
-```text
-c
-```
-
-The active implementation contains a transform that can produce `c` from `a` and `b`, so Bilt can satisfy the request:
+Then make the implementation active while requesting `c`:
 
 ```python
 with basic:
     assert demo.c == 3.0
 ```
 
-Conceptually, the evaluation looks like this:
+Bilt knows:
+
+```text
+a = 1.0
+b = 2.0
+```
+
+and has been asked for:
+
+```text
+c
+```
+
+The active implementation contains a transform that can produce `c` from the available values, so the request can be satisfied.
+
+Conceptually:
 
 ```text
 known
@@ -147,19 +185,19 @@ The important point is that we did not call the transform ourselves:
 c(1.0, 2.0)
 ```
 
-Instead, we asked the system for a value:
+Instead, we asked the system for:
 
 ```python
 demo.c
 ```
 
-Bilt worked out that the transform provided a way to obtain it.
+Bilt found a relationship that could provide it.
 
-### The model is not the execution order
+### Implementations can contain many relationships
 
-With one transform, this may not seem very different from calling a function directly.
+A real implementation will usually contain more than one relationship.
 
-The difference becomes clearer when we add a few more values:
+Let's extend our system:
 
 ```python
 @system
@@ -171,7 +209,7 @@ class Demo(metaclass=Interface):
     e: float = field()
 ```
 
-and some more transforms:
+and define three transforms:
 
 ```python
 @transform
@@ -189,13 +227,13 @@ def e(c: float, d: float) -> float:
     return c + d
 ```
 
-We can collect them into an implementation:
+We can collect them into one implementation:
 
 ```python
 basic = Implementation(Demo, [c, d, e])
 ```
 
-This describes the following relationships:
+This gives Bilt three available relationships:
 
 ```text
 a, b ──► c
@@ -203,10 +241,13 @@ a, c ──► d
 c, d ──► e
 ```
 
-Now create a system with just `a` and `b` known:
+Now create an instance with just `a` and `b` known:
 
 ```python
-demo = Demo(a=1.0, b=2.0)
+demo = Demo(
+    a=1.0,
+    b=2.0,
+)
 ```
 
 and ask for `e`:
@@ -216,7 +257,7 @@ with basic:
     assert demo.e == 7.0
 ```
 
-To answer that request, Bilt needs to calculate:
+To satisfy that request, Bilt needs to obtain:
 
 ```text
 c = 3
@@ -244,67 +285,72 @@ d_value = d(a, c_value)
 e_value = e(c_value, d_value)
 ```
 
-Nor does the order of transforms in:
+The implementation describes which relationships are available. It does not prescribe the order in which they must be evaluated.
+
+### The model is not the execution order
+
+Nor does the order in:
 
 ```python
 Implementation(Demo, [c, d, e])
 ```
 
-define an execution sequence.
-
-The implementation describes the relationships that are available. When we request a value, Bilt works out which of those relationships are needed and in what order they must be evaluated.
-
-> The model describes the available relationships. The request determines the computation.
-
-That distinction becomes much more important as models grow.
-
-### Transforms are directional
-
-There is one limitation in the example above that is worth making explicit.
-
-Suppose we know:
+mean:
 
 ```text
-a = 1
-c = 3
+first c
+then d
+then e
 ```
 
-and want `b`.
+Those relationships describe the model.
 
-Mathematically, we can see from:
+The required execution order depends on which values are already known and which value we request.
 
-```text
-c = a + b
-```
-
-that:
-
-```text
-b = c - a
-```
-
-But our transform does not describe that relationship. It describes only the calculation:
+If we request `c`, Bilt only needs:
 
 ```text
 a, b ──► c
 ```
 
-Bilt will not automatically reverse an arbitrary Python function.
+If we request `e`, it needs a longer route:
 
-This is intentional. A transform is an ordinary directed calculation, and there may be no unique way to run it backwards.
-
-For example:
-
-```python
-@transform
-def magnitude(value: float) -> float:
-    return abs(value)
+```text
+a, b ──► c
+a, c ──► d
+c, d ──► e
 ```
 
-Given `value`, we can always calculate its magnitude. But knowing the magnitude does not tell us whether the original value was positive or negative.
+So:
 
-More generally, transforms can contain conditionals, lookups, calls to other software, or any other computation that Bilt cannot simply rearrange.
+> The model describes the available relationships. The request determines the computation.
 
-When a relationship really is mathematical and useful in more than one direction, Bilt has another way to express it.
+This applies equally when an implementation contains equations, transforms, or a mixture of both.
 
-Those are **equations**, and they are the subject of the next chapter.
+### Equations and transforms can work together
+
+An implementation does not have to choose between equations and transforms.
+
+For example, part of a model might be described by an equation:
+
+```text
+distance = speed × time
+```
+
+while another part is naturally a directed calculation:
+
+```text
+distance ──► journey_category
+```
+
+Bilt can use both kinds of relationship when working out how to obtain a requested value.
+
+Equations give it relationships that may be usable in different directions.
+
+Transforms give it relationships with a fixed direction.
+
+Together, they form the set of possible routes through the model.
+
+The next question is how Bilt chooses a route from the values that are known to the value that has been requested.
+
+That is the subject of the next chapter: **from models to computation**.

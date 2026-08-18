@@ -87,4 +87,4 @@ In the next chapter, we'll introduce **acausal modelling** and **equations**, be
 
 ---
 
-[Index](docs/index.md) · [Transforms →](03-transforms.md)
+[Index](docs/index.md) · [Equations and acausal modelling →](equations-and-acausal-modelling.md)
