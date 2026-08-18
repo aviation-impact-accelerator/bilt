@@ -428,4 +428,4 @@ def test_repeated_evaluation_reuses_one_cache_entry(
             with backend_context:
                 assert Demo(a=float(value), b=2.0).c == value + 2.0
 
-    assert len(implementation._callable_cache) == 1  # noqa: SLF001
+    assert len(implementation._evaluation_cache) == 1  # noqa: SLF001
