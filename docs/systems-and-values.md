@@ -4,7 +4,7 @@ A Bilt model starts with a **system**.
 
 A system describes the values that make up the boundary of a model. It tells Bilt what exists, but not yet how those values are calculated.
 
-Here is a small example:
+Here is a small example using Newtons second law, `F = m*a`.
 
 ```python
 from bilt import Interface, field, system
@@ -12,9 +12,9 @@ from bilt import Interface, field, system
 
 @system
 class Demo(metaclass=Interface):
-    a: float = field()
-    b: float = field()
-    c: float = field()
+    force: float = field()
+    mass: float = field()
+    acceleration: float = field()
 ```
 
 There are three Bilt-specific pieces here.
@@ -26,38 +26,38 @@ There are three Bilt-specific pieces here.
 Finally, `field()` declares a value on the system boundary:
 
 ```python
-a: float = field()
+force: float = field()
 ```
 
-Here, `a` is the name of the value and `float` is its type.
+Here, `force` is the name of the value and `float` is its type.
 
 So our system has three values:
 
 ```text
 Demo
-├── a: float
-├── b: float
-└── c: float
+├── force: float
+├── mass: float
+└── acceleration: float
 ```
 
-Notice that we still haven't said how any of them are related. Declaring `c` means that `c` is part of the system interface; it does not mean that Bilt knows how to calculate it.
+Notice that we still haven't said how any of them are related. Declaring `acceleration` means that `acceleration` is part of the system interface; it does not mean that Bilt knows how to calculate it.
 
 We can create an instance by supplying values that we already know:
 
 ```python
-a = 1.0
-b = 2.0
+mass = 1.0
+acceleration = 2.0
 
-demo = Demo(a=a, b=b)
+demo = Demo(mass = mass, acceleration = acceleration)
 ```
 
-Here, `a` and `b` are known, while `c` has not been supplied.
+Here, `mass` and `acceleration` are known, while `force` has not been supplied.
 
-Whether Bilt can obtain `c` depends on the relationships provided by the system's implementation. We'll introduce those relationships in the next chapter.
+Whether Bilt can obtain `force` depends on the relationships provided by the system's implementation. We'll introduce those relationships in the next chapter.
 
 ### Values aren't permanently inputs or outputs
 
-It is tempting to think of `a` and `b` as inputs and `c` as an output, but Bilt does not assign those roles permanently.
+It is tempting to think of `mass` and `acceleration` as inputs and `force` as an output, but Bilt does not assign those roles permanently.
 
 A system simply declares values.
 
@@ -66,13 +66,13 @@ Which values are known and which value is requested depends on the particular ev
 For one analysis we might know:
 
 ```text
-a, b
+mass, force
 ```
 
 and ask for:
 
 ```text
-c
+acceleration
 ```
 
 In another analysis, the available values could be different.
@@ -83,4 +83,4 @@ For now, the important distinction is simpler:
 
 > A system defines the boundary of a model. It does not define the computation.
 
-In the next chapter, we'll introduce **transforms** and **implementations** and use them to give a system behaviour.
+In the next chapter, we'll introduce **acausal modelling** and **equations**, beforelearning about the **implementations** that link these to a system.
