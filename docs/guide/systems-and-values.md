@@ -84,3 +84,7 @@ For now, the important distinction is simpler:
 > A system defines the boundary of a model. It does not define the computation.
 
 In the next chapter, we'll introduce **acausal modelling** and **equations**, beforelearning about the **implementations** that link these to a system.
+
+---
+
+[Index](docs/index.md) · [Transforms →](03-transforms.md)
