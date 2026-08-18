@@ -7,10 +7,10 @@ import jax.numpy as jnp
 import pytest
 
 from bilt._backend import BackendCase
-from bilt._backend._in_process_python._jax import JAX_BACKEND, UnsupportedNodeError
+from bilt._backend._jax import JAX_BACKEND, UnsupportedNodeError
 
 if typing.TYPE_CHECKING:
-    from bilt._backend._in_process_python._jax._backend import JAXBackend
+    from bilt._backend._jax._backend import JAXBackend
 
 
 def parse_to_ast(src: str) -> ast.FunctionDef:
