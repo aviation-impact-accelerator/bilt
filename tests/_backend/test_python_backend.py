@@ -5,15 +5,24 @@ import typing
 
 import pytest
 
-from bilt._backend import BackendCase
+from bilt._backend import Backend, BackendCase
 from bilt._backend._python import PYTHON_BACKEND
 
 if typing.TYPE_CHECKING:
     from bilt._backend._python._backend import PythonBackend
 
 
+@typing.runtime_checkable
+class _RuntimeBackend(Backend, typing.Protocol):
+    """An isinstance-able view of the protocol, so it need not be runtime checkable in the source."""
+
+
 def parse_to_ast(src: str) -> ast.FunctionDef:
     return typing.cast("ast.FunctionDef", ast.parse(src).body[0])
+
+
+def test_python_backend_conforms_to_the_backend_protocol() -> None:
+    assert isinstance(PYTHON_BACKEND, _RuntimeBackend)
 
 
 @pytest.fixture
