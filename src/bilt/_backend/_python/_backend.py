@@ -1,10 +1,12 @@
 import ast
 import inspect
 
-from bilt._backend import Backend, BackendCallable, BackendCase
+from bilt._backend import BackendCallable, BackendCase
+from bilt._backend._base_backend import ActivatableBackendMixin
+from bilt._backend._in_process_python_mixin import InProcessPythonMixin
 
 
-class PythonBackend(Backend):
+class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin):
     """Python backend implementation of the Bilt backend interface."""
 
     def __init__(self) -> None:
@@ -33,3 +35,6 @@ class PythonBackend(Backend):
             expected_signature
         )
         return BackendCallable(name=case.name, parameters=case.parameters, callable=final_callable)
+
+
+PYTHON_BACKEND = PythonBackend()

@@ -5,25 +5,37 @@ import typing
 
 import pytest
 
-from bilt._backend import BackendCase
-from bilt._backend._python import PythonBackend
+from bilt._backend import Backend, BackendCase
+from bilt._backend._python import PYTHON_BACKEND
+
+if typing.TYPE_CHECKING:
+    from bilt._backend._python._backend import PythonBackend
+
+
+@typing.runtime_checkable
+class _RuntimeBackend(Backend, typing.Protocol):
+    """An isinstance-able view of the protocol, so it need not be runtime checkable in the source."""
 
 
 def parse_to_ast(src: str) -> ast.FunctionDef:
     return typing.cast("ast.FunctionDef", ast.parse(src).body[0])
 
 
+def test_python_backend_conforms_to_the_backend_protocol() -> None:
+    assert isinstance(PYTHON_BACKEND, _RuntimeBackend)
+
+
 @pytest.fixture
 def python_backend() -> PythonBackend:
-    return PythonBackend()
+    return PYTHON_BACKEND
 
 
 SIMPLE_CASE = BackendCase(
     name="test_case",
     parameters=("a", "b", "d"),
     intermediates=[
-        PythonBackend().transpile(parse_to_ast("def c(a: int, b: int) -> int:\n    return a + b")),
-        PythonBackend().transpile(parse_to_ast("def e(c: int, d: int) -> int:\n    return c * d")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def c(a: int, b: int) -> int:\n    return a + b")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def e(c: int, d: int) -> int:\n    return c * d")),
     ],
     return_name="e",
 )
@@ -33,10 +45,10 @@ DIAMOND_CASE = BackendCase(
     name="test_case",
     parameters=("x",),
     intermediates=[
-        PythonBackend().transpile(parse_to_ast("def f(x: int) -> int:\n    return x + 1")),
-        PythonBackend().transpile(parse_to_ast("def g(f: int, x: int) -> int:\n        return f * x")),
-        PythonBackend().transpile(parse_to_ast("def h(f: int, x: int) -> int:\n    return f - x")),
-        PythonBackend().transpile(parse_to_ast("def i(g: int, h: int) -> int:\n        return g + h")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def f(x: int) -> int:\n    return x + 1")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def g(f: int, x: int) -> int:\n        return f * x")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def h(f: int, x: int) -> int:\n    return f - x")),
+        PYTHON_BACKEND.transpile(parse_to_ast("def i(g: int, h: int) -> int:\n        return g + h")),
     ],
     return_name="i",
 )
