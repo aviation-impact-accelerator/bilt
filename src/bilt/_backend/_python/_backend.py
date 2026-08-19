@@ -15,6 +15,7 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
         self.compilation_namespace = {"__builtins__": __builtins__}
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
+        """Chain a BackendCase into a single callable function."""
         expected_signature = inspect.Signature(
             parameters=[inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in case.parameters]
         )

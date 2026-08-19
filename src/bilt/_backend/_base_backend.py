@@ -23,8 +23,8 @@ class Backend(typing.Protocol):
     def chain_case(self, case: BackendCase) -> BackendCallable:
         """Chain the callables of a case into a single callable.
 
-        If the case has expose_attribute true returns a dict of all outputs.
-        If the case has expose_attibutes false returns a single object corresponding to return name.
+        If the case has expose_attribute is true: returns a dict of all outputs.
+        If the case has expose_attibutes is false: returns a single object corresponding to return name.
         """
         ...
 

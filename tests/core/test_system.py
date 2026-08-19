@@ -423,9 +423,7 @@ def test_repeated_evaluation_reuses_one_cache_entry(
     """Repeated evaluation collapses to one cache entry, with or without an explicit backend context.
 
     Each backend is a single shared instance, so entering that instance on every iteration - or
-    falling back to the default backend - keys the same cache entry every time. Each iteration also
-    builds a fresh instance, so caching intermediates on the instance never widens the available set
-    of a later request and so never adds a cache entry here.
+    falling back to the default backend - keys the same cache entry every time.
     """
 
     @system
