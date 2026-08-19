@@ -20,6 +20,10 @@ class DomainRegistryError(ValueError):
     """Raised when dimensions have conflicting evaluation bindings."""
 
 
+class DomainRegistryDimensionsLockedError(RuntimeError):
+    """Raised when trying to bind a new dimension to a locked domain registry."""
+
+
 @typing.runtime_checkable
 class _DomainValue(typing.Protocol):
     """A concrete value associated with a domain."""
@@ -40,6 +44,7 @@ class DomainRegistry:
 
     def __init__(self) -> None:
         self._bindings: dict[Dim, int | CoordinateAxis] = {}
+        self._locked_against_new_dimensions = False
 
     def bind(self, value: object) -> None:
         """Bind any domain information exposed by a value."""
@@ -74,6 +79,9 @@ class DomainRegistry:
         existing = self._bindings.get(axis.dimension)
 
         if existing is None:
+            if self._locked_against_new_dimensions:
+                raise DomainRegistryDimensionsLockedError
+
             self._bindings[axis.dimension] = axis
             return
 
@@ -81,6 +89,9 @@ class DomainRegistry:
             if existing != len(axis):
                 message = f"Dimension {axis.dimension!s} has inconsistent sizes: {existing} and {len(axis)}."
                 raise DomainRegistryError(message)
+
+            if self._locked_against_new_dimensions:
+                raise DomainRegistryDimensionsLockedError
 
             self._bindings[axis.dimension] = axis
             return
@@ -123,6 +134,9 @@ class DomainRegistry:
         message = f"Coordinate {coordinate!r} is not present on dimension {dim!r}."
         raise DomainRegistryError(message)
 
+    def lock_against_new_dimensions(self) -> None:
+        self._locked_against_new_dimensions = True
+
     def _bind_size(
         self,
         dimension: Dim,
@@ -131,6 +145,9 @@ class DomainRegistry:
         existing = self._bindings.get(dimension)
 
         if existing is None:
+            if self._locked_against_new_dimensions:
+                raise DomainRegistryDimensionsLockedError
+
             self._bindings[dimension] = size
             return
 

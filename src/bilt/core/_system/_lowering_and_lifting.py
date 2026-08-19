@@ -1,17 +1,14 @@
 import dataclasses
 import functools
-import typing
+from typing import TYPE_CHECKING
 
-from bilt._backend._tensor_handling._canonical_ordering import (
-    CanonicalizedDomain,
-    canonicalized,
-    transpose_and_align_to_canonical,
-)
+from bilt.core._canonical_ordering import canonicalized
 from bilt.core._tensors._tensors import Tensor, tensor
-from bilt.symbolic._domains import Domain, union
+from bilt.symbolic._domains import union
 
-if typing.TYPE_CHECKING:
-    import numpy as np
+if TYPE_CHECKING:
+    from bilt.core._canonical_ordering import CanonicalizedDomain
+    from bilt.symbolic._domains import Domain
 
 
 @dataclasses.dataclass(frozen=True)
@@ -28,7 +25,7 @@ def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
 
     for input_name, input_value in inputs.items():
         if isinstance(input_value, Tensor):
-            lowered_inputs[input_name] = _lower_tensor(input_value)
+            lowered_inputs[input_name] = input_value.values
         else:
             lowered_inputs[input_name] = input_value
 
@@ -36,19 +33,14 @@ def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
 
 
 def generate_lifting_plan(inputs: dict[str, object]) -> LiftingPlan:
-    return LiftingPlan(output_domain=_derive_output_domain(inputs))
+    return LiftingPlan(_derive_output_domain(inputs))
 
 
-def lift_output(output_value: object, result: LiftingPlan) -> Tensor | object:
-    if result.should_lift_into_tensor:
-        output_value = tensor(output_value, over=result.output_domain.domain.dims)
+def lift_output(output_value: object, lifting_plan: LiftingPlan) -> Tensor | object:
+    if lifting_plan.should_lift_into_tensor:
+        output_value = tensor(output_value, over=lifting_plan.output_domain.domain.dims)
 
     return output_value
-
-
-def _lower_tensor(tensor: Tensor) -> np.ndarray:
-    canonical_tensor = transpose_and_align_to_canonical(tensor)
-    return canonical_tensor.values
 
 
 def _derive_output_domain(inputs: dict[str, object]) -> CanonicalizedDomain:

@@ -1,3 +1,6 @@
+from bilt.core._system._lowering_and_lifting import generate_lifting_plan, lift_output, lower_inputs
+from bilt.core._tensors._tensor_alignment import generate_alignment_plan
+
 __all__ = ["Implementation"]
 
 import dataclasses
@@ -65,7 +68,11 @@ class Implementation:
                 )
 
                 backend_callable = self._get_evaluation(request, backend)
-                output_value = backend_callable.evaluate(inputs)
+                alignment_plan = generate_alignment_plan(inputs)
+                lowered_inputs = lower_inputs(inputs)
+                lifting_plan = generate_lifting_plan(inputs)
+                raw_output_value = backend_callable.evaluate(lowered_inputs, alignment_plan)
+                output_value = lift_output(raw_output_value, lifting_plan)
 
             evaluation.domains.bind(output_value)
 
