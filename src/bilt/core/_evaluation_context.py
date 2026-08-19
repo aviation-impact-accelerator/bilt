@@ -1,5 +1,7 @@
 import functools
 
+from bilt.core._canonical_ordering import _derive_canonical_order
+
 __all__ = [
     "EvaluationContext",
     "current_evaluation",
@@ -8,7 +10,9 @@ __all__ = [
 import typing
 
 from bilt.core._domain_registry import DomainRegistry
-from bilt.symbolic._domains import Domain
+
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._domains import Domain
 
 _evaluation_stack: list[EvaluationContext] = []
 
@@ -23,7 +27,7 @@ class EvaluationContext:
     @functools.cached_property
     def canonical_order(self) -> Domain:
         self.domains.lock_against_new_dimensions()
-        return Domain(tuple(current_evaluation().domains._bindings.keys()))  # noqa: SLF001
+        return _derive_canonical_order(self)
 
     def __enter__(self) -> typing.Self:
         evaluation = _evaluation_stack[-1] if _evaluation_stack else self

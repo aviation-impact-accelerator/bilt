@@ -3,6 +3,7 @@ import functools
 from typing import TYPE_CHECKING
 
 from bilt.core._canonical_ordering import canonicalized
+from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.symbolic._domains import union
 
@@ -48,4 +49,4 @@ def _derive_output_domain(inputs: dict[str, object]) -> CanonicalizedDomain:
         input_value.domain for input_value in inputs.values() if isinstance(input_value, Tensor)
     ]
 
-    return canonicalized(union(*input_domains))  # assuming no addition/reduction
+    return canonicalized(union(*input_domains), current_evaluation().canonical_order)  # assuming no addition/reduction
