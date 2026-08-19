@@ -1,9 +1,10 @@
 import dataclasses
+import functools
 import typing
 
 from bilt._backend._tensor_handling._canonical_ordering import (
-    CanonicalDomain,
-    canonicalised,
+    CanonicalizedDomain,
+    canonicalized,
     transpose_and_align_to_canonical,
 )
 from bilt.core._tensors._tensors import Tensor, tensor
@@ -14,46 +15,45 @@ if typing.TYPE_CHECKING:
 
 
 @dataclasses.dataclass(frozen=True)
-class LoweringPreparationResult:
-    prepared_inputs: dict[str, object]
-    any_tensors: bool
-    output_domain: CanonicalDomain
+class LiftingPlan:
+    output_domain: CanonicalizedDomain
+
+    @functools.cached_property
+    def should_lift_into_tensor(self) -> bool:
+        return not self.output_domain.domain.is_scalar
 
 
-def prepare_any_tensor_inputs_for_lowering(inputs: dict[str, object]) -> LoweringPreparationResult:
-    prepared_inputs: dict[str, object] = {}
-    any_tensors = False
-
-    output_domain = _derive_output_domain(inputs)
+def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
+    lowered_inputs: dict[str, object] = {}
 
     for input_name, input_value in inputs.items():
         if isinstance(input_value, Tensor):
-            prepared_inputs[input_name] = _prepare_tensor_for_lowering(input_value)
-            any_tensors = True
+            lowered_inputs[input_name] = _lower_tensor(input_value)
         else:
-            prepared_inputs[input_name] = input_value
+            lowered_inputs[input_name] = input_value
 
-    return LoweringPreparationResult(
-        prepared_inputs,
-        any_tensors,
-        output_domain,
-    )
+    return lowered_inputs
 
 
-def lift_output(output_value: object, result: LoweringPreparationResult) -> Tensor | object:
-    if result.any_tensors:
-        return tensor(output_value, over=result.output_domain.domain.dims)
+def generate_lifting_plan(inputs: dict[str, object]) -> LiftingPlan:
+    return LiftingPlan(output_domain=_derive_output_domain(inputs))
+
+
+def lift_output(output_value: object, result: LiftingPlan) -> Tensor | object:
+    if result.should_lift_into_tensor:
+        output_value = tensor(output_value, over=result.output_domain.domain.dims)
+
     return output_value
 
 
-def _prepare_tensor_for_lowering(tensor: Tensor) -> np.ndarray:
+def _lower_tensor(tensor: Tensor) -> np.ndarray:
     canonical_tensor = transpose_and_align_to_canonical(tensor)
     return canonical_tensor.values
 
 
-def _derive_output_domain(inputs: dict[str, object]) -> CanonicalDomain:
+def _derive_output_domain(inputs: dict[str, object]) -> CanonicalizedDomain:
     input_domains: list[Domain] = [
         input_value.domain for input_value in inputs.values() if isinstance(input_value, Tensor)
     ]
 
-    return canonicalised(union(*input_domains))  # assuming no addition/reduction
+    return canonicalized(union(*input_domains))  # assuming no addition/reduction

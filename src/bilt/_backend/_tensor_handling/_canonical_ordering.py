@@ -13,25 +13,24 @@ if typing.TYPE_CHECKING:
 
 
 @dataclasses.dataclass(frozen=True)
-class CanonicalDomain:
+class CanonicalizedDomain:
     domain: Domain
 
 
-def canonicalised(domain: Domain) -> CanonicalDomain:
+def canonicalized(domain: Domain) -> CanonicalizedDomain:
     """Puts dimensions in canonical order.
 
     Order determined by the order of dimensions in the current
     evaluation's domain registry.
     """
-    canonicalised_dims: list[Dim] = [dim for dim in _get_canonical_domain().domain.dims if dim in domain.dims]
+    canonicalised_dims: list[Dim] = [dim for dim in _get_canonical_domain().dims if dim in domain.dims]
 
-    return CanonicalDomain(Domain(tuple(canonicalised_dims)))
+    return CanonicalizedDomain(Domain(tuple(canonicalised_dims)))
 
 
 def transpose_and_align_to_canonical(tensor: Tensor) -> Tensor:
-    canonical_domain = _get_canonical_domain()
-    transposed = _transpose_tensor_to_domain_order(tensor, canonical_domain.domain)
-    return _align_tensor_to_domain_order(transposed, canonical_domain.domain)
+    transposed = _transpose_tensor_to_domain_order(tensor, _get_canonical_domain())
+    return _align_tensor_to_domain_order(transposed, _get_canonical_domain())
 
 
 def _transpose_tensor_to_domain_order(tensor: Tensor, domain: Domain) -> Tensor:
@@ -59,5 +58,5 @@ def _align_tensor_to_domain_order(tensor: Tensor, order: Domain) -> Tensor:
     return Tensor(new_values, Domain(order.dims))
 
 
-def _get_canonical_domain() -> CanonicalDomain:
-    return CanonicalDomain(Domain(tuple(current_evaluation().domains._bindings.keys())))  # noqa: SLF001
+def _get_canonical_domain() -> Domain:
+    return Domain(tuple(current_evaluation().domains._bindings.keys()))  # noqa: SLF001
