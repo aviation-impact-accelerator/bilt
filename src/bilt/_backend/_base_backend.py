@@ -4,10 +4,14 @@ import abc
 import ast
 import typing
 
+import numpy as np
+
 from bilt._backend._callable import BackendCallable
 from bilt._backend._errors import CompilationError
 
 if typing.TYPE_CHECKING:
+    from bilt.core._tensors._tensor_alignment import AlignmentPlan
+
     from ._case import BackendCase
 
 _backend_stack: list[Backend] = []
@@ -42,6 +46,26 @@ class Backend(abc.ABC):
             parameters=tuple(arg.arg for arg in function_definition.args.args),
             callable=self.compilation_namespace[function_definition.name],
         )
+
+    def apply_alignment(self, lowered_inputs: dict[str, object], alignment_plan: AlignmentPlan) -> dict[str, object]:
+        """Apply the given alignment plan on the provided lowered inputs."""
+        aligned_inputs: dict[str, object] = {}
+
+        for input_name, input_value in lowered_inputs.items():
+            if target_to_source_dim_mapping := alignment_plan.target_to_source_dim_mappings.get(input_name):
+                transpose_axes = tuple(
+                    source_index for source_index in target_to_source_dim_mapping if source_index is not None
+                )
+                expand_axes = tuple(
+                    i for i, source_index in enumerate(target_to_source_dim_mapping) if source_index is None
+                )
+
+                transposed_input = typing.cast("np.ndarray", input_value).transpose(transpose_axes)
+                aligned_inputs[input_name] = np.expand_dims(transposed_input, expand_axes)
+            else:
+                aligned_inputs[input_name] = input_value
+
+        return aligned_inputs
 
     def __enter__(self) -> typing.Self:
         _backend_stack.append(self)

@@ -68,10 +68,13 @@ class Implementation:
                 )
 
                 backend_callable = self._get_evaluation(request, backend)
-                alignment_plan = generate_alignment_plan(inputs)
+
                 lowered_inputs = lower_inputs(inputs)
+                alignment_plan = generate_alignment_plan(inputs)
+                aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
+                raw_output_value = backend_callable.evaluate(aligned_inputs)
+
                 lifting_plan = generate_lifting_plan(inputs)
-                raw_output_value = backend_callable.evaluate(lowered_inputs, alignment_plan)
                 output_value = lift_output(raw_output_value, lifting_plan)
 
             evaluation.domains.bind(output_value)
