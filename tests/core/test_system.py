@@ -1,4 +1,5 @@
 import contextlib
+import typing
 from typing import TYPE_CHECKING
 
 import pytest
@@ -10,7 +11,10 @@ from bilt import (
     system,
     transform,
 )
+from bilt._backend import BackendCallable
+from bilt._backend._base_backend import ActivatableBackendMixin
 from bilt._backend._jax._backend import JAX_BACKEND
+from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.errors import (
@@ -20,7 +24,16 @@ from bilt.errors import (
 )
 
 if TYPE_CHECKING:
+    import ast
+
+    from bilt._backend import BackendCase
     from bilt._backend._base_backend import Backend
+    from bilt.core._system._instance import SystemInstance
+
+
+def _instance_variables(instance: object) -> dict[str, object]:
+    """The values an instance holds, keyed by name, including those with no declared field."""
+    return typing.cast("SystemInstance", instance).__bilt_system_instance_variables__
 
 
 @system
@@ -410,7 +423,9 @@ def test_repeated_evaluation_reuses_one_cache_entry(
     """Repeated evaluation collapses to one cache entry, with or without an explicit backend context.
 
     Each backend is a single shared instance, so entering that instance on every iteration - or
-    falling back to the default backend - keys the same cache entry every time.
+    falling back to the default backend - keys the same cache entry every time. Each iteration also
+    builds a fresh instance, so caching intermediates on the instance never widens the available set
+    of a later request and so never adds a cache entry here.
     """
 
     @system
@@ -431,3 +446,142 @@ def test_repeated_evaluation_reuses_one_cache_entry(
                 assert Demo(a=float(value), b=2.0).c == value + 2.0
 
     assert len(implementation._evaluation_cache) == 1  # noqa: SLF001
+
+
+@pytest.mark.parametrize(
+    ("backend"),
+    (
+        PYTHON_BACKEND,
+        JAX_BACKEND,
+    ),
+)
+def test_evaluation_caches_undeclared_intermediates(backend: Backend) -> None:
+    """Every value computed on the way to an attribute is cached, including undeclared ones."""
+
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        d: float = field()
+
+    @transform
+    def c(a: float, b: float) -> float:
+        return a + b
+
+    @equation
+    def sum_eq(a: float, c: float, d: float) -> bool:
+        return d == a + c
+
+    impl = Implementation(Demo, [c, sum_eq])
+    instance = Demo(a=1.0, b=2.0)
+
+    expected_c = 1.0 + 2.0
+    expected_d = 1.0 + (1.0 + 2.0)
+
+    with backend, impl:
+        assert instance.d == expected_d
+
+    cached_c = typing.cast("float", _instance_variables(instance)["c"])
+    assert float(cached_c) == pytest.approx(expected_c)
+
+
+def test_evaluation_leaves_supplied_inputs_untouched() -> None:
+    """Caching outputs never rebinds a value the caller supplied, so no `jax.Array` replaces their float."""
+
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        c: float = field()
+
+    @transform
+    def c(a: float, b: float) -> float:
+        return a + b
+
+    impl = Implementation(Demo, [c])
+    a_value = 1.0
+    instance = Demo(a=a_value, b=2.0)
+
+    with JAX_BACKEND, impl:
+        _ = instance.c
+
+    assert _instance_variables(instance)["a"] is a_value
+
+
+@pytest.mark.parametrize(
+    ("backend"),
+    (
+        PYTHON_BACKEND,
+        JAX_BACKEND,
+    ),
+)
+def test_cached_intermediates_are_available_to_later_evaluations(backend: Backend) -> None:
+    """A cached intermediate joins the available set of the next request planned for the same instance.
+
+    Reading `d` computes `c` on the way, so the plan for `e` is asked for from a wider set of
+    available values than the one the instance was constructed with.
+    """
+
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        c: float = field()
+        d: float = field()
+        e: float = field()
+
+    @transform
+    def c(a: float, b: float) -> float:
+        return a + b
+
+    @transform
+    def d(a: float, c: float) -> float:
+        return a + c
+
+    @transform
+    def e(c: float, d: float) -> float:
+        return c + d
+
+    implementation = Implementation(Demo, [c, d, e])
+    instance = Demo(a=1.0, b=2.0)
+
+    with backend, implementation:
+        _ = instance.d
+        _ = instance.e
+
+    requests = [request for request, *_ in implementation._evaluation_cache]  # noqa: SLF001
+    assert any(request.output == "e" and "c" in request.available for request in requests)
+
+
+def test_recomputing_an_available_value_raises_internal_error() -> None:
+    """A plan that hands back a value the instance already holds is a bug in bilt, and says so."""
+
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        b: float = field()
+        c: float = field()
+
+    @transform
+    def c(a: float, b: float) -> float:
+        return a + b
+
+    class CollidingBackend(ActivatableBackendMixin, NDArrayAlignmentMixin):
+        """Rigs every plan to also produce a value for `a`, which the instance already holds."""
+
+        def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
+            return PYTHON_BACKEND.transpile(function_definition)
+
+        def chain_case(self, case: BackendCase) -> BackendCallable:
+            return BackendCallable(
+                name=case.return_name,
+                parameters=case.parameters,
+                callable=lambda **_: {"c": 3.0, "a": 99.0},
+                outputs=("c", "a"),
+            )
+
+    implementation = Implementation(Demo, [c])
+    instance = Demo(a=1.0, b=2.0)
+
+    with CollidingBackend(), implementation, pytest.raises(RuntimeError):
+        _ = instance.c

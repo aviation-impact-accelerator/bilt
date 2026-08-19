@@ -173,13 +173,13 @@ def test_repr_names_the_reference_and_its_interface(sub_system: SubSystemConstit
 def test_a_parent_solves_a_child_port_through_the_sub_system(board: Implementation) -> None:
     result = board.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}, "resistor.v", PYTHON_BACKEND)
 
-    assert result == VOLTAGE
+    assert result["resistor.v"] == VOLTAGE
 
 
 def test_a_parent_solves_a_child_port_in_the_inward_direction(board: Implementation) -> None:
     result = board.evaluate({"resistor.v": VOLTAGE, "resistor.r": RESISTANCE}, "resistor.i", PYTHON_BACKEND)
 
-    assert result == CURRENT
+    assert result["resistor.i"] == CURRENT
 
 
 def test_the_realized_callable_speaks_mangled_names(board: Implementation) -> None:
@@ -189,7 +189,7 @@ def test_the_realized_callable_speaks_mangled_names(board: Implementation) -> No
     realized = board.get_evaluation(request, PYTHON_BACKEND)
 
     assert realized.parameters == ("resistor__i", "resistor__r")
-    assert realized.evaluate({"resistor__i": CURRENT, "resistor__r": RESISTANCE}) == VOLTAGE
+    assert realized.evaluate({"resistor__i": CURRENT, "resistor__r": RESISTANCE})["resistor__v"] == VOLTAGE
 
 
 def test_nothing_a_backend_compiles_carries_a_dotted_name(board: Implementation) -> None:
@@ -223,7 +223,7 @@ def test_two_parents_can_share_one_sub_system(sub_system: SubSystemConstituent) 
     first = Implementation(Rig, [sub_system]).evaluate(inputs, "resistor.v", backend)
     second = Implementation(Rig, [sub_system]).evaluate(inputs, "resistor.v", backend)
 
-    assert first == second == VOLTAGE
+    assert first["resistor.v"] == second["resistor.v"] == VOLTAGE
 
 
 def test_a_parent_cannot_solve_a_child_port_the_child_has_no_route_to(

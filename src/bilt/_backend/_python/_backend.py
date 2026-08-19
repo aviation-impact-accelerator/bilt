@@ -15,7 +15,6 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
         self.compilation_namespace = {"__builtins__": __builtins__}
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
-        """Chain a BackendCase into a single callable function."""
         expected_signature = inspect.Signature(
             parameters=[inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in case.parameters]
         )
@@ -30,12 +29,19 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
                 args_for_intermediate = [inputs[name] for name in intermediate.parameters]
                 result = intermediate.callable(*args_for_intermediate)
                 inputs[intermediate.name] = result
-            return inputs[case.return_name]
+            if not case.expose_intermediates:
+                return inputs[case.return_name]
+            return {name: inputs[name] for name in case.output_names}
 
         final_callable.__signature__ = (  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
             expected_signature
         )
-        return BackendCallable(name=case.name, parameters=case.parameters, callable=final_callable)
+        return BackendCallable(
+            name=case.return_name,
+            parameters=case.parameters,
+            callable=final_callable,
+            outputs=case.output_names if case.expose_intermediates else None,
+        )
 
 
 PYTHON_BACKEND = PythonBackend()

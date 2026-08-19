@@ -103,7 +103,9 @@ def _sub_system_to_callable(
         return RealizationFailure(failed_plan_step=plan_step, cause=BiltAnalysisError(msg))
 
     try:
-        child_callable = sub_system.implementation.get_evaluation(plan_step.request, backend)
+        child_callable = sub_system.implementation.get_evaluation(
+            plan_step.request, backend, expose_intermediates=False
+        )
     except BiltAnalysisError as error:
         return RealizationFailure(failed_plan_step=plan_step, cause=error)
 

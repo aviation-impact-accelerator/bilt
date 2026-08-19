@@ -38,15 +38,22 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
                     for parameter in interim_callable.parameters
                 )
             })\n"
-        chained_callable_as_string += f"    return {case.return_name}_\n"
+        if case.expose_intermediates:
+            chained_callable_as_string += (
+                f"    return {{{', '.join(f'{name!r}: {name}_' for name in case.output_names)}}}\n"
+            )
+        else:
+            chained_callable_as_string += f"    return {case.return_name}_\n"
         chained_callable_ast = typing.cast("ast.FunctionDef", ast.parse(chained_callable_as_string).body[0])
 
         old_namespace = self.compilation_namespace.copy()
         self.compilation_namespace.update(new_namespace)
-        final_callable = self.transpile(chained_callable_ast)
+        chained = super().transpile(chained_callable_ast)
         self.compilation_namespace = old_namespace
 
-        return final_callable
+        chained.name = case.return_name
+        chained.outputs = case.output_names if case.expose_intermediates else None
+        return chained
 
 
 JAX_BACKEND = JAXBackend()

@@ -73,7 +73,7 @@ def test_exhaustive_analyser_produces_a_working_callable() -> None:
 
     result = ExhaustiveStructuralAnalyser([c], PYTHON_BACKEND).analyse({"a", "b"}, "c")
     backend_case = PYTHON_BACKEND.chain_case(result)
-    assert backend_case.callable(a=1.0, b=2.0) == c(a=1.0, b=2.0)
+    assert backend_case.callable(a=1.0, b=2.0)["c"] == c(a=1.0, b=2.0)
 
 
 def test_bipartite_graph_shape_for_an_equation() -> None:
@@ -211,11 +211,11 @@ def test_analyser_prunes_an_unrealizable_step_and_keeps_it_pruned() -> None:
     pruned_step = PlanStep(operation=square, output="x")
 
     first_case = PYTHON_BACKEND.chain_case(analyser.analyse({"z", "w"}, "x"))
-    assert first_case.callable(w=4.0, z=25.0) == expected_x
+    assert first_case.callable(w=4.0, z=25.0)["x"] == expected_x
     assert pruned_step not in analyser.bipartite_graph.graph
 
     second_case = PYTHON_BACKEND.chain_case(analyser.analyse({"z", "w"}, "x"))
-    assert second_case.callable(w=4.0, z=25.0) == expected_x
+    assert second_case.callable(w=4.0, z=25.0)["x"] == expected_x
     assert pruned_step not in analyser.bipartite_graph.graph
 
 
@@ -235,7 +235,7 @@ def test_analyser_raises_when_no_route_survives_pruning_but_other_routes_still_w
         analyser.analyse({"z"}, "x")
 
     surviving_case = PYTHON_BACKEND.chain_case(analyser.analyse({"y"}, "z"))
-    assert surviving_case.callable(y=4.0) == expected_z
+    assert surviving_case.callable(y=4.0)["z"] == expected_z
 
 
 def test_a_step_one_backend_refuses_is_only_attempted_once_across_queries(
@@ -284,7 +284,7 @@ def test_a_step_one_backend_refuses_stays_available_to_another_backend(
         implementation.get_evaluation(request, PYTHON_BACKEND)
 
     surviving = implementation.get_evaluation(request, JAX_BACKEND)
-    assert surviving.callable(a=2.0) == expected_c
+    assert surviving.callable(a=2.0)["c"] == expected_c
 
 
 def test_exhausted_search_reports_why_the_last_route_was_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -526,7 +526,7 @@ def test_a_sub_system_is_asked_again_after_the_way_it_first_named_is_refused(
     case = rig.analyser_for(PYTHON_BACKEND).analyse({"raw", "calibration"}, "answer")
 
     assert attempts.count("scaled") == 1
-    assert PYTHON_BACKEND.chain_case(case).callable(raw=1.0, calibration=3.0) == expected_answer
+    assert PYTHON_BACKEND.chain_case(case).callable(raw=1.0, calibration=3.0)["answer"] == expected_answer
 
 
 def test_retrying_a_sub_system_still_ends_when_the_backend_refuses_everything(
