@@ -2,8 +2,8 @@ import ast
 import inspect
 
 from bilt._backend import BackendCallable, BackendCase
-from bilt._backend.__in_process_python_mixin import InProcessPythonMixin
 from bilt._backend._base_backend import ActivatableBackendMixin
+from bilt._backend._in_process_python_mixin import InProcessPythonMixin
 
 
 class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin):

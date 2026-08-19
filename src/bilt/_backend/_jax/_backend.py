@@ -4,8 +4,8 @@ import typing
 import jax
 import jax.numpy as jnp
 
-from bilt._backend.__in_process_python_mixin import InProcessPythonMixin
 from bilt._backend._base_backend import ActivatableBackendMixin
+from bilt._backend._in_process_python_mixin import InProcessPythonMixin
 from bilt._backend._jax._ast import JAXASTTransformer
 from bilt._backend._jax._supports import _validate
 
