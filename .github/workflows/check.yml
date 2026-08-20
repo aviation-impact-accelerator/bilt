@@ -102,15 +102,46 @@ jobs:
         if: ${{ !env.ACT }}
         run: uv sync --python 3.14 --all-packages --extra jax
 
-      - name: Test coverage summary report
+      - name: Run pytest-cov and save to markdown
         run: |
           uv run pytest --cov=. \
             --cov-report=term-missing:skip-covered \
             --cov-report=markdown:coverage.md
 
-            echo "### TEST COVERAGE REPORT ###" >> $GITHUB_STEP_SUMMARY
-            cat coverage.md >> $GITHUB_STEP_SUMMARY
+      - name: Echo coverage markdown to GitHub Step Summary
+        run: |
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          cat coverage.md >> $GITHUB_STEP_SUMMARY
 
+      - name: Post coverage markdown as PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+
+            const filePath = path.join(process.env.GITHUB_WORKSPACE, "coverage.md");
+
+            let fileContent = "";
+            try {
+              fileContent = fs.readFileSync(filePath, "utf8");
+            } catch (err) {
+              fileContent = `Could not read coverage file: ${err.message}`;
+            }
+
+            const commentBody = `## Coverage Report\n${fileContent}`;
+
+            if (process.env.ACT === "true") {
+              console.log("=== ACT LOCAL TEST ===");
+              console.log("This text would have been posted to GitHub:\n", commentBody);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
 
   check:
     name: Checks and tests
