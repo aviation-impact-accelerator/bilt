@@ -84,7 +84,6 @@ class Implementation:
         request: EvaluationRequest,
         backend: Backend,
     ) -> BackendCallable:
-        """Return the chained callable serving ``request``, realizing and caching it on first ask."""
         cache_key = (
             request,
             backend,
