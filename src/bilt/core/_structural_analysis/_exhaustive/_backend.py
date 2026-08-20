@@ -5,7 +5,7 @@ import typing
 from bilt._backend import Backend, BackendCase
 from bilt.core._realize_analysis._realize import RealizationFailure, realize_plan
 from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
-from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
+from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph, required_inputs_for_target
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 
 if typing.TYPE_CHECKING:
@@ -47,3 +47,25 @@ class ExhaustiveStructuralAnalyser:
                 case RealizationFailure() as failure:
                     last_failure = failure
                     excluded |= {failure.failed_plan_step}
+
+    def required_inputs_for_target(self, available: set[str], output: str) -> frozenset[str] | None:
+        """Return the inputs a plan for ``output`` would actually consume, or None when no plan exists.
+
+        This answers the structural question only -- no plan step is realized -- so a parent can
+        ask a child what it needs before committing to compiling it.
+        """
+        try:
+            steps = self.bipartite_graph.search(available, output)
+        except BiltSystemAnalysisError:
+            return None
+
+        if steps is None:
+            return None
+
+        produced = {step.output for step in steps}
+        required: set[str] = set()
+        for step in steps:
+            consumed = required_inputs_for_target(step) or frozenset()
+            required.update(consumed - produced)
+
+        return frozenset(required)

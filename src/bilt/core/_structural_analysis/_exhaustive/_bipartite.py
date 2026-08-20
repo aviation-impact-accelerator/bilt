@@ -7,6 +7,7 @@ import networkx as nx
 from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
 from bilt.core._structural_analysis._plan import PlanStep
+from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform
 
 if TYPE_CHECKING:
@@ -18,8 +19,12 @@ type Attribute = str
 type Node = Attribute | PlanStep
 
 
-def required_inputs_for_target(plan_step: PlanStep) -> frozenset[str]:
-    """Return the attributes a plan step consumes to produce its output."""
+def required_inputs_for_target(plan_step: PlanStep) -> frozenset[str] | None:
+    """Return the attributes a plan step consumes to produce its output.
+
+    None means the step cannot produce its output at all: a sub-system has no internal route
+    from its other ports to the one being asked for.
+    """
     match plan_step.operation:
         case BasicTransform() as transform:
             if plan_step.output != transform.__bilt_name__:
@@ -31,6 +36,8 @@ def required_inputs_for_target(plan_step: PlanStep) -> frozenset[str]:
                 msg = f"{equation!r} does not have parameter {plan_step.output!r}."
                 raise BiltSystemAnalysisError(msg)
             return frozenset(equation.__bilt_parameters__) - {plan_step.output}
+        case SubSystemConstituent() as sub_system:
+            return sub_system.required_parent_inputs(plan_step.output)
         case _:
             msg = f"Constituent type {type(plan_step.operation)} is not supported."
             raise NotImplementedError(msg)
@@ -47,22 +54,22 @@ class BipartiteGraph:
         match constituent:
             case BasicTransform() as transform:
                 self._add_transform(transform)
-            case BasicEquation() as equation:
-                self._add_equation(equation)
+            case BasicEquation() | SubSystemConstituent() as relation:
+                self._add_relation(relation)
             case _:
                 msg = f"Constituent type {type(constituent)} is not supported in the bipartite graph."
                 raise NotImplementedError(msg)
 
-    def _add_equation(self, equation: BasicEquation) -> None:
-        """Add a new equation to the graph."""
-        for param in equation.__bilt_parameters__:
+    def _add_relation(self, relation: BasicEquation | SubSystemConstituent) -> None:
+        """Add a constituent that can be solved for any one of its parameters given the others."""
+        for param in relation.__bilt_parameters__:
             self.graph.add_node(param, bipartite="attribute")
 
-        for param in equation.__bilt_parameters__:
-            plan_step = PlanStep(operation=equation, output=param)
+        for param in relation.__bilt_parameters__:
+            plan_step = PlanStep(operation=relation, output=param)
             self.graph.add_node(plan_step, bipartite="constituent")
             self.graph.add_edge(plan_step, param)
-            for param2 in equation.__bilt_parameters__:
+            for param2 in relation.__bilt_parameters__:
                 if param2 != param:
                     self.graph.add_edge(param2, plan_step)
 
@@ -127,9 +134,13 @@ class BipartiteGraph:
 
         Inputs are visited in sorted order so a given query always yields the same plan ordering.
         """
+        required = required_inputs_for_target(plan_step)
+        if required is None:
+            return None
+
         path: list[PlanStep] = []
         included: set[PlanStep] = set()
-        for neighbor in sorted(required_inputs_for_target(plan_step)):
+        for neighbor in sorted(required):
             sub_path = self.search(available, neighbor, visited, excluded)
             if sub_path is None:
                 return None
