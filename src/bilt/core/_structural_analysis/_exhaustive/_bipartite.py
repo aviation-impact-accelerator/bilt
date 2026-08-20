@@ -1,4 +1,4 @@
-__all__ = ["BipartiteGraph"]
+__all__ = ["BipartiteGraph", "required_inputs_for_target"]
 import typing
 from typing import TYPE_CHECKING
 
@@ -15,6 +15,25 @@ if TYPE_CHECKING:
     from bilt.core._model_constituent import BiltModelConstituent
 
 type Attribute = str
+type Node = Attribute | PlanStep
+
+
+def required_inputs_for_target(plan_step: PlanStep) -> frozenset[str]:
+    """Return the attributes a plan step consumes to produce its output."""
+    match plan_step.operation:
+        case BasicTransform() as transform:
+            if plan_step.output != transform.__bilt_name__:
+                msg = f"{transform!r} does not produce {plan_step.output!r}."
+                raise BiltSystemAnalysisError(msg)
+            return frozenset(transform.__bilt_parameters__)
+        case BasicEquation() as equation:
+            if plan_step.output not in equation.__bilt_parameters__:
+                msg = f"{equation!r} does not have parameter {plan_step.output!r}."
+                raise BiltSystemAnalysisError(msg)
+            return frozenset(equation.__bilt_parameters__) - {plan_step.output}
+        case _:
+            msg = f"Constituent type {type(plan_step.operation)} is not supported."
+            raise NotImplementedError(msg)
 
 
 class BipartiteGraph:
@@ -64,31 +83,73 @@ class BipartiteGraph:
         """If an System or Equation is found to be unable to be used in a certain direction after a realization, remove it from the graph."""
         self.graph.remove_node(plan_step)
 
-    def search(self, available: set[str], output: Attribute | PlanStep, visited: list) -> list[PlanStep] | None:
-        """Perform a depth-first search to find a path from available inputs to the desired output."""
+    def search(
+        self,
+        available: set[str],
+        output: Node,
+        visited: set[Node] | None = None,
+        excluded: frozenset[PlanStep] = frozenset(),
+    ) -> list[PlanStep] | None:
+        """Depth-first search for a path from available inputs to the desired output.
+
+        ``excluded`` names plan steps to route around for this query only. Steps that can never
+        be realized are removed from the graph outright; ``excluded`` is for failures that depend
+        on the requested inputs or the concrete backend, which must not outlive the query.
+        """
         if output not in self.graph:
             msg = f"Output {output} is not in the graph. Please check the constituents provided."
             raise BiltSystemAnalysisError(msg)
         if output in available:
             return []
-        if output in visited:
+        if output in excluded:
             return None
 
-        predecessors = list(self.graph.predecessors(output))
-        next_visited = [*visited, output]
+        on_path: set[Node] = set() if visited is None else visited
+        if output in on_path:
+            return None
 
-        if self.graph.nodes[output]["bipartite"] == "constituent":
-            path: list[PlanStep] = []
-            for neighbor in predecessors:
-                sub_path = self.search(available, neighbor, next_visited)
-                if sub_path is None:
-                    return None
-                path.extend(step for step in sub_path if step not in path)
-            path.append(typing.cast("PlanStep", output))
-            return path
+        on_path.add(output)
+        try:
+            if self.graph.nodes[output]["bipartite"] == "constituent":
+                return self._search_constituent(typing.cast("PlanStep", output), available, on_path, excluded)
+            return self._search_attribute(typing.cast("Attribute", output), available, on_path, excluded)
+        finally:
+            on_path.discard(output)
 
-        for neighbor in predecessors:
-            sub_path = self.search(available, neighbor, next_visited)
+    def _search_constituent(
+        self,
+        plan_step: PlanStep,
+        available: set[str],
+        visited: set[Node],
+        excluded: frozenset[PlanStep] = frozenset(),
+    ) -> list[PlanStep] | None:
+        """Search for a path through a constituent node, resolving every input it needs.
+
+        Inputs are visited in sorted order so a given query always yields the same plan ordering.
+        """
+        path: list[PlanStep] = []
+        included: set[PlanStep] = set()
+        for neighbor in sorted(required_inputs_for_target(plan_step)):
+            sub_path = self.search(available, neighbor, visited, excluded)
+            if sub_path is None:
+                return None
+            for step in sub_path:
+                if step not in included:
+                    included.add(step)
+                    path.append(step)
+        path.append(plan_step)
+        return path
+
+    def _search_attribute(
+        self,
+        attribute: Attribute,
+        available: set[str],
+        visited: set[Node],
+        excluded: frozenset[PlanStep] = frozenset(),
+    ) -> list[PlanStep] | None:
+        """Search for a path through an attribute node, trying each constituent that produces it."""
+        for neighbor in self.graph.predecessors(attribute):
+            sub_path = self.search(available, neighbor, visited, excluded)
             if sub_path is not None:
                 return sub_path
         return None
