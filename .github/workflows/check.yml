@@ -116,6 +116,28 @@ jobs:
           echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
           cat coverage.md >> $GITHUB_STEP_SUMMARY
 
+      - name: Remove previous job comments
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr_comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            await Promise.all(
+              pr_comments.data.filter(
+                comment => comment.body?.startsWith("## Coverage Report")
+              ).map(
+                comment => github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  comment_id: comment.id,
+                })
+              )
+            )
+
       - name: Post coverage markdown as PR comment
         uses: actions/github-script@v9
         with:
