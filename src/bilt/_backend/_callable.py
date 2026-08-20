@@ -11,8 +11,5 @@ class BackendCallable:
     parameters: tuple[str, ...]
     callable: collections.abc.Callable
 
-    def evaluate(
-        self,
-        inputs: collections.abc.Mapping[str, object],
-    ) -> object:
+    def evaluate(self, inputs: collections.abc.Mapping[str, object]) -> object:
         return self.callable(**{name: inputs[name] for name in self.parameters})

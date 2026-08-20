@@ -1,3 +1,5 @@
+import itertools
+
 __all__ = [
     "as_domain",
     "domain",
@@ -54,3 +56,9 @@ def as_domain(value: DomainLike) -> Domain:
         return Domain((value,))
 
     return Domain(tuple(value))
+
+
+def union(*domains: Domain) -> Domain:
+    flattened_dims_in_original_order = itertools.chain.from_iterable(domain.dims for domain in domains)
+    unique_dims_in_original_order = tuple(dict.fromkeys(flattened_dims_in_original_order))
+    return Domain(unique_dims_in_original_order)

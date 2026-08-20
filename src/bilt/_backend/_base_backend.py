@@ -5,6 +5,8 @@ import typing
 if typing.TYPE_CHECKING:
     import ast
 
+    from bilt.core._tensors._tensor_alignment import AlignmentPlan
+
     from ._callable import BackendCallable
     from ._case import BackendCase
 
@@ -25,6 +27,9 @@ class Backend(typing.Protocol):
     def __enter__(self) -> typing.Self: ...
 
     def __exit__(self, *_: object) -> None: ...
+
+    def apply_alignment(self, lowered_inputs: dict[str, object], alignment_plan: AlignmentPlan) -> dict[str, object]:
+        """Apply the given alignment plan on the provided lowered inputs."""
 
 
 class ActivatableBackendMixin:
