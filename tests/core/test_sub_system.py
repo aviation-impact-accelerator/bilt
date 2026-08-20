@@ -127,7 +127,7 @@ def test_the_realized_callable_speaks_dotted_names(board: Implementation) -> Non
     realized = board.get_evaluation(request, PythonBackend())
 
     assert realized.parameters == ("resistor.i", "resistor.r")
-    assert realized.callable(**{"resistor.i": CURRENT, "resistor.r": RESISTANCE}) == VOLTAGE
+    assert realized.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}) == VOLTAGE
 
 
 def test_nothing_a_backend_compiles_carries_a_dotted_name(board: Implementation) -> None:
@@ -146,6 +146,22 @@ def test_a_parent_reuses_one_cache_entry_across_repeated_evaluations(board: Impl
     board.evaluate({"resistor.i": CURRENT + 1, "resistor.r": RESISTANCE + 1}, "resistor.v", backend)
 
     assert len(board._evaluation_cache) == 1  # noqa: SLF001
+
+
+def test_two_parents_can_share_one_sub_system(sub_system: SubSystemConstituent) -> None:
+    """A parent relabels the child's callable to its own names; the child's cached one is not its to edit."""
+
+    @system
+    class Rig(metaclass=Interface):
+        supply_voltage: float = field()
+
+    backend = PythonBackend()
+    inputs: dict[str, object] = {"resistor.i": CURRENT, "resistor.r": RESISTANCE}
+
+    first = Implementation(Rig, [sub_system]).evaluate(inputs, "resistor.v", backend)
+    second = Implementation(Rig, [sub_system]).evaluate(inputs, "resistor.v", backend)
+
+    assert first == second == VOLTAGE
 
 
 def test_a_parent_cannot_solve_a_child_port_the_child_has_no_route_to(

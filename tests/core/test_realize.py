@@ -15,17 +15,13 @@ from bilt.core._realize_analysis._realize import (
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 
 
-def _record_keywords(
-    parameters: tuple[str, ...] = ("resistor__i", "resistor__r"),
-) -> tuple[BackendCallable, dict[str, object]]:
-    """A callable that records the keyword names it was invoked with."""
-    seen: dict[str, object] = {}
+def _mangled_callable(parameters: tuple[str, ...] = ("resistor__i", "resistor__r")) -> BackendCallable:
+    """A compiled callable that speaks mangled parameter names."""
 
-    def inner(**kwargs: object) -> object:
-        seen.update(kwargs)
-        return sum(value for value in kwargs.values() if isinstance(value, float))
+    def inner(*args: float) -> float:
+        return sum(args)
 
-    return BackendCallable(name="v", parameters=parameters, callable=inner), seen
+    return BackendCallable(name="v", parameters=parameters, callable=inner)
 
 
 def test_mangle_name_leaves_a_plain_name_alone() -> None:
@@ -76,17 +72,17 @@ def test_name_mangler_leaves_a_plain_function_untouched() -> None:
     assert ast.unparse(mangled.body[0]) == "return a + b"
 
 
-def test_canonicalize_keeps_the_inner_callable_when_no_name_is_dotted() -> None:
-    mangled_callable, _ = _record_keywords(("a", "b"))
+def test_canonicalize_relabels_the_parameters_without_touching_the_callable() -> None:
+    mangled_callable = _mangled_callable()
 
-    canonical = canonicalize_backend_callable(mangled_callable, ("a", "b"))
+    canonical = canonicalize_backend_callable(mangled_callable, ("resistor.i", "resistor.r"))
 
-    assert canonical.parameters == ("a", "b")
+    assert canonical.parameters == ("resistor.i", "resistor.r")
     assert canonical.callable is mangled_callable.callable
 
 
 def test_canonicalize_takes_its_parameter_order_from_the_callable() -> None:
-    mangled_callable, _ = _record_keywords()
+    mangled_callable = _mangled_callable()
 
     canonical = canonicalize_backend_callable(mangled_callable, {"resistor.r", "resistor.i"})
 
@@ -94,37 +90,25 @@ def test_canonicalize_takes_its_parameter_order_from_the_callable() -> None:
 
 
 def test_canonicalize_rejects_a_name_the_callable_does_not_have() -> None:
-    mangled_callable, _ = _record_keywords()
+    mangled_callable = _mangled_callable()
 
     with pytest.raises(KeyError):
         canonicalize_backend_callable(mangled_callable, ("resistor.i", "resistor.typo"))
 
 
-def test_canonicalize_translates_dotted_keywords_to_mangled_ones() -> None:
-    mangled_callable, seen = _record_keywords()
-
-    canonical = canonicalize_backend_callable(mangled_callable, ("resistor.i", "resistor.r"))
-    canonical.callable(**{"resistor.i": 2.0, "resistor.r": 3.0})
-
-    assert canonical.parameters == ("resistor.i", "resistor.r")
-    assert seen == {"resistor__i": 2.0, "resistor__r": 3.0}
-
-
-def test_canonicalize_translates_positional_arguments_in_parameter_order() -> None:
-    mangled_callable, seen = _record_keywords()
-
-    canonical = canonicalize_backend_callable(mangled_callable, ("resistor.i", "resistor.r"))
-    canonical.callable(2.0, 3.0)
-
-    assert seen == {"resistor__i": 2.0, "resistor__r": 3.0}
-
-
 def test_canonicalize_leaves_the_original_callable_unchanged() -> None:
-    mangled_callable, _ = _record_keywords()
+    mangled_callable = _mangled_callable()
 
     canonicalize_backend_callable(mangled_callable, ("resistor.i", "resistor.r"))
 
     assert mangled_callable.parameters == ("resistor__i", "resistor__r")
+
+
+def test_a_relabelled_callable_evaluates_under_its_canonical_names() -> None:
+    current, resistance = 2.0, 3.0
+    canonical = canonicalize_backend_callable(_mangled_callable(), ("resistor.i", "resistor.r"))
+
+    assert canonical.evaluate({"resistor.i": current, "resistor.r": resistance}) == current + resistance
 
 
 def test_realize_plan_mangles_the_case_names() -> None:

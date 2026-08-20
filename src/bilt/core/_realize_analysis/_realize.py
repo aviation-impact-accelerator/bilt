@@ -6,6 +6,7 @@ import inspect
 import textwrap
 import typing
 
+from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
@@ -20,7 +21,6 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt._backend._base_backend import Backend
-    from bilt._backend._callable import BackendCallable
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 
 MANGLED_SEPARATOR: typing.Final = "__"
@@ -34,28 +34,11 @@ def canonicalize_backend_callable(
     mangled_callable: BackendCallable,
     canonical_names: collections.abc.Iterable[str],
 ) -> BackendCallable:
-    """Wrap a callable that speaks mangled parameter names so it accepts canonical ones.
-
-    ``canonical_names`` is an unordered collection: the parameter order comes from the callable
-    itself, so a name that does not belong to it is a ``KeyError`` here rather than a silent
-    mis-binding at call time.
-    """
     canonical_by_mangled = {mangle_name(name): name for name in canonical_names}
-    canonical_parameters = tuple(canonical_by_mangled[name] for name in mangled_callable.parameters)
-    if canonical_parameters == mangled_callable.parameters:
-        return dataclasses.replace(mangled_callable, parameters=canonical_parameters)
-
-    mangled_by_canonical = dict(zip(canonical_parameters, mangled_callable.parameters, strict=True))
-    inner = mangled_callable.callable
-
-    def call_with_canonical_names(*args: object, **kwargs: object) -> object:
-        named = dict(zip(canonical_parameters, args, strict=False)) | kwargs
-        return inner(**{mangled_by_canonical[name]: value for name, value in named.items()})
-
-    return dataclasses.replace(
-        mangled_callable,
-        parameters=canonical_parameters,
-        callable=call_with_canonical_names,
+    return BackendCallable(
+        name=mangled_callable.name,
+        parameters=tuple(canonical_by_mangled[name] for name in mangled_callable.parameters),
+        callable=mangled_callable.callable,
     )
 
 
@@ -152,10 +135,10 @@ def _sub_system_to_callable(
     except BiltSystemAnalysisError as error:
         return RealizationFailure(failed_plan_step=plan_step, permanent=False, cause=error)
 
-    return dataclasses.replace(
-        child_callable,
+    return BackendCallable(
         name=mangle_name(plan_step.output),
         parameters=tuple(mangle_name(sub_system.qualify(port)) for port in child_callable.parameters),
+        callable=child_callable.callable,
     )
 
 
