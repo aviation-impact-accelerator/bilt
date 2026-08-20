@@ -344,9 +344,7 @@ def _resistor_sub_system(name: str = "resistor") -> SubSystemConstituent:
     def ohms_law(v: float, i: float, r: float) -> bool:
         return v == i * r
 
-    return SubSystemConstituent(
-        __bilt_name__=name, interface=Resistor, implementation=Implementation(Resistor, [ohms_law])
-    )
+    return SubSystemConstituent(name=name, implementation=Implementation(Resistor, [ohms_law]))
 
 
 def _sealed_sub_system(name: str = "sealed") -> SubSystemConstituent:
@@ -357,7 +355,7 @@ def _sealed_sub_system(name: str = "sealed") -> SubSystemConstituent:
         a: float = field()
         b: float = field()
 
-    return SubSystemConstituent(__bilt_name__=name, interface=Sealed, implementation=Implementation(Sealed, []))
+    return SubSystemConstituent(name=name, implementation=Implementation(Sealed, []))
 
 
 def test_bipartite_graph_shape_for_a_sub_system() -> None:

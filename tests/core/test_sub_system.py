@@ -11,7 +11,7 @@ RESISTANCE = 3.0
 VOLTAGE = 6.0
 
 
-def _resistor_implementation() -> tuple[Interface, Implementation]:
+def _resistor_implementation() -> Implementation:
     @system
     class Resistor(metaclass=Interface):
         v: float = field()
@@ -22,14 +22,13 @@ def _resistor_implementation() -> tuple[Interface, Implementation]:
     def ohms_law(v: float, i: float, r: float) -> bool:
         return v == i * r
 
-    return Resistor, Implementation(Resistor, [ohms_law])
+    return Implementation(Resistor, [ohms_law])
 
 
 @pytest.fixture
 def sub_system() -> SubSystemConstituent:
     """A resistor whose one equation solves for any of its three ports."""
-    resistor, implementation = _resistor_implementation()
-    return SubSystemConstituent(__bilt_name__="resistor", interface=resistor, implementation=implementation)
+    return SubSystemConstituent(name="resistor", implementation=_resistor_implementation())
 
 
 @pytest.fixture
@@ -41,7 +40,7 @@ def sealed_sub_system() -> SubSystemConstituent:
         a: float = field()
         b: float = field()
 
-    return SubSystemConstituent(__bilt_name__="sealed", interface=Sealed, implementation=Implementation(Sealed, []))
+    return SubSystemConstituent(name="sealed", implementation=Implementation(Sealed, []))
 
 
 @pytest.fixture
@@ -64,9 +63,9 @@ def test_parameters_are_the_qualified_child_ports(sub_system: SubSystemConstitue
 
 
 def test_the_constituent_keeps_its_reference_name() -> None:
-    resistor, implementation = _resistor_implementation()
+    implementation = _resistor_implementation()
 
-    renamed = SubSystemConstituent(__bilt_name__="r1", interface=resistor, implementation=implementation)
+    renamed = SubSystemConstituent(name="r1", implementation=implementation)
 
     assert renamed.__bilt_name__ == "r1"
     assert renamed.__bilt_parameters__ == ("r1.v", "r1.i", "r1.r")
@@ -76,28 +75,20 @@ def test_qualify_is_the_dotted_spelling_of_a_child_port(sub_system: SubSystemCon
     assert sub_system.qualify("v") == "resistor.v"
 
 
-def test_unqualify_recovers_the_child_local_name(sub_system: SubSystemConstituent) -> None:
-    assert sub_system.unqualify("resistor.v") == "v"
-
-
-@pytest.mark.parametrize("qualified", ("v", "capacitor.v", "resistor.typo"))
-def test_unqualify_rejects_a_name_that_is_not_one_of_its_ports(
-    sub_system: SubSystemConstituent, qualified: str
-) -> None:
-    assert sub_system.unqualify(qualified) is None
-
-
 def test_child_port_recovers_the_child_local_name(sub_system: SubSystemConstituent) -> None:
     assert sub_system.child_port("resistor.v") == "v"
 
 
-def test_child_port_raises_where_unqualify_returns_none(sub_system: SubSystemConstituent) -> None:
+@pytest.mark.parametrize("qualified", ("v", "capacitor.v", "resistor.typo"))
+def test_child_port_rejects_a_name_that_is_not_one_of_its_ports(
+    sub_system: SubSystemConstituent, qualified: str
+) -> None:
     with pytest.raises(BiltSystemAnalysisError, match="does not have port"):
-        sub_system.child_port("resistor.typo")
+        sub_system.child_port(qualified)
 
 
 def test_child_route_names_the_output_and_inputs_in_child_local_terms(sub_system: SubSystemConstituent) -> None:
-    assert sub_system.child_route("resistor.v") == ("v", frozenset({"i", "r"}))
+    assert sub_system.child_route("resistor.v") == EvaluationRequest(output="v", available=frozenset({"i", "r"}))
 
 
 def test_child_route_is_none_without_an_internal_route(sealed_sub_system: SubSystemConstituent) -> None:

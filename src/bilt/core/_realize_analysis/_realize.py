@@ -9,7 +9,6 @@ import typing
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
-from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import DOTTED_SEPARATOR
 from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
 from bilt.core._sub_system import SubSystemConstituent
@@ -148,12 +147,8 @@ def _sub_system_to_callable(
         msg = f"{sub_system!r} has no internal route to port {plan_step.output!r} from its other ports."
         return RealizationFailure(failed_plan_step=plan_step, permanent=False, cause=BiltSystemAnalysisError(msg))
 
-    child_output, child_ports = route
-
     try:
-        child_callable = sub_system.implementation.get_evaluation(
-            EvaluationRequest(output=child_output, available=child_ports), backend
-        )
+        child_callable = sub_system.implementation.get_evaluation(route, backend)
     except BiltSystemAnalysisError as error:
         return RealizationFailure(failed_plan_step=plan_step, permanent=False, cause=error)
 
@@ -167,7 +162,7 @@ def _sub_system_to_callable(
 def _guarded_transpile(
     function_ast: ast.FunctionDef, plan_step: PlanStep, backend: Backend
 ) -> BackendCallable | RealizationFailure:
-    """Hand an AST to the backend, mangling its names on the way -- the one place they cross over."""
+    """Hand an AST to the backend, mangling its names on the way -- no AST reaches a backend unmangled."""
     try:
         return backend.transpile(NameMangler().visit(function_ast))
     except BiltBackendError as error:
