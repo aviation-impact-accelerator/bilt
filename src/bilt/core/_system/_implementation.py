@@ -100,7 +100,7 @@ class Implementation:
         )
 
         mangled_callable = backend.chain_case(planned_case)
-        backend_callable = canonicalize_backend_callable(mangled_callable, tuple(sorted(request.available)))
+        backend_callable = canonicalize_backend_callable(mangled_callable, request.available)
         self._evaluation_cache[cache_key] = backend_callable
 
         return backend_callable

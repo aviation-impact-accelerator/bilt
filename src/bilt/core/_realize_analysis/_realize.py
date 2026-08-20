@@ -18,6 +18,8 @@ from bilt.symbolic._isolation._errors import IsolationError
 from bilt.symbolic._isolation._isolate import equation_to_ast
 
 if typing.TYPE_CHECKING:
+    import collections.abc
+
     from bilt._backend._base_backend import Backend
     from bilt._backend._callable import BackendCallable
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
@@ -31,22 +33,25 @@ def mangle_name(name: str) -> str:
 
 def canonicalize_backend_callable(
     mangled_callable: BackendCallable,
-    canonical_parameters: tuple[str, ...],
+    canonical_names: collections.abc.Iterable[str],
 ) -> BackendCallable:
     """Wrap a callable that speaks mangled parameter names so it accepts canonical ones.
 
-    ``canonical_parameters`` must be in the same order as the callable's own parameters --
-    both are derived from the sorted plan inputs.
+    ``canonical_names`` is an unordered collection: the parameter order comes from the callable
+    itself, so a name that does not belong to it is a ``KeyError`` here rather than a silent
+    mis-binding at call time.
     """
-    if not any(DOTTED_SEPARATOR in name for name in canonical_parameters):
+    canonical_by_mangled = {mangle_name(name): name for name in canonical_names}
+    canonical_parameters = tuple(canonical_by_mangled[name] for name in mangled_callable.parameters)
+    if canonical_parameters == mangled_callable.parameters:
         return dataclasses.replace(mangled_callable, parameters=canonical_parameters)
 
-    canonical_to_mangled = {name: mangle_name(name) for name in canonical_parameters}
+    mangled_by_canonical = dict(zip(canonical_parameters, mangled_callable.parameters, strict=True))
     inner = mangled_callable.callable
 
     def call_with_canonical_names(*args: object, **kwargs: object) -> object:
         named = dict(zip(canonical_parameters, args, strict=False)) | kwargs
-        return inner(**{canonical_to_mangled[name]: value for name, value in named.items()})
+        return inner(**{mangled_by_canonical[name]: value for name, value in named.items()})
 
     return dataclasses.replace(
         mangled_callable,
@@ -129,7 +134,7 @@ def _equation_to_callable(
         function_ast = equation_to_ast(equation, plan_step.output)
     except IsolationError as error:
         return RealizationFailure(failed_plan_step=plan_step, cause=error)
-    return _guarded_transpile(NameMangler().visit(function_ast), plan_step, backend)
+    return _guarded_transpile(function_ast, plan_step, backend)
 
 
 def _sub_system_to_callable(
@@ -162,8 +167,9 @@ def _sub_system_to_callable(
 def _guarded_transpile(
     function_ast: ast.FunctionDef, plan_step: PlanStep, backend: Backend
 ) -> BackendCallable | RealizationFailure:
+    """Hand an AST to the backend, mangling its names on the way -- the one place they cross over."""
     try:
-        return backend.transpile(function_ast)
+        return backend.transpile(NameMangler().visit(function_ast))
     except BiltBackendError as error:
         return RealizationFailure(failed_plan_step=plan_step, permanent=False, cause=error)
 
