@@ -2,12 +2,12 @@ import ast
 import inspect
 
 from bilt._backend import BackendCallable, BackendCase
-from bilt._backend._alignment_mixin import AlignmentMixin
 from bilt._backend._base_backend import ActivatableBackendMixin
 from bilt._backend._in_process_python_mixin import InProcessPythonMixin
+from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
 
-class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, AlignmentMixin):
+class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignmentMixin):
     """Python backend implementation of the Bilt backend interface."""
 
     def __init__(self) -> None:

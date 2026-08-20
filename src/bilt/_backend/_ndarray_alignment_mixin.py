@@ -6,8 +6,8 @@ if typing.TYPE_CHECKING:
     from bilt.core._tensors._tensor_alignment import AlignmentPlan
 
 
-class AlignmentMixin:
-    """Makes a backend able to align raw array inputs."""
+class NDArrayAlignmentMixin:
+    """Makes a backend able to align `np.ndarray`-like inputs."""
 
     def apply_alignment(self, lowered_inputs: dict[str, object], alignment_plan: AlignmentPlan) -> dict[str, object]:
         """Apply the given alignment plan on the provided lowered inputs."""
