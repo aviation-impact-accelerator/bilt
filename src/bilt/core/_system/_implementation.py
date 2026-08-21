@@ -3,12 +3,13 @@ from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 
 __all__ = ["Implementation"]
 
-import dataclasses
 import functools
 import types
 import typing
 
 from bilt.core._evaluation_context import EvaluationContext
+from bilt.core._evaluation_request import EvaluationRequest
+from bilt.core._port import mangle_inputs
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 
 if typing.TYPE_CHECKING:
@@ -18,14 +19,6 @@ if typing.TYPE_CHECKING:
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis import StructuralAnalyser
-
-
-@dataclasses.dataclass(frozen=True, slots=True)
-class _EvaluationRequest:
-    """A request to compute an output from a set of available values."""
-
-    output: str
-    available: frozenset[str]
 
 
 class Implementation:
@@ -41,7 +34,7 @@ class Implementation:
             {component.__bilt_name__: component for component in components}
         )
         self._evaluation_cache: dict[
-            tuple[_EvaluationRequest, Backend],
+            tuple[EvaluationRequest, Backend],
             BackendCallable,
         ] = {}
         system.__bilt_system_registry__.add(self)
@@ -67,17 +60,17 @@ class Implementation:
             if output in inputs:
                 output_value = inputs[output]
             else:
-                request = _EvaluationRequest(
+                request = EvaluationRequest(
                     output=output,
                     available=frozenset(inputs),
                 )
 
-                backend_callable = self._get_evaluation(request, backend)
+                backend_callable = self.get_evaluation(request, backend)
 
                 lowered_inputs = lower_inputs(inputs)
                 alignment_plan = generate_alignment_plan(inputs)
                 aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
-                raw_output_value = backend_callable.evaluate(aligned_inputs)
+                raw_output_value = backend_callable.evaluate(mangle_inputs(aligned_inputs))
 
                 lifting_plan = generate_lifting_plan(inputs)
                 output_value = lift_output(raw_output_value, lifting_plan)
@@ -86,9 +79,9 @@ class Implementation:
 
         return output_value
 
-    def _get_evaluation(
+    def get_evaluation(
         self,
-        request: _EvaluationRequest,
+        request: EvaluationRequest,
         backend: Backend,
     ) -> BackendCallable:
         cache_key = (
