@@ -12,8 +12,12 @@ from bilt.symbolic._atoms import (
 )
 from bilt.symbolic._tree import Tree, float_tree, int_tree, relation_tree, symbol_tree
 
+if typing.TYPE_CHECKING:
+    import collections.abc
+
 __all__ = [
     "Expr",
+    "SubSystemExpr",
     "as_expr",
     "as_tree",
     "symbol_expr",
@@ -145,6 +149,36 @@ class Expr:
 
     def __str__(self) -> str:
         return str(self._rep)
+
+
+class SubSystemExpr:
+    """The sub-system an equation parameter stands for, whose ports are its symbols."""
+
+    __slots__ = ("__name", "__ports")
+
+    __name: str
+    __ports: collections.abc.Mapping[str, str]
+
+    def __init__(self, name: str, ports: collections.abc.Mapping[str, str]) -> None:
+        """Build the sub-system known as name."""
+        self.__name = name
+        self.__ports = ports
+
+    def __getattr__(self, port: str) -> Expr:
+        """Return the leaf symbol standing for one of this sub-system's ports."""
+        if port.startswith("__"):
+            msg = f"{type(self).__name__!r} object has no attribute {port!r}"
+            raise AttributeError(msg)
+
+        symbol_name = self.__ports.get(port)
+        if symbol_name is None:
+            msg = f"{self.__name!r} has no port {port!r}. Valid ports: {', '.join(self.__ports)}"
+            raise AttributeError(msg)
+
+        return symbol_expr(symbol_name)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.__name!r}, ports={tuple(self.__ports)!r})"
 
 
 def as_tree(value: object) -> Tree:

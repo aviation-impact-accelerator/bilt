@@ -1,7 +1,9 @@
+import types
 import typing
 
 import pytest
 
+from bilt.core import BiltNameError, Interface, field, system
 from bilt.core._equation import equation
 from bilt.core._error import EquationReturnError
 from bilt.symbolic._atoms import ADD, EQUALS
@@ -9,7 +11,21 @@ from bilt.symbolic._atoms import ADD, EQUALS
 # Expr is used in @equation function annotations. Those annotations are part of
 # the runtime behaviour being tested, so this must stay as a runtime import.
 from bilt.symbolic._expressions import Expr  # noqa: TC001
-from bilt.symbolic._tree import Tree
+from bilt.symbolic._tree import Tree, symbol_tree
+from bilt.symbolic._walk import contains
+
+
+@system
+class Resistor(metaclass=Interface):
+    v: float = field()
+    i: float = field()
+    r: float = field()
+
+
+@system
+class Sensor(metaclass=Interface):
+    _flux: float = field()
+    reading: float = field()
 
 
 def test_equation_builds_tree_from_function() -> None:
@@ -124,3 +140,107 @@ def test_equation_error_mentions_return_type() -> None:
 
     with pytest.raises(EquationReturnError, match="int"):
         equation(bad_model)
+
+
+def test_equation_expands_a_sub_system_parameter_into_the_ports_it_uses() -> None:
+    @equation
+    def voltage_eq(voltage: float, resistor: Resistor) -> bool:
+        return voltage == resistor.v
+
+    assert voltage_eq.__bilt_parameters__ == ("voltage", "resistor.v")
+
+
+def test_equation_symbols_match_its_parameters() -> None:
+    @equation
+    def voltage_eq(voltage: float, resistor: Resistor) -> bool:
+        return voltage == resistor.v
+
+    symbols = voltage_eq.__bilt_equation_symbols__
+
+    assert tuple(symbols) == voltage_eq.__bilt_parameters__
+    assert symbols["resistor.v"].rep is symbol_tree("resistor.v")
+
+
+def test_equation_tree_is_built_over_the_dotted_port() -> None:
+    @equation
+    def voltage_eq(voltage: float, resistor: Resistor) -> bool:
+        return voltage == resistor.v
+
+    assert contains(voltage_eq.__bilt_equation_tree__, symbol_tree("resistor.v"))
+
+
+def test_equation_records_the_sub_systems_it_was_declared_with() -> None:
+    @equation
+    def voltage_eq(voltage: float, resistor: Resistor) -> bool:
+        return voltage == resistor.v
+
+    assert isinstance(voltage_eq.__bilt_sub_systems__, types.MappingProxyType)
+    assert voltage_eq.__bilt_sub_systems__["resistor"] is Resistor
+
+
+def test_equation_expands_several_ports_of_one_sub_system_in_sorted_order() -> None:
+    @equation
+    def power_eq(resistor: Resistor) -> bool:
+        return resistor.v == resistor.i * resistor.r
+
+    assert power_eq.__bilt_parameters__ == ("resistor.i", "resistor.r", "resistor.v")
+
+
+def test_equation_expands_two_sub_systems_of_one_interface_independently() -> None:
+    @equation
+    def voltage_balance(r1: Resistor, r2: Resistor) -> bool:
+        return r1.v + r2.v == 0
+
+    assert voltage_balance.__bilt_parameters__ == ("r1.v", "r2.v")
+    assert tuple(voltage_balance.__bilt_sub_systems__) == ("r1", "r2")
+
+
+def test_equation_omits_a_sub_system_parameter_it_never_references() -> None:
+    @equation
+    def voltage_eq(voltage: float, supply: float, resistor: Resistor) -> bool:  # noqa: ARG001
+        return voltage == supply
+
+    assert voltage_eq.__bilt_parameters__ == ("voltage", "supply")
+    assert tuple(voltage_eq.__bilt_sub_systems__) == ("resistor",)
+
+
+def test_equation_without_sub_systems_records_none() -> None:
+    @equation
+    def ohms_law(v: float, i: float, r: float) -> bool:
+        return v == i * r
+
+    assert ohms_law.__bilt_parameters__ == ("v", "i", "r")
+    assert ohms_law.__bilt_sub_systems__ == {}
+
+
+def test_equation_rejects_an_unknown_sub_system_port_at_definition_time() -> None:
+    with pytest.raises(AttributeError, match=r"'resistor' has no port 'typo'"):
+
+        @equation
+        def bad_eq(resistor: Resistor) -> bool:
+            return resistor.typo == 1  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
+
+
+def test_equation_accepts_a_sub_system_port_with_a_leading_underscore() -> None:
+    @equation
+    def flux_eq(value: float, sensor: Sensor) -> bool:
+        return value == sensor._flux  # noqa: SLF001
+
+    assert flux_eq.__bilt_parameters__ == ("value", "sensor._flux")
+
+
+def test_equation_rejects_a_sub_system_parameter_named_with_the_mangled_separator() -> None:
+    with pytest.raises(BiltNameError, match="'a__b' may not contain"):
+
+        @equation
+        def bad_eq(voltage: float, a__b: Resistor) -> bool:
+            return voltage == a__b.v
+
+
+def test_equation_rejects_a_plain_parameter_named_with_the_mangled_separator() -> None:
+    """``a__b`` is how ``a.b`` is spelled once flattened, so the two would be one name to a backend."""
+    with pytest.raises(BiltNameError, match="'a__b' may not contain"):
+
+        @equation
+        def bad_eq(voltage: float, a__b: float) -> bool:
+            return voltage == a__b
