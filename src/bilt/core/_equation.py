@@ -105,13 +105,13 @@ def _build_symbols(
 ) -> dict[str, Expr | SubSystemExpr]:
     """Bind each parameter to what the equation function sees when it is called symbolically."""
     return {
-        name: _sub_system_symbol(name, sub_systems[name]) if name in sub_systems else symbol_expr(name)
+        name: SubSystemExpr(
+            name, {port: QualifiedPort(name, port).dotted for port in sub_systems[name].__bilt_parameters__}
+        )
+        if name in sub_systems
+        else symbol_expr(name)
         for name in parameters
     }
-
-
-def _sub_system_symbol(name: str, interface: Interface) -> SubSystemExpr:
-    return SubSystemExpr(name, {port: QualifiedPort(name, port).dotted for port in interface.__bilt_parameters__})
 
 
 def _expand_sub_system_parameters(
