@@ -9,7 +9,7 @@ import typing
 
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._realize_analysis._realize import canonicalize_backend_callable
+from bilt.core._realize_analysis._realize import case_to_callable
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 
 if typing.TYPE_CHECKING:
@@ -98,8 +98,7 @@ class Implementation:
             backend,
         )
 
-        mangled_callable = backend.chain_case(planned_case)
-        backend_callable = canonicalize_backend_callable(mangled_callable, request.available)
+        backend_callable = case_to_callable(planned_case, request, backend)
         self._evaluation_cache[cache_key] = backend_callable
 
         return backend_callable

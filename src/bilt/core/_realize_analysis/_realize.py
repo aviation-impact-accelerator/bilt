@@ -1,4 +1,4 @@
-__all__ = ["NameMangler", "RealizationFailure", "canonicalize_backend_callable", "mangle_name", "realize_plan"]
+__all__ = ["RealizationFailure", "case_to_callable", "mangle_name", "realize_plan"]
 
 import ast
 import dataclasses
@@ -18,9 +18,8 @@ from bilt.symbolic._isolation._errors import IsolationError
 from bilt.symbolic._isolation._isolate import equation_to_ast
 
 if typing.TYPE_CHECKING:
-    import collections.abc
-
     from bilt._backend._base_backend import Backend
+    from bilt.core._evaluation_request import EvaluationRequest
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 
 MANGLED_SEPARATOR: typing.Final = "__"
@@ -30,33 +29,15 @@ def mangle_name(name: str) -> str:
     return name.replace(DOTTED_SEPARATOR, MANGLED_SEPARATOR)
 
 
-def canonicalize_backend_callable(
-    mangled_callable: BackendCallable,
-    canonical_names: collections.abc.Iterable[str],
-) -> BackendCallable:
-    canonical_by_mangled = {mangle_name(name): name for name in canonical_names}
+def case_to_callable(case: BackendCase, request: EvaluationRequest, backend: Backend) -> BackendCallable:
+    """Chain a case into one callable, answering ``request`` in the names it was asked in."""
+    chained = backend.chain_case(case)
+    canonical_by_mangled = {mangle_name(name): name for name in request.available}
     return BackendCallable(
-        name=mangled_callable.name,
-        parameters=tuple(canonical_by_mangled[name] for name in mangled_callable.parameters),
-        callable=mangled_callable.callable,
+        name=chained.name,
+        parameters=tuple(canonical_by_mangled[name] for name in chained.parameters),
+        callable=chained.callable,
     )
-
-
-class NameMangler(ast.NodeTransformer):
-    """Rewrite dotted symbol names into valid Python identifiers, in signatures and bodies alike."""
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
-        node.name = mangle_name(node.name)
-        self.generic_visit(node)
-        return node
-
-    def visit_Name(self, node: ast.Name) -> ast.Name:
-        node.id = mangle_name(node.id)
-        return node
-
-    def visit_arg(self, node: ast.arg) -> ast.arg:
-        node.arg = mangle_name(node.arg)
-        return node
 
 
 def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
@@ -145,9 +126,9 @@ def _sub_system_to_callable(
 def _guarded_transpile(
     function_ast: ast.FunctionDef, plan_step: PlanStep, backend: Backend
 ) -> BackendCallable | RealizationFailure:
-    """Hand an AST to the backend, mangling its names on the way -- no AST reaches a backend unmangled."""
+    """Transpile an AST, turning a backend's refusal into a failure the search can route around."""
     try:
-        return backend.transpile(NameMangler().visit(function_ast))
+        return backend.transpile(function_ast)
     except BiltBackendError as error:
         return RealizationFailure(failed_plan_step=plan_step, permanent=False, cause=error)
 
