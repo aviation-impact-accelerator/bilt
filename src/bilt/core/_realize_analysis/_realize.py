@@ -77,7 +77,22 @@ def _equation_to_callable(
         function_ast = equation_to_ast(equation, plan_step.output)
     except IsolationError as error:
         return RealizationFailure(failed_plan_step=plan_step, cause=error)
-    return _guarded_transpile(function_ast, plan_step, backend)
+    return _guarded_transpile(_NameMangler().visit(function_ast), plan_step, backend)
+
+
+class _NameMangler(ast.NodeTransformer):
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        node.name = mangle_name(node.name)
+        self.generic_visit(node)
+        return node
+
+    def visit_arg(self, node: ast.arg) -> ast.arg:
+        node.arg = mangle_name(node.arg)
+        return node
+
+    def visit_Name(self, node: ast.Name) -> ast.Name:
+        node.id = mangle_name(node.id)
+        return node
 
 
 def _sub_system_to_callable(

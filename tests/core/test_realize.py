@@ -1,8 +1,22 @@
 import pytest
 
 from bilt._backend._python._backend import PythonBackend
+from bilt.core import Interface, field, system
+from bilt.core._equation import equation
 from bilt.core._realize_analysis._realize import RealizationFailure, realize_plan
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
+
+SUPPLY_VOLTAGE = 3.0
+
+
+@system
+class Resistor(metaclass=Interface):
+    v: float = field()
+
+
+@equation
+def wiring(supply: float, resistor: Resistor) -> bool:
+    return supply == resistor.v
 
 
 def test_realize_plan_mangles_the_case_names() -> None:
@@ -35,3 +49,33 @@ def test_realize_plan_rejects_an_unsupported_operation() -> None:
 
     with pytest.raises(NotImplementedError, match="is not supported for evaluation"):
         realize_plan(plan, PythonBackend())
+
+
+def test_realize_plan_mangles_an_equation_reading_a_dotted_port() -> None:
+    plan = AnalysisPlan(
+        inputs=frozenset({"resistor.v"}),
+        output="supply",
+        steps=(PlanStep(operation=wiring, output="supply"),),
+    )
+
+    case = realize_plan(plan, PythonBackend())
+
+    assert not isinstance(case, RealizationFailure)
+    assert case.intermediates[0].name == "supply"
+    assert case.intermediates[0].parameters == ("resistor__v",)
+    assert case.intermediates[0].evaluate({"resistor__v": SUPPLY_VOLTAGE}) == SUPPLY_VOLTAGE
+
+
+def test_realize_plan_mangles_an_equation_solving_for_a_dotted_port() -> None:
+    plan = AnalysisPlan(
+        inputs=frozenset({"supply"}),
+        output="resistor.v",
+        steps=(PlanStep(operation=wiring, output="resistor.v"),),
+    )
+
+    case = realize_plan(plan, PythonBackend())
+
+    assert not isinstance(case, RealizationFailure)
+    assert case.intermediates[0].name == "resistor__v"
+    assert case.intermediates[0].parameters == ("supply",)
+    assert case.intermediates[0].evaluate({"supply": SUPPLY_VOLTAGE}) == SUPPLY_VOLTAGE

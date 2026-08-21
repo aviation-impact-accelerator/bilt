@@ -10,7 +10,7 @@ from bilt.symbolic._atoms import (
     POW,
     SymbolType,
 )
-from bilt.symbolic._expressions import Expr, as_expr, as_tree, symbol_expr
+from bilt.symbolic._expressions import Expr, SubSystemExpr, as_expr, as_tree, symbol_expr
 from bilt.symbolic._tree import Tree, int_tree, symbol_tree
 
 
@@ -220,3 +220,59 @@ def test_expr_cannot_be_used_as_bool() -> None:
 
     with pytest.raises(TypeError, match="Symbolic expressions cannot be used as booleans"):
         bool(x)
+
+
+def test_sub_system_expr_port_access_returns_leaf_symbol() -> None:
+    resistor = SubSystemExpr("resistor", {"v": "resistor.v", "i": "resistor.i", "r": "resistor.r"})
+
+    voltage = resistor.v
+
+    assert isinstance(voltage, Expr)
+    assert voltage.rep is symbol_tree("resistor.v")
+    assert voltage.rep.is_leaf is True
+    assert voltage.rep.head.atom_type is SymbolType
+    assert voltage.is_symbol is True
+
+
+def test_sub_system_expr_unknown_port_raises_attribute_error_listing_ports() -> None:
+    resistor = SubSystemExpr("resistor", {"v": "resistor.v", "i": "resistor.i", "r": "resistor.r"})
+
+    with pytest.raises(AttributeError, match=r"'resistor' has no port 'typo'\. Valid ports: v, i, r"):
+        _ = resistor.typo
+
+
+def test_sub_system_expr_dunder_access_raises_attribute_error() -> None:
+    resistor = SubSystemExpr("resistor", {"v": "resistor.v"})
+
+    with pytest.raises(AttributeError, match=r"has no attribute '__deepcopy__'"):
+        _ = resistor.__deepcopy__
+
+
+def test_sub_system_expr_port_with_leading_underscore_is_usable() -> None:
+    sensor = SubSystemExpr("sensor", {"_flux": "sensor._flux"})
+
+    flux = sensor._flux  # noqa: SLF001
+
+    assert flux.rep is symbol_tree("sensor._flux")
+
+
+def test_sub_system_expr_repr_lists_ports() -> None:
+    resistor = SubSystemExpr("resistor", {"v": "resistor.v", "i": "resistor.i"})
+
+    assert repr(resistor) == "SubSystemExpr('resistor', ports=('v', 'i'))"
+
+
+def test_sub_system_expr_cannot_be_used_as_an_operand() -> None:
+    voltage = symbol_expr("voltage")
+    resistor = SubSystemExpr("resistor", {"v": "resistor.v"})
+
+    with pytest.raises(TypeError, match=r"Cannot convert 'SubSystemExpr' to symbolic Tree"):
+        _ = voltage == resistor
+
+
+def test_sub_system_expr_port_may_be_named_like_its_own_state() -> None:
+    winding = SubSystemExpr("winding", {"_name": "winding._name", "_ports": "winding._ports"})
+
+    assert winding._name.rep is symbol_tree("winding._name")  # noqa: SLF001
+    assert winding._ports.rep is symbol_tree("winding._ports")  # noqa: SLF001
+    assert repr(winding) == "SubSystemExpr('winding', ports=('_name', '_ports'))"

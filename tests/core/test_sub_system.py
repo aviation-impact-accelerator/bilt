@@ -46,17 +46,39 @@ def sealed_sub_system() -> SubSystemConstituent:
 
 @pytest.fixture
 def board(sub_system: SubSystemConstituent) -> Implementation:
-    """A parent whose only component is ``sub_system``.
-
-    The board's own ports stay unconnected: wiring a parent port to a child port needs an
-    equation that can take an Interface-typed parameter, which this layer does not provide.
-    """
+    """A parent whose only component is ``sub_system``, so its own ports stay unconnected."""
 
     @system
     class Board(metaclass=Interface):
         supply_voltage: float = field()
 
     return Implementation(Board, [sub_system])
+
+
+@pytest.fixture
+def wired_board() -> Implementation:
+    """A parent whose own port is tied to a child port by an equation taking the child's interface."""
+
+    @system
+    class Resistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+
+    @equation
+    def ohms_law(v: float, i: float, r: float) -> bool:
+        return v == i * r
+
+    @system
+    class Board(metaclass=Interface):
+        supply_voltage: float = field()
+
+    @equation
+    def supply_is_across_the_resistor(supply_voltage: float, resistor: Resistor) -> bool:
+        return supply_voltage == resistor.v
+
+    resistor = SubSystemConstituent(name="resistor", implementation=Implementation(Resistor, [ohms_law]))
+    return Implementation(Board, [supply_is_across_the_resistor, resistor])
 
 
 def test_parameters_are_the_qualified_child_ports(sub_system: SubSystemConstituent) -> None:
@@ -181,7 +203,7 @@ def test_a_parent_cannot_solve_a_child_port_the_child_has_no_route_to(
 
 def test_a_sub_system_name_carrying_the_mangled_separator_is_rejected() -> None:
     """``foo__bar.v`` and ``foo.bar.v`` would otherwise both realize as ``foo__bar__v``."""
-    with pytest.raises(BiltNameError, match="Sub-system name 'foo__bar' may not contain"):
+    with pytest.raises(BiltNameError, match="'foo__bar' may not contain"):
         SubSystemConstituent(name="foo__bar", implementation=_resistor_implementation())
 
 

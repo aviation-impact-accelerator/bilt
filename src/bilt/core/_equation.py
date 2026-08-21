@@ -5,11 +5,16 @@ __all__ = [
 ]
 
 import inspect
+import types
 import typing
 
 from bilt.core._error import EquationReturnError
-from bilt.symbolic._expressions import Expr, symbol_expr
-from bilt.symbolic._tree import Tree
+from bilt.core._interface import Interface
+from bilt.core._port import QualifiedPort
+from bilt.core._sub_system import validate_name
+from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr
+from bilt.symbolic._tree import Tree, symbol_tree
+from bilt.symbolic._walk import subtrees
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -20,6 +25,7 @@ class Equation[R, **P](typing.Protocol):
     __bilt_parameters__: tuple[str, ...]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
+    __bilt_sub_systems__: types.MappingProxyType[str, Interface]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
@@ -29,6 +35,7 @@ class BasicEquation[R, **P]:
     __bilt_parameters__: tuple[str, ...]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
+    __bilt_sub_systems__: types.MappingProxyType[str, Interface]
     _function: collections.abc.Callable[P, R]
 
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
@@ -37,14 +44,16 @@ class BasicEquation[R, **P]:
 
         _validate_equation_signature(name, signature)
 
-        parameters = tuple(signature.parameters.keys())
-        symbols = _build_symbols(parameters)
+        sub_systems = _sub_system_parameters(signature)
+        symbols = _build_symbols(tuple(signature.parameters), sub_systems)
         tree = _build_equation_tree(name, function, symbols)
+        equation_symbols = _expand_sub_system_parameters(symbols, sub_systems, tree)
 
         self.__bilt_name__ = name
-        self.__bilt_parameters__ = parameters
-        self.__bilt_equation_symbols__ = symbols
+        self.__bilt_parameters__ = tuple(equation_symbols)
+        self.__bilt_equation_symbols__ = equation_symbols
         self.__bilt_equation_tree__ = tree
+        self.__bilt_sub_systems__ = types.MappingProxyType(sub_systems)
         self._function = function
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
@@ -67,6 +76,8 @@ def _validate_equation_signature(
     signature: inspect.Signature,
 ) -> None:
     for param in signature.parameters.values():
+        validate_name(param.name)
+
         if param.kind in (
             inspect.Parameter.POSITIONAL_ONLY,
             inspect.Parameter.VAR_POSITIONAL,
@@ -79,14 +90,60 @@ def _validate_equation_signature(
             raise TypeError(msg)
 
 
-def _build_symbols(parameters: tuple[str, ...]) -> dict[str, Expr]:
-    return {name: symbol_expr(name) for name in parameters}
+def _sub_system_parameters(signature: inspect.Signature) -> dict[str, Interface]:
+    """Pick out the parameters annotated with a system interface, which stand for sub-systems."""
+    return {
+        name: parameter.annotation
+        for name, parameter in signature.parameters.items()
+        if isinstance(parameter.annotation, Interface)
+    }
+
+
+def _build_symbols(
+    parameters: tuple[str, ...],
+    sub_systems: collections.abc.Mapping[str, Interface],
+) -> dict[str, Expr | SubSystemExpr]:
+    """Bind each parameter to what the equation function sees when it is called symbolically."""
+    return {
+        name: SubSystemExpr(
+            name, {port: QualifiedPort(name, port).dotted for port in sub_systems[name].__bilt_parameters__}
+        )
+        if name in sub_systems
+        else symbol_expr(name)
+        for name in parameters
+    }
+
+
+def _expand_sub_system_parameters(
+    symbols: dict[str, Expr | SubSystemExpr],
+    sub_systems: collections.abc.Mapping[str, Interface],
+    tree: Tree,
+) -> dict[str, Expr]:
+    """Replace each sub-system parameter with the dotted ports the equation actually references.
+
+    Keys keep signature order, so the parameter tuple reads straight off the result. A port the
+    equation never mentions is not a parameter of it, so a sub-system contributes only what it uses.
+    """
+    occurring = subtrees(tree)
+    equation_symbols: dict[str, Expr] = {}
+
+    for name, symbol in symbols.items():
+        if isinstance(symbol, Expr):
+            equation_symbols[name] = symbol
+            continue
+
+        for port in sorted(sub_systems[name].__bilt_parameters__):
+            dotted = QualifiedPort(name, port).dotted
+            if symbol_tree(dotted) in occurring:
+                equation_symbols[dotted] = symbol_expr(dotted)
+
+    return equation_symbols
 
 
 def _build_equation_tree[R, **P](
     name: str,
     function: collections.abc.Callable[P, R],
-    symbols: dict[str, Expr],
+    symbols: dict[str, Expr | SubSystemExpr],
 ) -> Tree:
     symbolic_function = typing.cast(
         "collections.abc.Callable[..., object]",
