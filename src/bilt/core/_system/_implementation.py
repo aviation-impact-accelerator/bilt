@@ -7,10 +7,19 @@ import functools
 import types
 import typing
 
+from bilt.core._equation import BasicEquation
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
+from bilt.core._sub_system import SubSystemConstituent
+from bilt.core._system._error import (
+    BiltSubSystemConflictError,
+    BiltSubSystemMismatchedImplementationError,
+    BiltSubSystemMissingImplementationError,
+    BiltSubSystemNameCollisionError,
+    BiltSubSystemUnreferencedEntryError,
+)
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -28,10 +37,19 @@ class Implementation:
         self,
         system: Interface,
         components: collections.abc.Iterable[BiltModelConstituent],
+        *,
+        internal_implementations: collections.abc.Mapping[str, Implementation] | None = None,
     ) -> None:
         self._system: Interface = system
+        named_components = {component.__bilt_name__: component for component in components}
+
+        internal = internal_implementations or {}
+
+        sub_systems = _build_sub_system_constituents(named_components, internal)
+        _validate_sub_systems(named_components, internal, sub_systems)
+
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
-            {component.__bilt_name__: component for component in components}
+            named_components | sub_systems
         )
         self._evaluation_cache: dict[
             tuple[EvaluationRequest, Backend],
@@ -125,3 +143,56 @@ class Implementation:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self._components.values())!r})"
+
+
+def _required_sub_system_interfaces(
+    components: collections.abc.Iterable[BiltModelConstituent],
+) -> dict[str, Interface]:
+    """Read off the equations which interface each sub-system they have as a parameter ."""
+    required: dict[str, Interface] = {}
+    for component in components:
+        if isinstance(component, BasicEquation):
+            for name, interface in component.__bilt_sub_systems__.items():
+                declared = required.setdefault(name, interface)
+                if declared is not interface:
+                    raise BiltSubSystemConflictError(name, declared.__bilt_name__, interface.__bilt_name__)
+    return required
+
+
+def _build_sub_system_constituents(
+    components: collections.abc.Mapping[str, BiltModelConstituent],
+    internal_implementations: collections.abc.Mapping[str, Implementation],
+) -> dict[str, SubSystemConstituent]:
+    """Collect the sub-systems into `SubSystemConstituents` ensuring no name collisions."""
+    constituents = {
+        name: constituent for name, constituent in components.items() if isinstance(constituent, SubSystemConstituent)
+    }
+    for name, implementation in internal_implementations.items():
+        if name in components:
+            raise BiltSubSystemNameCollisionError(name)
+        constituents[name] = SubSystemConstituent(name=name, implementation=implementation)
+    return constituents
+
+
+def _validate_sub_systems(
+    components: collections.abc.Mapping[str, BiltModelConstituent],
+    internal_implementations: collections.abc.Mapping[str, Implementation],
+    sub_systems: collections.abc.Mapping[str, SubSystemConstituent],
+) -> None:
+    """Validate we have exactly as many internal sub-systems as we need."""
+    required_interfaces = _required_sub_system_interfaces(components.values())
+
+    for name, interface in required_interfaces.items():
+        constituent = sub_systems.get(name)
+        if constituent is None:
+            raise BiltSubSystemMissingImplementationError(
+                name, interface.__bilt_name__, sorted(internal_implementations)
+            )
+        if constituent.interface is not interface:
+            raise BiltSubSystemMismatchedImplementationError(
+                name, interface.__bilt_name__, constituent.interface.__bilt_name__
+            )
+
+    for name in internal_implementations:
+        if name not in required_interfaces:
+            raise BiltSubSystemUnreferencedEntryError(name, sorted(required_interfaces))
