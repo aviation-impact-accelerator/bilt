@@ -1,4 +1,4 @@
-__all__ = ["BiltCoreError", "BiltNameError"]
+__all__ = ["BiltCoreError", "BiltNameError", "EquationReturnError"]
 
 
 class BiltCoreError(Exception):

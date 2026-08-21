@@ -3,9 +3,8 @@ import typing
 
 import pytest
 
-from bilt.core import BiltNameError, Interface, field, system
+from bilt.core import BiltNameError, EquationReturnError, Interface, field, system
 from bilt.core._equation import equation
-from bilt.core._error import EquationReturnError
 from bilt.symbolic._atoms import ADD, EQUALS
 
 # Expr is used in @equation function annotations. Those annotations are part of
@@ -201,7 +200,7 @@ def test_equation_omits_a_sub_system_parameter_it_never_references() -> None:
         return voltage == supply
 
     assert voltage_eq.__bilt_parameters__ == ("voltage", "supply")
-    assert tuple(voltage_eq.__bilt_sub_systems__) == ("resistor",)
+    assert tuple(voltage_eq.__bilt_sub_systems__) == ()
 
 
 def test_equation_without_sub_systems_records_none() -> None:
