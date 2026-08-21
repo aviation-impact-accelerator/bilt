@@ -121,13 +121,14 @@ def test_a_parent_solves_a_child_port_in_the_inward_direction(board: Implementat
     assert result == CURRENT
 
 
-def test_the_realized_callable_speaks_dotted_names(board: Implementation) -> None:
+def test_the_realized_callable_speaks_mangled_names(board: Implementation) -> None:
+    """The compiled callable is bound by keyword, so it answers in the names it was compiled with."""
     request = EvaluationRequest(output="resistor.v", available=frozenset({"resistor.i", "resistor.r"}))
 
     realized = board.get_evaluation(request, PythonBackend())
 
-    assert realized.parameters == ("resistor.i", "resistor.r")
-    assert realized.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}) == VOLTAGE
+    assert realized.parameters == ("resistor__i", "resistor__r")
+    assert realized.evaluate({"resistor__i": CURRENT, "resistor__r": RESISTANCE}) == VOLTAGE
 
 
 def test_nothing_a_backend_compiles_carries_a_dotted_name(board: Implementation) -> None:

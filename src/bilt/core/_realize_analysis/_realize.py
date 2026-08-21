@@ -1,4 +1,4 @@
-__all__ = ["RealizationFailure", "case_to_callable", "mangle_name", "realize_plan"]
+__all__ = ["RealizationFailure", "mangle_inputs", "realize_plan"]
 
 import ast
 import dataclasses
@@ -18,26 +18,22 @@ from bilt.symbolic._isolation._errors import IsolationError
 from bilt.symbolic._isolation._isolate import equation_to_ast
 
 if typing.TYPE_CHECKING:
+    import collections.abc
+
     from bilt._backend._base_backend import Backend
-    from bilt.core._evaluation_request import EvaluationRequest
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 
 MANGLED_SEPARATOR: typing.Final = "__"
 
 
-def mangle_name(name: str) -> str:
+def mangle_inputs(inputs: collections.abc.Mapping[str, object]) -> dict[str, object]:
+    """Relabel caller-facing port names to the mangled ones a compiled callable is bound by."""
+    return {_mangle_name(name): value for name, value in inputs.items()}
+
+
+def _mangle_name(name: str) -> str:
+    """Rewrite a dotted port name into the identifier a backend can compile it as."""
     return name.replace(DOTTED_SEPARATOR, MANGLED_SEPARATOR)
-
-
-def case_to_callable(case: BackendCase, request: EvaluationRequest, backend: Backend) -> BackendCallable:
-    """Chain a case into one callable, answering ``request`` in the names it was asked in."""
-    chained = backend.chain_case(case)
-    canonical_by_mangled = {mangle_name(name): name for name in request.available}
-    return BackendCallable(
-        name=chained.name,
-        parameters=tuple(canonical_by_mangled[name] for name in chained.parameters),
-        callable=chained.callable,
-    )
 
 
 def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
@@ -49,10 +45,10 @@ def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | Realizat
             return result
         intermediates.append(result)
 
-    output = mangle_name(plan.output)
+    output = _mangle_name(plan.output)
     return BackendCase(
         name=output,
-        parameters=tuple(map(mangle_name, sorted(plan.inputs))),
+        parameters=tuple(map(_mangle_name, sorted(plan.inputs))),
         intermediates=intermediates,
         return_name=output,
     )
@@ -105,7 +101,12 @@ def _sub_system_to_callable(
     plan_step: PlanStep,
     backend: Backend,
 ) -> BackendCallable | RealizationFailure:
-    """Realize a sub-system step by splicing the child's own compiled callable into the parent."""
+    """Realize a sub-system step by splicing the child's own compiled callable into the parent.
+
+    The child answers in its own mangled names. Because ``mangle`` only rewrites the separator,
+    ``mangle(qualify(port))`` equals ``mangle(sub_system) + MANGLED_SEPARATOR + mangle(port)``, so
+    prefixing reaches the parent's spelling without a round trip back through canonical names.
+    """
     route = sub_system.child_route(plan_step.output)
     if route is None:
         msg = f"{sub_system!r} has no internal route to port {plan_step.output!r} from its other ports."
@@ -117,8 +118,10 @@ def _sub_system_to_callable(
         return RealizationFailure(failed_plan_step=plan_step, permanent=False, cause=error)
 
     return BackendCallable(
-        name=mangle_name(plan_step.output),
-        parameters=tuple(mangle_name(sub_system.qualify(port)) for port in child_callable.parameters),
+        name=_mangle_name(plan_step.output),
+        parameters=tuple(
+            f"{_mangle_name(sub_system.__bilt_name__)}{MANGLED_SEPARATOR}{port}" for port in child_callable.parameters
+        ),
         callable=child_callable.callable,
     )
 

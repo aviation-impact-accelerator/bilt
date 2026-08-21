@@ -9,7 +9,7 @@ import typing
 
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._realize_analysis._realize import case_to_callable
+from bilt.core._realize_analysis._realize import mangle_inputs
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 
 if typing.TYPE_CHECKING:
@@ -70,7 +70,7 @@ class Implementation:
                 lowered_inputs = lower_inputs(inputs)
                 alignment_plan = generate_alignment_plan(inputs)
                 aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
-                raw_output_value = backend_callable.evaluate(aligned_inputs)
+                raw_output_value = backend_callable.evaluate(mangle_inputs(aligned_inputs))
 
                 lifting_plan = generate_lifting_plan(inputs)
                 output_value = lift_output(raw_output_value, lifting_plan)
@@ -98,7 +98,7 @@ class Implementation:
             backend,
         )
 
-        backend_callable = case_to_callable(planned_case, request, backend)
+        backend_callable = backend.chain_case(planned_case)
         self._evaluation_cache[cache_key] = backend_callable
 
         return backend_callable
