@@ -315,6 +315,54 @@ def test_an_implementation_of_the_wrong_interface_is_rejected() -> None:
     assert "share a name" not in str(raised.value)
 
 
+def test_an_implementation_of_the_wrong_interface_annotation() -> None:
+    @system
+    class Resistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+
+    @system
+    class Thermistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+
+    assert Thermistor.__bilt_parameters__ == Resistor.__bilt_parameters__
+
+    @system
+    class Component(metaclass=Interface):
+        voltage: float = field()
+
+    @equation
+    def voltage_eq(voltage: float, resistor: Resistor) -> bool:
+        return voltage == resistor.v
+
+    @system
+    class Circuit(metaclass=Interface):
+        total_voltage: float = field()
+
+    @equation
+    def total_voltage_eq(total_voltage: float, component: Component) -> bool:
+        return total_voltage == component.voltage
+
+    with pytest.raises(
+        BiltSubSystemMismatchedImplementationError,
+        match=r"Sub-system reference 'resistor' expects interface 'Resistor' but.*has interface 'Thermistor'",
+    ) as raised:
+        Implementation(
+            Circuit,
+            [total_voltage_eq],
+            internal_implementations={
+                "component": Implementation(
+                    Component, [voltage_eq], internal_implementations={"resistor": Implementation(Thermistor, [])}
+                )
+            },
+        )
+
+    assert raised.value.reference_name == "resistor"
+
+
 def test_an_implementation_of_a_look_alike_interface_says_why_the_names_match() -> None:
     """Interfaces are matched by identity, so a bare name-vs-name message would read as a bug."""
 
