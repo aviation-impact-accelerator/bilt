@@ -1,10 +1,11 @@
 import pytest
 
 from bilt._backend._python._backend import PythonBackend
-from bilt.core import BiltSystemAnalysisError, Implementation, Interface, field, system
+from bilt.core import BiltNameError, BiltSystemAnalysisError, Implementation, Interface, field, system
 from bilt.core._equation import equation
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._sub_system import SubSystemConstituent
+from bilt.core._port import DOTTED_SEPARATOR, MANGLED_SEPARATOR, QualifiedPort
+from bilt.core._sub_system import SubSystemConstituent, validate_name
 
 CURRENT = 2.0
 RESISTANCE = 3.0
@@ -176,3 +177,26 @@ def test_a_parent_cannot_solve_a_child_port_the_child_has_no_route_to(
 
     with pytest.raises(BiltSystemAnalysisError, match="Cannot compute"):
         rack.evaluate({"sealed.b": 1.0}, "sealed.a", PythonBackend())
+
+
+def test_a_sub_system_name_carrying_the_mangled_separator_is_rejected() -> None:
+    """``foo__bar.v`` and ``foo.bar.v`` would otherwise both realize as ``foo__bar__v``."""
+    with pytest.raises(BiltNameError, match="Sub-system name 'foo__bar' may not contain"):
+        SubSystemConstituent(name="foo__bar", implementation=_resistor_implementation())
+
+
+def test_validate_name_accepts_a_name_without_the_separator() -> None:
+    assert validate_name("supply_voltage") is None
+
+
+@pytest.mark.parametrize("name", ("foo__bar", "__leading", "trailing__", "a__b__c"))
+def test_validate_name_rejects_a_name_carrying_the_mangled_separator(name: str) -> None:
+    with pytest.raises(BiltNameError, match="may not contain"):
+        validate_name(name)
+
+
+def test_a_qualified_name_is_unambiguous_once_no_segment_carries_the_separator() -> None:
+    """The rule exists so splitting a flattened name back into segments is well defined."""
+    flattened = QualifiedPort("outer", "inner").dotted.replace(DOTTED_SEPARATOR, MANGLED_SEPARATOR)
+
+    assert flattened.split(MANGLED_SEPARATOR) == ["outer", "inner"]

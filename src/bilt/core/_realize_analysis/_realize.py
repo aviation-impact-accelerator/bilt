@@ -1,4 +1,4 @@
-__all__ = ["RealizationFailure", "mangle_inputs", "realize_plan"]
+__all__ = ["RealizationFailure", "realize_plan"]
 
 import ast
 import dataclasses
@@ -10,7 +10,7 @@ from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
-from bilt.core._port import DOTTED_SEPARATOR
+from bilt.core._port import MANGLED_SEPARATOR, mangle_name
 from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform
@@ -18,22 +18,8 @@ from bilt.symbolic._isolation._errors import IsolationError
 from bilt.symbolic._isolation._isolate import equation_to_ast
 
 if typing.TYPE_CHECKING:
-    import collections.abc
-
     from bilt._backend._base_backend import Backend
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
-
-MANGLED_SEPARATOR: typing.Final = "__"
-
-
-def mangle_inputs(inputs: collections.abc.Mapping[str, object]) -> dict[str, object]:
-    """Relabel caller-facing port names to the mangled ones a compiled callable is bound by."""
-    return {_mangle_name(name): value for name, value in inputs.items()}
-
-
-def _mangle_name(name: str) -> str:
-    """Rewrite a dotted port name into the identifier a backend can compile it as."""
-    return name.replace(DOTTED_SEPARATOR, MANGLED_SEPARATOR)
 
 
 def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
@@ -45,10 +31,10 @@ def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | Realizat
             return result
         intermediates.append(result)
 
-    output = _mangle_name(plan.output)
+    output = mangle_name(plan.output)
     return BackendCase(
         name=output,
-        parameters=tuple(map(_mangle_name, sorted(plan.inputs))),
+        parameters=tuple(map(mangle_name, sorted(plan.inputs))),
         intermediates=intermediates,
         return_name=output,
     )
@@ -110,9 +96,9 @@ def _sub_system_to_callable(
         return RealizationFailure(failed_plan_step=plan_step, permanent=False, cause=error)
 
     return BackendCallable(
-        name=_mangle_name(plan_step.output),
+        name=mangle_name(plan_step.output),
         parameters=tuple(
-            f"{_mangle_name(sub_system.__bilt_name__)}{MANGLED_SEPARATOR}{port}" for port in child_callable.parameters
+            f"{mangle_name(sub_system.__bilt_name__)}{MANGLED_SEPARATOR}{port}" for port in child_callable.parameters
         ),
         callable=child_callable.callable,
     )

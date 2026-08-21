@@ -2,7 +2,7 @@ import dataclasses
 
 import pytest
 
-from bilt.core._port import DOTTED_SEPARATOR, QualifiedPort
+from bilt.core._port import DOTTED_SEPARATOR, QualifiedPort, mangle_inputs, mangle_name
 
 
 def test_dotted_joins_the_sub_system_and_the_port() -> None:
@@ -53,3 +53,27 @@ def test_unqualify_keeps_the_remaining_qualification_of_a_nested_port() -> None:
 
 def test_unqualify_rejects_a_prefix_that_only_looks_like_the_sub_system() -> None:
     assert QualifiedPort.unqualify("resistor_bank.v", "resistor", {"v"}) is None
+
+
+def test_mangle_inputs_leaves_a_plain_name_alone() -> None:
+    assert mangle_inputs({"voltage": 1.0}) == {"voltage": 1.0}
+
+
+def test_mangle_inputs_replaces_the_dotted_separator() -> None:
+    assert mangle_inputs({"resistor.v": 1.0}) == {"resistor__v": 1.0}
+
+
+def test_mangle_inputs_replaces_every_level_of_a_nested_name() -> None:
+    assert mangle_inputs({"board.resistor.v": 1.0}) == {"board__resistor__v": 1.0}
+
+
+def test_mangle_inputs_carries_every_value_across() -> None:
+    assert mangle_inputs({"resistor.i": 2.0, "r": 3.0}) == {"resistor__i": 2.0, "r": 3.0}
+
+
+def test_mangle_name_leaves_a_plain_name_alone() -> None:
+    assert mangle_name("voltage") == "voltage"
+
+
+def test_mangle_name_replaces_every_dotted_separator() -> None:
+    assert mangle_name("board.resistor.v") == "board__resistor__v"

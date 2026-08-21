@@ -9,7 +9,7 @@ import typing
 
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._realize_analysis._realize import mangle_inputs
+from bilt.core._port import mangle_inputs
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 
 if typing.TYPE_CHECKING:

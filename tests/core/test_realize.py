@@ -1,28 +1,8 @@
 import pytest
 
 from bilt._backend._python._backend import PythonBackend
-from bilt.core._realize_analysis._realize import (
-    RealizationFailure,
-    mangle_inputs,
-    realize_plan,
-)
+from bilt.core._realize_analysis._realize import RealizationFailure, realize_plan
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
-
-
-def test_mangle_inputs_leaves_a_plain_name_alone() -> None:
-    assert mangle_inputs({"voltage": 1.0}) == {"voltage": 1.0}
-
-
-def test_mangle_inputs_replaces_the_dotted_separator() -> None:
-    assert mangle_inputs({"resistor.v": 1.0}) == {"resistor__v": 1.0}
-
-
-def test_mangle_inputs_replaces_every_level_of_a_nested_name() -> None:
-    assert mangle_inputs({"board.resistor.v": 1.0}) == {"board__resistor__v": 1.0}
-
-
-def test_mangle_inputs_carries_every_value_across() -> None:
-    assert mangle_inputs({"resistor.i": 2.0, "r": 3.0}) == {"resistor__i": 2.0, "r": 3.0}
 
 
 def test_realize_plan_mangles_the_case_names() -> None:

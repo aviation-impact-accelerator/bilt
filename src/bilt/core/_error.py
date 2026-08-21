@@ -1,4 +1,4 @@
-__all__ = ["BiltCoreError"]
+__all__ = ["BiltCoreError", "BiltNameError"]
 
 
 class BiltCoreError(Exception):
@@ -7,3 +7,7 @@ class BiltCoreError(Exception):
 
 class EquationReturnError(BiltCoreError):
     """Raised when an equation function does not return a Relation."""
+
+
+class BiltNameError(BiltCoreError):
+    """Raised when a declared name collides with the separator reserved for flattened port names."""
