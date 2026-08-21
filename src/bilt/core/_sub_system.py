@@ -54,7 +54,7 @@ class SubSystemConstituent:
 
 
 def validate_name(name: str) -> None:
-    """Reject a declared name that would make a flattened port name ambiguous."""
+    """Reject a sub-system name that would make a flattened port name ambiguous."""
     if MANGLED_SEPARATOR in name:
-        msg = f"Name {name!r} may not contain {MANGLED_SEPARATOR!r}, which is reserved for bilt internals."
+        msg = f"Sub-system name {name!r} may not contain {MANGLED_SEPARATOR!r}, which is reserved for bilt internals."
         raise BiltNameError(msg)
