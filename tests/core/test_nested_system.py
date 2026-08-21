@@ -255,8 +255,8 @@ def test_a_reference_with_no_implementation_is_rejected() -> None:
         Implementation(Component, [voltage_eq], internal_implementations={})
 
 
-def test_a_reference_annotated_but_never_read_still_needs_an_implementation() -> None:
-    """The annotation is the reference; an equation need not dereference a port to depend on the child."""
+def test_a_reference_annotated_but_never_read_does_not_need_an_implementation() -> None:
+    """Usage is the reference; an annotation the equation never dereferences is not a dependency."""
 
     @system
     class Resistor(metaclass=Interface):
@@ -275,8 +275,10 @@ def test_a_reference_annotated_but_never_read_still_needs_an_implementation() ->
 
     assert voltage_eq.__bilt_parameters__ == ("voltage", "supply")
 
-    with pytest.raises(BiltSubSystemMissingImplementationError, match="Sub-system reference 'resistor'"):
-        Implementation(Board, [voltage_eq])
+    board = Implementation(Board, [voltage_eq])
+
+    assert "resistor" not in board._components  # noqa: SLF001
+    assert board.evaluate({"supply": VOLTAGE}, "voltage", PYTHON_BACKEND) == VOLTAGE
 
 
 def test_an_implementation_of_the_wrong_interface_is_rejected() -> None:

@@ -200,7 +200,7 @@ def test_equation_omits_a_sub_system_parameter_it_never_references() -> None:
         return voltage == supply
 
     assert voltage_eq.__bilt_parameters__ == ("voltage", "supply")
-    assert tuple(voltage_eq.__bilt_sub_systems__) == ("resistor",)
+    assert tuple(voltage_eq.__bilt_sub_systems__) == ()
 
 
 def test_equation_without_sub_systems_records_none() -> None:

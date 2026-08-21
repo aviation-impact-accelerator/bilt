@@ -47,13 +47,13 @@ class BasicEquation[R, **P]:
         sub_systems = _sub_system_parameters(signature)
         symbols = _build_symbols(tuple(signature.parameters), sub_systems)
         tree = _build_equation_tree(name, function, symbols)
-        equation_symbols = _expand_sub_system_parameters(symbols, sub_systems, tree)
+        equation_symbols, referenced_sub_systems = _expand_sub_system_parameters(symbols, sub_systems, tree)
 
         self.__bilt_name__ = name
         self.__bilt_parameters__ = tuple(equation_symbols)
         self.__bilt_equation_symbols__ = equation_symbols
         self.__bilt_equation_tree__ = tree
-        self.__bilt_sub_systems__ = types.MappingProxyType(sub_systems)
+        self.__bilt_sub_systems__ = types.MappingProxyType(referenced_sub_systems)
         self._function = function
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
@@ -118,7 +118,7 @@ def _expand_sub_system_parameters(
     symbols: dict[str, Expr | SubSystemExpr],
     sub_systems: collections.abc.Mapping[str, Interface],
     tree: Tree,
-) -> dict[str, Expr]:
+) -> tuple[dict[str, Expr], dict[str, Interface]]:
     """Replace each sub-system parameter with the dotted ports the equation actually references.
 
     Keys keep signature order, so the parameter tuple reads straight off the result. A port the
@@ -126,6 +126,7 @@ def _expand_sub_system_parameters(
     """
     occurring = subtrees(tree)
     equation_symbols: dict[str, Expr] = {}
+    referenced_sub_systems: dict[str, Interface] = {}
 
     for name, symbol in symbols.items():
         if isinstance(symbol, Expr):
@@ -136,8 +137,9 @@ def _expand_sub_system_parameters(
             dotted = QualifiedPort(name, port).dotted
             if symbol_tree(dotted) in occurring:
                 equation_symbols[dotted] = symbol_expr(dotted)
+                referenced_sub_systems[name] = sub_systems[name]
 
-    return equation_symbols
+    return equation_symbols, referenced_sub_systems
 
 
 def _build_equation_tree[R, **P](
