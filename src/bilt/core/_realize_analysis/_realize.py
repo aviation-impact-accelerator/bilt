@@ -72,7 +72,6 @@ def _transform_to_callable(
     plan_step: PlanStep,
     backend: Backend,
 ) -> BackendCallable | RealizationFailure:
-    """Realize a transform step by recovering its source as an AST, with the ``@transform`` decorator stripped."""
     function_ast = typing.cast(
         "ast.FunctionDef",
         ast.parse(textwrap.dedent(inspect.getsource(transform._function))).body[0],  # noqa: SLF001
@@ -88,7 +87,6 @@ def _equation_to_callable(
     plan_step: PlanStep,
     backend: Backend,
 ) -> BackendCallable | RealizationFailure:
-    """Realize an equation step by isolating it for the step's output, then transpiling that AST."""
     try:
         function_ast = equation_to_ast(equation, plan_step.output)
     except IsolationError as error:
@@ -101,12 +99,6 @@ def _sub_system_to_callable(
     plan_step: PlanStep,
     backend: Backend,
 ) -> BackendCallable | RealizationFailure:
-    """Realize a sub-system step by splicing the child's own compiled callable into the parent.
-
-    The child answers in its own mangled names. Because ``mangle`` only rewrites the separator,
-    ``mangle(qualify(port))`` equals ``mangle(sub_system) + MANGLED_SEPARATOR + mangle(port)``, so
-    prefixing reaches the parent's spelling without a round trip back through canonical names.
-    """
     route = sub_system.child_route(plan_step.output)
     if route is None:
         msg = f"{sub_system!r} has no internal route to port {plan_step.output!r} from its other ports."
@@ -129,7 +121,6 @@ def _sub_system_to_callable(
 def _guarded_transpile(
     function_ast: ast.FunctionDef, plan_step: PlanStep, backend: Backend
 ) -> BackendCallable | RealizationFailure:
-    """Transpile an AST, turning a backend's refusal into a failure the search can route around."""
     try:
         return backend.transpile(function_ast)
     except BiltBackendError as error:
