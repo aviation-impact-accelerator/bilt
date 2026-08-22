@@ -1,0 +1,403 @@
+
+# 2026-08-21 18:38:34.392128
++y
+
+# 2026-08-21 18:38:44.692820
++n
+
+# 2026-08-21 18:40:03.049096
++can you summarise the public api for bilt?
+
+# 2026-08-21 18:40:30.636271
++y
+
+# 2026-08-21 18:42:04.894067
++How are systems of systems implemented?
+
+# 2026-08-21 18:42:38.152125
++how can I give you access to teh full repo?
+
+# 2026-08-21 18:43:14.817535
++can you read the whole repo
+
+# 2026-08-21 18:44:58.838632
++aider \
++  --model ollama_chat/qwen3-coder:30b \
++  --map-tokens 8192
+
+# 2026-08-21 18:45:55.140254
++/drop
++/map-refresh
++/map
+
+# 2026-08-21 18:46:10.029198
++/ask Use the repository map to understand the entire repository.
++
++First give me a high-level map of:
++- packages and modules
++- core abstractions
++- dependencies between them
++- main evaluation/data flow
++- important public API entry points
++
++Where the repository map is insufficient, identify the specific files you
++need to inspect in full. Do not assume the files currently added to the chat
++are the entire repository.
+
+# 2026-08-21 18:47:27.874668
++/add src/bilt/_backend
+
+# 2026-08-21 18:47:52.011307
++/add src/bilt.core/_structural_analysis
+
+# 2026-08-21 18:48:08.270467
++/add src/bilt/core/_structural_analysis
+
+# 2026-08-21 18:48:14.042372
++y
+
+# 2026-08-21 18:48:24.701820
++/add src/bilt/core/_structural_analysis
+
+# 2026-08-21 18:48:45.236251
++/ask continue analysis
+
+# 2026-08-21 18:49:34.558086
++y
+
+# 2026-08-21 18:52:14.946639
++/ask what architectural improvements could be made?
+
+# 2026-08-21 18:55:47.376071
++/model ollama_chat/qwen3.8:27b-mlx
+
+# 2026-08-21 18:56:17.989435
++/ask what architectural changes would your reccomend
+
+# 2026-08-21 19:00:00.999099
++y
+
+# 2026-08-21 19:03:19.488866
++a
+
+# 2026-08-21 19:13:39.530155
++/ask how can this code be restructured to improve maintainability?
+
+# 2026-08-21 19:22:45.107954
++/ask I would like to be able to loop over an array of values applying udpates. In python you might use a for loop, in functional languages scan. I want to be able to lower the scan into JAX. However I would also liek to be able to run it in normal python. A use case is to model changes in fluid properties along a discretised pipe. I'd liek to apply a pipe element model repeatedly, using porperties of the previous cell as a boundary condition. How can we do this within the bilt philosphy
+
+# 2026-08-21 19:30:34.390447
++/ask how could this be integrated into a dulmage mendelso type structural analyser?
+
+# 2026-08-21 19:35:24.211890
++/ask would we be able to implement nested scans?
+
+# 2026-08-21 19:52:40.143842
++\ask what other oeprations currnetly not implemented in bilt might be useful?
+
+# 2026-08-21 20:01:37.354835
++/ask does a scan have to eb adirected operation? Can the implementation the scan operates over analsysed for multiple paths depending on what needs to be returned?
+
+# 2026-08-21 20:10:05.895120
++ok
+
+# 2026-08-21 20:16:16.798024
++y
+
+# 2026-08-21 20:16:21.251952
++n
+
+# 2026-08-21 20:18:46.728708
++/ask explain what context you have already
+
+# 2026-08-21 20:19:47.524673
++n
+
+# 2026-08-21 20:20:08.152035
++/ask tell me about the aviation imapct accelerator
+
+# 2026-08-21 20:24:45.704409
++its not something in the repo. Is it in your training?
+
+# 2026-08-21 20:27:13.783866
++/ask tell me about functional programming
+
+# 2026-08-21 20:29:14.913475
++/ask what could we do to the bilt approach to more closely align it with functional principles
+
+# 2026-08-21 20:38:16.686102
++/ask why are you suggestion to thread in python e.g. for the EvalauationContext suggestion
+
+# 2026-08-21 20:40:08.603557
++/run git diff main..HEAD
+
+# 2026-08-21 20:40:13.310071
++y
+
+# 2026-08-21 20:40:26.059971
++/ask discuss this diff
+
+# 2026-08-21 20:53:20.655983
++/ask what should a useful agents.md for this codebase look like?
+
+# 2026-08-21 20:55:41.727329
++n
+
+# 2026-08-21 20:57:06.186435
++/ask what do you think of this
+
+# 2026-08-21 21:00:05.914163
++# The Zen of Bilt
+
+# 2026-08-21 21:00:05.925784
++1. **Systems define the model; implementations provide its relationships. Execution is derived.**
+
+# 2026-08-21 21:00:05.937238
++   Systems define meaningful boundaries and values. Implementations supply equations, transforms and subsystems. Bilt determines how to evaluate them.
+
+# 2026-08-21 21:00:05.944027
++2. **Describe relationships, not procedures.**
+
+# 2026-08-21 21:00:05.953170
++   State what is true between values. Supply what is known, request what is wanted, and let Bilt determine the route between them.
+
+# 2026-08-21 21:00:05.961998
++3. **Equations express relationships; transforms express direction.**
+
+# 2026-08-21 21:00:05.970183
++   Use equations for genuinely acausal relationships and transforms where direction is intrinsic to the computation.
+
+# 2026-08-21 21:00:05.977832
++4. **Keep the structure close to the engineering.**
+
+# 2026-08-21 21:00:05.986700
++   Systems, values and equations should reflect the concepts and mathematics of the problem rather than computational convenience.
+
+# 2026-08-21 21:00:05.994947
++5. **Compose systems rather than building pipelines.**
+
+# 2026-08-21 21:00:06.004361
++   Build larger models from meaningful subsystems. Connections express shared quantities, not the movement of data from one computation to another.
+
+# 2026-08-21 21:00:06.011264
++6. **Values carry meaning.**
+
+# 2026-08-21 21:00:06.019487
++   A value's identity, units and domain describe what it represents; they are not merely metadata around an array.
+
+# 2026-08-21 21:00:06.028365
++7. **Implementations should be replaceable.**
+
+# 2026-08-21 21:00:06.036810
++   Different relationships, numerical methods, backends or levels of fidelity should be able to realise the same system.
+
+# 2026-08-21 21:01:46.634269
++8. **Prefer explicit structure to hidden behaviour.**
+
+# 2026-08-21 21:02:06.228395
++   Avoid hidden state, accidental broadcasting and implementation tricks that obscure the model or make it harder to analyse.
+
+# 2026-08-21 21:02:23.267508
++n
+
+# 2026-08-21 21:02:42.023680
++/ask what do you think of this zen of bilt idea
+
+# 2026-08-21 21:03:03.125144
++# The Zen of Bilt
++
++1. **Systems define the model; implementations provide its relationships. Execution is derived.**
++   Systems define meaningful boundaries and values. Implementations supply equations, transforms and subsystems. Bilt determines how to evaluate them.
++
++2. **Describe relationships, not procedures.**
++   State what is true between values. Supply what is known, request what is wanted, and let Bilt determine the route between them.
++
++3. **Equations express relationships; transforms express direction.**
++   Use equations for genuinely acausal relationships and transforms where direction is intrinsic to the computation.
++
++4. **Keep the structure close to the engineering.**
++   Systems, values and equations should reflect the concepts and mathematics of the problem rather than computational convenience.
++
++5. **Compose systems rather than building pipelines.**
++   Build larger models from meaningful subsystems. Connections express shared quantities, not the movement of data from one computation to another.
++
++6. **Values carry meaning.**
++   A value's identity, units and domain describe what it represents; they are not merely metadata around an array.
++
++7. **Implementations should be replaceable.**
++   Different relationships, numerical methods, backends or levels of fidelity should be able to realise the same system.
++
++8. **Prefer explicit structure to hidden behaviour.**
++   Avoid hidden state, accidental broadcasting and implementation tricks that obscure the model or make it harder to analyse.
++
++9. **Execution should follow transparently from the model.**
++   It should be possible to inspect why Bilt selected a particular set of relationships and how those relationships produced the requested output.
++
++10. **Let the modeller provide meaning; let Bilt handle mechanics.**
++    Modellers define systems, relationships and assumptions. Bilt handles structural analysis, equation isolation, broadcasting, lowering and execution.
+
+# 2026-08-21 21:06:25.073974
++is the zen of bilt an appropriate name
+
+# 2026-08-21 21:08:08.361101
++Could we rewrite this set of principles in a more aphoristic style
+
+# 2026-08-21 21:11:23.455839
++n
+
+# 2026-08-21 21:11:31.203915
++This is an improvemnet.
+
+# 2026-08-21 21:11:57.220358
++Some suggestions:
+
+# 2026-08-21 21:13:17.487841
++not all values are quantities. quantities have a specific meaning. Not all values are arrays. Not all values have domains
+
+# 2026-08-21 21:18:58.773717
++can we make this more aphosistic
+
+# 2026-08-21 21:21:37.673391
++Compose systems. Connect quantities, not data. This line is too specific as not all values are quantities
+
+# 2026-08-21 21:23:04.734191
++are there alternative useful styles for this doc?
+
+# 2026-08-21 21:24:40.542829
++caould we create bilt koans?
+
+# 2026-08-21 21:24:43.873348
++n
+
+# 2026-08-21 21:24:50.894333
++caould we create bilt koans?
+
+# 2026-08-21 21:25:58.407807
++n
+
+# 2026-08-21 21:26:18.900984
++is the koans.md a bit pretentious
+
+# 2026-08-21 21:27:43.843993
++n
+
+# 2026-08-21 21:28:15.373167
++could we rewrite in the style of tibetan buddhist teachings
+
+# 2026-08-21 21:31:37.845048
++n
+
+# 2026-08-21 21:31:50.594686
++what is a tibetan buddhist themd name for this file
+
+# 2026-08-21 21:33:14.265524
++what about something like golden lotus teachcings or the diamnonds of truth
+
+# 2026-08-21 21:35:12.239420
++n
+
+# 2026-08-21 21:35:33.448765
++I think the verses on values and arrays could be tighten up. Its a little imprecise
+
+# 2026-08-21 21:37:39.782357
++n
+
+# 2026-08-21 21:37:50.074159
++Im not sure I like the no silent broadcasting line
+
+# 2026-08-21 21:38:54.066113
++n
+
+# 2026-08-21 21:42:51.064381
++Will github users find this weird or fun?
+
+# 2026-08-21 21:44:41.437097
++are they koans?
+
+# 2026-08-21 21:47:01.220010
++I like the idea of dialogues and koans
+
+# 2026-08-21 21:49:14.581176
++n
+
+# 2026-08-21 21:50:04.739444
++can you discuss the koans one by one
+
+# 2026-08-21 21:51:45.474688
++ok lets revise the koans based on these thoughts
+
+# 2026-08-21 21:54:15.291928
++n
+
+# 2026-08-21 21:54:21.201166
++explain the last one
+
+# 2026-08-21 21:56:24.286868
++what note would you put at the top of the file to explain thier intent?
+
+# 2026-08-21 21:58:52.627923
++n
+
+# 2026-08-21 21:59:00.910658
++could you remidn me of teh dialogues
+
+# 2026-08-21 21:59:31.310568
++n
+
+# 2026-08-21 21:59:43.119654
++have teh dialogues and koans merged into each other
+
+# 2026-08-21 22:01:44.993206
++n
+
+# 2026-08-21 22:02:05.993266
++does bilt have a natural assocaited buddhist concept?
+
+# 2026-08-21 22:04:35.933056
++"If it knows, the equation was never acausal. If it does not know, it produced nothing" is
++the Middle Way. Could you explain this
+
+# 2026-08-21 22:07:38.540311
++I like where this is going. How can we make this appeal more to engineers
+
+# 2026-08-21 22:15:51.087694
++n
+
+# 2026-08-21 22:16:26.982732
++I like this style with both explanations. Can we improve it further?
+
+# 2026-08-21 22:22:42.843584
++n
+
+# 2026-08-21 22:23:07.012768
++im not sure everyone will undr stand the diffeence between a dataflow graph and a constraint network
+
+# 2026-08-21 22:25:52.368008
++n
+
+# 2026-08-21 22:26:16.757140
++I think it might be nice to slighlty flesh out the 'engineering' buddhist defintions at the start
+
+# 2026-08-21 22:27:44.583120
++n
+
+# 2026-08-21 22:28:18.713627
++is this the best expalantion of the middle way. it could be argued that transforms have inherent nature as they are directional?
+
+# 2026-08-21 22:30:55.915873
++n
+
+# 2026-08-21 22:31:51.792583
++would the moddle way rather be that you dont have both extremes but ratehr one object that does both jobs?
+
+# 2026-08-21 22:33:50.643424
++n
+
+# 2026-08-21 22:34:17.490338
++would a final pointer to nagarjuna for further reading be a ncie touch or two much
+
+# 2026-08-21 22:37:48.359402
++n
+
+# 2026-08-21 22:37:55.659559
++is it definitely chapter 10
