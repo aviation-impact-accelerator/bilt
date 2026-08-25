@@ -67,8 +67,6 @@ We are interested in collaboration around scientific modelling, structural analy
 
 See the [documentation](./docs/) and [examples](./examples/) for the current API.
 
-For the less conventional explanation, read [**The Teachings**](./docs/the-teachings.md).
-
 > **The model is declared.
 > The question is asked.
 > Execution is derived.**
