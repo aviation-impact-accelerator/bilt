@@ -28,6 +28,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install uv
+        if: ${{ !env.ACT }}
         uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
@@ -35,11 +36,13 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install Rust
+        if: ${{ !env.ACT }}
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
       - name: Install dependencies
+        if: ${{ !env.ACT }}
         run: uv sync --python ${{ matrix.python-version }} --all-packages --extra jax
 
       - name: Configure PyO3 Python
@@ -72,6 +75,98 @@ jobs:
 
       - name: Check with prek
         run: uv run prek run --all-files
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        if: ${{ !env.ACT }}
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: 3.14
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Rust
+        if: ${{ !env.ACT }}
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install dependencies
+        if: ${{ !env.ACT }}
+        run: uv sync --python 3.14 --all-packages --extra jax
+
+      - name: Run pytest-cov and save to markdown
+        run: |
+          uv run pytest --cov=. \
+            --cov-report=term-missing:skip-covered \
+            --cov-report=markdown:coverage.md
+
+      - name: Echo coverage markdown to GitHub Step Summary
+        run: |
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          cat coverage.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Remove previous job comments
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr_comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            await Promise.all(
+              pr_comments.data.filter(
+                comment => comment.body?.startsWith("## Coverage Report")
+              ).map(
+                comment => github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  comment_id: comment.id,
+                })
+              )
+            )
+
+      - name: Post coverage markdown as PR comment
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+
+            const filePath = path.join(process.env.GITHUB_WORKSPACE, "coverage.md");
+
+            let fileContent = "";
+            try {
+              fileContent = fs.readFileSync(filePath, "utf8");
+            } catch (err) {
+              fileContent = `Could not read coverage file: ${err.message}`;
+            }
+
+            const commentBody = `## Coverage Report\n${fileContent}`;
+
+            if (process.env.ACT === "true") {
+              console.log("=== ACT LOCAL TEST ===");
+              console.log("This text would have been posted to GitHub:\n", commentBody);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
 
   check:
     name: Checks and tests

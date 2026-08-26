@@ -29,3 +29,7 @@ target/
 # Zensical
 
 site/
+
+# pytest-cov
+
+.coverage
