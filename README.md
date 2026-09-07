@@ -20,10 +20,10 @@ Instead of writing a fixed calculation pipeline, you describe the relationships 
 For example, an equation such as
 
 [
-d = vt
+distance = speed * time
 ]
 
-does not inherently say whether to calculate `d`, `v`, or `t`.
+does not inherently say whether to calculate `distance`, `speed`, or `time`. Instead, it says that `distance` depends on `speed` and `time`.
 
 Bilt keeps the relationship intact and chooses a direction when the model is evaluated.
 
