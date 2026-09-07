@@ -12,7 +12,7 @@ Consider a simple relationship between distance, speed, and time:
 distance = speed × time
 ```
 
-We can describe the values with a system:
+We can declare the values with a system:
 
 ```python
 from bilt import Interface, equation, field, system
