@@ -266,4 +266,4 @@ A useful distinction is:
 
 In the next chapter, we'll introduce transforms and see how equations and transforms can live together in the same implementation.
 
-[← Systems and values](systems-and-values.md) · [Index](docs/index.md) · [Transforms and implementations →](transforms-and-implementations.md)
+[← Systems and values](systems-and-values.md) · [Index](../index.md) · [Transforms and implementations →](transforms-and-implementations.md)

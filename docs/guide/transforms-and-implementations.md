@@ -355,4 +355,4 @@ The next question is how Bilt chooses a route from the values that are known to 
 
 That is the subject of the next chapter: **from models to computation**.
 
-[← Equations and acausal modelling](equations-and-acausal-modelling.md) · [Index](docs/index.md) · [Models to computation →](models-to-computation.md)
+[← Equations and acausal modelling](equations-and-acausal-modelling.md) · [Index](../index.md) · [Models to computation →](models-to-computation.md)
