@@ -568,3 +568,5 @@ So far, all of our values have been simple scalars.
 Real engineering models quickly need values that vary over time, location, operating point, or other dimensions.
 
 The next chapter introduces **dimensions, domains and tensors**, which let Bilt carry these same modelling ideas beyond scalar values.
+
+[← Transforms and implementations](transforms-and-implementations.md) · [Index](docs/index.md) · [Dimensions, domains and tensors →](dimensions-domaains-and-tensors.md)
