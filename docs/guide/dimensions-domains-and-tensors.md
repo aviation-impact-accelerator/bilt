@@ -457,3 +457,5 @@ The next step is to make models larger without turning them into one enormous sy
 Bilt does that by allowing **systems to be composed from other systems**, while preserving the same boundaries and relationships we have been using throughout the guide.
 
 That is the subject of the next chapter.
+
+[← Models to computation](models-to-computation.md) · [Index](docs/index.md) · [Systems of systems →](systems-of-systems.md)
