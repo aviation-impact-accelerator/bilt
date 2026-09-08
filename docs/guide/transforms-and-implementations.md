@@ -354,3 +354,5 @@ Together, they form the set of possible routes through the model.
 The next question is how Bilt chooses a route from the values that are known to the value that has been requested.
 
 That is the subject of the next chapter: **from models to computation**.
+
+[← Equations and acausal modelling](equations-and-acausal-modelling.md) · [Index](docs/index.md) · [Models to computation →](models-to-computation.md)
