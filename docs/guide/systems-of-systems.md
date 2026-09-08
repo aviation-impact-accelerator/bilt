@@ -486,3 +486,5 @@ with board_model:
 The hierarchy organises the model.
 
 The relationships determine what can be computed.
+
+[← Dimensions, domains and tensors](dimensions-domains-and-tensors.md) · [Index](../index.md)

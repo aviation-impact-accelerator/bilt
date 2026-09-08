@@ -65,7 +65,7 @@ We are interested in collaboration around scientific modelling, structural analy
 
 ## Learn more
 
-See the [documentation](./docs/) and [examples](./examples/) for the current API.
+See the [documentation](./docs/index.md) and [examples](./examples/) for the current API.
 
 > **The model is declared.
 > The question is asked.
