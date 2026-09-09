@@ -1,5 +1,7 @@
 """Causal and acausal systems models in Python."""
 
+from bilt._backend._jax import JAX_BACKEND
+from bilt._backend._python import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.core._interface import Interface
 from bilt.core._system import Implementation, field, system
@@ -9,6 +11,8 @@ from bilt.symbolic._dimensions import CoordinateAxis, Dim, coordinate_axis, dim
 from bilt.symbolic._domains import Domain, as_domain, domain
 
 __all__ = [
+    "JAX_BACKEND",
+    "PYTHON_BACKEND",
     "CoordinateAxis",
     "Dim",
     "Domain",
