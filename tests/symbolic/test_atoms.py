@@ -196,16 +196,12 @@ def test_relation_operator_atom_is_distinct_from_plain_op_atom() -> None:
 
 
 def test_atom_cache_can_be_cleared() -> None:
-    expected_cache_size_before_clear = 1
-    expected_cache_size_after_clear = 0
+    atom = symbol("x")
 
-    x = symbol("x")
-
-    assert atom_cache_size() == expected_cache_size_before_clear
+    assert atom_cache_size() == 1
 
     clear_atom_cache()
 
-    assert atom_cache_size() == expected_cache_size_after_clear
+    assert atom_cache_size() == 0
 
-    # Keep the atom alive until after the cache assertion.
-    assert x
+    del atom
