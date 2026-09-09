@@ -50,6 +50,7 @@ docstring-code-format = true
 
 [tool.ruff.lint]
 select = ["ALL"]
+extend-select = ["PLR0917"]
 ignore = [
     "ANN1",
     "COM812",
