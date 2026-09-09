@@ -28,7 +28,10 @@ dev = [
 ]
 
 docs = [
-    "zensical>=0.0.37",
+    "zensical>=0.0.47",
+    "markdown-exec[ansi]",
+    "matplotlib",
+    "scipy",
 ]
 
 [tool.pyrefly]
