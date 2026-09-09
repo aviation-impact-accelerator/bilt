@@ -1,6 +1,6 @@
 [project]
 name = "bilt"
-version = "0.0.1"
+version = "0.1.0"
 description = "Causal and acausal systems models in Python."
 readme = "README.md"
 requires-python = ">=3.14"
@@ -50,10 +50,12 @@ docstring-code-format = true
 
 [tool.ruff.lint]
 select = ["ALL"]
+extend-select = ["PLR0917"]
 ignore = [
     "ANN1",
     "COM812",
     "COM819",
+    "CPY001",
     "D206",
     "D300",
     "E111",

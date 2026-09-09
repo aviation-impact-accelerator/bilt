@@ -116,12 +116,7 @@ def shaft_energy_kwh(
     gross_mass_t: float,
     energy_per_km_t: float,
 ) -> float:
-    return (
-        energy_multiplier
-        * distance_km
-        * gross_mass_t
-        * energy_per_km_t
-    )
+    return energy_multiplier * distance_km * gross_mass_t * energy_per_km_t
 
 
 @transform
@@ -138,9 +133,7 @@ def battery_mass_t(
     specific_energy_kwh_per_t: float,
     usable_fraction: float,
 ) -> float:
-    return electrical_energy_kwh / (
-        specific_energy_kwh_per_t * usable_fraction
-    )
+    return electrical_energy_kwh / (specific_energy_kwh_per_t * usable_fraction)
 
 
 @transform
@@ -379,9 +372,7 @@ sample = Dim("sample")
 route = Dim("route")
 payload_case = Dim("payload_case")
 
-distances_km = np.array(
-    [150.0, 250.0, 350.0, 450.0, 550.0, 650.0]
-)
+distances_km = np.array([150.0, 250.0, 350.0, 450.0, 550.0, 650.0])
 payloads_t = np.array([2.0, 4.0, 6.0, 8.0])
 
 mission = Mission(
@@ -501,10 +492,7 @@ First reduce over `sample`, leaving one probability estimate per independently s
 probability_by_scramble = feasible.mean(axis=1)
 
 probability = probability_by_scramble.mean(axis=0)
-standard_error = (
-    probability_by_scramble.std(axis=0, ddof=1)
-    / np.sqrt(probability_by_scramble.shape[0])
-)
+standard_error = probability_by_scramble.std(axis=0, ddof=1) / np.sqrt(probability_by_scramble.shape[0])
 
 print(probability.shape)
 print(
@@ -592,9 +580,7 @@ for sample_count in sample_counts:
     ].mean(axis=1)
 
     convergence_probability.append(estimates.mean())
-    convergence_standard_error.append(
-        estimates.std(ddof=1) / np.sqrt(estimates.size)
-    )
+    convergence_standard_error.append(estimates.std(ddof=1) / np.sqrt(estimates.size))
 ```
 
 ```python exec="on" html="on" source="above" session="qmc"
@@ -626,9 +612,7 @@ To explore the model locally, change the inputs below and save the page while ze
 For example, change the route or payload grids:
 
 ```python
-distances_km = np.array(
-    [100.0, 200.0, 300.0, 400.0, 500.0, 600.0]
-)
+distances_km = np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0])
 payloads_t = np.array([2.0, 4.0, 6.0, 8.0])
 ```
 
@@ -647,7 +631,7 @@ mission = Mission(
 You can also change the uncertainty assumptions in `scrambled_sobol_inputs()`, for example the mean and spread of battery specific energy:
 
 ```python
-specific_energy_kwh_per_t=norm.ppf(
+specific_energy_kwh_per_t = norm.ppf(
     uniforms[..., 0],
     loc=450.0,
     scale=45.0,
