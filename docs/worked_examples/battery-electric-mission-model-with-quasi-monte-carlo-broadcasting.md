@@ -1,4 +1,4 @@
-# battery electric mission model with quasi-monte carlo broadcasting
+# Battery electric mission model with quasi-monte carlo broadcasting
 
 This worked example uses independently scrambled Sobol designs to evaluate a small battery-electric mission model over uncertain inputs, routes, and payload cases.
 
