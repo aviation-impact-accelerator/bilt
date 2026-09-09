@@ -20,7 +20,23 @@ or:
 pip install bilt
 ```
 
-For normal use, no additional dependencies are required.
+The Python backend is used by default, so for normal use you do not need to select a backend explicitly:
+
+```python
+with motion_model:
+    assert motion.distance == 100.0
+```
+
+You can also select it explicitly when required:
+
+```python
+from bilt import PYTHON_BACKEND
+
+with PYTHON_BACKEND, motion_model:
+    assert motion.distance == 100.0
+```
+
+No additional dependencies are required.
 
 ## Install the JAX backend
 
@@ -74,7 +90,7 @@ motion_model = Implementation(
 
 The model is backend-independent.
 
-To execute it using JAX, select the JAX backend around the evaluation:
+By default, Bilt executes it using the Python backend. To execute it using JAX instead, select the JAX backend around the evaluation:
 
 ```python
 from bilt import JAX_BACKEND
@@ -153,7 +169,6 @@ For example, Python `if` statements are not currently supported:
 def absolute(value: float) -> float:
     if value > 0:
         return value
-
     return -value
 ```
 
@@ -177,9 +192,25 @@ Nested lists similarly become multidimensional JAX arrays.
 
 ## Choosing a backend
 
-Use the Python backend for straightforward execution and development.
+For most use, no backend needs to be specified: Bilt uses the Python backend by default.
 
-Use the JAX backend when the generated computation needs to participate in JAX-based numerical workflows.
+You can select it explicitly with:
+
+```python
+from bilt import PYTHON_BACKEND
+
+with PYTHON_BACKEND, implementation:
+    result = model.value
+```
+
+Use the JAX backend when the generated computation needs to participate in JAX-based numerical workflows:
+
+```python
+from bilt import JAX_BACKEND
+
+with JAX_BACKEND, implementation:
+    result = model.value
+```
 
 In either case, the model stays the same:
 
@@ -200,6 +231,8 @@ Install ordinary Bilt with:
 uv add bilt
 ```
 
+The Python backend is included and normally used by default.
+
 Install JAX support with:
 
 ```console
@@ -218,3 +251,5 @@ with JAX_BACKEND, implementation:
 The model describes **what** to compute.
 
 The backend determines **how** that computation runs.
+
+[← Systems of systems](systems-of-systems.md) · [Index](../index.md)
