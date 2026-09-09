@@ -444,7 +444,7 @@ with board_model:
 A larger implementation can contain smaller implementations:
 
 ```python
-internal_implementations={
+internal_implementations = {
     "resistor": resistor_model,
 }
 ```

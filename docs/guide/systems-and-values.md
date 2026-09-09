@@ -48,7 +48,7 @@ We can create an instance by supplying values that we already know:
 mass = 1.0
 acceleration = 2.0
 
-demo = Demo(mass = mass, acceleration = acceleration)
+demo = Demo(mass=mass, acceleration=acceleration)
 ```
 
 Here, `mass` and `acceleration` are known, while `force` has not been supplied.

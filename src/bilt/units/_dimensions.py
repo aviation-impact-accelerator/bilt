@@ -16,7 +16,7 @@ class Dimension:
 
     _cache: typing.ClassVar[dict[tuple[int, int, int, int, int, int, int, int], typing.Self]] = {}
 
-    def __new__(  # noqa: PLR0913
+    def __new__(  # noqa: PLR0913, PLR0917
         cls,
         mass: int = 0,
         length: int = 0,
@@ -34,7 +34,7 @@ class Dimension:
         cls._cache[key] = instance
         return instance
 
-    def __init__(  # noqa: PLR0913
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         mass: int = 0,
         length: int = 0,
