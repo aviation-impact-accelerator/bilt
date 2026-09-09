@@ -28,28 +28,28 @@ from bilt import Interface, field, system
 
 @system
 class Demo(metaclass=Interface):
-    a: float = field()
-    b: float = field()
-    c: float = field()
+    base: float = field()
+    increment: float = field()
+    total: float = field()
 ```
 
-We can define a transform that calculates `c` from `a` and `b`:
+We can define a transform that calculates `total` from `base` and `increment`:
 
 ```python
 from bilt import transform
 
 
 @transform
-def c(a: float, b: float) -> float:
-    return a + b
+def total(base: float, increment: float) -> float:
+    return base + increment
 ```
 
-This tells Bilt that `c` can be calculated from `a` and `b`:
+This tells Bilt that `total` can be calculated from `base` and `increment`:
 
 ```text
-a ──┐
-    ├──► c
-b ──┘
+base ──────┐
+           ├──► total
+increment ─┘
 ```
 
 Unlike an equation, a transform has a fixed computational direction.
@@ -60,18 +60,18 @@ So:
 
 ```python
 @transform
-def c(a: float, b: float) -> float:
-    return a + b
+def total(base: float, increment: float) -> float:
+    return base + increment
 ```
 
 means:
 
 ```text
-requires: a, b
-provides: c
+requires: base, increment
+provides: total
 ```
 
-Bilt can use this transform to calculate `c` from `a` and `b`. It cannot use the same transform to calculate `a` from `b` and `c`.
+Bilt can use this transform to calculate `total` from `base` and `increment`. It cannot use the same transform to calculate `base` from `increment` and `total`.
 
 ### Transforms are ordinary calculations
 
@@ -109,7 +109,7 @@ Now we can look at its role more closely.
 from bilt import Implementation
 
 
-basic = Implementation(Demo, [c])
+basic = Implementation(Demo, [total])
 ```
 
 A system and its implementation have different jobs.
@@ -118,15 +118,15 @@ A system and its implementation have different jobs.
 
 ```text
 Demo
-├── a
-├── b
-└── c
+├── base
+├── increment
+└── total
 ```
 
 while `basic` supplies relationships that can be used to obtain those values:
 
 ```text
-a, b ──► c
+base, increment ──► total
 ```
 
 An implementation can contain equations, transforms, or a mixture of both.
@@ -139,56 +139,57 @@ Create an instance with the values we already know:
 
 ```python
 demo = Demo(
-    a=1.0,
-    b=2.0,
+    base=1.0,
+    increment=2.0,
 )
 ```
 
-Then make the implementation active while requesting `c`:
+Then make the implementation active while requesting `total`:
 
 ```python
 with basic:
-    assert demo.c == 3.0
+    assert demo.total == 3.0
 ```
 
 Bilt knows:
 
 ```text
-a = 1.0
-b = 2.0
+base = 1.0
+increment = 2.0
 ```
 
 and has been asked for:
 
 ```text
-c
+total
 ```
 
-The active implementation contains a transform that can produce `c` from the available values, so the request can be satisfied.
+The active implementation contains a transform that can produce `total` from the available values, so the request can be satisfied.
 
 Conceptually:
 
 ```text
 known
-a, b
- │
- ▼
-c(a, b)
- │
- ▼
-c
+
+base, increment
+      │
+      ▼
+total(base, increment)
+      │
+      ▼
+    total
 ```
 
 The important point is that we did not call the transform ourselves:
 
 ```python
-c(1.0, 2.0)
+total(1.0, 2.0)
 ```
 
 Instead, we asked the system for:
 
 ```python
-demo.c
+demo.total
 ```
 
 Bilt found a relationship that could provide it.
@@ -202,87 +203,87 @@ Let's extend our system:
 ```python
 @system
 class Demo(metaclass=Interface):
-    a: float = field()
-    b: float = field()
-    c: float = field()
-    d: float = field()
-    e: float = field()
+    base: float = field()
+    increment: float = field()
+    total: float = field()
+    adjusted: float = field()
+    result: float = field()
 ```
 
 and define three transforms:
 
 ```python
 @transform
-def c(a: float, b: float) -> float:
-    return a + b
+def total(base: float, increment: float) -> float:
+    return base + increment
 
 
 @transform
-def d(a: float, c: float) -> float:
-    return a + c
+def adjusted(base: float, total: float) -> float:
+    return base + total
 
 
 @transform
-def e(c: float, d: float) -> float:
-    return c + d
+def result(total: float, adjusted: float) -> float:
+    return total + adjusted
 ```
 
 We can collect them into one implementation:
 
 ```python
-basic = Implementation(Demo, [c, d, e])
+basic = Implementation(Demo, [total, adjusted, result])
 ```
 
 This gives Bilt three available relationships:
 
 ```text
-a, b ──► c
-a, c ──► d
-c, d ──► e
+base, increment ──► total
+base, total ──► adjusted
+total, adjusted ──► result
 ```
 
-Now create an instance with just `a` and `b` known:
+Now create an instance with just `base` and `increment` known:
 
 ```python
 demo = Demo(
-    a=1.0,
-    b=2.0,
+    base=1.0,
+    increment=2.0,
 )
 ```
 
-and ask for `e`:
+and ask for `result`:
 
 ```python
 with basic:
-    assert demo.e == 7.0
+    assert demo.result == 7.0
 ```
 
 To satisfy that request, Bilt needs to obtain:
 
 ```text
-c = 3
-d = 4
-e = 7
+total = 3
+adjusted = 4
+result = 7
 ```
 
 or, as a graph:
 
 ```text
-a ──┐
-    ├──► c ──┐
-b ──┘        ├──► e
-a ──────► d ─┘
-          ▲
-          │
-          c
+base ──────┐
+           ├──► total ─────┐
+increment ─┘               ├──► result
+base ─────────► adjusted ──┘
+                 ▲
+                 │
+               total
 ```
 
 We never wrote:
 
 ```python
-c_value = c(a, b)
-d_value = d(a, c_value)
-e_value = e(c_value, d_value)
+total_value = total(base, increment)
+adjusted_value = adjusted(base, total_value)
+result_value = result(total_value, adjusted_value)
 ```
 
 The implementation describes which relationships are available. It does not prescribe the order in which they must be evaluated.
@@ -292,33 +293,33 @@ The implementation describes which relationships are available. It does not pres
 Nor does the order in:
 
 ```python
-Implementation(Demo, [c, d, e])
+Implementation(Demo, [total, adjusted, result])
 ```
 
 mean:
 
 ```text
-first c
-then d
-then e
+first total
+then adjusted
+then result
 ```
 
 Those relationships describe the model.
 
 The required execution order depends on which values are already known and which value we request.
 
-If we request `c`, Bilt only needs:
+If we request `total`, Bilt only needs:
 
 ```text
-a, b ──► c
+base, increment ──► total
 ```
 
-If we request `e`, it needs a longer route:
+If we request `result`, it needs a longer route:
 
 ```text
-a, b ──► c
-a, c ──► d
-c, d ──► e
+base, increment ──► total
+base, total ──► adjusted
+total, adjusted ──► result
 ```
 
 So:
