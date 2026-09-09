@@ -1,4 +1,4 @@
-# Quasi-Monte Carlo broadcasting with Bilt
+# battery electric mission model with quasi-monte carlo broadcasting
 
 This worked example uses independently scrambled Sobol designs to evaluate a small battery-electric mission model over uncertain inputs, routes, and payload cases.
 
@@ -569,9 +569,9 @@ plt.legend(title="Payload")
 render_plot()
 ```
 
-## 8. Inspect sampling convergence
+## 8. Check sampling stability
 
-The independent scrambles let us inspect the stability of the selected 450 km / 6 t result as the number of Sobol points increases.
+The independent scrambles let us check whether the selected 450 km / 6 t result is stable as the number of Sobol points increases.
 
 ```python exec="on" source="above" session="qmc"
 route_index = 3
@@ -598,37 +598,65 @@ for sample_count in sample_counts:
 ```
 
 ```python exec="on" html="on" source="above" session="qmc"
-plt.plot(
+plt.errorbar(
     sample_counts,
     convergence_probability,
+    yerr=2 * np.asarray(convergence_standard_error),
     marker="o",
+    capsize=4,
 )
 plt.xscale("log", base=2)
 plt.xlabel("Sobol samples per scramble")
 plt.ylabel("Estimated feasibility probability")
 plt.ylim(0.0, 1.0)
-plt.title("Convergence of the 450 km / 6 t estimate")
+plt.title("Sampling stability: 450 km route, 6 t payload")
 render_plot()
 ```
 
-```python exec="on" html="on" source="above" session="qmc"
-plt.plot(
-    sample_counts,
-    convergence_standard_error,
-    marker="o",
+The estimate settles close to 0.93 as the Sobol sample count increases. The error bars show approximately ±2 estimated standard errors, using variation between the eight independent scrambles.
+
+This is a **sampling-stability check**, not a runtime benchmark or a claim about a QMC convergence rate. The different sample counts are nested prefixes of the same Sobol designs, and the final feasibility indicator is discontinuous.
+
+## 9. Explore the model
+
+The easiest way to explore the model is to change the inputs and rerun the page.
+
+To explore the model locally, change the inputs below and save the page while zensical serve is running. Zensical will rebuild the page and rerun the executable blocks automatically.
+
+For example, change the route or payload grids:
+
+```python
+distances_km = np.array(
+    [100.0, 200.0, 300.0, 400.0, 500.0, 600.0]
 )
-plt.xscale("log", base=2)
-plt.xlabel("Sobol samples per scramble")
-plt.ylabel("Estimated RQMC standard error")
-plt.title("Estimated error versus Sobol sample count")
-render_plot()
+payloads_t = np.array([2.0, 4.0, 6.0, 8.0])
 ```
 
-This is **statistical performance**, not a runtime benchmark. It shows how stable the probability estimate is as sampling effort increases.
+or change the scalar aircraft assumptions when constructing `Mission`:
 
-Because the final quantity is a Boolean feasibility indicator, the integrand is discontinuous. This example should therefore not be read as a showcase of the strongest possible QMC convergence rates; the main purpose remains demonstrating Bilt's named-domain broadcasting.
+```python
+mission = Mission(
+    ...
+    empty_mass_t=20.0,
+    energy_per_km_t=0.18,
+    usable_fraction=0.85,
+    max_battery_mass_t=7.5,
+)
+```
 
-## 9. What this example demonstrates
+You can also change the uncertainty assumptions in `scrambled_sobol_inputs()`, for example the mean and spread of battery specific energy:
+
+```python
+specific_energy_kwh_per_t=norm.ppf(
+    uniforms[..., 0],
+    loc=450.0,
+    scale=45.0,
+)
+```
+
+The important point is that changing the number of route cases, payload cases, or Sobol samples does **not** require changing the scalar Bilt transforms. The values and their named domains determine how broadly the model is evaluated.
+
+## 10. What this example demonstrates
 
 The central separation is:
 
