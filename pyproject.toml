@@ -6,11 +6,12 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "networkx>=3.6.1",
+    "numpy>=2.5",
 ]
 
 [project.optional-dependencies]
 jax = [
-    "jax>=0.10.2",
+    "jax>=0.11.1",
 ]
 
 [build-system]
@@ -20,18 +21,18 @@ build-backend = "maturin"
 [dependency-groups]
 dev = [
     "examples",
-    "prek>=0.3.11",
-    "pyrefly>=1.0.0",
+    "prek>=0.5.2",
+    "pyrefly>=1.2.0",
     "pytest>=9.0.3",
-    "ruff>=0.15.12",
-    "ty>=0.0.38",
+    "ruff>=0.16.6",
+    "ty>=0.0.80",
 ]
 
 docs = [
-    "zensical>=0.0.47",
+    "zensical>=0.0.60",
     "markdown-exec[ansi]",
-    "matplotlib",
-    "scipy",
+    "matplotlib>=3.0.0",
+    "scipy>=1.18.0",
 ]
 
 [tool.pyrefly]
