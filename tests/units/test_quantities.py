@@ -20,6 +20,7 @@ from bilt.units.units import (
     celsius,
     degree,
     exajoule,
+    fahrenheit,
     fraction,
     gigawatthour,
     gram,
@@ -218,6 +219,37 @@ class TestQuantity:
     ) -> None:
         with pytest.raises(TypeError):
             _ = left + right
+
+    @staticmethod
+    def test_addition_rejects_absolute_and_differently_scaled_relative_units() -> None:
+        with pytest.raises(
+            BiltUnitError,
+            match="relative unit",
+        ):
+            _ = 1.0 * abs(celsius) + 1.0 * fahrenheit
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("left", "right", "expected"),
+        (
+            (
+                20.0 * abs(celsius),
+                5.0 * celsius,
+                25.0 * abs(celsius),
+            ),
+            (
+                5.0 * celsius,
+                20.0 * abs(celsius),
+                25.0 * abs(celsius),
+            ),
+        ),
+    )
+    def test_addition_absolute_and_relative_returns_absolute_quantity(
+        left: Quantity,
+        right: Quantity,
+        expected: Quantity,
+    ) -> None:
+        assert left + right == expected
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -686,18 +718,18 @@ class TestQuantity:
     ) -> None:
         with pytest.raises(
             BiltDimensionalityError,
-            match="Cannot convert quantity",
+            match="Cannot convert",
         ):
             quantity.convert_to(unit)
 
     @staticmethod
     def test_quantity_convert_to_unit_error_if_units_have_different_metadata() -> None:
-        with pytest.raises(BiltUnitError, match="Cannot convert quantity"):
+        with pytest.raises(BiltUnitError, match="Cannot convert"):
             (1.0 * kilogram * co2).convert_to(kilogram * nox)
 
     @staticmethod
     def test_quantity_convert_to_unit_error_if_converting_absolute_to_relative() -> None:
-        with pytest.raises(BiltUnitError, match="Cannot convert quantity"):
+        with pytest.raises(BiltUnitError, match="Cannot convert"):
             (1.0 * absolute_year).convert_to(second)
 
     @staticmethod

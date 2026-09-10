@@ -2,7 +2,7 @@ import functools
 import typing
 
 from bilt.units._category import UnitCategory
-from bilt.units._conversion import convert_quantity_value
+from bilt.units._conversion import conversion_between
 from bilt.units._validation import validate_addition, validate_cast, validate_comparison
 
 if typing.TYPE_CHECKING:
@@ -34,10 +34,15 @@ class Quantity:
         return self.__class__(self.value, unit)
 
     def convert_to(self, unit: Unit) -> Quantity:
-        value = convert_quantity_value(self, unit)
-        if value is None:
+        if self.unit.category is UnitCategory.ABSOLUTE and self.unit is unit:
             return self
-        return Quantity(value, unit)
+
+        conversion = conversion_between(self.unit, unit)
+
+        return Quantity(
+            conversion.apply(self.value),
+            unit,
+        )
 
     def strip_metadata(self) -> typing.Self:
         return self.__class__(self.value, self.unit.strip_metadata())
@@ -54,8 +59,20 @@ class Quantity:
     def __add__(self, other: Quantity) -> typing.Self:
         if not isinstance(other, self.__class__):
             return NotImplemented
+
         validate_addition(self, other)
-        return self.__class__(self.value + other.value, self.unit)
+
+        if self.unit.category is UnitCategory.ABSOLUTE:
+            unit = self.unit
+        elif other.unit.category is UnitCategory.ABSOLUTE:
+            unit = other.unit
+        else:
+            unit = self.unit
+
+        return self.__class__(
+            self.value + other.value,
+            unit,
+        )
 
     def __radd__(self, other: int) -> Quantity:
         if not isinstance(other, int) and other != 0:
