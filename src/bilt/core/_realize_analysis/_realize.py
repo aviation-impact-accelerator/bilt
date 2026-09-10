@@ -100,15 +100,15 @@ def _sub_system_to_callable(
     plan_step: PlanStep,
     backend: Backend,
 ) -> BackendCallable | RealizationFailure:
-    route = sub_system.child_route(plan_step.output)
+    route = sub_system.child_route(plan_step.output, backend)
     if route is None:
         msg = f"{sub_system!r} has no internal route to port {plan_step.output!r} from its other ports."
-        return RealizationFailure(failed_plan_step=plan_step, permanent=False, cause=BiltSystemAnalysisError(msg))
+        return RealizationFailure(failed_plan_step=plan_step, cause=BiltSystemAnalysisError(msg))
 
     try:
         child_callable = sub_system.implementation.get_evaluation(route, backend)
     except BiltSystemAnalysisError as error:
-        return RealizationFailure(failed_plan_step=plan_step, permanent=False, cause=error)
+        return RealizationFailure(failed_plan_step=plan_step, cause=error)
 
     return BackendCallable(
         name=mangle_name(plan_step.output),
@@ -125,21 +125,16 @@ def _guarded_transpile(
     try:
         return backend.transpile(function_ast)
     except BiltBackendError as error:
-        return RealizationFailure(failed_plan_step=plan_step, permanent=False, cause=error)
+        return RealizationFailure(failed_plan_step=plan_step, cause=error)
 
 
 @dataclasses.dataclass
 class RealizationFailure:
     """A plan step that could not be compiled to a callable.
 
-    ``permanent`` distinguishes a step that can never produce its output -- an equation that
-    cannot be isolated for the requested parameter -- from one that merely failed for this
-    query's inputs or backend.
-
     ``cause`` is the underlying exception, kept so a search that exhausts every route can report
     why the routes it tried were rejected instead of only that none were left.
     """
 
     failed_plan_step: PlanStep
-    permanent: bool = True
     cause: Exception | None = None

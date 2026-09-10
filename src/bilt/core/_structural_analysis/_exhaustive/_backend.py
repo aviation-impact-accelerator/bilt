@@ -2,28 +2,29 @@ __all__ = ["ExhaustiveStructuralAnalyser"]
 
 import typing
 
-from bilt._backend import Backend, BackendCase
+from bilt._backend import BackendCase
 from bilt.core._realize_analysis._realize import RealizationFailure, realize_plan
 from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
-from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph, required_inputs_for_target
-from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
+from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
+from bilt.core._structural_analysis._plan import AnalysisPlan
 
 if typing.TYPE_CHECKING:
+    from bilt._backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
 
 
 class ExhaustiveStructuralAnalyser:
     """Analyser that uses an exhaustive bipartite graph search."""
 
-    def __init__(self, constituents: typing.Collection[BiltModelConstituent]) -> None:
-        self.bipartite_graph = BipartiteGraph(constituents)
+    def __init__(self, constituents: typing.Collection[BiltModelConstituent], backend: Backend) -> None:
+        self.backend = backend
+        self.bipartite_graph = BipartiteGraph(constituents, backend)
 
-    def analyse(self, available: set[str], output: str, concrete_backend: Backend) -> BackendCase:
-        """Find a plan to compute the desired output, routing around steps that cannot be realized."""
-        excluded: frozenset[PlanStep] = frozenset()
+    def analyse(self, available: set[str], output: str) -> BackendCase:
+        """Find a plan to compute the desired output, pruning steps that fail."""
         last_failure: RealizationFailure | None = None
         while True:
-            steps = self.bipartite_graph.search(available, output, excluded=excluded)
+            steps = self.bipartite_graph.search(available, output)
             if steps is None:
                 msg = f"Cannot compute {output} from available inputs {available}."
                 if last_failure is None or last_failure.cause is None:
@@ -36,17 +37,14 @@ class ExhaustiveStructuralAnalyser:
 
             realised_plan = realize_plan(
                 AnalysisPlan(inputs=frozenset(available), output=output, steps=tuple(steps)),
-                concrete_backend,
+                self.backend,
             )
             match realised_plan:
                 case BackendCase() as successful_plan:
                     return successful_plan
-                case RealizationFailure(permanent=True) as failure:
-                    last_failure = failure
-                    self.bipartite_graph.remove_failed_plan_step(failure.failed_plan_step)
                 case RealizationFailure() as failure:
                     last_failure = failure
-                    excluded |= {failure.failed_plan_step}
+                    self.bipartite_graph.remove_failed_plan_step(failure.failed_plan_step)
 
     def required_inputs_for_target(self, available: set[str], output: str) -> frozenset[str] | None:
         """Return the inputs a plan for ``output`` would actually consume, or None when no plan exists.
@@ -65,7 +63,7 @@ class ExhaustiveStructuralAnalyser:
         produced = {step.output for step in steps}
         required: set[str] = set()
         for step in steps:
-            consumed = required_inputs_for_target(step) or frozenset()
+            consumed = self.bipartite_graph.required_inputs_for_step(step) or frozenset()
             required.update(consumed - produced)
 
         return frozenset(required)
