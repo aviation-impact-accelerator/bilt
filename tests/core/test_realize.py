@@ -1,6 +1,6 @@
 import pytest
 
-from bilt._backend._python._backend import PythonBackend
+from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core import Interface, field, system
 from bilt.core._equation import equation
 from bilt.core._realize_analysis._realize import RealizationFailure, realize_plan
@@ -22,7 +22,7 @@ def wiring(supply: float, resistor: Resistor) -> bool:
 def test_realize_plan_mangles_the_case_names() -> None:
     plan = AnalysisPlan(inputs=frozenset({"resistor.i", "resistor.r"}), output="resistor.v", steps=())
 
-    case = realize_plan(plan, PythonBackend())
+    case = realize_plan(plan, PYTHON_BACKEND)
 
     assert not isinstance(case, RealizationFailure)
     assert case.name == "resistor__v"
@@ -33,7 +33,7 @@ def test_realize_plan_mangles_the_case_names() -> None:
 def test_realize_plan_leaves_plain_names_alone() -> None:
     plan = AnalysisPlan(inputs=frozenset({"a", "b"}), output="c", steps=())
 
-    case = realize_plan(plan, PythonBackend())
+    case = realize_plan(plan, PYTHON_BACKEND)
 
     assert not isinstance(case, RealizationFailure)
     assert case.name == "c"
@@ -48,7 +48,7 @@ def test_realize_plan_rejects_an_unsupported_operation() -> None:
     plan = AnalysisPlan(inputs=frozenset(), output="c", steps=(PlanStep(operation=Unsupported(), output="c"),))
 
     with pytest.raises(NotImplementedError, match="is not supported for evaluation"):
-        realize_plan(plan, PythonBackend())
+        realize_plan(plan, PYTHON_BACKEND)
 
 
 def test_realize_plan_mangles_an_equation_reading_a_dotted_port() -> None:
@@ -58,7 +58,7 @@ def test_realize_plan_mangles_an_equation_reading_a_dotted_port() -> None:
         steps=(PlanStep(operation=wiring, output="supply"),),
     )
 
-    case = realize_plan(plan, PythonBackend())
+    case = realize_plan(plan, PYTHON_BACKEND)
 
     assert not isinstance(case, RealizationFailure)
     assert case.intermediates[0].name == "supply"
@@ -73,7 +73,7 @@ def test_realize_plan_mangles_an_equation_solving_for_a_dotted_port() -> None:
         steps=(PlanStep(operation=wiring, output="resistor.v"),),
     )
 
-    case = realize_plan(plan, PythonBackend())
+    case = realize_plan(plan, PYTHON_BACKEND)
 
     assert not isinstance(case, RealizationFailure)
     assert case.intermediates[0].name == "resistor__v"

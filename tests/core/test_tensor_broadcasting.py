@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from bilt._backend._jax._backend import JAXBackend
-from bilt._backend._python._backend import PythonBackend
+from bilt._backend._jax._backend import JAX_BACKEND
+from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core import system, transform
 from bilt.core._domain_registry import DomainRegistryError
 from bilt.core._interface import Interface
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_different_domains_broadcast_over_scalar_transform(
     backend: Backend,
@@ -62,7 +62,7 @@ def test_different_domains_broadcast_over_scalar_transform(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_subset_domain_broadcasts_over_missing_dimension(
     backend: Backend,
@@ -111,7 +111,7 @@ def test_subset_domain_broadcasts_over_missing_dimension(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_partially_overlapping_domains_broadcast_to_union(
     backend: Backend,
@@ -174,7 +174,7 @@ def test_partially_overlapping_domains_broadcast_to_union(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_equal_sized_distinct_dimensions_do_not_align(
     backend: Backend,
@@ -217,7 +217,7 @@ def test_equal_sized_distinct_dimensions_do_not_align(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_broadcast_domain_propagates_through_transform_dag(
     backend: Backend,
@@ -266,7 +266,7 @@ def test_broadcast_domain_propagates_through_transform_dag(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_diamond_dag_broadcasts_when_branches_rejoin(
     backend: Backend,
@@ -320,7 +320,7 @@ def test_diamond_dag_broadcasts_when_branches_rejoin(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_domain_axes_are_aligned_before_scalar_transform(
     backend: Backend,
@@ -375,7 +375,7 @@ def test_domain_axes_are_aligned_before_scalar_transform(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_equal_shaped_reordered_domains_are_aligned(
     backend: Backend,
@@ -428,7 +428,7 @@ def test_equal_shaped_reordered_domains_are_aligned(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_three_overlapping_inputs_broadcast_to_union(
     backend: Backend,
@@ -496,7 +496,7 @@ def test_three_overlapping_inputs_broadcast_to_union(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_output_domain_order_is_independent_of_transform_parameter_order(
     backend: Backend,
@@ -538,7 +538,7 @@ def test_output_domain_order_is_independent_of_transform_parameter_order(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_separately_constructed_dimensions_with_same_name_align(
     backend: Backend,
@@ -576,7 +576,7 @@ def test_separately_constructed_dimensions_with_same_name_align(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_conflicting_sizes_for_same_dimension_raise(
     backend: Backend,
@@ -612,7 +612,7 @@ def test_conflicting_sizes_for_same_dimension_raise(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_size_one_does_not_broadcast_over_same_named_dimension(
     backend: Backend,
@@ -648,7 +648,7 @@ def test_size_one_does_not_broadcast_over_same_named_dimension(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_failed_evaluation_does_not_contaminate_next_evaluation(
     backend: Backend,
@@ -690,7 +690,7 @@ def test_failed_evaluation_does_not_contaminate_next_evaluation(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_scalar_input_broadcasts_over_tensor_domain(
     backend: Backend,
@@ -725,7 +725,7 @@ def test_scalar_input_broadcasts_over_tensor_domain(
 
 @pytest.mark.parametrize(
     "backend",
-    (PythonBackend(), JAXBackend()),
+    (PYTHON_BACKEND, JAX_BACKEND),
 )
 def test_each_attribute_evaluation_uses_fresh_domain_registry(
     backend: Backend,
