@@ -88,8 +88,12 @@ class BipartiteGraph:
         self,
         plan_step: PlanStep,
     ) -> None:
-        """If an System or Equation is found to be unable to be used in a certain direction after a realization, remove it from the graph."""
-        self.graph.remove_node(plan_step)
+        """Remove a step that failed realization, unless its sub-system still names another way."""
+        match plan_step.operation:
+            case SubSystemConstituent() if self.required_inputs_for_step(plan_step) is not None:
+                return
+            case _:
+                self.graph.remove_node(plan_step)
 
     def search(
         self,
