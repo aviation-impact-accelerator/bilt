@@ -519,3 +519,106 @@ def test_realizing_an_unreachable_sub_system_port_is_a_failure() -> None:
 
     assert isinstance(result, RealizationFailure)
     assert isinstance(result.cause, BiltSystemAnalysisError)
+
+
+def _rig_over_sensor() -> Implementation:
+    """A ``Rig`` whose three ports are each bridged to a ``Sensor`` sub-system.
+
+    The sensor reaches ``reading`` two ways: through a ``scaled`` transform from ``raw``, and
+    through an equation from ``calibration``. The first way is tried first, and it is the only
+    one that goes through a transform named ``scaled``, so refusing that name leaves the second.
+    """
+
+    @system
+    class Sensor(metaclass=Interface):
+        reading: float = field()
+        raw: float = field()
+        calibration: float = field()
+
+    @transform
+    def scaled(raw: float) -> float:
+        return raw * 2.0
+
+    @equation
+    def via_scaled(reading: float, scaled: float) -> bool:
+        return reading == scaled
+
+    @equation
+    def calibrated(reading: float, calibration: float) -> bool:
+        return reading == calibration + 1.0
+
+    sensor = Implementation(Sensor, [scaled, via_scaled, calibrated])
+
+    @system
+    class Rig(metaclass=Interface):
+        answer: float = field()
+        raw: float = field()
+        calibration: float = field()
+
+    @equation
+    def answer_eq(answer: float, sensor: Sensor) -> bool:
+        return answer == sensor.reading
+
+    @equation
+    def raw_eq(raw: float, sensor: Sensor) -> bool:
+        return raw == sensor.raw
+
+    @equation
+    def calibration_eq(calibration: float, sensor: Sensor) -> bool:
+        return calibration == sensor.calibration
+
+    return Implementation(
+        Rig,
+        [answer_eq, raw_eq, calibration_eq],
+        internal_implementations={"sensor": sensor},
+    )
+
+
+def test_a_sub_system_is_asked_again_after_the_way_it_first_named_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A refused way through a child must not take the child out of the parent's graph.
+
+    The child prunes the refused step from its own graph, so asking it again names the way that
+    is left. The parent narrowed its offer to ``sensor.raw`` before the refusal was known, so
+    only a second question can reach ``sensor.calibration``.
+    """
+    rig = _rig_over_sensor()
+    expected_answer = 4.0
+    attempts = _refuse_one_transform(monkeypatch, PYTHON_BACKEND, "scaled")
+
+    case = rig.analyser_for(PYTHON_BACKEND).analyse({"raw", "calibration"}, "answer")
+
+    assert attempts.count("scaled") == 1
+    assert PYTHON_BACKEND.chain_case(case).callable(raw=1.0, calibration=3.0) == expected_answer
+
+
+def test_retrying_a_sub_system_still_ends_when_the_backend_refuses_everything(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each failure prunes a graph, so the retries run out instead of going on for ever."""
+    rig = _rig_over_sensor()
+    monkeypatch.setattr(PYTHON_BACKEND, "transpile", _refuse_to_compile)
+
+    with pytest.raises(BiltSystemAnalysisError, match="Cannot compute answer"):
+        rig.analyser_for(PYTHON_BACKEND).analyse({"raw", "calibration"}, "answer")
+
+
+def test_removing_a_failed_sub_system_step_keeps_it_while_the_child_names_a_way() -> None:
+    sub_system = _resistor_sub_system()
+    graph = BipartiteGraph([sub_system], PYTHON_BACKEND)
+    step = PlanStep(operation=sub_system, output="resistor.v")
+
+    graph.remove_failed_plan_step(step)
+
+    assert step in graph.graph
+
+
+def test_removing_a_failed_sub_system_step_removes_it_once_the_child_names_none() -> None:
+    sub_system = _sealed_sub_system()
+    graph = BipartiteGraph([sub_system], PYTHON_BACKEND)
+    step = PlanStep(operation=sub_system, output="sealed.a")
+
+    graph.remove_failed_plan_step(step)
+
+    assert step not in graph.graph
