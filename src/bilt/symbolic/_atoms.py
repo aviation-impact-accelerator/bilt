@@ -23,6 +23,8 @@ __all__ = [
     "POW",
     "Atom",
     "AtomType",
+    "AxisType",
+    "axis",
     "DimensionType",
     "FloatType",
     "IntType",
@@ -77,6 +79,7 @@ OpType = AtomType("Op")
 RelationOpType = AtomType("RelationOp")
 ReductionOpType = AtomType("ReductionOp")
 DimensionType = AtomType("Dimension")
+AxisType = AtomType("Axis")
 IntType = AtomType("Integer")
 FloatType = AtomType("Float")
 
@@ -149,6 +152,9 @@ def integer(value: int) -> Atom:
 
 def floating(value: float) -> Atom:
     return Atom(FloatType, value)
+
+def axis(value: int) -> Atom:
+    return Atom(AxisType, value)
 
 
 ADD = Atom(OpType, "add")

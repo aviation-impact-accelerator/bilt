@@ -6,11 +6,14 @@ from bilt.symbolic._atoms import (
     LESS_THAN,
     MUL,
     Atom,
+    AxisType,
+    axis,
     symbol,
 )
 from bilt.symbolic._errors import TreeMutationError
 from bilt.symbolic._tree import (
     Tree,
+    axis_tree,
     equality_tree,
     float_tree,
     int_tree,
@@ -38,6 +41,27 @@ def test_float_tree_is_hash_consed() -> None:
     x2 = float_tree(1.5)
 
     assert x1 is x2
+
+
+def test_axis_tree_is_hash_consed() -> None:
+    axis1 = axis_tree(1)
+    axis2 = axis_tree(1)
+
+    assert axis1 is axis2
+
+
+def test_axis_tree_has_axis_head() -> None:
+    tree = axis_tree(1)
+
+    assert tree.head is axis(1)
+    assert tree.head.atom_type is AxisType
+    assert tree.head.value == 1
+    assert tree.args == ()
+    assert tree.is_leaf is True
+
+
+def test_axis_tree_is_distinct_from_int_tree() -> None:
+    assert axis_tree(1) is not int_tree(1)
 
 
 def test_different_leaf_values_are_different_trees() -> None:

@@ -1,0 +1,212 @@
+__all__ = [
+    "LoweredExpression",
+    "lower_expression",
+]
+
+import dataclasses
+import typing
+from collections.abc import Mapping
+
+from bilt.core._canonical_ordering import canonicalized
+from bilt.core._tensors._errors import TensorDomainError
+from bilt.symbolic._atoms import (
+    ADD,
+    INV,
+    MEAN,
+    MUL,
+    NEG,
+    POW,
+    AxisType,
+    DimensionType,
+    FloatType,
+    IntType,
+    SymbolType,
+)
+from bilt.symbolic._dimensions import Dim
+from bilt.symbolic._domains import Domain, union
+from bilt.symbolic._expressions import Expr
+from bilt.symbolic._tree import Tree, axis_tree
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class LoweredExpression:
+    """A tensor expression with named dimensions lowered to positional axes."""
+
+    tree: Tree
+    domain: Domain
+
+    def __post_init__(self) -> None:
+        if _contains_atom_type(self.tree, DimensionType):
+            message = "Lowered expressions cannot contain symbolic dimensions."
+            raise ValueError(message)
+
+
+def lower_expression(
+    expression: Expr,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    """Lower a symbolic expression into positional tensor operations."""
+    if _contains_atom_type(expression.rep, AxisType):
+        message = "Symbolic expressions cannot contain positional axes."
+        raise ValueError(message)
+
+    return _lower_tree(
+        expression.rep,
+        symbol_domains=symbol_domains,
+        canonical_order=canonical_order,
+    )
+
+
+def _lower_tree(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    if tree.is_leaf:
+        return _lower_leaf(tree, symbol_domains)
+
+    if tree.head is MEAN:
+        return _lower_mean(
+            tree,
+            symbol_domains=symbol_domains,
+            canonical_order=canonical_order,
+        )
+
+    if tree.head in (NEG, INV):
+        child = _lower_tree(
+            tree.args[0],
+            symbol_domains=symbol_domains,
+            canonical_order=canonical_order,
+        )
+
+        return LoweredExpression(
+            tree=Tree(tree.head, (child.tree,)),
+            domain=child.domain,
+        )
+
+    if tree.head in (ADD, MUL, POW):
+        children = tuple(
+            _lower_tree(
+                child,
+                symbol_domains=symbol_domains,
+                canonical_order=canonical_order,
+            )
+            for child in tree.args
+        )
+
+        output_domain = canonicalized(
+            union(*(child.domain for child in children)),
+            canonical_order,
+        ).domain
+
+        return LoweredExpression(
+            tree=Tree(
+                tree.head,
+                tuple(child.tree for child in children),
+            ),
+            domain=output_domain,
+        )
+
+    message = f"Cannot lower symbolic operation {tree.head!r}."
+    raise NotImplementedError(message)
+
+
+def _lower_leaf(
+    tree: Tree,
+    symbol_domains: Mapping[str, Domain],
+) -> LoweredExpression:
+    if tree.head.atom_type is SymbolType:
+        name = typing.cast("str", tree.head.value)
+
+        try:
+            value_domain = symbol_domains[name]
+        except KeyError:
+            message = f"No domain is known for symbol {name!r}."
+            raise TensorDomainError(message) from None
+
+        return LoweredExpression(
+            tree=tree,
+            domain=value_domain,
+        )
+
+    if tree.head.atom_type in (IntType, FloatType):
+        return LoweredExpression(
+            tree=tree,
+            domain=Domain.scalar(),
+        )
+
+    message = f"Cannot lower symbolic leaf {tree.head!r}."
+    raise NotImplementedError(message)
+
+
+def _lower_mean(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    value_tree, dim_tree = tree.args
+
+    if not dim_tree.is_leaf or dim_tree.head.atom_type is not DimensionType:
+        message = "Mean reduction requires a symbolic dimension."
+        raise TensorDomainError(message)
+
+    dim = typing.cast("Dim", dim_tree.head.value)
+
+    value = _lower_tree(
+        value_tree,
+        symbol_domains=symbol_domains,
+        canonical_order=canonical_order,
+    )
+
+    if dim not in value.domain.dims:
+        message = (
+            f"Cannot reduce dimension {dim!s}; "
+            f"it is not present in domain {value.domain!s}."
+        )
+        raise TensorDomainError(message)
+
+    try:
+        axis = canonical_order.dims.index(dim)
+    except ValueError:
+        message = (
+            f"Dimension {dim!s} is not present "
+            f"in canonical order {canonical_order!s}."
+        )
+        raise TensorDomainError(message) from None
+
+    output_domain = Domain(
+        tuple(
+            domain_dim
+            for domain_dim in value.domain.dims
+            if domain_dim is not dim
+        )
+    )
+
+    return LoweredExpression(
+        tree=Tree(
+            MEAN,
+            (
+                value.tree,
+                axis_tree(axis),
+            ),
+        ),
+        domain=output_domain,
+    )
+
+
+def _contains_atom_type(tree: Tree, atom_type: object) -> bool:
+    stack = [tree]
+
+    while stack:
+        node = stack.pop()
+
+        if node.head.atom_type is atom_type:
+            return True
+
+        stack.extend(node.args)
+
+    return False
