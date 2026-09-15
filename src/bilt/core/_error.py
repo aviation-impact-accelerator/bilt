@@ -1,4 +1,4 @@
-__all__ = ["BiltCoreError", "BiltNameError", "EquationReturnError"]
+__all__ = ["BiltCoreError", "BiltNameError", "BiltSystemAnalysisError", "EquationReturnError"]
 
 
 class BiltCoreError(Exception):
@@ -11,3 +11,7 @@ class EquationReturnError(BiltCoreError):
 
 class BiltNameError(BiltCoreError):
     """Raised when a declared name collides with the separator reserved for flattened port names."""
+
+
+class BiltSystemAnalysisError(BiltCoreError):
+    pass

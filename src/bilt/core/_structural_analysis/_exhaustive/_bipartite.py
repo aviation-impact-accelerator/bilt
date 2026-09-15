@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import networkx as nx
 
 from bilt.core._equation import BasicEquation
-from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
+from bilt.core._error import BiltSystemAnalysisError
 from bilt.core._structural_analysis._plan import PlanStep
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform

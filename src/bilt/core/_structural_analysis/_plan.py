@@ -4,7 +4,7 @@ import dataclasses
 import typing
 
 from bilt.core._equation import BasicEquation
-from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
+from bilt.core._error import BiltSystemAnalysisError
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform
 
@@ -25,7 +25,7 @@ class PlanStep:
     on graph nodes, which stand for a sub-system before any direction is chosen. It is excluded
     from equality so a step handed back from realization still finds its node.
 
-    This is intentionally decoupled from the actual isolation or system evaluation logic which takes place in _realize_analysis.
+    This is intentionally decoupled from the actual isolation or system evaluation logic which takes place in _realize.
     We are only looking to determine if the path is valid through the system graph rather than if the steps can actually be performed.
     """
 

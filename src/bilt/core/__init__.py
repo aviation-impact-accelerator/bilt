@@ -20,9 +20,8 @@ __all__ = [
     "transform",
 ]
 
-from bilt.core._error import BiltCoreError, BiltNameError, EquationReturnError
+from bilt.core._error import BiltCoreError, BiltNameError, BiltSystemAnalysisError, EquationReturnError
 from bilt.core._interface import Interface
-from bilt.core._structural_analysis import BiltSystemAnalysisError
 from bilt.core._system import (
     BiltSubSystemConflictError,
     BiltSubSystemError,

@@ -8,11 +8,11 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core import BiltSystemAnalysisError, Implementation, Interface, field, system, transform
 from bilt.core._equation import equation
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._realize_analysis._realize import RealizationFailure, _operation_to_callable
 from bilt.core._structural_analysis import StructuralAnalyser
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
 from bilt.core._structural_analysis._plan import PlanStep
+from bilt.core._structural_analysis._realize import RealizationFailure, _operation_to_callable
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.symbolic._isolation._errors import IsolationError
 
