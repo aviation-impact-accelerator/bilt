@@ -8,6 +8,8 @@ from bilt.core._port import MANGLED_SEPARATOR, QualifiedPort
 from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
 
 if typing.TYPE_CHECKING:
+    import collections.abc
+
     from bilt._backend._base_backend import Backend
     from bilt.core._system._implementation import Implementation
 
@@ -34,21 +36,28 @@ class SubSystemConstituent:
             raise BiltSystemAnalysisError(msg)
         return port
 
-    def child_route(self, qualified_output: str, backend: Backend) -> EvaluationRequest | None:
-        """Return the child-local output name and the child-local ports needed to produce it."""
+    def request_for(
+        self,
+        qualified_output: str,
+        backend: Backend,
+        *,
+        within: collections.abc.Iterable[str] | None = None,
+    ) -> EvaluationRequest | None:
+        """Return the child-local request producing ``qualified_output``, or None if no route exists.
+
+        ``within`` restricts the child to those ports, named as the parent sees them; omitted, it
+        may use any of its ports. Either way the port asked for is never one the child may use.
+        The request names only the ports it will use.
+        """
         child_output = self.child_port(qualified_output)
-        available = set(self.interface.__bilt_parameters__) - {child_output}
+        reachable = (
+            set(self.interface.__bilt_parameters__) if within is None else {self.child_port(port) for port in within}
+        )
+        available = reachable - {child_output}
         required = self.implementation.analyser_for(backend).required_inputs_for_target(available, child_output)
         if required is None:
             return None
         return EvaluationRequest(output=child_output, available=required)
-
-    def required_parent_inputs(self, qualified_output: str, backend: Backend) -> frozenset[str] | None:
-        """Return the ports needed to produce ``qualified_output``, named as the parent sees them."""
-        route = self.child_route(qualified_output, backend)
-        if route is None:
-            return None
-        return frozenset(self.qualify(port) for port in route.available)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(name={self.__bilt_name__!r}, interface={self.interface.__bilt_name__!r})"

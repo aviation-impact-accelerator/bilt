@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -152,6 +152,64 @@ def series_circuit_over_resistors() -> Implementation:
         SeriesCircuit,
         [v1_eq, v2_eq, i1_eq, r1_eq, i2_eq, r2_eq],
         internal_implementations={"resistor1": resistor, "resistor2": resistor},
+    )
+
+
+def _sensed_resistor() -> tuple[Any, Implementation]:
+    """A ``Resistor`` whose current is reachable directly or through its sense port."""
+
+    @system
+    class Resistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+        i_sense: float = field()
+
+    @equation
+    def ohms_law(v: float, i: float, r: float) -> bool:
+        return v == i * r
+
+    @equation
+    def sense_eq(i_sense: float, i: float) -> bool:
+        return i_sense == i
+
+    return Resistor, Implementation(Resistor, [ohms_law, sense_eq])
+
+
+def _child_implementation(parent: Implementation, name: str) -> Implementation:
+    """The implementation behind one of ``parent``'s sub-system references."""
+    constituent = parent._components[name]  # noqa: SLF001
+    assert isinstance(constituent, SubSystemConstituent)
+    return constituent.implementation
+
+
+@pytest.fixture
+def component_over_sensed_resistor() -> Implementation:
+    """A ``Component`` bridged to a ``Resistor`` whose current is reachable only through its sense port."""
+    Resistor, resistor = _sensed_resistor()  # noqa: N806
+
+    @system
+    class Component(metaclass=Interface):
+        voltage: float = field()
+        sense_current: float = field()
+        resistance: float = field()
+
+    @equation
+    def voltage_eq(voltage: float, resistor: Resistor) -> bool:
+        return voltage == resistor.v
+
+    @equation
+    def sense_current_eq(sense_current: float, resistor: Resistor) -> bool:
+        return sense_current == resistor.i_sense
+
+    @equation
+    def resistance_eq(resistance: float, resistor: Resistor) -> bool:
+        return resistance == resistor.r
+
+    return Implementation(
+        Component,
+        [voltage_eq, sense_current_eq, resistance_eq],
+        internal_implementations={"resistor": resistor},
     )
 
 
@@ -855,6 +913,281 @@ def test_the_named_implementation_wins_over_the_active_default(backend: Backend)
     instance = Component(current=CURRENT, resistance=RESISTANCE)
     with backend, in_scope, component:
         assert instance.voltage == VOLTAGE
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
+def test_a_child_on_its_own_takes_the_route_its_given_inputs_reach(
+    backend: Backend, component_over_sensed_resistor: Implementation
+) -> None:
+    """Handed the sense port instead of ``i``, the child solves ``r`` by the longer route."""
+    resistor = _child_implementation(component_over_sensed_resistor, "resistor")
+
+    instance = resistor.system(v=VOLTAGE, i_sense=CURRENT)
+    with backend, resistor:
+        assert instance.r == RESISTANCE
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
+def test_a_nested_child_takes_the_route_the_parents_inputs_reach(
+    backend: Backend, component_over_sensed_resistor: Implementation
+) -> None:
+    """The route the child offers the parent asks for ``i``, which no parent port reaches."""
+    instance = component_over_sensed_resistor.system(voltage=VOLTAGE, sense_current=CURRENT)
+    with backend, component_over_sensed_resistor:
+        assert instance.resistance == RESISTANCE
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
+def test_a_reachable_route_is_still_found_two_levels_down(
+    backend: Backend, component_over_sensed_resistor: Implementation
+) -> None:
+    """The sensed resistor one level further in, so a three-level hierarchy behaves like a two."""
+    component = component_over_sensed_resistor
+    Component: Any = component.system  # noqa: N806
+
+    @system
+    class Rig(metaclass=Interface):
+        supply: float = field()
+        shunt: float = field()
+        load: float = field()
+
+    @equation
+    def supply_eq(supply: float, component: Component) -> bool:
+        return supply == component.voltage
+
+    @equation
+    def shunt_eq(shunt: float, component: Component) -> bool:
+        return shunt == component.sense_current
+
+    @equation
+    def load_eq(load: float, component: Component) -> bool:
+        return load == component.resistance
+
+    rig = Implementation(
+        Rig,
+        [supply_eq, shunt_eq, load_eq],
+        internal_implementations={"component": component},
+    )
+
+    instance = Rig(supply=VOLTAGE, shunt=CURRENT)
+    with backend, rig:
+        assert instance.load == RESISTANCE
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
+def test_two_parents_reach_one_shared_child_by_different_routes(backend: Backend) -> None:
+    """One parent is wired to the resistor's current, the other only to its sense port."""
+    Resistor, resistor = _sensed_resistor()  # noqa: N806
+
+    @system
+    class DirectRig(metaclass=Interface):
+        across: float = field()
+        through: float = field()
+        ohms: float = field()
+
+    @equation
+    def direct_across_eq(across: float, resistor: Resistor) -> bool:
+        return across == resistor.v
+
+    @equation
+    def direct_through_eq(through: float, resistor: Resistor) -> bool:
+        return through == resistor.i
+
+    @equation
+    def direct_ohms_eq(ohms: float, resistor: Resistor) -> bool:
+        return ohms == resistor.r
+
+    direct = Implementation(
+        DirectRig,
+        [direct_across_eq, direct_through_eq, direct_ohms_eq],
+        internal_implementations={"resistor": resistor},
+    )
+
+    @system
+    class SensedRig(metaclass=Interface):
+        across: float = field()
+        sensed: float = field()
+        ohms: float = field()
+
+    @equation
+    def sensed_across_eq(across: float, resistor: Resistor) -> bool:
+        return across == resistor.v
+
+    @equation
+    def sensed_shunt_eq(sensed: float, resistor: Resistor) -> bool:
+        return sensed == resistor.i_sense
+
+    @equation
+    def sensed_ohms_eq(ohms: float, resistor: Resistor) -> bool:
+        return ohms == resistor.r
+
+    sensed = Implementation(
+        SensedRig,
+        [sensed_across_eq, sensed_shunt_eq, sensed_ohms_eq],
+        internal_implementations={"resistor": resistor},
+    )
+
+    direct_instance = DirectRig(across=VOLTAGE, through=CURRENT)
+    sensed_instance = SensedRig(across=VOLTAGE, sensed=CURRENT)
+    with backend, direct:
+        assert direct_instance.ohms == RESISTANCE
+    with backend, sensed:
+        assert sensed_instance.ohms == RESISTANCE
+
+
+def test_a_relation_one_backend_rejects_survives_for_a_backend_that_accepts_it() -> None:
+    """A transpile failure belongs to the backend that raised it, so it must not narrow the model."""
+
+    @system
+    class Doubler(metaclass=Interface):
+        raw: float = field()
+        doubled: float = field()
+
+    @transform
+    def doubled(raw: float) -> float:
+        total = raw
+        total += raw  # an augmented assignment is fine in Python and refused by JAX
+        return total
+
+    doubler = Implementation(Doubler, [doubled])
+
+    @system
+    class Channel(metaclass=Interface):
+        reading: float = field()
+        scaled: float = field()
+
+    @equation
+    def reading_eq(reading: float, doubler: Doubler) -> bool:
+        return reading == doubler.raw
+
+    @equation
+    def scaled_eq(scaled: float, doubler: Doubler) -> bool:
+        return scaled == doubler.doubled
+
+    channel = Implementation(Channel, [reading_eq, scaled_eq], internal_implementations={"doubler": doubler})
+
+    rejected = Channel(reading=VOLTAGE)
+    with channel, JAX_BACKEND, pytest.raises(BiltSystemAnalysisError):
+        _ = rejected.scaled
+
+    accepted = Channel(reading=VOLTAGE)
+    with channel, PYTHON_BACKEND:
+        assert accepted.scaled == VOLTAGE + VOLTAGE
+
+
+def _rig_over(component: Implementation) -> tuple[Interface, Implementation]:
+    """A ``Rig`` wired to the three ports of ``component``'s system, returned outermost first."""
+    Component: Any = component.system  # noqa: N806
+
+    @system
+    class Rig(metaclass=Interface):
+        supply: float = field()
+        draw: float = field()
+        load: float = field()
+
+    @equation
+    def supply_eq(supply: float, component: Component) -> bool:
+        return supply == component.voltage
+
+    @equation
+    def draw_eq(draw: float, component: Component) -> bool:
+        return draw == component.current
+
+    @equation
+    def load_eq(load: float, component: Component) -> bool:
+        return load == component.resistance
+
+    return Rig, Implementation(
+        Rig,
+        [supply_eq, draw_eq, load_eq],
+        internal_implementations={"component": component},
+    )
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
+def test_building_a_parents_analyser_does_not_reach_down_the_hierarchy(
+    backend: Backend, component_over_resistor: Implementation
+) -> None:
+    """A hierarchy costs what a query walks, not what it contains."""
+    resistor = _child_implementation(component_over_resistor, "resistor")
+    _, rig = _rig_over(component_over_resistor)
+
+    rig.analyser_for(backend)
+
+    assert component_over_resistor._analysers == {}  # noqa: SLF001
+    assert resistor._analysers == {}  # noqa: SLF001
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
+def test_a_query_that_walks_the_hierarchy_analyses_what_it_walks(
+    backend: Backend, component_over_resistor: Implementation
+) -> None:
+    """The other half of laziness: what a query does reach is analysed, and cached once."""
+    component = component_over_resistor
+    resistor = _child_implementation(component, "resistor")
+    rig_system, rig = _rig_over(component)
+
+    instance = rig_system(supply=VOLTAGE, draw=CURRENT)
+    with backend, rig:
+        assert instance.load == RESISTANCE
+
+    assert list(component._analysers) == [backend]  # noqa: SLF001
+    assert list(resistor._analysers) == [backend]  # noqa: SLF001
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
+def test_a_model_with_two_reachable_routes_reads_the_same_every_time(backend: Backend) -> None:
+    """Which route wins is bilt's business; that identical code keeps picking it is not."""
+
+    def build_panel() -> tuple[Interface, Implementation]:
+        @system
+        class Splitter(metaclass=Interface):
+            out: float = field()
+            a: float = field()
+            b: float = field()
+
+        @equation
+        def from_a(out: float, a: float) -> bool:
+            return out == a + 1.0
+
+        @equation
+        def from_b(out: float, b: float) -> bool:
+            return out == b * 10.0
+
+        splitter = Implementation(Splitter, [from_a, from_b])
+
+        @system
+        class Panel(metaclass=Interface):
+            first: float = field()
+            second: float = field()
+            reading: float = field()
+
+        @equation
+        def first_eq(first: float, splitter: Splitter) -> bool:
+            return first == splitter.a
+
+        @equation
+        def second_eq(second: float, splitter: Splitter) -> bool:
+            return second == splitter.b
+
+        @equation
+        def reading_eq(reading: float, splitter: Splitter) -> bool:
+            return reading == splitter.out
+
+        return Panel, Implementation(
+            Panel,
+            [first_eq, second_eq, reading_eq],
+            internal_implementations={"splitter": splitter},
+        )
+
+    readings: list[object] = []
+    for _ in range(2):
+        panel_system, panel = build_panel()
+        instance = panel_system(first=CURRENT, second=RESISTANCE)
+        with backend, panel:
+            readings.append(instance.reading)
+
+    assert readings[0] == readings[1]
 
 
 # --- refusing to guess ---------------------------------------------------------------------------

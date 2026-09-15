@@ -1,4 +1,6 @@
 __all__ = ["BipartiteGraph"]
+import dataclasses
+import itertools
 import typing
 from typing import TYPE_CHECKING
 
@@ -20,35 +22,20 @@ type Attribute = str
 type Node = Attribute | PlanStep
 
 
+def _flatten_sub_paths(sub_paths: collections.abc.Iterable[list[PlanStep]]) -> list[PlanStep]:
+    """Flatten the paths that produced a step's inputs, keeping the first step to produce each attribute."""
+    produced: dict[Attribute, PlanStep] = {}
+    for step in itertools.chain.from_iterable(sub_paths):
+        produced.setdefault(step.output, step)
+    return list(produced.values())
+
+
 class BipartiteGraph:
     def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent], backend: Backend) -> None:
         self.graph = nx.DiGraph()
         self._backend = backend
         for constituent in constituents:
             self._add_constituent(constituent)
-
-    def required_inputs_for_step(self, plan_step: PlanStep) -> frozenset[str] | None:
-        """Return the attributes a plan step consumes to produce its output.
-
-        None means the step cannot produce its output at all: a sub-system has no internal route
-        from its other ports to the one being asked for.
-        """
-        match plan_step.operation:
-            case BasicTransform() as transform:
-                if plan_step.output != transform.__bilt_name__:
-                    msg = f"{transform!r} does not produce {plan_step.output!r}."
-                    raise BiltSystemAnalysisError(msg)
-                return frozenset(transform.__bilt_parameters__)
-            case BasicEquation() as equation:
-                if plan_step.output not in equation.__bilt_parameters__:
-                    msg = f"{equation!r} does not have parameter {plan_step.output!r}."
-                    raise BiltSystemAnalysisError(msg)
-                return frozenset(equation.__bilt_parameters__) - {plan_step.output}
-            case SubSystemConstituent() as sub_system:
-                return sub_system.required_parent_inputs(plan_step.output, self._backend)
-            case _:
-                msg = f"Constituent type {type(plan_step.operation)} is not supported."
-                raise NotImplementedError(msg)
 
     def _add_constituent(self, constituent: BiltModelConstituent) -> None:
         """Add a new constituent to the graph."""
@@ -89,11 +76,12 @@ class BipartiteGraph:
         plan_step: PlanStep,
     ) -> None:
         """Remove a step that failed realization, unless its sub-system still names another way."""
-        match plan_step.operation:
-            case SubSystemConstituent() if self.required_inputs_for_step(plan_step) is not None:
-                return
-            case _:
-                self.graph.remove_node(plan_step)
+        sub_system = plan_step.operation
+        if isinstance(sub_system, SubSystemConstituent) and (
+            sub_system.request_for(plan_step.output, self._backend) is not None
+        ):
+            return
+        self.graph.remove_node(plan_step)
 
     def search(
         self,
@@ -126,26 +114,52 @@ class BipartiteGraph:
         available: set[str],
         visited: set[Node],
     ) -> list[PlanStep] | None:
-        """Search for a path through a constituent node, resolving every input it needs.
+        """Search for a path through a constituent node, resolving every input it needs."""
+        match plan_step.operation:
+            case SubSystemConstituent() as sub_system:
+                return self._search_sub_system(plan_step, sub_system, available, visited)
+            case _:
+                wanted = plan_step.consumed
+                resolved = self._resolve_inputs(wanted, available, visited)
+                if len(resolved) != len(wanted):
+                    return None
+                return [*_flatten_sub_paths(resolved.values()), plan_step]
 
-        Inputs are visited in sorted order so a given query always yields the same plan ordering.
-        """
-        required = self.required_inputs_for_step(plan_step)
-        if required is None:
+    def _search_sub_system(
+        self,
+        plan_step: PlanStep,
+        sub_system: SubSystemConstituent,
+        available: set[str],
+        visited: set[Node],
+    ) -> list[PlanStep] | None:
+        """Search for a path through a sub-system, from the ports the parent can reach."""
+        unconstrained = sub_system.request_for(plan_step.output, self._backend)
+        if unconstrained is None:
             return None
+        settled = dataclasses.replace(plan_step, request=unconstrained)
+        resolved = self._resolve_inputs(settled.consumed, available, visited)
+        if len(resolved) == len(settled.consumed):
+            return [*_flatten_sub_paths(resolved.values()), settled]
+        rest = [port for port in sorted(sub_system.__bilt_parameters__) if port not in resolved]
+        reached = resolved | self._resolve_inputs(rest, available, visited)
+        request = sub_system.request_for(plan_step.output, self._backend, within=reached)
+        if request is None:
+            return None
+        settled = dataclasses.replace(plan_step, request=request)
+        return [*_flatten_sub_paths(reached[port] for port in settled.consumed), settled]
 
-        path: list[PlanStep] = []
-        included: set[PlanStep] = set()
-        for neighbor in sorted(required):
-            sub_path = self.search(available, neighbor, visited)
-            if sub_path is None:
-                return None
-            for step in sub_path:
-                if step not in included:
-                    included.add(step)
-                    path.append(step)
-        path.append(plan_step)
-        return path
+    def _resolve_inputs(
+        self,
+        attributes: collections.abc.Iterable[Attribute],
+        available: set[str],
+        visited: set[Node],
+    ) -> dict[Attribute, list[PlanStep]]:
+        resolved: dict[Attribute, list[PlanStep]] = {}
+        for attribute in attributes:
+            sub_path = self.search(available, attribute, visited)
+            if sub_path is not None:
+                resolved[attribute] = sub_path
+        return resolved
 
     def _search_attribute(
         self,
