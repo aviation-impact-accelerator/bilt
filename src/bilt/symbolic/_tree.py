@@ -3,14 +3,19 @@ import weakref
 
 from bilt.symbolic._atoms import (
     EQUALS,
+    MEAN,
     Atom,
     RelationOpType,
+    dimension,
     floating,
     integer,
     relation_operator,
     symbol,
 )
 from bilt.symbolic._errors import TreeMutationError
+
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._dimensions import Dim
 
 _tree_cache: weakref.WeakValueDictionary[
     tuple[Atom, tuple[Tree, ...]],
@@ -19,9 +24,11 @@ _tree_cache: weakref.WeakValueDictionary[
 
 __all__ = [
     "Tree",
+    "dimension_tree",
     "equality_tree",
     "float_tree",
     "int_tree",
+    "mean_tree",
     "relation_tree",
     "symbol_tree",
 ]
@@ -148,12 +155,27 @@ def symbol_tree(name: str) -> Tree:
     return Tree(symbol(name))
 
 
+def dimension_tree(dim: Dim) -> Tree:
+    return Tree(dimension(dim))
+
+
 def int_tree(n: int) -> Tree:
     return Tree(integer(n))
 
 
 def float_tree(x: float) -> Tree:
     return Tree(floating(x))
+
+
+def mean_tree(value: Tree, dim: Dim) -> Tree:
+    """Construct a symbolic mean reduction tree."""
+    return Tree(
+        MEAN,
+        (
+            value,
+            dimension_tree(dim),
+        ),
+    )
 
 
 def relation_tree(operator: Atom | str, left: Tree, right: Tree) -> Tree:
