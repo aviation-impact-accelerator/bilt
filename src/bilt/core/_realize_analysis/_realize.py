@@ -129,8 +129,7 @@ def _guarded_transpile(
 class RealizationFailure:
     """A plan step that could not be compiled to a callable.
 
-    ``cause`` is kept so a search that exhausts every route can report why each was rejected,
-    not merely that none were left.
+    ``cause`` is kept so a search that exhausts every route can report why each was rejected.
     """
 
     failed_plan_step: PlanStep

@@ -31,11 +31,6 @@ def _flatten_sub_paths(sub_paths: collections.abc.Iterable[list[PlanStep]]) -> l
 
 
 class BipartiteGraph:
-    """Attributes and the directed steps that produce them, for one implementation and backend.
-
-    The graph is tied to a backend because a step that one backend refuses is pruned from it.
-    """
-
     def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent], backend: Backend) -> None:
         self.graph = nx.DiGraph()
         self._backend = backend
