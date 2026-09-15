@@ -140,9 +140,7 @@ class BipartiteGraph:
         resolved = self._resolve_inputs(settled.consumed, available, visited)
         if len(resolved) == len(settled.consumed):
             return [*_flatten_sub_paths(resolved.values()), settled]
-        rest = [
-            port for port in sorted(sub_system.__bilt_parameters__) if port != plan_step.output and port not in resolved
-        ]
+        rest = [port for port in sorted(sub_system.__bilt_parameters__) if port not in resolved]
         reached = resolved | self._resolve_inputs(rest, available, visited)
         request = sub_system.request_for(plan_step.output, self._backend, within=reached)
         if request is None:
