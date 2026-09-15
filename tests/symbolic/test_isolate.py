@@ -2,6 +2,8 @@ import typing
 
 import pytest
 
+from bilt.math import mean
+from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import (
     TargetNotFoundError,
@@ -134,3 +136,34 @@ def test_isolate_raises_when_target_occurs_more_than_once() -> None:
 
     with pytest.raises(UnsupportedIsolationError):
         isolate(make_add(x, x) == y, x)
+
+
+def test_isolate_allows_mean_on_rhs() -> None:
+    time = Dim("time")
+    x = Expr.symbol("x")
+    y = Expr.symbol("y")
+
+    actual = isolate(y == mean(x, time), y)
+
+    assert_same_tree(actual.as_tree(), y == mean(x, time))
+
+
+def test_isolate_rearranges_around_mean() -> None:
+    time = Dim("time")
+    x = Expr.symbol("x")
+    a = Expr.symbol("a")
+    y = Expr.symbol("y")
+
+    actual = isolate(y == a + mean(x, time), a)
+
+    expected_rhs = y - mean(x, time)
+    assert_same_tree(actual.as_tree(), a == expected_rhs)
+
+
+def test_isolate_cannot_invert_mean() -> None:
+    time = Dim("time")
+    x = Expr.symbol("x")
+    y = Expr.symbol("y")
+
+    with pytest.raises(UnsupportedIsolationError):
+        isolate(y == mean(x, time), x)
