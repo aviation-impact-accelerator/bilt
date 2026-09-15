@@ -39,17 +39,22 @@ class SubSystemConstituent:
     def request_for(
         self,
         qualified_output: str,
-        reachable: collections.abc.Iterable[str],
         backend: Backend,
+        *,
+        within: collections.abc.Iterable[str] | None = None,
     ) -> EvaluationRequest | None:
-        """Return the child-local request producing ``qualified_output`` from the ``reachable`` ports.
+        """Return the child-local request producing ``qualified_output``.
 
-        ``reachable`` is what the parent offers, named as the parent sees it; the request names the
-        ports the child will actually use, which is generally fewer. None when the child has no route
-        to ``qualified_output`` from that offer.
+        ``within`` restricts the child to those ports, named as the parent sees them; omitted, the
+        child may use any port but the one asked for. The request names the ports the child will
+        actually use, which is generally fewer. None when no route exists under that restriction.
         """
         child_output = self.child_port(qualified_output)
-        available = {self.child_port(port) for port in reachable}
+        available = (
+            set(self.interface.__bilt_parameters__) - {child_output}
+            if within is None
+            else {self.child_port(port) for port in within}
+        )
         required = self.implementation.analyser_for(backend).required_inputs_for_target(available, child_output)
         if required is None:
             return None

@@ -517,7 +517,7 @@ def test_a_sub_system_is_asked_again_after_the_way_it_first_named_is_refused(
     """A refused way through a child must not take the child out of the parent's graph.
 
     The child prunes the refused step from its own graph, so asking it again names the way that
-    is left. The parent narrowed its offer to ``sensor.raw`` before the refusal was known, so
+    is left. The parent settled on ``sensor.raw`` before the refusal was known, so
     only a second question can reach ``sensor.calibration``.
     """
     rig = _rig_over_sensor()

@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     import collections.abc
 
     from bilt._backend._base_backend import Backend
-    from bilt.core._evaluation_request import EvaluationRequest
     from bilt.core._model_constituent import BiltModelConstituent
 
 type Attribute = str
@@ -72,18 +71,12 @@ class BipartiteGraph:
         plan_step: PlanStep,
     ) -> None:
         """Remove a step that failed realization, unless its sub-system still names another way."""
-        match plan_step.operation:
-            case SubSystemConstituent() as sub_system if self._widest_request(sub_system, plan_step.output) is not None:
-                return
-            case _:
-                self.graph.remove_node(plan_step)
-
-    def _widest_request(self, sub_system: SubSystemConstituent, output: str) -> EvaluationRequest | None:
-        """Ask a child for a route to one of its ports from every other port it has.
-
-        This is the most a parent could ever offer, so None means the child has no route at all.
-        """
-        return sub_system.request_for(output, _ports_offered(sub_system, output), self._backend)
+        sub_system = plan_step.operation
+        if isinstance(sub_system, SubSystemConstituent) and (
+            sub_system.request_for(plan_step.output, self._backend) is not None
+        ):
+            return
+        self.graph.remove_node(plan_step)
 
     def search(
         self,
@@ -142,19 +135,21 @@ class BipartiteGraph:
         reach its output from every port cannot reach it from fewer, so that second ask is only
         worth making once the first has named a route.
         """
-        offer = _ports_offered(sub_system, plan_step.output)
-        optimistic = self._widest_request(sub_system, plan_step.output)
-        if optimistic is None:
+        unconstrained = sub_system.request_for(plan_step.output, self._backend)
+        if unconstrained is None:
             return None
 
-        settled = plan_step.settled_on(optimistic)
+        settled = plan_step.settled_on(unconstrained)
         wanted = settled.consumed
         resolved = self._resolve_inputs(wanted, available, visited)
         if len(resolved) == len(wanted):
             return self._assemble(resolved.values(), settled)
 
-        reached = resolved | self._resolve_inputs([port for port in offer if port not in resolved], available, visited)
-        request = sub_system.request_for(plan_step.output, reached.keys(), self._backend)
+        rest = [
+            port for port in sorted(sub_system.__bilt_parameters__) if port != plan_step.output and port not in resolved
+        ]
+        reached = resolved | self._resolve_inputs(rest, available, visited)
+        request = sub_system.request_for(plan_step.output, self._backend, within=reached)
         if request is None:
             return None
         settled = plan_step.settled_on(request)
@@ -202,8 +197,3 @@ class BipartiteGraph:
             if sub_path is not None:
                 return sub_path
         return None
-
-
-def _ports_offered(sub_system: SubSystemConstituent, output: str) -> tuple[str, ...]:
-    """Return every port of a sub-system but the one being asked for, in a stable order."""
-    return tuple(sorted(set(sub_system.__bilt_parameters__) - {output}))

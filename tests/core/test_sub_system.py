@@ -46,7 +46,7 @@ def sealed_sub_system() -> SubSystemConstituent:
 
 @pytest.fixture
 def spare_port_sub_system() -> SubSystemConstituent:
-    """A resistor carrying a port no equation reads, so an offer can hold more than is needed."""
+    """A resistor carrying a port no equation reads, so a caller can name more ports than are needed."""
 
     @system
     class SensedResistor(metaclass=Interface):
@@ -129,7 +129,7 @@ def test_child_port_rejects_a_name_that_is_not_one_of_its_ports(
 
 
 def test_a_request_names_its_ports_in_child_local_terms(sub_system: SubSystemConstituent) -> None:
-    request = sub_system.request_for("resistor.v", {"resistor.i", "resistor.r"}, PYTHON_BACKEND)
+    request = sub_system.request_for("resistor.v", PYTHON_BACKEND, within={"resistor.i", "resistor.r"})
 
     assert request == EvaluationRequest(output="v", available=frozenset({"i", "r"}))
 
@@ -137,23 +137,32 @@ def test_a_request_names_its_ports_in_child_local_terms(sub_system: SubSystemCon
 def test_a_request_asks_only_for_the_ports_the_child_uses(
     spare_port_sub_system: SubSystemConstituent,
 ) -> None:
-    """Offered a port no equation reads, the child leaves it out of the request."""
+    """Given a port no equation reads, the child leaves it out of the request."""
     request = spare_port_sub_system.request_for(
         "resistor.v",
-        {"resistor.i", "resistor.r", "resistor.temperature"},
         PYTHON_BACKEND,
+        within={"resistor.i", "resistor.r", "resistor.temperature"},
     )
 
     assert request is not None
     assert request.available == frozenset({"i", "r"})
 
 
+def test_an_unrestricted_request_may_use_every_port_but_the_output(
+    spare_port_sub_system: SubSystemConstituent,
+) -> None:
+    """Without ``within`` the child is free to route from any of its own ports."""
+    request = spare_port_sub_system.request_for("resistor.v", PYTHON_BACKEND)
+
+    assert request == EvaluationRequest(output="v", available=frozenset({"i", "r"}))
+
+
 def test_there_is_no_request_without_an_internal_route(sealed_sub_system: SubSystemConstituent) -> None:
-    assert sealed_sub_system.request_for("sealed.a", {"sealed.b"}, PYTHON_BACKEND) is None
+    assert sealed_sub_system.request_for("sealed.a", PYTHON_BACKEND, within={"sealed.b"}) is None
 
 
-def test_there_is_no_request_when_the_offer_falls_short(sub_system: SubSystemConstituent) -> None:
-    assert sub_system.request_for("resistor.v", {"resistor.i"}, PYTHON_BACKEND) is None
+def test_there_is_no_request_when_the_restriction_falls_short(sub_system: SubSystemConstituent) -> None:
+    assert sub_system.request_for("resistor.v", PYTHON_BACKEND, within={"resistor.i"}) is None
 
 
 def test_repr_names_the_reference_and_its_interface(sub_system: SubSystemConstituent) -> None:
