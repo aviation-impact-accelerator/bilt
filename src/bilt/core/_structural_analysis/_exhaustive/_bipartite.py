@@ -1,4 +1,5 @@
 __all__ = ["BipartiteGraph"]
+import dataclasses
 import typing
 from typing import TYPE_CHECKING
 
@@ -127,24 +128,14 @@ class BipartiteGraph:
         available: set[str],
         visited: set[Node],
     ) -> list[PlanStep] | None:
-        """Search for a path through a sub-system, from the ports the parent can reach.
-
-        The child is asked what it needs before anything is resolved, since resolving every port to
-        find out costs a search apiece. Only when the route it names is out of the parent's reach
-        does the parent resolve the rest and ask again with what it reached. A child that cannot
-        reach its output from every port cannot reach it from fewer, so that second ask is only
-        worth making once the first has named a route.
-        """
+        """Search for a path through a sub-system, from the ports the parent can reach."""
         unconstrained = sub_system.request_for(plan_step.output, self._backend)
         if unconstrained is None:
             return None
-
-        settled = plan_step.settled_on(unconstrained)
-        wanted = settled.consumed
-        resolved = self._resolve_inputs(wanted, available, visited)
-        if len(resolved) == len(wanted):
+        settled = dataclasses.replace(plan_step, request=unconstrained)
+        resolved = self._resolve_inputs(settled.consumed, available, visited)
+        if len(resolved) == len(settled.consumed):
             return self._assemble(resolved.values(), settled)
-
         rest = [
             port for port in sorted(sub_system.__bilt_parameters__) if port != plan_step.output and port not in resolved
         ]
@@ -152,7 +143,7 @@ class BipartiteGraph:
         request = sub_system.request_for(plan_step.output, self._backend, within=reached)
         if request is None:
             return None
-        settled = plan_step.settled_on(request)
+        settled = dataclasses.replace(plan_step, request=request)
         return self._assemble([reached[port] for port in settled.consumed], settled)
 
     def _resolve_inputs(
@@ -161,7 +152,6 @@ class BipartiteGraph:
         available: set[str],
         visited: set[Node],
     ) -> dict[Attribute, list[PlanStep]]:
-        """Resolve what can be resolved, and say nothing about the rest."""
         resolved: dict[Attribute, list[PlanStep]] = {}
         for attribute in attributes:
             sub_path = self.search(available, attribute, visited)
@@ -176,8 +166,7 @@ class BipartiteGraph:
     ) -> list[PlanStep]:
         """Concatenate the paths that produced a step's inputs, then the step itself.
 
-        Only the first step to produce an attribute is kept, so a plan never computes one attribute
-        twice by two different routes.
+        Only the first step to produce an attribute is kept, so no attribute is computed twice.
         """
         produced: dict[Attribute, PlanStep] = {}
         for sub_path in sub_paths:

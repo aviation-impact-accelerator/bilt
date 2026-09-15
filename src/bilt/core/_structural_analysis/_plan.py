@@ -21,9 +21,9 @@ class PlanStep:
     For transforms, ``output`` equals the transform's ``__bilt_name__``.
     For equations, ``output`` is whichever parameter is being isolated.
 
-    For sub-systems, ``request`` names the child-local evaluation the search settled on; it is
-    None on the graph's own nodes, which stand for a sub-system before any direction is chosen.
-    It is excluded from equality so a step handed back from realization still finds its node.
+    For sub-systems, ``request`` is the child-local evaluation the search settled on, and is None
+    on graph nodes, which stand for a sub-system before any direction is chosen. It is excluded
+    from equality so a step handed back from realization still finds its node.
 
     This is intentionally decoupled from the actual isolation or system evaluation logic which takes place in _realize_analysis.
     We are only looking to determine if the path is valid through the system graph rather than if the steps can actually be performed.
@@ -38,10 +38,8 @@ class PlanStep:
         """Return the attributes this step reads to produce its output, in a stable order.
 
         A sub-system step reads the ports of the route it settled on, so asking before it has
-        settled is an error rather than a guess at the widest set it might read.
-
-        The order is the one every consumer relies on, so a parent wrapping a child's callable
-        passes its arguments in the order the child's own parameters were built in.
+        settled is an error rather than a guess at the widest set it might read. Callers rely on
+        this order when passing arguments to a wrapped child callable.
         """
         match self.operation:
             case BasicTransform() as transform:
@@ -56,10 +54,6 @@ class PlanStep:
             case _:
                 msg = f"Constituent type {type(self.operation)} is not supported."
                 raise NotImplementedError(msg)
-
-    def settled_on(self, request: EvaluationRequest) -> typing.Self:
-        """Return this step carrying the child-local request the search settled on."""
-        return dataclasses.replace(self, request=request)
 
 
 @dataclasses.dataclass(frozen=True)

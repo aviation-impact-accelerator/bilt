@@ -7,7 +7,7 @@ if typing.TYPE_CHECKING:
 
 
 class StructuralAnalyser(typing.Protocol):
-    """Protocol for a structural analyser that searches for a solution plan for a certain backend."""
+    """Protocol for a structural analyser that plans solutions for one backend."""
 
     def analyse(self, available: set[str], output: str) -> BackendCase: ...
 

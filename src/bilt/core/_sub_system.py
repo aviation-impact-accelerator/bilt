@@ -43,11 +43,10 @@ class SubSystemConstituent:
         *,
         within: collections.abc.Iterable[str] | None = None,
     ) -> EvaluationRequest | None:
-        """Return the child-local request producing ``qualified_output``.
+        """Return the child-local request producing ``qualified_output``, or None if no route exists.
 
         ``within`` restricts the child to those ports, named as the parent sees them; omitted, the
-        child may use any port but the one asked for. The request names the ports the child will
-        actually use, which is generally fewer. None when no route exists under that restriction.
+        child may use any port but the one asked for. The request names only the ports it will use.
         """
         child_output = self.child_port(qualified_output)
         available = (
