@@ -1,4 +1,4 @@
-__all__ = ["BipartiteGraph", "required_inputs_for_target"]
+__all__ = ["BipartiteGraph"]
 import typing
 from typing import TYPE_CHECKING
 
@@ -13,41 +13,42 @@ from bilt.core._transform import BasicTransform
 if TYPE_CHECKING:
     import collections.abc
 
+    from bilt._backend._base_backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
 
 type Attribute = str
 type Node = Attribute | PlanStep
 
 
-def required_inputs_for_target(plan_step: PlanStep) -> frozenset[str] | None:
-    """Return the attributes a plan step consumes to produce its output.
-
-    None means the step cannot produce its output at all: a sub-system has no internal route
-    from its other ports to the one being asked for.
-    """
-    match plan_step.operation:
-        case BasicTransform() as transform:
-            if plan_step.output != transform.__bilt_name__:
-                msg = f"{transform!r} does not produce {plan_step.output!r}."
-                raise BiltSystemAnalysisError(msg)
-            return frozenset(transform.__bilt_parameters__)
-        case BasicEquation() as equation:
-            if plan_step.output not in equation.__bilt_parameters__:
-                msg = f"{equation!r} does not have parameter {plan_step.output!r}."
-                raise BiltSystemAnalysisError(msg)
-            return frozenset(equation.__bilt_parameters__) - {plan_step.output}
-        case SubSystemConstituent() as sub_system:
-            return sub_system.required_parent_inputs(plan_step.output)
-        case _:
-            msg = f"Constituent type {type(plan_step.operation)} is not supported."
-            raise NotImplementedError(msg)
-
-
 class BipartiteGraph:
-    def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent]) -> None:
+    def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent], backend: Backend) -> None:
         self.graph = nx.DiGraph()
+        self._backend = backend
         for constituent in constituents:
             self._add_constituent(constituent)
+
+    def required_inputs_for_step(self, plan_step: PlanStep) -> frozenset[str] | None:
+        """Return the attributes a plan step consumes to produce its output.
+
+        None means the step cannot produce its output at all: a sub-system has no internal route
+        from its other ports to the one being asked for.
+        """
+        match plan_step.operation:
+            case BasicTransform() as transform:
+                if plan_step.output != transform.__bilt_name__:
+                    msg = f"{transform!r} does not produce {plan_step.output!r}."
+                    raise BiltSystemAnalysisError(msg)
+                return frozenset(transform.__bilt_parameters__)
+            case BasicEquation() as equation:
+                if plan_step.output not in equation.__bilt_parameters__:
+                    msg = f"{equation!r} does not have parameter {plan_step.output!r}."
+                    raise BiltSystemAnalysisError(msg)
+                return frozenset(equation.__bilt_parameters__) - {plan_step.output}
+            case SubSystemConstituent() as sub_system:
+                return sub_system.required_parent_inputs(plan_step.output, self._backend)
+            case _:
+                msg = f"Constituent type {type(plan_step.operation)} is not supported."
+                raise NotImplementedError(msg)
 
     def _add_constituent(self, constituent: BiltModelConstituent) -> None:
         """Add a new constituent to the graph."""
@@ -87,29 +88,25 @@ class BipartiteGraph:
         self,
         plan_step: PlanStep,
     ) -> None:
-        """If an System or Equation is found to be unable to be used in a certain direction after a realization, remove it from the graph."""
-        self.graph.remove_node(plan_step)
+        """Remove a step that failed realization, unless its sub-system still names another way."""
+        match plan_step.operation:
+            case SubSystemConstituent() if self.required_inputs_for_step(plan_step) is not None:
+                return
+            case _:
+                self.graph.remove_node(plan_step)
 
     def search(
         self,
         available: set[str],
         output: Node,
         visited: set[Node] | None = None,
-        excluded: frozenset[PlanStep] = frozenset(),
     ) -> list[PlanStep] | None:
-        """Depth-first search for a path from available inputs to the desired output.
-
-        ``excluded`` names plan steps to route around for this query only. Steps that can never
-        be realized are removed from the graph outright; ``excluded`` is for failures that depend
-        on the requested inputs or the concrete backend, which must not outlive the query.
-        """
+        """Depth-first search for a path from available inputs to the desired output."""
         if output not in self.graph:
             msg = f"Output {output} is not in the graph. Please check the constituents provided."
             raise BiltSystemAnalysisError(msg)
         if output in available:
             return []
-        if output in excluded:
-            return None
 
         on_path: set[Node] = set() if visited is None else visited
         if output in on_path:
@@ -118,8 +115,8 @@ class BipartiteGraph:
         on_path.add(output)
         try:
             if self.graph.nodes[output]["bipartite"] == "constituent":
-                return self._search_constituent(typing.cast("PlanStep", output), available, on_path, excluded)
-            return self._search_attribute(typing.cast("Attribute", output), available, on_path, excluded)
+                return self._search_constituent(typing.cast("PlanStep", output), available, on_path)
+            return self._search_attribute(typing.cast("Attribute", output), available, on_path)
         finally:
             on_path.discard(output)
 
@@ -128,20 +125,19 @@ class BipartiteGraph:
         plan_step: PlanStep,
         available: set[str],
         visited: set[Node],
-        excluded: frozenset[PlanStep] = frozenset(),
     ) -> list[PlanStep] | None:
         """Search for a path through a constituent node, resolving every input it needs.
 
         Inputs are visited in sorted order so a given query always yields the same plan ordering.
         """
-        required = required_inputs_for_target(plan_step)
+        required = self.required_inputs_for_step(plan_step)
         if required is None:
             return None
 
         path: list[PlanStep] = []
         included: set[PlanStep] = set()
         for neighbor in sorted(required):
-            sub_path = self.search(available, neighbor, visited, excluded)
+            sub_path = self.search(available, neighbor, visited)
             if sub_path is None:
                 return None
             for step in sub_path:
@@ -156,11 +152,10 @@ class BipartiteGraph:
         attribute: Attribute,
         available: set[str],
         visited: set[Node],
-        excluded: frozenset[PlanStep] = frozenset(),
     ) -> list[PlanStep] | None:
         """Search for a path through an attribute node, trying each constituent that produces it."""
         for neighbor in self.graph.predecessors(attribute):
-            sub_path = self.search(available, neighbor, visited, excluded)
+            sub_path = self.search(available, neighbor, visited)
             if sub_path is not None:
                 return sub_path
         return None

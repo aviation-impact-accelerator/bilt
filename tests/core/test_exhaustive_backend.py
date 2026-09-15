@@ -3,16 +3,24 @@ import typing
 import pytest
 
 from bilt._backend._errors import UnsupportedNodeError
-from bilt._backend._python._backend import PythonBackend
+from bilt._backend._jax._backend import JAX_BACKEND
+from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core import BiltSystemAnalysisError, Implementation, Interface, field, system, transform
 from bilt.core._equation import equation
+from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._realize_analysis._realize import RealizationFailure, _operation_to_callable
 from bilt.core._structural_analysis import StructuralAnalyser
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
-from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph, required_inputs_for_target
+from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
 from bilt.core._structural_analysis._plan import PlanStep
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.symbolic._isolation._errors import IsolationError
+
+if typing.TYPE_CHECKING:
+    import ast
+
+    from bilt._backend._base_backend import Backend
+    from bilt._backend._callable import BackendCallable
 
 
 @typing.runtime_checkable
@@ -26,12 +34,35 @@ def _refuse_to_compile(_function_definition: object) -> typing.NoReturn:
     raise UnsupportedNodeError(msg)
 
 
+def _refuse_one_transform(
+    monkeypatch: pytest.MonkeyPatch,
+    backend: Backend,
+    refused: str,
+) -> list[str]:
+    """Make ``backend`` reject one named function, and return the log of what it was asked to compile.
+
+    The log is what makes a re-attempt visible: a backend that is asked twice for a function it
+    has already refused has been told nothing by the first refusal.
+    """
+    attempts: list[str] = []
+    transpile = backend.transpile
+
+    def counting_transpile(function_definition: ast.FunctionDef) -> BackendCallable:
+        attempts.append(function_definition.name)
+        if function_definition.name == refused:
+            _refuse_to_compile(function_definition)
+        return transpile(function_definition)
+
+    monkeypatch.setattr(backend, "transpile", counting_transpile)
+    return attempts
+
+
 def test_exhaustive_analyser_conforms_to_the_structural_analyser_protocol() -> None:
     @transform
     def c(a: float, b: float) -> float:
         return a + b
 
-    analyser = ExhaustiveStructuralAnalyser([c])
+    analyser = ExhaustiveStructuralAnalyser([c], PYTHON_BACKEND)
 
     assert isinstance(analyser, _RuntimeStructuralAnalyser)
 
@@ -41,9 +72,8 @@ def test_exhaustive_analyser_produces_a_working_callable() -> None:
     def c(a: float, b: float) -> float:
         return a + b
 
-    backend = PythonBackend()
-    result = ExhaustiveStructuralAnalyser([c]).analyse({"a", "b"}, "c", backend)
-    backend_case = backend.chain_case(result)
+    result = ExhaustiveStructuralAnalyser([c], PYTHON_BACKEND).analyse({"a", "b"}, "c")
+    backend_case = PYTHON_BACKEND.chain_case(result)
     assert backend_case.callable(a=1.0, b=2.0) == c(a=1.0, b=2.0)
 
 
@@ -52,7 +82,9 @@ def test_required_inputs_for_target_of_a_transform() -> None:
     def c(a: float, b: float) -> float:
         return a + b
 
-    assert required_inputs_for_target(PlanStep(operation=c, output="c")) == frozenset({"a", "b"})
+    assert BipartiteGraph([c], PYTHON_BACKEND).required_inputs_for_step(PlanStep(operation=c, output="c")) == frozenset(
+        {"a", "b"}
+    )
 
 
 def test_required_inputs_for_target_of_an_equation() -> None:
@@ -60,7 +92,9 @@ def test_required_inputs_for_target_of_an_equation() -> None:
     def ohms_law(v: float, i: float, r: float) -> bool:
         return v == i * r
 
-    assert required_inputs_for_target(PlanStep(operation=ohms_law, output="v")) == frozenset({"i", "r"})
+    assert BipartiteGraph([ohms_law], PYTHON_BACKEND).required_inputs_for_step(
+        PlanStep(operation=ohms_law, output="v")
+    ) == frozenset({"i", "r"})
 
 
 def test_required_inputs_for_target_rejects_a_transform_output_mismatch() -> None:
@@ -69,7 +103,7 @@ def test_required_inputs_for_target_rejects_a_transform_output_mismatch() -> Non
         return a + b
 
     with pytest.raises(BiltSystemAnalysisError, match="does not produce"):
-        required_inputs_for_target(PlanStep(operation=c, output="a"))
+        BipartiteGraph([c], PYTHON_BACKEND).required_inputs_for_step(PlanStep(operation=c, output="a"))
 
 
 def test_required_inputs_for_target_rejects_an_unknown_equation_parameter() -> None:
@@ -78,7 +112,7 @@ def test_required_inputs_for_target_rejects_an_unknown_equation_parameter() -> N
         return v == i * r
 
     with pytest.raises(BiltSystemAnalysisError, match="does not have parameter"):
-        required_inputs_for_target(PlanStep(operation=ohms_law, output="p"))
+        BipartiteGraph([ohms_law], PYTHON_BACKEND).required_inputs_for_step(PlanStep(operation=ohms_law, output="p"))
 
 
 def test_required_inputs_for_target_rejects_an_unsupported_operation() -> None:
@@ -86,8 +120,11 @@ def test_required_inputs_for_target_rejects_an_unsupported_operation() -> None:
         __bilt_name__: str = "unsupported"
         __bilt_parameters__: tuple[str, ...] = ("a",)
 
+    unsupported = Unsupported()
+    graph = BipartiteGraph([], PYTHON_BACKEND)
+
     with pytest.raises(NotImplementedError, match="is not supported"):
-        required_inputs_for_target(PlanStep(operation=Unsupported(), output="unsupported"))
+        graph.required_inputs_for_step(PlanStep(operation=unsupported, output="unsupported"))
 
 
 def test_bipartite_graph_shape_for_an_equation() -> None:
@@ -96,7 +133,7 @@ def test_bipartite_graph_shape_for_an_equation() -> None:
         return v == i * r
 
     parameters = {"v", "i", "r"}
-    graph = BipartiteGraph([ohms_law]).graph
+    graph = BipartiteGraph([ohms_law], PYTHON_BACKEND).graph
 
     for attribute in parameters:
         step = PlanStep(operation=ohms_law, output=attribute)
@@ -112,7 +149,7 @@ def test_bipartite_graph_shape_for_a_transform() -> None:
     def c(a: float, b: float) -> float:
         return a + b
 
-    graph = BipartiteGraph([c]).graph
+    graph = BipartiteGraph([c], PYTHON_BACKEND).graph
     step = PlanStep(operation=c, output="c")
 
     assert graph.nodes[step]["bipartite"] == "constituent"
@@ -128,7 +165,7 @@ def test_bipartite_graph_rejects_an_unsupported_constituent() -> None:
         __bilt_parameters__: tuple[str, ...] = ("a",)
 
     with pytest.raises(NotImplementedError, match="is not supported in the bipartite graph"):
-        BipartiteGraph([Unsupported()])
+        BipartiteGraph([Unsupported()], PYTHON_BACKEND)
 
 
 def test_search_visits_a_shared_node_from_two_sibling_branches() -> None:
@@ -144,7 +181,7 @@ def test_search_visits_a_shared_node_from_two_sibling_branches() -> None:
     def top(base: float, mid: float) -> float:
         return base + mid
 
-    plan = BipartiteGraph([base, mid, top]).search({"a"}, "top")
+    plan = BipartiteGraph([base, mid, top], PYTHON_BACKEND).search({"a"}, "top")
 
     assert plan is not None
     assert [step.output for step in plan] == ["base", "mid", "top"]
@@ -163,7 +200,7 @@ def test_search_orders_independent_branches_deterministically() -> None:
     def r(p: float, q: float) -> float:
         return p + q
 
-    plan = BipartiteGraph([p, q, r]).search({"a", "b"}, "r")
+    plan = BipartiteGraph([p, q, r], PYTHON_BACKEND).search({"a", "b"}, "r")
 
     assert plan is not None
     assert [step.output for step in plan] == ["p", "q", "r"]
@@ -174,32 +211,12 @@ def test_search_terminates_on_mutually_derivable_attributes() -> None:
     def relation(v: float, i: float) -> bool:
         return v == i * 10.0
 
-    graph = BipartiteGraph([relation])
+    graph = BipartiteGraph([relation], PYTHON_BACKEND)
     no_inputs: set[str] = set()
 
     assert graph.search({"i"}, "v") == [PlanStep(operation=relation, output="v")]
     assert graph.search({"v"}, "i") == [PlanStep(operation=relation, output="i")]
     assert graph.search(no_inputs, "v") is None
-
-
-def test_search_routes_around_an_excluded_plan_step_without_mutating_the_graph() -> None:
-    @equation
-    def square(z: float, x: float) -> bool:
-        return z == x * x
-
-    @equation
-    def linear(x: float, w: float) -> bool:
-        return x == w + 1.0
-
-    graph = BipartiteGraph([square, linear])
-    nodes_before = set(graph.graph.nodes)
-    excluded_step = PlanStep(operation=square, output="x")
-
-    assert graph.search({"z", "w"}, "x", excluded=frozenset({excluded_step})) == [
-        PlanStep(operation=linear, output="x")
-    ]
-    assert set(graph.graph.nodes) == nodes_before
-    assert graph.search({"z", "w"}, "x") == [excluded_step]
 
 
 def test_removing_an_unrealizable_plan_step_leaves_its_output_present_but_unreachable() -> None:
@@ -211,7 +228,7 @@ def test_removing_an_unrealizable_plan_step_leaves_its_output_present_but_unreac
     def linear(x: float, w: float) -> bool:
         return x == w + 1.0
 
-    graph = BipartiteGraph([square, linear])
+    graph = BipartiteGraph([square, linear], PYTHON_BACKEND)
     pruned_step = PlanStep(operation=square, output="x")
     graph.remove_failed_plan_step(pruned_step)
 
@@ -225,13 +242,13 @@ def test_search_rejects_an_output_that_is_not_in_the_graph() -> None:
     def c(a: float, b: float) -> float:
         return a + b
 
-    graph = BipartiteGraph([c])
+    graph = BipartiteGraph([c], PYTHON_BACKEND)
 
     with pytest.raises(BiltSystemAnalysisError, match="not in the graph"):
         graph.search({"a", "b"}, "missing")
 
 
-def test_analyser_prunes_a_permanently_unrealizable_step_and_keeps_it_pruned() -> None:
+def test_analyser_prunes_an_unrealizable_step_and_keeps_it_pruned() -> None:
     @equation
     def square(z: float, x: float) -> bool:
         return z == x * x
@@ -241,15 +258,14 @@ def test_analyser_prunes_a_permanently_unrealizable_step_and_keeps_it_pruned() -
         return x == w + 1.0
 
     expected_x = 5.0
-    backend = PythonBackend()
-    analyser = ExhaustiveStructuralAnalyser([square, linear])
+    analyser = ExhaustiveStructuralAnalyser([square, linear], PYTHON_BACKEND)
     pruned_step = PlanStep(operation=square, output="x")
 
-    first_case = backend.chain_case(analyser.analyse({"z", "w"}, "x", backend))
+    first_case = PYTHON_BACKEND.chain_case(analyser.analyse({"z", "w"}, "x"))
     assert first_case.callable(w=4.0, z=25.0) == expected_x
     assert pruned_step not in analyser.bipartite_graph.graph
 
-    second_case = backend.chain_case(analyser.analyse({"z", "w"}, "x", backend))
+    second_case = PYTHON_BACKEND.chain_case(analyser.analyse({"z", "w"}, "x"))
     assert second_case.callable(w=4.0, z=25.0) == expected_x
     assert pruned_step not in analyser.bipartite_graph.graph
 
@@ -264,35 +280,62 @@ def test_analyser_raises_when_no_route_survives_pruning_but_other_routes_still_w
         return z == y + 1.0
 
     expected_z = 5.0
-    backend = PythonBackend()
-    analyser = ExhaustiveStructuralAnalyser([square, offset])
+    analyser = ExhaustiveStructuralAnalyser([square, offset], PYTHON_BACKEND)
 
     with pytest.raises(BiltSystemAnalysisError, match="Cannot compute x"):
-        analyser.analyse({"z"}, "x", backend)
+        analyser.analyse({"z"}, "x")
 
-    surviving_case = backend.chain_case(analyser.analyse({"y"}, "z", backend))
+    surviving_case = PYTHON_BACKEND.chain_case(analyser.analyse({"y"}, "z"))
     assert surviving_case.callable(y=4.0) == expected_z
 
 
-def test_a_backend_rejection_is_not_pruned_from_the_graph(monkeypatch: pytest.MonkeyPatch) -> None:
-    @equation
-    def from_w(x: float, w: float) -> bool:
-        return x == w + 1.0
+def test_a_step_one_backend_refuses_is_only_attempted_once_across_queries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    @transform
+    def b(a: float) -> float:
+        return a * 2.0
 
-    expected_x = 5.0
-    backend = PythonBackend()
-    analyser = ExhaustiveStructuralAnalyser([from_w])
-    nodes_before = set(analyser.bipartite_graph.graph.nodes)
+    @transform
+    def c(b: float) -> float:
+        return b + 1.0
 
-    monkeypatch.setattr(backend, "transpile", _refuse_to_compile)
+    @transform
+    def d(b: float) -> float:
+        return b + 2.0
+
+    analyser = ExhaustiveStructuralAnalyser([b, c, d], PYTHON_BACKEND)
+    attempts = _refuse_one_transform(monkeypatch, PYTHON_BACKEND, "b")
+
+    for output in ("c", "d"):
+        with pytest.raises(BiltSystemAnalysisError):
+            analyser.analyse({"a"}, output)
+
+    assert attempts == ["b"]
+
+
+def test_a_step_one_backend_refuses_stays_available_to_another_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    @system
+    class Doubler(metaclass=Interface):
+        a: float = field()
+        c: float = field()
+
+    @transform
+    def c(a: float) -> float:
+        return a * 2.0
+
+    expected_c = 4.0
+    implementation = Implementation(Doubler, [c])
+    request = EvaluationRequest(output="c", available=frozenset({"a"}))
+
+    _refuse_one_transform(monkeypatch, PYTHON_BACKEND, "c")
     with pytest.raises(BiltSystemAnalysisError):
-        analyser.analyse({"w"}, "x", backend)
+        implementation.get_evaluation(request, PYTHON_BACKEND)
 
-    assert set(analyser.bipartite_graph.graph.nodes) == nodes_before
-
-    monkeypatch.undo()
-    surviving_case = backend.chain_case(analyser.analyse({"w"}, "x", backend))
-    assert surviving_case.callable(w=4.0) == expected_x
+    surviving = implementation.get_evaluation(request, JAX_BACKEND)
+    assert surviving.callable(a=2.0) == expected_c
 
 
 def test_exhausted_search_reports_why_the_last_route_was_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -300,12 +343,11 @@ def test_exhausted_search_reports_why_the_last_route_was_rejected(monkeypatch: p
     def from_w(x: float, w: float) -> bool:
         return x == w + 1.0
 
-    backend = PythonBackend()
-    analyser = ExhaustiveStructuralAnalyser([from_w])
-    monkeypatch.setattr(backend, "transpile", _refuse_to_compile)
+    analyser = ExhaustiveStructuralAnalyser([from_w], PYTHON_BACKEND)
+    monkeypatch.setattr(PYTHON_BACKEND, "transpile", _refuse_to_compile)
 
     with pytest.raises(BiltSystemAnalysisError, match="unsupported") as raised:
-        analyser.analyse({"w"}, "x", backend)
+        analyser.analyse({"w"}, "x")
 
     assert isinstance(raised.value.__cause__, UnsupportedNodeError)
 
@@ -315,20 +357,12 @@ def test_exhausted_search_reports_an_isolation_failure_as_the_cause() -> None:
     def square(z: float, x: float) -> bool:
         return z == x * x
 
-    analyser = ExhaustiveStructuralAnalyser([square])
+    analyser = ExhaustiveStructuralAnalyser([square], PYTHON_BACKEND)
 
     with pytest.raises(BiltSystemAnalysisError) as raised:
-        analyser.analyse({"z"}, "x", PythonBackend())
+        analyser.analyse({"z"}, "x")
 
     assert isinstance(raised.value.__cause__, IsolationError)
-
-
-def test_realization_failure_is_permanent_by_default() -> None:
-    @equation
-    def square(z: float, x: float) -> bool:
-        return z == x * x
-
-    assert RealizationFailure(failed_plan_step=PlanStep(operation=square, output="x")).permanent is True
 
 
 def _resistor_sub_system(name: str = "resistor") -> SubSystemConstituent:
@@ -362,7 +396,7 @@ def test_bipartite_graph_shape_for_a_sub_system() -> None:
     sub_system = _resistor_sub_system()
     ports = {"resistor.v", "resistor.i", "resistor.r"}
 
-    graph = BipartiteGraph([sub_system]).graph
+    graph = BipartiteGraph([sub_system], PYTHON_BACKEND).graph
 
     for port in ports:
         step = PlanStep(operation=sub_system, output=port)
@@ -376,7 +410,9 @@ def test_bipartite_graph_shape_for_a_sub_system() -> None:
 def test_required_inputs_for_target_of_a_sub_system_qualifies_the_child_inputs() -> None:
     sub_system = _resistor_sub_system()
 
-    required = required_inputs_for_target(PlanStep(operation=sub_system, output="resistor.v"))
+    required = BipartiteGraph([sub_system], PYTHON_BACKEND).required_inputs_for_step(
+        PlanStep(operation=sub_system, output="resistor.v")
+    )
 
     assert required == frozenset({"resistor.i", "resistor.r"})
 
@@ -384,19 +420,26 @@ def test_required_inputs_for_target_of_a_sub_system_qualifies_the_child_inputs()
 def test_required_inputs_for_target_is_none_when_the_child_has_no_internal_route() -> None:
     sub_system = _sealed_sub_system()
 
-    assert required_inputs_for_target(PlanStep(operation=sub_system, output="sealed.a")) is None
+    assert (
+        BipartiteGraph([sub_system], PYTHON_BACKEND).required_inputs_for_step(
+            PlanStep(operation=sub_system, output="sealed.a")
+        )
+        is None
+    )
 
 
 def test_required_inputs_for_target_rejects_a_port_the_sub_system_does_not_have() -> None:
     sub_system = _resistor_sub_system()
 
     with pytest.raises(BiltSystemAnalysisError, match="does not have port"):
-        required_inputs_for_target(PlanStep(operation=sub_system, output="resistor.typo"))
+        BipartiteGraph([sub_system], PYTHON_BACKEND).required_inputs_for_step(
+            PlanStep(operation=sub_system, output="resistor.typo")
+        )
 
 
 def test_search_solves_a_sub_system_port_in_either_direction() -> None:
     sub_system = _resistor_sub_system()
-    graph = BipartiteGraph([sub_system])
+    graph = BipartiteGraph([sub_system], PYTHON_BACKEND)
 
     outward = graph.search({"resistor.i", "resistor.r"}, "resistor.v")
     inward = graph.search({"resistor.v", "resistor.r"}, "resistor.i")
@@ -406,14 +449,14 @@ def test_search_solves_a_sub_system_port_in_either_direction() -> None:
 
 
 def test_search_returns_none_when_a_sub_system_port_is_unreachable_inside_the_child() -> None:
-    graph = BipartiteGraph([_sealed_sub_system()])
+    graph = BipartiteGraph([_sealed_sub_system()], PYTHON_BACKEND)
 
     assert graph.search({"sealed.b"}, "sealed.a") is None
 
 
 def test_search_terminates_on_mutually_derivable_sub_system_ports() -> None:
     sub_system = _resistor_sub_system()
-    graph = BipartiteGraph([sub_system])
+    graph = BipartiteGraph([sub_system], PYTHON_BACKEND)
 
     assert graph.search({"resistor.i"}, "resistor.v") is None
 
@@ -427,7 +470,7 @@ def test_analyser_required_inputs_for_target_reports_the_inputs_a_plan_consumes(
     def c(b: float) -> float:
         return b + 1
 
-    analyser = ExhaustiveStructuralAnalyser([b, c])
+    analyser = ExhaustiveStructuralAnalyser([b, c], PYTHON_BACKEND)
 
     assert analyser.required_inputs_for_target({"a"}, "c") == frozenset({"a"})
 
@@ -437,7 +480,7 @@ def test_analyser_required_inputs_for_target_is_none_when_no_route_exists() -> N
     def c(a: float, b: float) -> float:
         return a + b
 
-    analyser = ExhaustiveStructuralAnalyser([c])
+    analyser = ExhaustiveStructuralAnalyser([c], PYTHON_BACKEND)
 
     assert analyser.required_inputs_for_target({"a"}, "c") is None
 
@@ -447,7 +490,7 @@ def test_analyser_required_inputs_for_target_is_none_for_an_unknown_output() -> 
     def c(a: float, b: float) -> float:
         return a + b
 
-    analyser = ExhaustiveStructuralAnalyser([c])
+    analyser = ExhaustiveStructuralAnalyser([c], PYTHON_BACKEND)
 
     assert analyser.required_inputs_for_target({"a", "b"}, "absent") is None
 
@@ -455,7 +498,7 @@ def test_analyser_required_inputs_for_target_is_none_for_an_unknown_output() -> 
 def test_realizing_a_sub_system_step_mangles_its_qualified_parameters() -> None:
     sub_system = _resistor_sub_system()
 
-    realized = _operation_to_callable(PlanStep(operation=sub_system, output="resistor.v"), PythonBackend())
+    realized = _operation_to_callable(PlanStep(operation=sub_system, output="resistor.v"), PYTHON_BACKEND)
 
     assert not isinstance(realized, RealizationFailure)
     assert realized.name == "resistor__v"
@@ -466,13 +509,116 @@ def test_realizing_a_sub_system_step_rejects_a_port_it_does_not_have() -> None:
     sub_system = _resistor_sub_system()
 
     with pytest.raises(BiltSystemAnalysisError, match="does not have port"):
-        _operation_to_callable(PlanStep(operation=sub_system, output="resistor.typo"), PythonBackend())
+        _operation_to_callable(PlanStep(operation=sub_system, output="resistor.typo"), PYTHON_BACKEND)
 
 
-def test_realizing_an_unreachable_sub_system_port_is_a_non_permanent_failure() -> None:
+def test_realizing_an_unreachable_sub_system_port_is_a_failure() -> None:
     sub_system = _sealed_sub_system()
 
-    result = _operation_to_callable(PlanStep(operation=sub_system, output="sealed.a"), PythonBackend())
+    result = _operation_to_callable(PlanStep(operation=sub_system, output="sealed.a"), PYTHON_BACKEND)
 
     assert isinstance(result, RealizationFailure)
-    assert result.permanent is False
+    assert isinstance(result.cause, BiltSystemAnalysisError)
+
+
+def _rig_over_sensor() -> Implementation:
+    """A ``Rig`` whose three ports are each bridged to a ``Sensor`` sub-system.
+
+    The sensor reaches ``reading`` two ways: through a ``scaled`` transform from ``raw``, and
+    through an equation from ``calibration``. The first way is tried first, and it is the only
+    one that goes through a transform named ``scaled``, so refusing that name leaves the second.
+    """
+
+    @system
+    class Sensor(metaclass=Interface):
+        reading: float = field()
+        raw: float = field()
+        calibration: float = field()
+
+    @transform
+    def scaled(raw: float) -> float:
+        return raw * 2.0
+
+    @equation
+    def via_scaled(reading: float, scaled: float) -> bool:
+        return reading == scaled
+
+    @equation
+    def calibrated(reading: float, calibration: float) -> bool:
+        return reading == calibration + 1.0
+
+    sensor = Implementation(Sensor, [scaled, via_scaled, calibrated])
+
+    @system
+    class Rig(metaclass=Interface):
+        answer: float = field()
+        raw: float = field()
+        calibration: float = field()
+
+    @equation
+    def answer_eq(answer: float, sensor: Sensor) -> bool:
+        return answer == sensor.reading
+
+    @equation
+    def raw_eq(raw: float, sensor: Sensor) -> bool:
+        return raw == sensor.raw
+
+    @equation
+    def calibration_eq(calibration: float, sensor: Sensor) -> bool:
+        return calibration == sensor.calibration
+
+    return Implementation(
+        Rig,
+        [answer_eq, raw_eq, calibration_eq],
+        internal_implementations={"sensor": sensor},
+    )
+
+
+def test_a_sub_system_is_asked_again_after_the_way_it_first_named_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A refused way through a child must not take the child out of the parent's graph.
+
+    The child prunes the refused step from its own graph, so asking it again names the way that
+    is left. The parent narrowed its offer to ``sensor.raw`` before the refusal was known, so
+    only a second question can reach ``sensor.calibration``.
+    """
+    rig = _rig_over_sensor()
+    expected_answer = 4.0
+    attempts = _refuse_one_transform(monkeypatch, PYTHON_BACKEND, "scaled")
+
+    case = rig.analyser_for(PYTHON_BACKEND).analyse({"raw", "calibration"}, "answer")
+
+    assert attempts.count("scaled") == 1
+    assert PYTHON_BACKEND.chain_case(case).callable(raw=1.0, calibration=3.0) == expected_answer
+
+
+def test_retrying_a_sub_system_still_ends_when_the_backend_refuses_everything(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each failure prunes a graph, so the retries run out instead of going on for ever."""
+    rig = _rig_over_sensor()
+    monkeypatch.setattr(PYTHON_BACKEND, "transpile", _refuse_to_compile)
+
+    with pytest.raises(BiltSystemAnalysisError, match="Cannot compute answer"):
+        rig.analyser_for(PYTHON_BACKEND).analyse({"raw", "calibration"}, "answer")
+
+
+def test_removing_a_failed_sub_system_step_keeps_it_while_the_child_names_a_way() -> None:
+    sub_system = _resistor_sub_system()
+    graph = BipartiteGraph([sub_system], PYTHON_BACKEND)
+    step = PlanStep(operation=sub_system, output="resistor.v")
+
+    graph.remove_failed_plan_step(step)
+
+    assert step in graph.graph
+
+
+def test_removing_a_failed_sub_system_step_removes_it_once_the_child_names_none() -> None:
+    sub_system = _sealed_sub_system()
+    graph = BipartiteGraph([sub_system], PYTHON_BACKEND)
+    step = PlanStep(operation=sub_system, output="sealed.a")
+
+    graph.remove_failed_plan_step(step)
+
+    assert step not in graph.graph

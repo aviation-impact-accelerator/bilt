@@ -3,7 +3,6 @@ from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 
 __all__ = ["Implementation"]
 
-import functools
 import types
 import typing
 
@@ -55,16 +54,20 @@ class Implementation:
             tuple[EvaluationRequest, Backend],
             BackendCallable,
         ] = {}
+        self._analysers: dict[Backend, StructuralAnalyser] = {}
         system.__bilt_system_registry__.add(self)
 
     @property
     def system(self) -> Interface:
         return self._system
 
-    @functools.cached_property
-    def analyser(self) -> StructuralAnalyser:
-        """The structural analyser for this implementation's components."""
-        return ExhaustiveStructuralAnalyser(tuple(self._components.values()))
+    def analyser_for(self, backend: Backend) -> StructuralAnalyser:
+        """The structural analyser for this implementation's components under ``backend``."""
+        analyser = self._analysers.get(backend)
+        if analyser is None:
+            analyser = ExhaustiveStructuralAnalyser(tuple(self._components.values()), backend)
+            self._analysers[backend] = analyser
+        return analyser
 
     def evaluate(
         self,
@@ -110,10 +113,9 @@ class Implementation:
         if cached := self._evaluation_cache.get(cache_key):
             return cached
 
-        planned_case = self.analyser.analyse(
+        planned_case = self.analyser_for(backend).analyse(
             set(request.available),
             request.output,
-            backend,
         )
 
         backend_callable = backend.chain_case(planned_case)

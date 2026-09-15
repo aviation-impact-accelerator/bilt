@@ -1,6 +1,6 @@
 import pytest
 
-from bilt._backend._python._backend import PythonBackend
+from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core import BiltNameError, BiltSystemAnalysisError, Implementation, Interface, field, system
 from bilt.core._equation import equation
 from bilt.core._evaluation_request import EvaluationRequest
@@ -111,21 +111,23 @@ def test_child_port_rejects_a_name_that_is_not_one_of_its_ports(
 
 
 def test_child_route_names_the_output_and_inputs_in_child_local_terms(sub_system: SubSystemConstituent) -> None:
-    assert sub_system.child_route("resistor.v") == EvaluationRequest(output="v", available=frozenset({"i", "r"}))
+    assert sub_system.child_route("resistor.v", PYTHON_BACKEND) == EvaluationRequest(
+        output="v", available=frozenset({"i", "r"})
+    )
 
 
 def test_child_route_is_none_without_an_internal_route(sealed_sub_system: SubSystemConstituent) -> None:
-    assert sealed_sub_system.child_route("sealed.a") is None
+    assert sealed_sub_system.child_route("sealed.a", PYTHON_BACKEND) is None
 
 
 def test_required_parent_inputs_qualifies_the_child_ports(sub_system: SubSystemConstituent) -> None:
-    assert sub_system.required_parent_inputs("resistor.v") == frozenset({"resistor.i", "resistor.r"})
+    assert sub_system.required_parent_inputs("resistor.v", PYTHON_BACKEND) == frozenset({"resistor.i", "resistor.r"})
 
 
 def test_required_parent_inputs_is_none_without_an_internal_route(
     sealed_sub_system: SubSystemConstituent,
 ) -> None:
-    assert sealed_sub_system.required_parent_inputs("sealed.a") is None
+    assert sealed_sub_system.required_parent_inputs("sealed.a", PYTHON_BACKEND) is None
 
 
 def test_repr_names_the_reference_and_its_interface(sub_system: SubSystemConstituent) -> None:
@@ -133,13 +135,13 @@ def test_repr_names_the_reference_and_its_interface(sub_system: SubSystemConstit
 
 
 def test_a_parent_solves_a_child_port_through_the_sub_system(board: Implementation) -> None:
-    result = board.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}, "resistor.v", PythonBackend())
+    result = board.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}, "resistor.v", PYTHON_BACKEND)
 
     assert result == VOLTAGE
 
 
 def test_a_parent_solves_a_child_port_in_the_inward_direction(board: Implementation) -> None:
-    result = board.evaluate({"resistor.v": VOLTAGE, "resistor.r": RESISTANCE}, "resistor.i", PythonBackend())
+    result = board.evaluate({"resistor.v": VOLTAGE, "resistor.r": RESISTANCE}, "resistor.i", PYTHON_BACKEND)
 
     assert result == CURRENT
 
@@ -148,14 +150,14 @@ def test_the_realized_callable_speaks_mangled_names(board: Implementation) -> No
     """The compiled callable is bound by keyword, so it answers in the names it was compiled with."""
     request = EvaluationRequest(output="resistor.v", available=frozenset({"resistor.i", "resistor.r"}))
 
-    realized = board.get_evaluation(request, PythonBackend())
+    realized = board.get_evaluation(request, PYTHON_BACKEND)
 
     assert realized.parameters == ("resistor__i", "resistor__r")
     assert realized.evaluate({"resistor__i": CURRENT, "resistor__r": RESISTANCE}) == VOLTAGE
 
 
 def test_nothing_a_backend_compiles_carries_a_dotted_name(board: Implementation) -> None:
-    case = board.analyser.analyse({"resistor.i", "resistor.r"}, "resistor.v", PythonBackend())
+    case = board.analyser_for(PYTHON_BACKEND).analyse({"resistor.i", "resistor.r"}, "resistor.v")
 
     assert "." not in case.name
     assert "." not in case.return_name
@@ -164,7 +166,7 @@ def test_nothing_a_backend_compiles_carries_a_dotted_name(board: Implementation)
 
 
 def test_a_parent_reuses_one_cache_entry_across_repeated_evaluations(board: Implementation) -> None:
-    backend = PythonBackend()
+    backend = PYTHON_BACKEND
 
     board.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}, "resistor.v", backend)
     board.evaluate({"resistor.i": CURRENT + 1, "resistor.r": RESISTANCE + 1}, "resistor.v", backend)
@@ -179,7 +181,7 @@ def test_two_parents_can_share_one_sub_system(sub_system: SubSystemConstituent) 
     class Rig(metaclass=Interface):
         supply_voltage: float = field()
 
-    backend = PythonBackend()
+    backend = PYTHON_BACKEND
     inputs: dict[str, object] = {"resistor.i": CURRENT, "resistor.r": RESISTANCE}
 
     first = Implementation(Rig, [sub_system]).evaluate(inputs, "resistor.v", backend)
@@ -198,7 +200,7 @@ def test_a_parent_cannot_solve_a_child_port_the_child_has_no_route_to(
     rack = Implementation(Rack, [sealed_sub_system])
 
     with pytest.raises(BiltSystemAnalysisError, match="Cannot compute"):
-        rack.evaluate({"sealed.b": 1.0}, "sealed.a", PythonBackend())
+        rack.evaluate({"sealed.b": 1.0}, "sealed.a", PYTHON_BACKEND)
 
 
 def test_a_sub_system_name_carrying_the_mangled_separator_is_rejected() -> None:
