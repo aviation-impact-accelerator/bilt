@@ -6,6 +6,8 @@ from bilt.symbolic._errors import AtomMutationError
 if typing.TYPE_CHECKING:
     import collections.abc
 
+    from bilt.symbolic._dimensions import Dim
+
 __all__ = [
     "ADD",
     "EQUALS",
@@ -14,19 +16,23 @@ __all__ = [
     "INV",
     "LESS_THAN",
     "LESS_THAN_OR_EQUALS",
+    "MEAN",
     "MUL",
     "NEG",
     "NOT_EQUALS",
     "POW",
     "Atom",
     "AtomType",
+    "DimensionType",
     "FloatType",
     "IntType",
     "OpType",
+    "ReductionOpType",
     "RelationOpType",
     "SymbolType",
     "atom_cache_size",
     "clear_atom_cache",
+    "dimension",
     "floating",
     "integer",
     "relation_operator",
@@ -69,6 +75,8 @@ class AtomType:
 SymbolType = AtomType("Symbol")
 OpType = AtomType("Op")
 RelationOpType = AtomType("RelationOp")
+ReductionOpType = AtomType("ReductionOp")
+DimensionType = AtomType("Dimension")
 IntType = AtomType("Integer")
 FloatType = AtomType("Float")
 
@@ -131,6 +139,10 @@ def symbol(name: str) -> Atom:
     return Atom(SymbolType, name)
 
 
+def dimension(value: Dim) -> Atom:
+    return Atom(DimensionType, value)
+
+
 def integer(value: int) -> Atom:
     return Atom(IntType, value)
 
@@ -144,6 +156,8 @@ MUL = Atom(OpType, "mul")
 POW = Atom(OpType, "pow")
 NEG = Atom(OpType, "neg")
 INV = Atom(OpType, "inv")
+
+MEAN = Atom(ReductionOpType, "mean")
 
 EQUALS = Atom(RelationOpType, "==")
 NOT_EQUALS = Atom(RelationOpType, "!=")
