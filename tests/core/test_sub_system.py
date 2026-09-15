@@ -45,6 +45,24 @@ def sealed_sub_system() -> SubSystemConstituent:
 
 
 @pytest.fixture
+def spare_port_sub_system() -> SubSystemConstituent:
+    """A resistor carrying a port no equation reads, so an offer can hold more than is needed."""
+
+    @system
+    class SensedResistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+        temperature: float = field()
+
+    @equation
+    def ohms_law(v: float, i: float, r: float) -> bool:
+        return v == i * r
+
+    return SubSystemConstituent(name="resistor", implementation=Implementation(SensedResistor, [ohms_law]))
+
+
+@pytest.fixture
 def board(sub_system: SubSystemConstituent) -> Implementation:
     """A parent whose only component is ``sub_system``, so its own ports stay unconnected."""
 
@@ -110,24 +128,32 @@ def test_child_port_rejects_a_name_that_is_not_one_of_its_ports(
         sub_system.child_port(qualified)
 
 
-def test_child_route_names_the_output_and_inputs_in_child_local_terms(sub_system: SubSystemConstituent) -> None:
-    assert sub_system.child_route("resistor.v", PYTHON_BACKEND) == EvaluationRequest(
-        output="v", available=frozenset({"i", "r"})
+def test_a_request_names_its_ports_in_child_local_terms(sub_system: SubSystemConstituent) -> None:
+    request = sub_system.request_for("resistor.v", {"resistor.i", "resistor.r"}, PYTHON_BACKEND)
+
+    assert request == EvaluationRequest(output="v", available=frozenset({"i", "r"}))
+
+
+def test_a_request_asks_only_for_the_ports_the_child_uses(
+    spare_port_sub_system: SubSystemConstituent,
+) -> None:
+    """Offered a port no equation reads, the child leaves it out of the request."""
+    request = spare_port_sub_system.request_for(
+        "resistor.v",
+        {"resistor.i", "resistor.r", "resistor.temperature"},
+        PYTHON_BACKEND,
     )
 
-
-def test_child_route_is_none_without_an_internal_route(sealed_sub_system: SubSystemConstituent) -> None:
-    assert sealed_sub_system.child_route("sealed.a", PYTHON_BACKEND) is None
-
-
-def test_required_parent_inputs_qualifies_the_child_ports(sub_system: SubSystemConstituent) -> None:
-    assert sub_system.required_parent_inputs("resistor.v", PYTHON_BACKEND) == frozenset({"resistor.i", "resistor.r"})
+    assert request is not None
+    assert request.available == frozenset({"i", "r"})
 
 
-def test_required_parent_inputs_is_none_without_an_internal_route(
-    sealed_sub_system: SubSystemConstituent,
-) -> None:
-    assert sealed_sub_system.required_parent_inputs("sealed.a", PYTHON_BACKEND) is None
+def test_there_is_no_request_without_an_internal_route(sealed_sub_system: SubSystemConstituent) -> None:
+    assert sealed_sub_system.request_for("sealed.a", {"sealed.b"}, PYTHON_BACKEND) is None
+
+
+def test_there_is_no_request_when_the_offer_falls_short(sub_system: SubSystemConstituent) -> None:
+    assert sub_system.request_for("resistor.v", {"resistor.i"}, PYTHON_BACKEND) is None
 
 
 def test_repr_names_the_reference_and_its_interface(sub_system: SubSystemConstituent) -> None:

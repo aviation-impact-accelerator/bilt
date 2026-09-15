@@ -77,56 +77,6 @@ def test_exhaustive_analyser_produces_a_working_callable() -> None:
     assert backend_case.callable(a=1.0, b=2.0) == c(a=1.0, b=2.0)
 
 
-def test_required_inputs_for_target_of_a_transform() -> None:
-    @transform
-    def c(a: float, b: float) -> float:
-        return a + b
-
-    assert BipartiteGraph([c], PYTHON_BACKEND).required_inputs_for_step(PlanStep(operation=c, output="c")) == frozenset(
-        {"a", "b"}
-    )
-
-
-def test_required_inputs_for_target_of_an_equation() -> None:
-    @equation
-    def ohms_law(v: float, i: float, r: float) -> bool:
-        return v == i * r
-
-    assert BipartiteGraph([ohms_law], PYTHON_BACKEND).required_inputs_for_step(
-        PlanStep(operation=ohms_law, output="v")
-    ) == frozenset({"i", "r"})
-
-
-def test_required_inputs_for_target_rejects_a_transform_output_mismatch() -> None:
-    @transform
-    def c(a: float, b: float) -> float:
-        return a + b
-
-    with pytest.raises(BiltSystemAnalysisError, match="does not produce"):
-        BipartiteGraph([c], PYTHON_BACKEND).required_inputs_for_step(PlanStep(operation=c, output="a"))
-
-
-def test_required_inputs_for_target_rejects_an_unknown_equation_parameter() -> None:
-    @equation
-    def ohms_law(v: float, i: float, r: float) -> bool:
-        return v == i * r
-
-    with pytest.raises(BiltSystemAnalysisError, match="does not have parameter"):
-        BipartiteGraph([ohms_law], PYTHON_BACKEND).required_inputs_for_step(PlanStep(operation=ohms_law, output="p"))
-
-
-def test_required_inputs_for_target_rejects_an_unsupported_operation() -> None:
-    class Unsupported:
-        __bilt_name__: str = "unsupported"
-        __bilt_parameters__: tuple[str, ...] = ("a",)
-
-    unsupported = Unsupported()
-    graph = BipartiteGraph([], PYTHON_BACKEND)
-
-    with pytest.raises(NotImplementedError, match="is not supported"):
-        graph.required_inputs_for_step(PlanStep(operation=unsupported, output="unsupported"))
-
-
 def test_bipartite_graph_shape_for_an_equation() -> None:
     @equation
     def ohms_law(v: float, i: float, r: float) -> bool:
@@ -392,7 +342,7 @@ def _sealed_sub_system(name: str = "sealed") -> SubSystemConstituent:
     return SubSystemConstituent(name=name, implementation=Implementation(Sealed, []))
 
 
-def test_bipartite_graph_shape_for_a_sub_system() -> None:
+def test_a_sub_system_enters_the_graph_shaped_like_an_equation() -> None:
     sub_system = _resistor_sub_system()
     ports = {"resistor.v", "resistor.i", "resistor.r"}
 
@@ -407,36 +357,6 @@ def test_bipartite_graph_shape_for_a_sub_system() -> None:
         assert set(graph.predecessors(step)) == ports - {port}
 
 
-def test_required_inputs_for_target_of_a_sub_system_qualifies_the_child_inputs() -> None:
-    sub_system = _resistor_sub_system()
-
-    required = BipartiteGraph([sub_system], PYTHON_BACKEND).required_inputs_for_step(
-        PlanStep(operation=sub_system, output="resistor.v")
-    )
-
-    assert required == frozenset({"resistor.i", "resistor.r"})
-
-
-def test_required_inputs_for_target_is_none_when_the_child_has_no_internal_route() -> None:
-    sub_system = _sealed_sub_system()
-
-    assert (
-        BipartiteGraph([sub_system], PYTHON_BACKEND).required_inputs_for_step(
-            PlanStep(operation=sub_system, output="sealed.a")
-        )
-        is None
-    )
-
-
-def test_required_inputs_for_target_rejects_a_port_the_sub_system_does_not_have() -> None:
-    sub_system = _resistor_sub_system()
-
-    with pytest.raises(BiltSystemAnalysisError, match="does not have port"):
-        BipartiteGraph([sub_system], PYTHON_BACKEND).required_inputs_for_step(
-            PlanStep(operation=sub_system, output="resistor.typo")
-        )
-
-
 def test_search_solves_a_sub_system_port_in_either_direction() -> None:
     sub_system = _resistor_sub_system()
     graph = BipartiteGraph([sub_system], PYTHON_BACKEND)
@@ -444,8 +364,15 @@ def test_search_solves_a_sub_system_port_in_either_direction() -> None:
     outward = graph.search({"resistor.i", "resistor.r"}, "resistor.v")
     inward = graph.search({"resistor.v", "resistor.r"}, "resistor.i")
 
-    assert outward == [PlanStep(operation=sub_system, output="resistor.v")]
-    assert inward == [PlanStep(operation=sub_system, output="resistor.i")]
+    assert outward is not None
+    assert inward is not None
+
+    assert [(step.operation, step.output, step.request) for step in outward] == [
+        (sub_system, "resistor.v", EvaluationRequest(output="v", available=frozenset({"i", "r"})))
+    ]
+    assert [(step.operation, step.output, step.request) for step in inward] == [
+        (sub_system, "resistor.i", EvaluationRequest(output="i", available=frozenset({"v", "r"})))
+    ]
 
 
 def test_search_returns_none_when_a_sub_system_port_is_unreachable_inside_the_child() -> None:
@@ -461,7 +388,7 @@ def test_search_terminates_on_mutually_derivable_sub_system_ports() -> None:
     assert graph.search({"resistor.i"}, "resistor.v") is None
 
 
-def test_analyser_required_inputs_for_target_reports_the_inputs_a_plan_consumes() -> None:
+def test_required_inputs_for_target_reports_the_inputs_a_plan_consumes() -> None:
     @transform
     def b(a: float) -> float:
         return a * 2
@@ -475,7 +402,7 @@ def test_analyser_required_inputs_for_target_reports_the_inputs_a_plan_consumes(
     assert analyser.required_inputs_for_target({"a"}, "c") == frozenset({"a"})
 
 
-def test_analyser_required_inputs_for_target_is_none_when_no_route_exists() -> None:
+def test_required_inputs_for_target_is_none_when_no_route_exists() -> None:
     @transform
     def c(a: float, b: float) -> float:
         return a + b
@@ -485,7 +412,7 @@ def test_analyser_required_inputs_for_target_is_none_when_no_route_exists() -> N
     assert analyser.required_inputs_for_target({"a"}, "c") is None
 
 
-def test_analyser_required_inputs_for_target_is_none_for_an_unknown_output() -> None:
+def test_required_inputs_for_target_is_none_for_an_unknown_output() -> None:
     @transform
     def c(a: float, b: float) -> float:
         return a + b
@@ -495,30 +422,40 @@ def test_analyser_required_inputs_for_target_is_none_for_an_unknown_output() -> 
     assert analyser.required_inputs_for_target({"a", "b"}, "absent") is None
 
 
-def test_realizing_a_sub_system_step_mangles_its_qualified_parameters() -> None:
-    sub_system = _resistor_sub_system()
+def test_required_inputs_for_target_ignores_what_the_plan_did_not_need() -> None:
+    """A caller offering everything it could reach is told back only the part that gets used."""
 
-    realized = _operation_to_callable(PlanStep(operation=sub_system, output="resistor.v"), PYTHON_BACKEND)
+    @transform
+    def c(a: float) -> float:
+        return a * 2
+
+    analyser = ExhaustiveStructuralAnalyser([c], PYTHON_BACKEND)
+
+    assert analyser.required_inputs_for_target({"a", "unused", "spare"}, "c") == frozenset({"a"})
+
+
+def test_required_inputs_for_target_reaches_through_a_sub_system_step() -> None:
+    """The step a sub-system search emits was never a graph node, so its inputs come off itself."""
+    sub_system = _resistor_sub_system()
+    analyser = ExhaustiveStructuralAnalyser([sub_system], PYTHON_BACKEND)
+
+    required = analyser.required_inputs_for_target({"resistor.i", "resistor.r"}, "resistor.v")
+
+    assert required == frozenset({"resistor.i", "resistor.r"})
+
+
+def test_realizing_a_sub_system_step_mangles_its_qualified_parameters() -> None:
+    step = PlanStep(
+        operation=_resistor_sub_system(),
+        output="resistor.v",
+        request=EvaluationRequest(output="v", available=frozenset({"i", "r"})),
+    )
+
+    realized = _operation_to_callable(step, PYTHON_BACKEND)
 
     assert not isinstance(realized, RealizationFailure)
     assert realized.name == "resistor__v"
     assert realized.parameters == ("resistor__i", "resistor__r")
-
-
-def test_realizing_a_sub_system_step_rejects_a_port_it_does_not_have() -> None:
-    sub_system = _resistor_sub_system()
-
-    with pytest.raises(BiltSystemAnalysisError, match="does not have port"):
-        _operation_to_callable(PlanStep(operation=sub_system, output="resistor.typo"), PYTHON_BACKEND)
-
-
-def test_realizing_an_unreachable_sub_system_port_is_a_failure() -> None:
-    sub_system = _sealed_sub_system()
-
-    result = _operation_to_callable(PlanStep(operation=sub_system, output="sealed.a"), PYTHON_BACKEND)
-
-    assert isinstance(result, RealizationFailure)
-    assert isinstance(result.cause, BiltSystemAnalysisError)
 
 
 def _rig_over_sensor() -> Implementation:

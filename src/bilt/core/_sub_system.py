@@ -8,6 +8,8 @@ from bilt.core._port import MANGLED_SEPARATOR, QualifiedPort
 from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
 
 if typing.TYPE_CHECKING:
+    import collections.abc
+
     from bilt._backend._base_backend import Backend
     from bilt.core._system._implementation import Implementation
 
@@ -34,21 +36,24 @@ class SubSystemConstituent:
             raise BiltSystemAnalysisError(msg)
         return port
 
-    def child_route(self, qualified_output: str, backend: Backend) -> EvaluationRequest | None:
-        """Return the child-local output name and the child-local ports needed to produce it."""
+    def request_for(
+        self,
+        qualified_output: str,
+        reachable: collections.abc.Iterable[str],
+        backend: Backend,
+    ) -> EvaluationRequest | None:
+        """Return the child-local request producing ``qualified_output`` from the ``reachable`` ports.
+
+        ``reachable`` is what the parent offers, named as the parent sees it; the request names the
+        ports the child will actually use, which is generally fewer. None when the child has no route
+        to ``qualified_output`` from that offer.
+        """
         child_output = self.child_port(qualified_output)
-        available = set(self.interface.__bilt_parameters__) - {child_output}
+        available = {self.child_port(port) for port in reachable}
         required = self.implementation.analyser_for(backend).required_inputs_for_target(available, child_output)
         if required is None:
             return None
         return EvaluationRequest(output=child_output, available=required)
-
-    def required_parent_inputs(self, qualified_output: str, backend: Backend) -> frozenset[str] | None:
-        """Return the ports needed to produce ``qualified_output``, named as the parent sees them."""
-        route = self.child_route(qualified_output, backend)
-        if route is None:
-            return None
-        return frozenset(self.qualify(port) for port in route.available)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(name={self.__bilt_name__!r}, interface={self.interface.__bilt_name__!r})"

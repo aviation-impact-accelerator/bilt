@@ -61,9 +61,4 @@ class ExhaustiveStructuralAnalyser:
             return None
 
         produced = {step.output for step in steps}
-        required: set[str] = set()
-        for step in steps:
-            consumed = self.bipartite_graph.required_inputs_for_step(step) or frozenset()
-            required.update(consumed - produced)
-
-        return frozenset(required)
+        return frozenset(attribute for step in steps for attribute in step.consumed if attribute not in produced)

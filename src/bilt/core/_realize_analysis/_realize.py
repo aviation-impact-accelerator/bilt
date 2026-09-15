@@ -10,7 +10,7 @@ from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
-from bilt.core._port import MANGLED_SEPARATOR, mangle_name
+from bilt.core._port import mangle_name
 from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform
@@ -100,21 +100,18 @@ def _sub_system_to_callable(
     plan_step: PlanStep,
     backend: Backend,
 ) -> BackendCallable | RealizationFailure:
-    route = sub_system.child_route(plan_step.output, backend)
-    if route is None:
-        msg = f"{sub_system!r} has no internal route to port {plan_step.output!r} from its other ports."
+    if plan_step.request is None:
+        msg = f"{sub_system!r} step for {plan_step.output!r} names no route through the child."
         return RealizationFailure(failed_plan_step=plan_step, cause=BiltSystemAnalysisError(msg))
 
     try:
-        child_callable = sub_system.implementation.get_evaluation(route, backend)
+        child_callable = sub_system.implementation.get_evaluation(plan_step.request, backend)
     except BiltSystemAnalysisError as error:
         return RealizationFailure(failed_plan_step=plan_step, cause=error)
 
     return BackendCallable(
         name=mangle_name(plan_step.output),
-        parameters=tuple(
-            f"{mangle_name(sub_system.__bilt_name__)}{MANGLED_SEPARATOR}{port}" for port in child_callable.parameters
-        ),
+        parameters=tuple(mangle_name(port) for port in plan_step.consumed),
         callable=child_callable.callable,
     )
 

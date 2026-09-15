@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     import collections.abc
 
     from bilt._backend._base_backend import Backend
+    from bilt.core._evaluation_request import EvaluationRequest
     from bilt.core._model_constituent import BiltModelConstituent
 
 type Attribute = str
@@ -21,34 +22,16 @@ type Node = Attribute | PlanStep
 
 
 class BipartiteGraph:
+    """Attributes and the directed steps that produce them, for one implementation and backend.
+
+    The graph is tied to a backend because a step that one backend refuses is pruned from it.
+    """
+
     def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent], backend: Backend) -> None:
         self.graph = nx.DiGraph()
         self._backend = backend
         for constituent in constituents:
             self._add_constituent(constituent)
-
-    def required_inputs_for_step(self, plan_step: PlanStep) -> frozenset[str] | None:
-        """Return the attributes a plan step consumes to produce its output.
-
-        None means the step cannot produce its output at all: a sub-system has no internal route
-        from its other ports to the one being asked for.
-        """
-        match plan_step.operation:
-            case BasicTransform() as transform:
-                if plan_step.output != transform.__bilt_name__:
-                    msg = f"{transform!r} does not produce {plan_step.output!r}."
-                    raise BiltSystemAnalysisError(msg)
-                return frozenset(transform.__bilt_parameters__)
-            case BasicEquation() as equation:
-                if plan_step.output not in equation.__bilt_parameters__:
-                    msg = f"{equation!r} does not have parameter {plan_step.output!r}."
-                    raise BiltSystemAnalysisError(msg)
-                return frozenset(equation.__bilt_parameters__) - {plan_step.output}
-            case SubSystemConstituent() as sub_system:
-                return sub_system.required_parent_inputs(plan_step.output, self._backend)
-            case _:
-                msg = f"Constituent type {type(plan_step.operation)} is not supported."
-                raise NotImplementedError(msg)
 
     def _add_constituent(self, constituent: BiltModelConstituent) -> None:
         """Add a new constituent to the graph."""
@@ -90,10 +73,17 @@ class BipartiteGraph:
     ) -> None:
         """Remove a step that failed realization, unless its sub-system still names another way."""
         match plan_step.operation:
-            case SubSystemConstituent() if self.required_inputs_for_step(plan_step) is not None:
+            case SubSystemConstituent() as sub_system if self._widest_request(sub_system, plan_step.output) is not None:
                 return
             case _:
                 self.graph.remove_node(plan_step)
+
+    def _widest_request(self, sub_system: SubSystemConstituent, output: str) -> EvaluationRequest | None:
+        """Ask a child for a route to one of its ports from every other port it has.
+
+        This is the most a parent could ever offer, so None means the child has no route at all.
+        """
+        return sub_system.request_for(output, _ports_offered(sub_system, output), self._backend)
 
     def search(
         self,
@@ -126,26 +116,79 @@ class BipartiteGraph:
         available: set[str],
         visited: set[Node],
     ) -> list[PlanStep] | None:
-        """Search for a path through a constituent node, resolving every input it needs.
+        """Search for a path through a constituent node, resolving every input it needs."""
+        match plan_step.operation:
+            case SubSystemConstituent() as sub_system:
+                return self._search_sub_system(plan_step, sub_system, available, visited)
+            case _:
+                wanted = plan_step.consumed
+                resolved = self._resolve_inputs(wanted, available, visited)
+                if len(resolved) != len(wanted):
+                    return None
+                return self._assemble(resolved.values(), plan_step)
 
-        Inputs are visited in sorted order so a given query always yields the same plan ordering.
+    def _search_sub_system(
+        self,
+        plan_step: PlanStep,
+        sub_system: SubSystemConstituent,
+        available: set[str],
+        visited: set[Node],
+    ) -> list[PlanStep] | None:
+        """Search for a path through a sub-system, from the ports the parent can reach.
+
+        The child is asked what it needs before anything is resolved, since resolving every port to
+        find out costs a search apiece. Only when the route it names is out of the parent's reach
+        does the parent resolve the rest and ask again with what it reached. A child that cannot
+        reach its output from every port cannot reach it from fewer, so that second ask is only
+        worth making once the first has named a route.
         """
-        required = self.required_inputs_for_step(plan_step)
-        if required is None:
+        offer = _ports_offered(sub_system, plan_step.output)
+        optimistic = self._widest_request(sub_system, plan_step.output)
+        if optimistic is None:
             return None
 
-        path: list[PlanStep] = []
-        included: set[PlanStep] = set()
-        for neighbor in sorted(required):
-            sub_path = self.search(available, neighbor, visited)
-            if sub_path is None:
-                return None
+        settled = plan_step.settled_on(optimistic)
+        wanted = settled.consumed
+        resolved = self._resolve_inputs(wanted, available, visited)
+        if len(resolved) == len(wanted):
+            return self._assemble(resolved.values(), settled)
+
+        reached = resolved | self._resolve_inputs([port for port in offer if port not in resolved], available, visited)
+        request = sub_system.request_for(plan_step.output, reached.keys(), self._backend)
+        if request is None:
+            return None
+        settled = plan_step.settled_on(request)
+        return self._assemble([reached[port] for port in settled.consumed], settled)
+
+    def _resolve_inputs(
+        self,
+        attributes: collections.abc.Iterable[Attribute],
+        available: set[str],
+        visited: set[Node],
+    ) -> dict[Attribute, list[PlanStep]]:
+        """Resolve what can be resolved, and say nothing about the rest."""
+        resolved: dict[Attribute, list[PlanStep]] = {}
+        for attribute in attributes:
+            sub_path = self.search(available, attribute, visited)
+            if sub_path is not None:
+                resolved[attribute] = sub_path
+        return resolved
+
+    def _assemble(
+        self,
+        sub_paths: collections.abc.Iterable[list[PlanStep]],
+        final_step: PlanStep,
+    ) -> list[PlanStep]:
+        """Concatenate the paths that produced a step's inputs, then the step itself.
+
+        Only the first step to produce an attribute is kept, so a plan never computes one attribute
+        twice by two different routes.
+        """
+        produced: dict[Attribute, PlanStep] = {}
+        for sub_path in sub_paths:
             for step in sub_path:
-                if step not in included:
-                    included.add(step)
-                    path.append(step)
-        path.append(plan_step)
-        return path
+                produced.setdefault(step.output, step)
+        return [*produced.values(), final_step]
 
     def _search_attribute(
         self,
@@ -159,3 +202,8 @@ class BipartiteGraph:
             if sub_path is not None:
                 return sub_path
         return None
+
+
+def _ports_offered(sub_system: SubSystemConstituent, output: str) -> tuple[str, ...]:
+    """Return every port of a sub-system but the one being asked for, in a stable order."""
+    return tuple(sorted(set(sub_system.__bilt_parameters__) - {output}))
