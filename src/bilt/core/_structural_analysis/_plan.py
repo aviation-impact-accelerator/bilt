@@ -35,12 +35,7 @@ class PlanStep:
 
     @property
     def consumed(self) -> tuple[str, ...]:
-        """Return the attributes this step reads to produce its output, in a stable order.
-
-        A sub-system step reads the ports of the route it settled on, so asking before it has
-        settled is an error rather than a guess at the widest set it might read. Callers rely on
-        this order when passing arguments to a wrapped child callable.
-        """
+        """Return the attributes this step reads to produce its output, in a stable order."""
         match self.operation:
             case BasicTransform() as transform:
                 return tuple(sorted(transform.__bilt_parameters__))

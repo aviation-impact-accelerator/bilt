@@ -1,5 +1,6 @@
 __all__ = ["BipartiteGraph"]
 import dataclasses
+import itertools
 import typing
 from typing import TYPE_CHECKING
 
@@ -19,6 +20,14 @@ if TYPE_CHECKING:
 
 type Attribute = str
 type Node = Attribute | PlanStep
+
+
+def _flatten_sub_paths(sub_paths: collections.abc.Iterable[list[PlanStep]]) -> list[PlanStep]:
+    """Flatten the paths that produced a step's inputs, keeping the first step to produce each attribute."""
+    produced: dict[Attribute, PlanStep] = {}
+    for step in itertools.chain.from_iterable(sub_paths):
+        produced.setdefault(step.output, step)
+    return list(produced.values())
 
 
 class BipartiteGraph:
@@ -119,7 +128,7 @@ class BipartiteGraph:
                 resolved = self._resolve_inputs(wanted, available, visited)
                 if len(resolved) != len(wanted):
                     return None
-                return self._assemble(resolved.values(), plan_step)
+                return [*_flatten_sub_paths(resolved.values()), plan_step]
 
     def _search_sub_system(
         self,
@@ -135,7 +144,7 @@ class BipartiteGraph:
         settled = dataclasses.replace(plan_step, request=unconstrained)
         resolved = self._resolve_inputs(settled.consumed, available, visited)
         if len(resolved) == len(settled.consumed):
-            return self._assemble(resolved.values(), settled)
+            return [*_flatten_sub_paths(resolved.values()), settled]
         rest = [
             port for port in sorted(sub_system.__bilt_parameters__) if port != plan_step.output and port not in resolved
         ]
@@ -144,7 +153,7 @@ class BipartiteGraph:
         if request is None:
             return None
         settled = dataclasses.replace(plan_step, request=request)
-        return self._assemble([reached[port] for port in settled.consumed], settled)
+        return [*_flatten_sub_paths(reached[port] for port in settled.consumed), settled]
 
     def _resolve_inputs(
         self,
@@ -158,21 +167,6 @@ class BipartiteGraph:
             if sub_path is not None:
                 resolved[attribute] = sub_path
         return resolved
-
-    def _assemble(
-        self,
-        sub_paths: collections.abc.Iterable[list[PlanStep]],
-        final_step: PlanStep,
-    ) -> list[PlanStep]:
-        """Concatenate the paths that produced a step's inputs, then the step itself.
-
-        Only the first step to produce an attribute is kept, so no attribute is computed twice.
-        """
-        produced: dict[Attribute, PlanStep] = {}
-        for sub_path in sub_paths:
-            for step in sub_path:
-                produced.setdefault(step.output, step)
-        return [*produced.values(), final_step]
 
     def _search_attribute(
         self,
