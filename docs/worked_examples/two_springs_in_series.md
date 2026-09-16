@@ -576,14 +576,14 @@ Instead, it demonstrates the acausal behaviour Bilt already supports when the co
 Try changing the common force:
 
 ```python
-force=10.0
+force = 10.0
 ```
 
 or either stiffness:
 
 ```python
-first_stiffness=150.0
-second_stiffness=250.0
+first_stiffness = 150.0
+second_stiffness = 250.0
 ```
 
 Then ask again for:
