@@ -6,6 +6,7 @@ from bilt.symbolic._atoms import (
     MEAN,
     Atom,
     RelationOpType,
+    axis,
     dimension,
     floating,
     integer,
@@ -24,6 +25,7 @@ _tree_cache: weakref.WeakValueDictionary[
 
 __all__ = [
     "Tree",
+    "axis_tree",
     "dimension_tree",
     "equality_tree",
     "float_tree",
@@ -157,6 +159,10 @@ def symbol_tree(name: str) -> Tree:
 
 def dimension_tree(dim: Dim) -> Tree:
     return Tree(dimension(dim))
+
+
+def axis_tree(value: int) -> Tree:
+    return Tree(axis(value))
 
 
 def int_tree(n: int) -> Tree:

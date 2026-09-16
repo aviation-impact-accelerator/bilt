@@ -14,12 +14,14 @@ from bilt.symbolic._atoms import (
     POW,
     Atom,
     AtomType,
+    AxisType,
     FloatType,
     IntType,
     OpType,
     RelationOpType,
     SymbolType,
     atom_cache_size,
+    axis,
     clear_atom_cache,
     floating,
     integer,
@@ -113,6 +115,28 @@ def test_symbol_integer_and_float_helpers_are_hash_consed() -> None:
     assert symbol("x") is symbol("x")
     assert integer(integer_value) is integer(integer_value)
     assert floating(float_value) is floating(float_value)
+
+
+def test_axis_constructs_axis_atom() -> None:
+    value = 1
+
+    result = axis(value)
+
+    assert result.atom_type is AxisType
+    assert result.value == value
+
+
+def test_axis_is_hash_consed() -> None:
+    assert axis(1) is axis(1)
+
+
+def test_axis_is_distinct_from_integer() -> None:
+    axis_value = axis(1)
+    integer_value = integer(1)
+
+    assert axis_value is not integer_value
+    assert axis_value.atom_type is AxisType
+    assert integer_value.atom_type is IntType
 
 
 @pytest.mark.parametrize(
