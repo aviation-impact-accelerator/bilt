@@ -1,7 +1,7 @@
 import pytest
 
+from bilt import BiltNameError, BiltSystemAnalysisError, Implementation, Interface, field, system
 from bilt._backend._python._backend import PYTHON_BACKEND
-from bilt.core import BiltNameError, BiltSystemAnalysisError, Implementation, Interface, field, system
 from bilt.core._equation import equation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import DOTTED_SEPARATOR, MANGLED_SEPARATOR, QualifiedPort

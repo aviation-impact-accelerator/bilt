@@ -3,7 +3,7 @@ import typing
 
 import pytest
 
-from bilt.core import BiltNameError, EquationReturnError, Interface, field, system
+from bilt import BiltNameError, EquationReturnError, Interface, field, system
 from bilt.core._equation import equation
 from bilt.symbolic._atoms import ADD, EQUALS
 

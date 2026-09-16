@@ -2,10 +2,10 @@ import typing
 
 import pytest
 
+from bilt import BiltSystemAnalysisError, Implementation, Interface, field, system, transform
 from bilt._backend._errors import UnsupportedNodeError
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
-from bilt.core import BiltSystemAnalysisError, Implementation, Interface, field, system, transform
 from bilt.core._equation import equation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis import StructuralAnalyser

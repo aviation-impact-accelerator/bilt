@@ -2,9 +2,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from bilt._backend._jax._backend import JAX_BACKEND
-from bilt._backend._python._backend import PYTHON_BACKEND
-from bilt.core import (
+from bilt import (
     BiltSubSystemConflictError,
     BiltSubSystemError,
     BiltSubSystemMismatchedImplementationError,
@@ -18,6 +16,8 @@ from bilt.core import (
     system,
     transform,
 )
+from bilt._backend._jax._backend import JAX_BACKEND
+from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.core._sub_system import SubSystemConstituent
 
