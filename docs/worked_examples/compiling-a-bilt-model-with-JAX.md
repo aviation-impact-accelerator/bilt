@@ -74,12 +74,7 @@ def induced_drag(
     lift_coefficient: float,
     induced_drag_factor: float,
 ) -> float:
-    return (
-        dynamic_pressure
-        * wing_area
-        * induced_drag_factor
-        * lift_coefficient**2
-    )
+    return dynamic_pressure * wing_area * induced_drag_factor * lift_coefficient**2
 ```
 
 The complete model is executed as part of this page, but its remaining
@@ -91,369 +86,375 @@ import importlib.util  # markdown-exec: hide
 import sys  # markdown-exec: hide
 import tempfile  # markdown-exec: hide
 from pathlib import Path  # markdown-exec: hide
+
 # markdown-exec: hide
-_example_dir = Path(tempfile.mkdtemp(prefix='bilt_jax_example_'))  # markdown-exec: hide
-_example_module = _example_dir / 'jax_backend_cruise.py'  # markdown-exec: hide
-_model_source = '\n'.join([  # markdown-exec: hide
-    '"""Models for the Bilt JAX worked example."""',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    'from __future__ import annotations',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    'from bilt import (',  # markdown-exec: hide
-    '    Implementation,',  # markdown-exec: hide
-    '    Interface,',  # markdown-exec: hide
-    '    field,',  # markdown-exec: hide
-    '    system,',  # markdown-exec: hide
-    '    transform,',  # markdown-exec: hide
-    ')',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@system',  # markdown-exec: hide
-    'class CruiseImpact(metaclass=Interface):',  # markdown-exec: hide
-    '    # Inputs',  # markdown-exec: hide
-    '    altitude: float = field()',  # markdown-exec: hide
-    '    mach: float = field()',  # markdown-exec: hide
-    '    mass: float = field()',  # markdown-exec: hide
-    '    temperature_offset: float = field()',  # markdown-exec: hide
-    '    wing_area: float = field()',  # markdown-exec: hide
-    '    zero_lift_drag_coefficient: float = field()',  # markdown-exec: hide
-    '    induced_drag_factor: float = field()',  # markdown-exec: hide
-    '    propulsive_efficiency: float = field()',  # markdown-exec: hide
-    '    nox_emission_index: float = field()',  # markdown-exec: hide
-    '    soot_emission_index: float = field()',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '    # Atmosphere',  # markdown-exec: hide
-    '    temperature: float = field()',  # markdown-exec: hide
-    '    pressure: float = field()',  # markdown-exec: hide
-    '    density: float = field()',  # markdown-exec: hide
-    '    speed_of_sound: float = field()',  # markdown-exec: hide
-    '    true_airspeed: float = field()',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '    # Aerodynamics',  # markdown-exec: hide
-    '    weight: float = field()',  # markdown-exec: hide
-    '    dynamic_pressure: float = field()',  # markdown-exec: hide
-    '    lift_coefficient: float = field()',  # markdown-exec: hide
-    '    parasite_drag: float = field()',  # markdown-exec: hide
-    '    induced_drag: float = field()',  # markdown-exec: hide
-    '    compressibility_drag: float = field()',  # markdown-exec: hide
-    '    trim_drag: float = field()',  # markdown-exec: hide
-    '    total_drag: float = field()',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '    # Propulsion',  # markdown-exec: hide
-    '    propulsive_power: float = field()',  # markdown-exec: hide
-    '    fuel_power: float = field()',  # markdown-exec: hide
-    '    fuel_flow: float = field()',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '    # Emissions',  # markdown-exec: hide
-    '    co2_rate: float = field()',  # markdown-exec: hide
-    '    water_rate: float = field()',  # markdown-exec: hide
-    '    nox_rate: float = field()',  # markdown-exec: hide
-    '    soot_rate: float = field()',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '    # Illustrative climate-effect outputs',  # markdown-exec: hide
-    '    co2_effect: float = field()',  # markdown-exec: hide
-    '    water_effect: float = field()',  # markdown-exec: hide
-    '    nox_effect: float = field()',  # markdown-exec: hide
-    '    soot_effect: float = field()',  # markdown-exec: hide
-    '    contrail_effect: float = field()',  # markdown-exec: hide
-    '    total_climate_effect: float = field()',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '# Atmosphere -----------------------------------------------------------------',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def temperature(altitude: float, temperature_offset: float) -> float:',  # markdown-exec: hide
-    '    return 288.15 - 0.0065 * altitude + temperature_offset',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def pressure(temperature: float) -> float:',  # markdown-exec: hide
-    '    return 101325.0 * (temperature / 288.15) ** 5.2561',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def density(pressure: float, temperature: float) -> float:',  # markdown-exec: hide
-    '    return pressure / (287.05 * temperature)',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def speed_of_sound(temperature: float) -> float:',  # markdown-exec: hide
-    '    return (1.4 * 287.05 * temperature) ** 0.5',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def true_airspeed(mach: float, speed_of_sound: float) -> float:',  # markdown-exec: hide
-    '    return mach * speed_of_sound',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '# Aerodynamics ---------------------------------------------------------------',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def weight(mass: float) -> float:',  # markdown-exec: hide
-    '    return mass * 9.80665',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def dynamic_pressure(density: float, true_airspeed: float) -> float:',  # markdown-exec: hide
-    '    return 0.5 * density * true_airspeed**2',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def lift_coefficient(',  # markdown-exec: hide
-    '    weight: float,',  # markdown-exec: hide
-    '    dynamic_pressure: float,',  # markdown-exec: hide
-    '    wing_area: float,',  # markdown-exec: hide
-    ') -> float:',  # markdown-exec: hide
-    '    return weight / (dynamic_pressure * wing_area)',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def parasite_drag(',  # markdown-exec: hide
-    '    dynamic_pressure: float,',  # markdown-exec: hide
-    '    wing_area: float,',  # markdown-exec: hide
-    '    zero_lift_drag_coefficient: float,',  # markdown-exec: hide
-    ') -> float:',  # markdown-exec: hide
-    '    return dynamic_pressure * wing_area * zero_lift_drag_coefficient',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def induced_drag(',  # markdown-exec: hide
-    '    dynamic_pressure: float,',  # markdown-exec: hide
-    '    wing_area: float,',  # markdown-exec: hide
-    '    lift_coefficient: float,',  # markdown-exec: hide
-    '    induced_drag_factor: float,',  # markdown-exec: hide
-    ') -> float:',  # markdown-exec: hide
-    '    return (',  # markdown-exec: hide
-    '        dynamic_pressure',  # markdown-exec: hide
-    '        * wing_area',  # markdown-exec: hide
-    '        * induced_drag_factor',  # markdown-exec: hide
-    '        * lift_coefficient**2',  # markdown-exec: hide
-    '    )',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def compressibility_drag(',  # markdown-exec: hide
-    '    dynamic_pressure: float,',  # markdown-exec: hide
-    '    wing_area: float,',  # markdown-exec: hide
-    '    mach: float,',  # markdown-exec: hide
-    ') -> float:',  # markdown-exec: hide
-    '    correction = 0.002 * mach**2 + 0.004 * mach**4',  # markdown-exec: hide
-    '    return dynamic_pressure * wing_area * correction',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def trim_drag(',  # markdown-exec: hide
-    '    dynamic_pressure: float,',  # markdown-exec: hide
-    '    wing_area: float,',  # markdown-exec: hide
-    '    lift_coefficient: float,',  # markdown-exec: hide
-    ') -> float:',  # markdown-exec: hide
-    '    return dynamic_pressure * wing_area * 0.0015 * lift_coefficient**2',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def total_drag(',  # markdown-exec: hide
-    '    parasite_drag: float,',  # markdown-exec: hide
-    '    induced_drag: float,',  # markdown-exec: hide
-    '    compressibility_drag: float,',  # markdown-exec: hide
-    '    trim_drag: float,',  # markdown-exec: hide
-    ') -> float:',  # markdown-exec: hide
-    '    return parasite_drag + induced_drag + compressibility_drag + trim_drag',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '# Propulsion -----------------------------------------------------------------',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def propulsive_power(total_drag: float, true_airspeed: float) -> float:',  # markdown-exec: hide
-    '    return total_drag * true_airspeed',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def fuel_power(',  # markdown-exec: hide
-    '    propulsive_power: float,',  # markdown-exec: hide
-    '    propulsive_efficiency: float,',  # markdown-exec: hide
-    ') -> float:',  # markdown-exec: hide
-    '    return propulsive_power / propulsive_efficiency',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def fuel_flow(fuel_power: float) -> float:',  # markdown-exec: hide
-    '    # Approximate kerosene lower heating value, J/kg.',  # markdown-exec: hide
-    '    return fuel_power / 43_000_000.0',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '# Emissions ------------------------------------------------------------------',  # markdown-exec: hide
-    '#',  # markdown-exec: hide
-    '# These four transforms form independent branches from fuel_flow.',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def co2_rate(fuel_flow: float) -> float:',  # markdown-exec: hide
-    '    return 3.16 * fuel_flow',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def water_rate(fuel_flow: float) -> float:',  # markdown-exec: hide
-    '    return 1.23 * fuel_flow',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def nox_rate(fuel_flow: float, nox_emission_index: float) -> float:',  # markdown-exec: hide
-    '    return fuel_flow * nox_emission_index',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def soot_rate(fuel_flow: float, soot_emission_index: float) -> float:',  # markdown-exec: hide
-    '    return fuel_flow * soot_emission_index',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '# Illustrative climate effects -----------------------------------------------',  # markdown-exec: hide
-    '#',  # markdown-exec: hide
-    '# These are deliberately simple surrogate relationships. They are not intended',  # markdown-exec: hide
-    '# to be scientifically defensible climate metrics.',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def co2_effect(co2_rate: float) -> float:',  # markdown-exec: hide
-    '    return co2_rate',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def water_effect(water_rate: float, altitude: float) -> float:',  # markdown-exec: hide
-    '    altitude_factor = 0.8 + altitude / 50_000.0',  # markdown-exec: hide
-    '    return 0.15 * water_rate * altitude_factor',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def nox_effect(',  # markdown-exec: hide
-    '    nox_rate: float,',  # markdown-exec: hide
-    '    altitude: float,',  # markdown-exec: hide
-    '    temperature: float,',  # markdown-exec: hide
-    ') -> float:',  # markdown-exec: hide
-    '    altitude_factor = 0.5 + altitude / 20_000.0',  # markdown-exec: hide
-    '    temperature_factor = 288.15 / temperature',  # markdown-exec: hide
-    '    return 40.0 * nox_rate * altitude_factor * temperature_factor',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def soot_effect(soot_rate: float, altitude: float) -> float:',  # markdown-exec: hide
-    '    altitude_factor = 0.5 + altitude / 15_000.0',  # markdown-exec: hide
-    '    return 1000.0 * soot_rate * altitude_factor',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def contrail_effect(',  # markdown-exec: hide
-    '    water_rate: float,',  # markdown-exec: hide
-    '    soot_rate: float,',  # markdown-exec: hide
-    '    altitude: float,',  # markdown-exec: hide
-    '    temperature: float,',  # markdown-exec: hide
-    ') -> float:',  # markdown-exec: hide
-    '    altitude_factor = (altitude / 12_000.0) ** 2',  # markdown-exec: hide
-    '    temperature_factor = (288.15 / temperature) ** 2',  # markdown-exec: hide
-    '    return (',  # markdown-exec: hide
-    '        0.08',  # markdown-exec: hide
-    '        * water_rate',  # markdown-exec: hide
-    '        * (1.0 + 100.0 * soot_rate)',  # markdown-exec: hide
-    '        * altitude_factor',  # markdown-exec: hide
-    '        * temperature_factor',  # markdown-exec: hide
-    '    )',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def total_climate_effect(',  # markdown-exec: hide
-    '    co2_effect: float,',  # markdown-exec: hide
-    '    water_effect: float,',  # markdown-exec: hide
-    '    nox_effect: float,',  # markdown-exec: hide
-    '    soot_effect: float,',  # markdown-exec: hide
-    '    contrail_effect: float,',  # markdown-exec: hide
-    ') -> float:',  # markdown-exec: hide
-    '    return (',  # markdown-exec: hide
-    '        co2_effect',  # markdown-exec: hide
-    '        + water_effect',  # markdown-exec: hide
-    '        + nox_effect',  # markdown-exec: hide
-    '        + soot_effect',  # markdown-exec: hide
-    '        + contrail_effect',  # markdown-exec: hide
-    '    )',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    'cruise_impact = Implementation(',  # markdown-exec: hide
-    '    CruiseImpact,',  # markdown-exec: hide
-    '    [',  # markdown-exec: hide
-    '        temperature,',  # markdown-exec: hide
-    '        pressure,',  # markdown-exec: hide
-    '        density,',  # markdown-exec: hide
-    '        speed_of_sound,',  # markdown-exec: hide
-    '        true_airspeed,',  # markdown-exec: hide
-    '        weight,',  # markdown-exec: hide
-    '        dynamic_pressure,',  # markdown-exec: hide
-    '        lift_coefficient,',  # markdown-exec: hide
-    '        parasite_drag,',  # markdown-exec: hide
-    '        induced_drag,',  # markdown-exec: hide
-    '        compressibility_drag,',  # markdown-exec: hide
-    '        trim_drag,',  # markdown-exec: hide
-    '        total_drag,',  # markdown-exec: hide
-    '        propulsive_power,',  # markdown-exec: hide
-    '        fuel_power,',  # markdown-exec: hide
-    '        fuel_flow,',  # markdown-exec: hide
-    '        co2_rate,',  # markdown-exec: hide
-    '        water_rate,',  # markdown-exec: hide
-    '        nox_rate,',  # markdown-exec: hide
-    '        soot_rate,',  # markdown-exec: hide
-    '        co2_effect,',  # markdown-exec: hide
-    '        water_effect,',  # markdown-exec: hide
-    '        nox_effect,',  # markdown-exec: hide
-    '        soot_effect,',  # markdown-exec: hide
-    '        contrail_effect,',  # markdown-exec: hide
-    '        total_climate_effect,',  # markdown-exec: hide
-    '    ],',  # markdown-exec: hide
-    ')',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@system',  # markdown-exec: hide
-    'class JaxSubproblem(metaclass=Interface):',  # markdown-exec: hide
-    '    value: float = field()',  # markdown-exec: hide
-    '    result: float = field()',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def result(value: float) -> float:',  # markdown-exec: hide
-    '    return value**2 + 2.0 * value + 1.0',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    'jax_subproblem = Implementation(',  # markdown-exec: hide
-    '    JaxSubproblem,',  # markdown-exec: hide
-    '    [result],',  # markdown-exec: hide
-    ')',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@system',  # markdown-exec: hide
-    'class HybridModel(metaclass=Interface):',  # markdown-exec: hide
-    '    input_value: float = field()',  # markdown-exec: hide
-    '    output_value: float = field()',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '@transform',  # markdown-exec: hide
-    'def output_value(input_value: float) -> float:',  # markdown-exec: hide
-    '    from bilt import JAX_BACKEND',  # markdown-exec: hide
-    '    from jax_backend_cruise import JaxSubproblem, jax_subproblem',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '    value = abs(input_value)',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '    with JAX_BACKEND, jax_subproblem:',  # markdown-exec: hide
-    '        return JaxSubproblem(value=value).result',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    '',  # markdown-exec: hide
-    'hybrid_model = Implementation(',  # markdown-exec: hide
-    '    HybridModel,',  # markdown-exec: hide
-    '    [output_value],',  # markdown-exec: hide
-    ')',  # markdown-exec: hide
-]) + '\n'  # markdown-exec: hide
+_example_dir = Path(tempfile.mkdtemp(prefix="bilt_jax_example_"))  # markdown-exec: hide
+_example_module = _example_dir / "jax_backend_cruise.py"  # markdown-exec: hide
+_model_source = (
+    "\n".join(
+        [  # markdown-exec: hide
+            '"""Models for the Bilt JAX worked example."""',  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "from __future__ import annotations",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "from bilt import (",  # markdown-exec: hide
+            "    Implementation,",  # markdown-exec: hide
+            "    Interface,",  # markdown-exec: hide
+            "    field,",  # markdown-exec: hide
+            "    system,",  # markdown-exec: hide
+            "    transform,",  # markdown-exec: hide
+            ")",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@system",  # markdown-exec: hide
+            "class CruiseImpact(metaclass=Interface):",  # markdown-exec: hide
+            "    # Inputs",  # markdown-exec: hide
+            "    altitude: float = field()",  # markdown-exec: hide
+            "    mach: float = field()",  # markdown-exec: hide
+            "    mass: float = field()",  # markdown-exec: hide
+            "    temperature_offset: float = field()",  # markdown-exec: hide
+            "    wing_area: float = field()",  # markdown-exec: hide
+            "    zero_lift_drag_coefficient: float = field()",  # markdown-exec: hide
+            "    induced_drag_factor: float = field()",  # markdown-exec: hide
+            "    propulsive_efficiency: float = field()",  # markdown-exec: hide
+            "    nox_emission_index: float = field()",  # markdown-exec: hide
+            "    soot_emission_index: float = field()",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "    # Atmosphere",  # markdown-exec: hide
+            "    temperature: float = field()",  # markdown-exec: hide
+            "    pressure: float = field()",  # markdown-exec: hide
+            "    density: float = field()",  # markdown-exec: hide
+            "    speed_of_sound: float = field()",  # markdown-exec: hide
+            "    true_airspeed: float = field()",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "    # Aerodynamics",  # markdown-exec: hide
+            "    weight: float = field()",  # markdown-exec: hide
+            "    dynamic_pressure: float = field()",  # markdown-exec: hide
+            "    lift_coefficient: float = field()",  # markdown-exec: hide
+            "    parasite_drag: float = field()",  # markdown-exec: hide
+            "    induced_drag: float = field()",  # markdown-exec: hide
+            "    compressibility_drag: float = field()",  # markdown-exec: hide
+            "    trim_drag: float = field()",  # markdown-exec: hide
+            "    total_drag: float = field()",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "    # Propulsion",  # markdown-exec: hide
+            "    propulsive_power: float = field()",  # markdown-exec: hide
+            "    fuel_power: float = field()",  # markdown-exec: hide
+            "    fuel_flow: float = field()",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "    # Emissions",  # markdown-exec: hide
+            "    co2_rate: float = field()",  # markdown-exec: hide
+            "    water_rate: float = field()",  # markdown-exec: hide
+            "    nox_rate: float = field()",  # markdown-exec: hide
+            "    soot_rate: float = field()",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "    # Illustrative climate-effect outputs",  # markdown-exec: hide
+            "    co2_effect: float = field()",  # markdown-exec: hide
+            "    water_effect: float = field()",  # markdown-exec: hide
+            "    nox_effect: float = field()",  # markdown-exec: hide
+            "    soot_effect: float = field()",  # markdown-exec: hide
+            "    contrail_effect: float = field()",  # markdown-exec: hide
+            "    total_climate_effect: float = field()",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "# Atmosphere -----------------------------------------------------------------",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def temperature(altitude: float, temperature_offset: float) -> float:",  # markdown-exec: hide
+            "    return 288.15 - 0.0065 * altitude + temperature_offset",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def pressure(temperature: float) -> float:",  # markdown-exec: hide
+            "    return 101325.0 * (temperature / 288.15) ** 5.2561",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def density(pressure: float, temperature: float) -> float:",  # markdown-exec: hide
+            "    return pressure / (287.05 * temperature)",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def speed_of_sound(temperature: float) -> float:",  # markdown-exec: hide
+            "    return (1.4 * 287.05 * temperature) ** 0.5",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def true_airspeed(mach: float, speed_of_sound: float) -> float:",  # markdown-exec: hide
+            "    return mach * speed_of_sound",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "# Aerodynamics ---------------------------------------------------------------",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def weight(mass: float) -> float:",  # markdown-exec: hide
+            "    return mass * 9.80665",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def dynamic_pressure(density: float, true_airspeed: float) -> float:",  # markdown-exec: hide
+            "    return 0.5 * density * true_airspeed**2",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def lift_coefficient(",  # markdown-exec: hide
+            "    weight: float,",  # markdown-exec: hide
+            "    dynamic_pressure: float,",  # markdown-exec: hide
+            "    wing_area: float,",  # markdown-exec: hide
+            ") -> float:",  # markdown-exec: hide
+            "    return weight / (dynamic_pressure * wing_area)",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def parasite_drag(",  # markdown-exec: hide
+            "    dynamic_pressure: float,",  # markdown-exec: hide
+            "    wing_area: float,",  # markdown-exec: hide
+            "    zero_lift_drag_coefficient: float,",  # markdown-exec: hide
+            ") -> float:",  # markdown-exec: hide
+            "    return dynamic_pressure * wing_area * zero_lift_drag_coefficient",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def induced_drag(",  # markdown-exec: hide
+            "    dynamic_pressure: float,",  # markdown-exec: hide
+            "    wing_area: float,",  # markdown-exec: hide
+            "    lift_coefficient: float,",  # markdown-exec: hide
+            "    induced_drag_factor: float,",  # markdown-exec: hide
+            ") -> float:",  # markdown-exec: hide
+            "    return (",  # markdown-exec: hide
+            "        dynamic_pressure",  # markdown-exec: hide
+            "        * wing_area",  # markdown-exec: hide
+            "        * induced_drag_factor",  # markdown-exec: hide
+            "        * lift_coefficient**2",  # markdown-exec: hide
+            "    )",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def compressibility_drag(",  # markdown-exec: hide
+            "    dynamic_pressure: float,",  # markdown-exec: hide
+            "    wing_area: float,",  # markdown-exec: hide
+            "    mach: float,",  # markdown-exec: hide
+            ") -> float:",  # markdown-exec: hide
+            "    correction = 0.002 * mach**2 + 0.004 * mach**4",  # markdown-exec: hide
+            "    return dynamic_pressure * wing_area * correction",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def trim_drag(",  # markdown-exec: hide
+            "    dynamic_pressure: float,",  # markdown-exec: hide
+            "    wing_area: float,",  # markdown-exec: hide
+            "    lift_coefficient: float,",  # markdown-exec: hide
+            ") -> float:",  # markdown-exec: hide
+            "    return dynamic_pressure * wing_area * 0.0015 * lift_coefficient**2",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def total_drag(",  # markdown-exec: hide
+            "    parasite_drag: float,",  # markdown-exec: hide
+            "    induced_drag: float,",  # markdown-exec: hide
+            "    compressibility_drag: float,",  # markdown-exec: hide
+            "    trim_drag: float,",  # markdown-exec: hide
+            ") -> float:",  # markdown-exec: hide
+            "    return parasite_drag + induced_drag + compressibility_drag + trim_drag",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "# Propulsion -----------------------------------------------------------------",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def propulsive_power(total_drag: float, true_airspeed: float) -> float:",  # markdown-exec: hide
+            "    return total_drag * true_airspeed",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def fuel_power(",  # markdown-exec: hide
+            "    propulsive_power: float,",  # markdown-exec: hide
+            "    propulsive_efficiency: float,",  # markdown-exec: hide
+            ") -> float:",  # markdown-exec: hide
+            "    return propulsive_power / propulsive_efficiency",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def fuel_flow(fuel_power: float) -> float:",  # markdown-exec: hide
+            "    # Approximate kerosene lower heating value, J/kg.",  # markdown-exec: hide
+            "    return fuel_power / 43_000_000.0",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "# Emissions ------------------------------------------------------------------",  # markdown-exec: hide
+            "#",  # markdown-exec: hide
+            "# These four transforms form independent branches from fuel_flow.",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def co2_rate(fuel_flow: float) -> float:",  # markdown-exec: hide
+            "    return 3.16 * fuel_flow",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def water_rate(fuel_flow: float) -> float:",  # markdown-exec: hide
+            "    return 1.23 * fuel_flow",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def nox_rate(fuel_flow: float, nox_emission_index: float) -> float:",  # markdown-exec: hide
+            "    return fuel_flow * nox_emission_index",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def soot_rate(fuel_flow: float, soot_emission_index: float) -> float:",  # markdown-exec: hide
+            "    return fuel_flow * soot_emission_index",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "# Illustrative climate effects -----------------------------------------------",  # markdown-exec: hide
+            "#",  # markdown-exec: hide
+            "# These are deliberately simple surrogate relationships. They are not intended",  # markdown-exec: hide
+            "# to be scientifically defensible climate metrics.",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def co2_effect(co2_rate: float) -> float:",  # markdown-exec: hide
+            "    return co2_rate",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def water_effect(water_rate: float, altitude: float) -> float:",  # markdown-exec: hide
+            "    altitude_factor = 0.8 + altitude / 50_000.0",  # markdown-exec: hide
+            "    return 0.15 * water_rate * altitude_factor",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def nox_effect(",  # markdown-exec: hide
+            "    nox_rate: float,",  # markdown-exec: hide
+            "    altitude: float,",  # markdown-exec: hide
+            "    temperature: float,",  # markdown-exec: hide
+            ") -> float:",  # markdown-exec: hide
+            "    altitude_factor = 0.5 + altitude / 20_000.0",  # markdown-exec: hide
+            "    temperature_factor = 288.15 / temperature",  # markdown-exec: hide
+            "    return 40.0 * nox_rate * altitude_factor * temperature_factor",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def soot_effect(soot_rate: float, altitude: float) -> float:",  # markdown-exec: hide
+            "    altitude_factor = 0.5 + altitude / 15_000.0",  # markdown-exec: hide
+            "    return 1000.0 * soot_rate * altitude_factor",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def contrail_effect(",  # markdown-exec: hide
+            "    water_rate: float,",  # markdown-exec: hide
+            "    soot_rate: float,",  # markdown-exec: hide
+            "    altitude: float,",  # markdown-exec: hide
+            "    temperature: float,",  # markdown-exec: hide
+            ") -> float:",  # markdown-exec: hide
+            "    altitude_factor = (altitude / 12_000.0) ** 2",  # markdown-exec: hide
+            "    temperature_factor = (288.15 / temperature) ** 2",  # markdown-exec: hide
+            "    return (",  # markdown-exec: hide
+            "        0.08",  # markdown-exec: hide
+            "        * water_rate",  # markdown-exec: hide
+            "        * (1.0 + 100.0 * soot_rate)",  # markdown-exec: hide
+            "        * altitude_factor",  # markdown-exec: hide
+            "        * temperature_factor",  # markdown-exec: hide
+            "    )",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def total_climate_effect(",  # markdown-exec: hide
+            "    co2_effect: float,",  # markdown-exec: hide
+            "    water_effect: float,",  # markdown-exec: hide
+            "    nox_effect: float,",  # markdown-exec: hide
+            "    soot_effect: float,",  # markdown-exec: hide
+            "    contrail_effect: float,",  # markdown-exec: hide
+            ") -> float:",  # markdown-exec: hide
+            "    return (",  # markdown-exec: hide
+            "        co2_effect",  # markdown-exec: hide
+            "        + water_effect",  # markdown-exec: hide
+            "        + nox_effect",  # markdown-exec: hide
+            "        + soot_effect",  # markdown-exec: hide
+            "        + contrail_effect",  # markdown-exec: hide
+            "    )",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "cruise_impact = Implementation(",  # markdown-exec: hide
+            "    CruiseImpact,",  # markdown-exec: hide
+            "    [",  # markdown-exec: hide
+            "        temperature,",  # markdown-exec: hide
+            "        pressure,",  # markdown-exec: hide
+            "        density,",  # markdown-exec: hide
+            "        speed_of_sound,",  # markdown-exec: hide
+            "        true_airspeed,",  # markdown-exec: hide
+            "        weight,",  # markdown-exec: hide
+            "        dynamic_pressure,",  # markdown-exec: hide
+            "        lift_coefficient,",  # markdown-exec: hide
+            "        parasite_drag,",  # markdown-exec: hide
+            "        induced_drag,",  # markdown-exec: hide
+            "        compressibility_drag,",  # markdown-exec: hide
+            "        trim_drag,",  # markdown-exec: hide
+            "        total_drag,",  # markdown-exec: hide
+            "        propulsive_power,",  # markdown-exec: hide
+            "        fuel_power,",  # markdown-exec: hide
+            "        fuel_flow,",  # markdown-exec: hide
+            "        co2_rate,",  # markdown-exec: hide
+            "        water_rate,",  # markdown-exec: hide
+            "        nox_rate,",  # markdown-exec: hide
+            "        soot_rate,",  # markdown-exec: hide
+            "        co2_effect,",  # markdown-exec: hide
+            "        water_effect,",  # markdown-exec: hide
+            "        nox_effect,",  # markdown-exec: hide
+            "        soot_effect,",  # markdown-exec: hide
+            "        contrail_effect,",  # markdown-exec: hide
+            "        total_climate_effect,",  # markdown-exec: hide
+            "    ],",  # markdown-exec: hide
+            ")",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@system",  # markdown-exec: hide
+            "class JaxSubproblem(metaclass=Interface):",  # markdown-exec: hide
+            "    value: float = field()",  # markdown-exec: hide
+            "    result: float = field()",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def result(value: float) -> float:",  # markdown-exec: hide
+            "    return value**2 + 2.0 * value + 1.0",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "jax_subproblem = Implementation(",  # markdown-exec: hide
+            "    JaxSubproblem,",  # markdown-exec: hide
+            "    [result],",  # markdown-exec: hide
+            ")",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@system",  # markdown-exec: hide
+            "class HybridModel(metaclass=Interface):",  # markdown-exec: hide
+            "    input_value: float = field()",  # markdown-exec: hide
+            "    output_value: float = field()",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "@transform",  # markdown-exec: hide
+            "def output_value(input_value: float) -> float:",  # markdown-exec: hide
+            "    from bilt import JAX_BACKEND",  # markdown-exec: hide
+            "    from jax_backend_cruise import JaxSubproblem, jax_subproblem",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "    value = abs(input_value)",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "    with JAX_BACKEND, jax_subproblem:",  # markdown-exec: hide
+            "        return JaxSubproblem(value=value).result",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "",  # markdown-exec: hide
+            "hybrid_model = Implementation(",  # markdown-exec: hide
+            "    HybridModel,",  # markdown-exec: hide
+            "    [output_value],",  # markdown-exec: hide
+            ")",  # markdown-exec: hide
+        ]
+    )
+    + "\n"
+)  # markdown-exec: hide
 _example_module.write_text(_model_source)  # markdown-exec: hide
 # markdown-exec: hide
 _spec = importlib.util.spec_from_file_location(  # markdown-exec: hide
-    'jax_backend_cruise',  # markdown-exec: hide
+    "jax_backend_cruise",  # markdown-exec: hide
     _example_module,  # markdown-exec: hide
 )  # markdown-exec: hide
 assert _spec is not None and _spec.loader is not None  # markdown-exec: hide
