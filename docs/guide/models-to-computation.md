@@ -311,8 +311,6 @@ There is no route.
 In that case Bilt raises a `BiltSystemAnalysisError` rather than beginning an evaluation that cannot satisfy the request.
 
 ```python
-from bilt import BiltSystemAnalysisError
-
 with basic, pytest.raises(BiltSystemAnalysisError):
     _ = demo.gamma
 ```
