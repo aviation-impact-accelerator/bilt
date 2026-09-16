@@ -5,7 +5,6 @@ __all__ = [
 
 import dataclasses
 import typing
-from collections.abc import Mapping
 
 from bilt.core._canonical_ordering import canonicalized
 from bilt.core._tensors._errors import TensorDomainError
@@ -22,10 +21,14 @@ from bilt.symbolic._atoms import (
     IntType,
     SymbolType,
 )
-from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain, union
-from bilt.symbolic._expressions import Expr
 from bilt.symbolic._tree import Tree, axis_tree
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from bilt.symbolic._dimensions import Dim
+    from bilt.symbolic._expressions import Expr
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -163,28 +166,16 @@ def _lower_mean(
     )
 
     if dim not in value.domain.dims:
-        message = (
-            f"Cannot reduce dimension {dim!s}; "
-            f"it is not present in domain {value.domain!s}."
-        )
+        message = f"Cannot reduce dimension {dim!s}; it is not present in domain {value.domain!s}."
         raise TensorDomainError(message)
 
     try:
         axis = canonical_order.dims.index(dim)
     except ValueError:
-        message = (
-            f"Dimension {dim!s} is not present "
-            f"in canonical order {canonical_order!s}."
-        )
+        message = f"Dimension {dim!s} is not present in canonical order {canonical_order!s}."
         raise TensorDomainError(message) from None
 
-    output_domain = Domain(
-        tuple(
-            domain_dim
-            for domain_dim in value.domain.dims
-            if domain_dim is not dim
-        )
-    )
+    output_domain = Domain(tuple(domain_dim for domain_dim in value.domain.dims if domain_dim is not dim))
 
     return LoweredExpression(
         tree=Tree(

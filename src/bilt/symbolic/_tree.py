@@ -5,8 +5,8 @@ from bilt.symbolic._atoms import (
     EQUALS,
     MEAN,
     Atom,
-    axis,
     RelationOpType,
+    axis,
     dimension,
     floating,
     integer,
@@ -159,6 +159,7 @@ def symbol_tree(name: str) -> Tree:
 
 def dimension_tree(dim: Dim) -> Tree:
     return Tree(dimension(dim))
+
 
 def axis_tree(value: int) -> Tree:
     return Tree(axis(value))

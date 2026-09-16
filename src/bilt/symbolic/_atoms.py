@@ -24,7 +24,6 @@ __all__ = [
     "Atom",
     "AtomType",
     "AxisType",
-    "axis",
     "DimensionType",
     "FloatType",
     "IntType",
@@ -33,6 +32,7 @@ __all__ = [
     "RelationOpType",
     "SymbolType",
     "atom_cache_size",
+    "axis",
     "clear_atom_cache",
     "dimension",
     "floating",
@@ -152,6 +152,7 @@ def integer(value: int) -> Atom:
 
 def floating(value: float) -> Atom:
     return Atom(FloatType, value)
+
 
 def axis(value: int) -> Atom:
     return Atom(AxisType, value)
