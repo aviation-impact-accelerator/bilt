@@ -3,9 +3,12 @@ import typing
 
 from bilt.symbolic import _atoms as ops
 from bilt.symbolic._atoms import FloatType, IntType, SymbolType
-from bilt.symbolic._isolation._errors import UnsupportedIsolationError
+from bilt.symbolic._expressions import Expr
+from bilt.symbolic._isolation._errors import TargetNotFoundError, UnsupportedIsolationError
+from bilt.symbolic._isolation._isolate import isolate
 
 if typing.TYPE_CHECKING:
+    from bilt.core._equation import BasicEquation
     from bilt.symbolic._isolation._types import IsolatedTree
     from bilt.symbolic._tree import Tree
 
@@ -83,3 +86,23 @@ def _fold_binop(children: tuple[Tree, ...], operator_type: type[ast.operator]) -
     for child in iterator:
         expr = ast.BinOp(left=expr, op=operator_type(), right=_tree_to_ast_expr(child))
     return expr
+
+
+def equation_to_ast(
+    equation: BasicEquation,
+    target: str,
+) -> ast.FunctionDef:
+    if target not in equation.__bilt_equation_symbols__:
+        message = f"Target {target!r} is not a parameter of the equation {equation!s}."
+        raise TargetNotFoundError(message)
+
+    target_expr = Expr.symbol(target)
+    isolated = isolate(
+        equation.__bilt_equation_tree__,
+        target_expr,
+    )
+
+    return isolated_tree_to_functiondef(
+        isolated,
+        parameter_order=equation.__bilt_parameters__,
+    )

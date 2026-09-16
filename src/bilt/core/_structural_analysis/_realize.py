@@ -13,9 +13,9 @@ from bilt.core._equation import BasicEquation
 from bilt.core._error import BiltSystemAnalysisError
 from bilt.core._port import mangle_name
 from bilt.core._sub_system import SubSystemConstituent
+from bilt.core._to_ast import equation_to_ast
 from bilt.core._transform import BasicTransform
 from bilt.symbolic._isolation._errors import IsolationError
-from bilt.symbolic._isolation._isolate import equation_to_ast
 
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend

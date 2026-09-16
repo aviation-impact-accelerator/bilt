@@ -4,11 +4,10 @@ import typing
 import pytest
 
 from bilt.core._equation import equation
+from bilt.core._to_ast import equation_to_ast, isolated_tree_to_functiondef
 from bilt.symbolic._atoms import EQUALS
 from bilt.symbolic._expressions import Expr
-from bilt.symbolic._isolation import equation_to_ast
 from bilt.symbolic._isolation._errors import TargetNotFoundError
-from bilt.symbolic._isolation._to_ast import isolated_tree_to_functiondef
 from bilt.symbolic._isolation._types import IsolatedTree
 
 
