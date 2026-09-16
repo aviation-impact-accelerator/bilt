@@ -10,8 +10,8 @@ from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
+from bilt.core._error import BiltSystemAnalysisError
 from bilt.core._port import mangle_name
-from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform
 from bilt.symbolic._isolation._errors import IsolationError

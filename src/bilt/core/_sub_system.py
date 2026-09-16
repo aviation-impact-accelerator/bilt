@@ -2,10 +2,9 @@ __all__ = ["SubSystemConstituent"]
 
 import typing
 
-from bilt.core._error import BiltNameError
+from bilt.core._error import BiltNameError, BiltSystemAnalysisError
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import MANGLED_SEPARATOR, QualifiedPort
-from bilt.core._structural_analysis._errors import BiltSystemAnalysisError
 
 if typing.TYPE_CHECKING:
     import collections.abc

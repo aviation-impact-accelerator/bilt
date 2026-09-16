@@ -3,8 +3,8 @@ import pytest
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core import Interface, field, system
 from bilt.core._equation import equation
-from bilt.core._realize_analysis._realize import RealizationFailure, realize_plan
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
+from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan
 
 SUPPLY_VOLTAGE = 3.0
 
