@@ -2,7 +2,8 @@
 
 Conventions:
 1. Every bilt exception is defined in an `_errors.py` module beside the code that raises it, inherits `BiltError`
-   through exactly one area sub-root, and is re-exported from `bilt.errors`.
+   through exactly one area sub-root, and is re-exported from `bilt.errors`. The exception is `BiltError` itself,
+   which lives in `_base_error.py`.
 2. Names use a `Bilt` prefix and `Error` suffix and name the fault, not the module that raises it.
 3. Mix in a built-in exception only when the error replaces a built-in callers may already catch, or Python
    semantics expect it (`AttributeError` from attribute access, `TypeError` for wrong types, `ValueError` for bad
