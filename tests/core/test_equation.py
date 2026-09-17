@@ -3,7 +3,7 @@ import typing
 
 import pytest
 
-from bilt.core import Interface, field, system
+from bilt import Interface, field, system
 from bilt.core._equation import equation
 from bilt.errors import (
     BiltEquationReturnError,

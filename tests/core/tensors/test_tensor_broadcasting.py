@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
+from bilt import system, transform
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
-from bilt.core import system, transform
 from bilt.core._interface import Interface
 from bilt.core._system._field import field
 from bilt.core._system._implementation import Implementation

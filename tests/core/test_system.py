@@ -3,15 +3,15 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from bilt._backend._jax._backend import JAX_BACKEND
-from bilt._backend._python._backend import PYTHON_BACKEND
-from bilt.core import (
+from bilt import (
     Implementation,
     Interface,
     field,
     system,
     transform,
 )
+from bilt._backend._jax._backend import JAX_BACKEND
+from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.errors import (
     BiltAnalysisError,
