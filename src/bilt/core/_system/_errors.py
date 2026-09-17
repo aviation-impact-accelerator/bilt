@@ -1,3 +1,5 @@
+"""Errors for system definitions and sub-system declarations."""
+
 __all__ = [
     "BiltSubSystemConflictError",
     "BiltSubSystemError",
@@ -11,33 +13,10 @@ __all__ = [
 
 import typing
 
-from bilt.core._error import BiltCoreError
+from bilt.core._errors import BiltDefinitionError, BiltEvaluationError
 
 if typing.TYPE_CHECKING:
-    from ._instance import SystemInstance
-
-
-class BiltSystemDefinitionError(BiltCoreError):
-    cls_name: str
-
-    def __init__(self, cls: type) -> None:
-        self.cls_name = cls.__name__
-        super().__init__(
-            f"Cannot apply `@system` to {cls.__name__!r} because it does not declare `metaclass=Interface`. "
-            f"Add `metaclass=Interface` to the class definition: `class {cls.__name__}(metaclass=Interface): ...`"
-        )
-
-
-class BiltUnknownSystemAttributeError(BiltCoreError):
-    name: str
-
-    def __init__(self, name: str, instance: SystemInstance) -> None:
-        self.name = name
-        super().__init__(
-            f"Cannot evaluate attribute {name!r} because it was not set during initialization and no implementation "
-            f"has been selected for this instance of the {instance.__class__.__name__!r} interface. Set an "
-            f"implementation for the instance."
-        )
+    from bilt.core._system._instance import SystemInstance
 
 
 def _look_alike_hint(expected: str, actual: str) -> str:
@@ -54,7 +33,34 @@ def _look_alike_hint(expected: str, actual: str) -> str:
     )
 
 
-class BiltSubSystemError(BiltCoreError):
+class BiltSystemDefinitionError(BiltDefinitionError):
+    """Raised when `@system` is applied to a class that does not declare `metaclass=Interface`."""
+
+    cls_name: str
+
+    def __init__(self, cls: type) -> None:
+        self.cls_name = cls.__name__
+        super().__init__(
+            f"Cannot apply `@system` to {cls.__name__!r} because it does not declare `metaclass=Interface`. "
+            f"Add `metaclass=Interface` to the class definition: `class {cls.__name__}(metaclass=Interface): ...`"
+        )
+
+
+class BiltUnknownSystemAttributeError(BiltEvaluationError):
+    """Raised when an attribute was not set during initialization and no implementation has been selected."""
+
+    name: str
+
+    def __init__(self, name: str, instance: SystemInstance) -> None:
+        self.name = name
+        super().__init__(
+            f"Cannot evaluate attribute {name!r} because it was not set during initialization and no implementation "
+            f"has been selected for this instance of the {instance.__class__.__name__!r} interface. Set an "
+            f"implementation for the instance."
+        )
+
+
+class BiltSubSystemError(BiltDefinitionError):
     """Base for every way a parent can declare its sub-systems wrongly.
 
     Each subclass names one condition so a caller can single it out, but they share a base so

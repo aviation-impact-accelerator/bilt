@@ -3,6 +3,8 @@ import functools
 import operator
 import typing
 
+from bilt.units._errors import BiltUnitError
+
 from ._category import UnitCategory
 from ._dimensions import (
     AMOUNT,
@@ -15,7 +17,6 @@ from ._dimensions import (
     TIME,
     Dimension,
 )
-from ._errors import UnitError
 from ._prefix import PREFIX_NAMES, Prefix
 from ._quantities import Quantity
 
@@ -180,7 +181,7 @@ class UnitComposition:
             return NotImplemented
         if other == 0.0:
             message = f"Cannot multiply unit composition {self} by {other} as result is ambiguous"
-            raise UnitError(message)
+            raise BiltUnitError(message)
         return self.__class__(*self.composition, scale=self.scale * other)
 
     def __truediv__(self, other: UnitComposition) -> typing.Self:
@@ -300,7 +301,7 @@ class Unit:
     ) -> typing.Self:
         if prefix is not None and not name.startswith(PREFIX_NAMES[prefix]):
             message = f"Unit with name {name!r} does not start with its defined prefix of {prefix}"
-            raise UnitError(message)
+            raise BiltUnitError(message)
 
         match relation:
             case Unit():
@@ -346,7 +347,7 @@ class Unit:
                 f"match the relation {instance.relation!r} of the cached version of the unit "
                 f"with the same name"
             )
-            raise UnitError(message)
+            raise BiltUnitError(message)
 
         instance = object.__new__(cls)
         instance._name = name  # noqa: SLF001
@@ -384,7 +385,7 @@ class Unit:
                     f"with the same name {name} and scale {scale} but a different zero of "
                     f"{instance.offset}"
                 )
-                raise UnitError(message)
+                raise BiltUnitError(message)
 
             return instance
 
@@ -392,7 +393,7 @@ class Unit:
             message = (
                 f"Cannot instantiate new `{cls}` with scale {scale} because one already exists with the same scale"
             )
-            raise UnitError(message)
+            raise BiltUnitError(message)
 
         instance = object.__new__(cls)
         instance._name = name  # noqa: SLF001
@@ -471,7 +472,7 @@ class Unit:
     def __abs__(self) -> Unit:
         if self not in self.__class__._absolute_cache:  # noqa: SLF001
             message = f"No absolute unit corresponding to {self} exists"
-            raise UnitError(message)
+            raise BiltUnitError(message)
         return self.__class__._absolute_cache[self]  # noqa: SLF001
 
     @typing.overload

@@ -5,13 +5,6 @@ import pytest
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core import (
-    BiltSubSystemConflictError,
-    BiltSubSystemError,
-    BiltSubSystemMismatchedImplementationError,
-    BiltSubSystemMissingImplementationError,
-    BiltSubSystemNameCollisionError,
-    BiltSubSystemUnreferencedEntryError,
-    BiltSystemAnalysisError,
     Implementation,
     Interface,
     field,
@@ -20,6 +13,15 @@ from bilt.core import (
 )
 from bilt.core._equation import equation
 from bilt.core._sub_system import SubSystemConstituent
+from bilt.errors import (
+    BiltAnalysisError,
+    BiltSubSystemConflictError,
+    BiltSubSystemError,
+    BiltSubSystemMismatchedImplementationError,
+    BiltSubSystemMissingImplementationError,
+    BiltSubSystemNameCollisionError,
+    BiltSubSystemUnreferencedEntryError,
+)
 
 if TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -1067,7 +1069,7 @@ def test_a_relation_one_backend_rejects_survives_for_a_backend_that_accepts_it()
     channel = Implementation(Channel, [reading_eq, scaled_eq], internal_implementations={"doubler": doubler})
 
     rejected = Channel(reading=VOLTAGE)
-    with channel, JAX_BACKEND, pytest.raises(BiltSystemAnalysisError):
+    with channel, JAX_BACKEND, pytest.raises(BiltAnalysisError):
         _ = rejected.scaled
 
     accepted = Channel(reading=VOLTAGE)
@@ -1198,7 +1200,7 @@ def test_an_under_specified_sub_system_is_not_guessed_at(
 ) -> None:
     """Only the voltage port is bridged, so current and resistance reach nothing."""
     instance = component_over_resistor_voltage_only.system(current=CURRENT, resistance=RESISTANCE)
-    with component_over_resistor_voltage_only, pytest.raises(BiltSystemAnalysisError):
+    with component_over_resistor_voltage_only, pytest.raises(BiltAnalysisError):
         _ = instance.voltage
 
 
@@ -1236,5 +1238,5 @@ def test_a_direction_the_child_cannot_solve_is_rejected() -> None:
     )
 
     instance = Component(voltage=VOLTAGE, resistance=RESISTANCE)
-    with component, pytest.raises(BiltSystemAnalysisError):
+    with component, pytest.raises(BiltAnalysisError):
         _ = instance.current

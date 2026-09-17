@@ -10,12 +10,12 @@ from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
-from bilt.core._error import BiltSystemAnalysisError
+from bilt.core._errors import BiltAnalysisError
 from bilt.core._port import mangle_name
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._to_ast import equation_to_ast
 from bilt.core._transform import BasicTransform
-from bilt.symbolic._isolation._errors import IsolationError
+from bilt.symbolic._isolation._errors import BiltIsolationError
 
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -75,7 +75,7 @@ def _equation_to_callable(
 ) -> BackendCallable | RealizationFailure:
     try:
         function_ast = equation_to_ast(equation, plan_step.output)
-    except IsolationError as error:
+    except BiltIsolationError as error:
         return RealizationFailure(failed_plan_step=plan_step, cause=error)
     return _guarded_transpile(_NameMangler().visit(function_ast), plan_step, backend)
 
@@ -102,11 +102,11 @@ def _sub_system_to_callable(
 ) -> BackendCallable | RealizationFailure:
     if plan_step.request is None:
         msg = f"{sub_system!r} step for {plan_step.output!r} names no route through the child."
-        return RealizationFailure(failed_plan_step=plan_step, cause=BiltSystemAnalysisError(msg))
+        return RealizationFailure(failed_plan_step=plan_step, cause=BiltAnalysisError(msg))
 
     try:
         child_callable = sub_system.implementation.get_evaluation(plan_step.request, backend)
-    except BiltSystemAnalysisError as error:
+    except BiltAnalysisError as error:
         return RealizationFailure(failed_plan_step=plan_step, cause=error)
 
     return BackendCallable(

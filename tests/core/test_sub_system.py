@@ -1,11 +1,12 @@
 import pytest
 
 from bilt._backend._python._backend import PYTHON_BACKEND
-from bilt.core import BiltNameError, BiltSystemAnalysisError, Implementation, Interface, field, system
+from bilt.core import Implementation, Interface, field, system
 from bilt.core._equation import equation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import DOTTED_SEPARATOR, MANGLED_SEPARATOR, QualifiedPort
 from bilt.core._sub_system import SubSystemConstituent, validate_name
+from bilt.errors import BiltAnalysisError, BiltNameError
 
 CURRENT = 2.0
 RESISTANCE = 3.0
@@ -124,7 +125,7 @@ def test_child_port_recovers_the_child_local_name(sub_system: SubSystemConstitue
 def test_child_port_rejects_a_name_that_is_not_one_of_its_ports(
     sub_system: SubSystemConstituent, qualified: str
 ) -> None:
-    with pytest.raises(BiltSystemAnalysisError, match="does not have port"):
+    with pytest.raises(BiltAnalysisError, match="does not have port"):
         sub_system.child_port(qualified)
 
 
@@ -234,7 +235,7 @@ def test_a_parent_cannot_solve_a_child_port_the_child_has_no_route_to(
 
     rack = Implementation(Rack, [sealed_sub_system])
 
-    with pytest.raises(BiltSystemAnalysisError, match="Cannot compute"):
+    with pytest.raises(BiltAnalysisError, match="Cannot compute"):
         rack.evaluate({"sealed.b": 1.0}, "sealed.a", PYTHON_BACKEND)
 
 

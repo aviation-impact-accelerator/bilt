@@ -6,7 +6,7 @@ import ast
 import typing
 
 from bilt._backend._callable import BackendCallable
-from bilt._backend._errors import CompilationError
+from bilt._backend._errors import BiltCompilationError
 
 
 class InProcessPythonMixin:
@@ -24,7 +24,7 @@ class InProcessPythonMixin:
             code = compile(module, "<backend_compile>", "exec")
         except Exception as e:
             msg = f"Error when trying to compile transformed function '{function_definition.name}' threw error: {e}"
-            raise CompilationError(msg) from e
+            raise BiltCompilationError(msg) from e
 
         exec(code, self.compilation_namespace)  # noqa: S102
         return BackendCallable(

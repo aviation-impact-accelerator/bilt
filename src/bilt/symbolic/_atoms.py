@@ -1,7 +1,7 @@
 import typing
 import weakref
 
-from bilt.symbolic._errors import AtomMutationError
+from bilt.symbolic._errors import BiltAtomMutationError
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -116,13 +116,13 @@ class Atom:
     def __setattr__(self, name: str, value: object) -> None:
         if getattr(self, "_initialised", False):
             msg = "Atom objects are immutable"
-            raise AtomMutationError(msg)
+            raise BiltAtomMutationError(msg)
         object.__setattr__(self, name, value)
 
     def __delattr__(self, name: str) -> None:
         if getattr(self, "_initialised", False):
             msg = "Atom objects are immutable"
-            raise AtomMutationError(msg)
+            raise BiltAtomMutationError(msg)
         object.__delattr__(self, name)
 
     def __repr__(self) -> str:

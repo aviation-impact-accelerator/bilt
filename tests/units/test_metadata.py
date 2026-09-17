@@ -1,13 +1,13 @@
 import pytest
 
+from bilt.errors import BiltMetadataError
 from bilt.units import Metadata
-from bilt.units._metadata import MetadataError
 
 
 class TestMetadata:
     @staticmethod
     def test_empty_metadata_is_invalid() -> None:
-        with pytest.raises(MetadataError, match="Metadata must be a non-empty value"):
+        with pytest.raises(BiltMetadataError, match="Metadata must be a non-empty value"):
             _ = Metadata("")
 
     @staticmethod

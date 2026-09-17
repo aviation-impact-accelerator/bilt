@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from bilt.symbolic._atoms import ADD, INV, MUL, NEG
 from bilt.symbolic._expressions import Expr
-from bilt.symbolic._isolation._errors import UnsupportedIsolationError
+from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
 from bilt.symbolic._isolation._expr_ops import (
     make_add,
     make_div,
@@ -97,7 +97,7 @@ def isolate_expr_by_inverse_rules(
         )
 
     message = f"Cannot isolate {target!r} from {lhs!r}."
-    raise UnsupportedIsolationError(message)
+    raise BiltUnsupportedIsolationError(message)
 
 
 def isolate_add_expr(
@@ -110,7 +110,7 @@ def isolate_add_expr(
 
     if len(target_terms) != 1:
         message = f"Expected one target-containing additive term, got {len(target_terms)}."
-        raise UnsupportedIsolationError(message)
+        raise BiltUnsupportedIsolationError(message)
 
     target_part = target_terms[0]
 
@@ -133,7 +133,7 @@ def isolate_mul_expr(
 
     if len(target_factors) != 1:
         message = f"Expected one target-containing multiplicative factor, got {len(target_factors)}."
-        raise UnsupportedIsolationError(message)
+        raise BiltUnsupportedIsolationError(message)
 
     target_part = target_factors[0]
 

@@ -9,7 +9,7 @@ import dataclasses
 
 import numpy as np
 
-from bilt.core._tensors._errors import TensorDomainError
+from bilt.core._tensors._errors import BiltTensorDomainError
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain
 
@@ -35,7 +35,7 @@ class Tensor:
 
         if values.ndim != 0:
             message = f"Cannot create scalar Tensor from rank-{values.ndim} value."
-            raise TensorDomainError(message)
+            raise BiltTensorDomainError(message)
 
         return cls(
             values=values,
@@ -91,7 +91,7 @@ def tensor(
     """
     if over is not None and domain is not None:
         message = "Pass either over= or domain=, not both."
-        raise TensorDomainError(message)
+        raise BiltTensorDomainError(message)
 
     array = np.asarray(values)
 
@@ -104,10 +104,10 @@ def tensor(
             return Tensor.scalar(array)
         case None, None:
             message = "Non-scalar values need an explicit domain"
-            raise TensorDomainError(message)
+            raise BiltTensorDomainError(message)
         case _:
             message = "Pass either over= or domain=, not both."
-            raise TensorDomainError(message)
+            raise BiltTensorDomainError(message)
 
     return Tensor(
         values=array,
@@ -127,7 +127,7 @@ def _check_rank(values: np.ndarray, domain: Domain) -> None:
 
     if values.ndim != domain_rank:
         message = f"Value rank {values.ndim} does not match domain rank {domain_rank} for domain {domain!r}."
-        raise TensorDomainError(message)
+        raise BiltTensorDomainError(message)
 
 
 def _arithmetic_not_implemented() -> NotImplementedError:

@@ -3,9 +3,9 @@ __all__ = ["isolate"]
 
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import (
-    TargetNotFoundError,
-    TargetOnBothSidesError,
-    UnsupportedIsolationError,
+    BiltTargetNotFoundError,
+    BiltTargetOnBothSidesError,
+    BiltUnsupportedIsolationError,
 )
 from bilt.symbolic._isolation._expr_ops import (
     assert_binary_relation_tree,
@@ -68,15 +68,15 @@ def analyse_occurrences(
 
     if profile.target_missing:
         message = f"Target {target!r} does not occur in equation tree."
-        raise TargetNotFoundError(message)
+        raise BiltTargetNotFoundError(message)
 
     if profile.target_on_both_sides:
         message = f"Target {target!r} occurs on both sides."
-        raise TargetOnBothSidesError(message)
+        raise BiltTargetOnBothSidesError(message)
 
     if profile.total_count > 1:
         message = f"Target {target!r} occurs more than once."
-        raise UnsupportedIsolationError(message)
+        raise BiltUnsupportedIsolationError(message)
 
     return AnalysedTree(
         simplified_tree=simplified,

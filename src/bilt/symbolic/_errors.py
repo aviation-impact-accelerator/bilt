@@ -1,21 +1,36 @@
-__all__ = ["AtomError", "AtomMutationError", "BiltSymbolicError"]
+"""Errors for symbolic computation and domain validation."""
+
+__all__ = [
+    "BiltAtomMutationError",
+    "BiltInvalidDomainError",
+    "BiltSymbolicConversionError",
+    "BiltSymbolicError",
+    "BiltTreeMutationError",
+    "BiltUnknownPortError",
+]
+
+from bilt._errors import BiltError
 
 
-class BiltSymbolicError(Exception):
-    """Base error for the bilt-symbolic library."""
+class BiltSymbolicError(BiltError):
+    """Base error for symbolic computation failures."""
 
 
-class AtomError(BiltSymbolicError):
-    """Base error for atom construction and hash-consing failures."""
-
-
-class AtomMutationError(AtomError, AttributeError):
+class BiltAtomMutationError(BiltSymbolicError, AttributeError):
     """Raised when attempting to mutate an immutable Atom."""
 
 
-class TreeError(BiltSymbolicError):
-    """Base error for tree construction and hash-consing failures."""
-
-
-class TreeMutationError(TreeError, AttributeError):
+class BiltTreeMutationError(BiltSymbolicError, AttributeError):
     """Raised when attempting to mutate an immutable Tree."""
+
+
+class BiltUnknownPortError(BiltSymbolicError, AttributeError):
+    """Raised when attempting to access a port that does not exist."""
+
+
+class BiltSymbolicConversionError(BiltSymbolicError, TypeError):
+    """Raised when a symbolic expression cannot be converted to the requested form."""
+
+
+class BiltInvalidDomainError(BiltSymbolicError, ValueError):
+    """Raised when a domain specification is invalid."""

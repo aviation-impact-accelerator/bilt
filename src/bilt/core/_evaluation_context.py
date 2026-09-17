@@ -1,6 +1,7 @@
 import functools
 
 from bilt.core._canonical_ordering import _derive_canonical_order
+from bilt.core._errors import BiltNoActiveEvaluationError
 
 __all__ = [
     "EvaluationContext",
@@ -42,6 +43,6 @@ def current_evaluation() -> EvaluationContext:
     """Return the currently active evaluation."""
     if not _evaluation_stack:
         message = "No Bilt evaluation is currently active."
-        raise RuntimeError(message)
+        raise BiltNoActiveEvaluationError(message)
 
     return _evaluation_stack[-1]

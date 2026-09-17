@@ -1,5 +1,6 @@
 import pytest
 
+from bilt.errors import BiltAtomMutationError
 from bilt.symbolic._atoms import (
     ADD,
     EQUALS,
@@ -28,7 +29,6 @@ from bilt.symbolic._atoms import (
     relation_operator,
     symbol,
 )
-from bilt.symbolic._errors import AtomMutationError
 
 
 @pytest.fixture(autouse=True)
@@ -77,16 +77,16 @@ def test_atom_equality_and_hash_are_identity_based() -> None:
 def test_atom_is_immutable() -> None:
     x = symbol("x")
 
-    with pytest.raises(AtomMutationError):
+    with pytest.raises(BiltAtomMutationError):
         x.value = "y"
 
-    with pytest.raises(AtomMutationError):
+    with pytest.raises(BiltAtomMutationError):
         x.atom_type = OpType
 
-    with pytest.raises(AtomMutationError):
+    with pytest.raises(BiltAtomMutationError):
         del x.value
 
-    with pytest.raises(AtomMutationError):
+    with pytest.raises(BiltAtomMutationError):
         x.extra = "not allowed"  # type: ignore[attr-defined]
 
 

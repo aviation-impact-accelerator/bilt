@@ -4,8 +4,8 @@ import typing
 
 from bilt._backend._base_backend import _backend_stack
 from bilt._backend._python import PYTHON_BACKEND
+from bilt.core._system._errors import BiltUnknownSystemAttributeError
 
-from ._error import BiltUnknownSystemAttributeError
 from ._sentinel import MISSING, _Missing
 
 if typing.TYPE_CHECKING:

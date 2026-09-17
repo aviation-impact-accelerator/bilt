@@ -1,5 +1,6 @@
 import pytest
 
+from bilt.errors import BiltSymbolicConversionError, BiltUnknownPortError
 from bilt.symbolic._atoms import (
     ADD,
     EQUALS,
@@ -73,7 +74,7 @@ def test_as_tree_converts_supported_values() -> None:
 def test_as_tree_rejects_bool() -> None:
     value = True
 
-    with pytest.raises(TypeError, match="Boolean values"):
+    with pytest.raises(BiltSymbolicConversionError, match="Boolean values"):
         as_tree(value)
 
 
@@ -237,7 +238,7 @@ def test_sub_system_expr_port_access_returns_leaf_symbol() -> None:
 def test_sub_system_expr_unknown_port_raises_attribute_error_listing_ports() -> None:
     resistor = SubSystemExpr("resistor", {"v": "resistor.v", "i": "resistor.i", "r": "resistor.r"})
 
-    with pytest.raises(AttributeError, match=r"'resistor' has no port 'typo'\. Valid ports: v, i, r"):
+    with pytest.raises(BiltUnknownPortError, match=r"'resistor' has no port 'typo'\. Valid ports: v, i, r"):
         _ = resistor.typo
 
 
@@ -266,7 +267,7 @@ def test_sub_system_expr_cannot_be_used_as_an_operand() -> None:
     voltage = symbol_expr("voltage")
     resistor = SubSystemExpr("resistor", {"v": "resistor.v"})
 
-    with pytest.raises(TypeError, match=r"Cannot convert 'SubSystemExpr' to symbolic Tree"):
+    with pytest.raises(BiltSymbolicConversionError, match=r"Cannot convert 'SubSystemExpr' to symbolic Tree"):
         _ = voltage == resistor
 
 

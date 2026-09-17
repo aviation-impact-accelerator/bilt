@@ -3,8 +3,14 @@ import typing
 
 import pytest
 
-from bilt.core import BiltNameError, EquationReturnError, Interface, field, system
+from bilt.core import Interface, field, system
 from bilt.core._equation import equation
+from bilt.errors import (
+    BiltEquationReturnError,
+    BiltEquationSignatureError,
+    BiltNameError,
+    BiltUnknownPortError,
+)
 from bilt.symbolic._atoms import ADD, EQUALS
 
 # Expr is used in @equation function annotations. Those annotations are part of
@@ -111,7 +117,7 @@ def test_equation_raises_if_function_returns_expr() -> None:
         return x
 
     with pytest.raises(
-        EquationReturnError,
+        BiltEquationReturnError,
         match="Did you forget to compare it with another expression",
     ):
         equation(bad_model)
@@ -121,7 +127,7 @@ def test_equation_raises_if_function_returns_non_relation_tree() -> None:
     def bad_model(x: Expr) -> object:
         return x.rep
 
-    with pytest.raises(EquationReturnError, match="non-relation tree"):
+    with pytest.raises(BiltEquationReturnError, match="non-relation tree"):
         equation(bad_model)
 
 
@@ -129,7 +135,7 @@ def test_equation_error_mentions_function_name() -> None:
     def bad_model(x: Expr) -> object:
         return x
 
-    with pytest.raises(EquationReturnError, match="'bad_model'"):
+    with pytest.raises(BiltEquationReturnError, match="'bad_model'"):
         equation(bad_model)
 
 
@@ -137,7 +143,7 @@ def test_equation_error_mentions_return_type() -> None:
     def bad_model(_x: Expr) -> object:
         return 1
 
-    with pytest.raises(EquationReturnError, match="int"):
+    with pytest.raises(BiltEquationReturnError, match="int"):
         equation(bad_model)
 
 
@@ -213,7 +219,7 @@ def test_equation_without_sub_systems_records_none() -> None:
 
 
 def test_equation_rejects_an_unknown_sub_system_port_at_definition_time() -> None:
-    with pytest.raises(AttributeError, match=r"'resistor' has no port 'typo'"):
+    with pytest.raises(BiltUnknownPortError, match=r"'resistor' has no port 'typo'"):
 
         @equation
         def bad_eq(resistor: Resistor) -> bool:
@@ -243,3 +249,11 @@ def test_equation_rejects_a_plain_parameter_named_with_the_mangled_separator() -
         @equation
         def bad_eq(voltage: float, a__b: float) -> bool:
             return voltage == a__b
+
+
+def test_equation_rejects_var_keyword_parameters() -> None:
+    def bad_eq(**kwargs: float) -> bool:
+        return kwargs["voltage"] == kwargs["r"]
+
+    with pytest.raises(BiltEquationSignatureError, match="must use only named parameters"):
+        equation(bad_eq)

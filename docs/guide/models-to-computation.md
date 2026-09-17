@@ -308,10 +308,10 @@ gamma ?
 
 There is no route.
 
-In that case Bilt raises a `BiltSystemAnalysisError` rather than beginning an evaluation that cannot satisfy the request.
+In that case Bilt raises a `BiltAnalysisError` rather than beginning an evaluation that cannot satisfy the request.
 
 ```python
-with basic, pytest.raises(BiltSystemAnalysisError):
+with basic, pytest.raises(BiltAnalysisError):
     _ = demo.gamma
 ```
 

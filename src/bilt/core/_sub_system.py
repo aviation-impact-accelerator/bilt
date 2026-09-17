@@ -2,7 +2,7 @@ __all__ = ["SubSystemConstituent"]
 
 import typing
 
-from bilt.core._error import BiltNameError, BiltSystemAnalysisError
+from bilt.core._errors import BiltAnalysisError, BiltNameError
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import MANGLED_SEPARATOR, QualifiedPort
 
@@ -32,7 +32,7 @@ class SubSystemConstituent:
         port = QualifiedPort.unqualify(qualified, self.__bilt_name__, self.interface.__bilt_parameters__)
         if port is None:
             msg = f"{self!r} does not have port {qualified!r}."
-            raise BiltSystemAnalysisError(msg)
+            raise BiltAnalysisError(msg)
         return port
 
     def request_for(

@@ -1,5 +1,6 @@
 import pytest
 
+from bilt.errors import BiltInvalidDomainError
 from bilt.symbolic._dimensions import dim
 from bilt.symbolic._domains import Domain, as_domain, domain
 
@@ -36,7 +37,7 @@ def test_domain_rejects_repeated_dimension() -> None:
     time = dim("time")
 
     with pytest.raises(
-        ValueError,
+        BiltInvalidDomainError,
         match="cannot contain the same dimension more than once",
     ):
         domain(time, time)
@@ -47,7 +48,7 @@ def test_domain_rejects_dimensions_with_same_name() -> None:
     second_time = dim("time")
 
     with pytest.raises(
-        ValueError,
+        BiltInvalidDomainError,
         match="cannot contain the same dimension more than once",
     ):
         domain(first_time, second_time)

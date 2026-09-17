@@ -9,6 +9,7 @@ import dataclasses
 from collections.abc import Iterable
 
 from bilt.symbolic._dimensions import Dim
+from bilt.symbolic._errors import BiltInvalidDomainError
 
 type DomainLike = Domain | Dim | Iterable[Dim]
 
@@ -27,7 +28,7 @@ class Domain:
     def __post_init__(self) -> None:
         if len(set(self.dims)) != len(self.dims):
             message = "A domain cannot contain the same dimension more than once."
-            raise ValueError(message)
+            raise BiltInvalidDomainError(message)
 
     @classmethod
     def scalar(cls) -> Domain:

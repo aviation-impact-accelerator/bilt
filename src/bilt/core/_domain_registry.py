@@ -1,12 +1,12 @@
 __all__ = [
     "DomainRegistry",
-    "DomainRegistryError",
 ]
 
 import typing
 
 import numpy as np
 
+from bilt.core._errors import BiltDomainRegistryError, BiltDomainRegistryLockedError
 from bilt.symbolic._dimensions import CoordinateAxis
 
 if typing.TYPE_CHECKING:
@@ -14,14 +14,6 @@ if typing.TYPE_CHECKING:
 
     from bilt.symbolic._dimensions import Dim
     from bilt.symbolic._domains import Domain
-
-
-class DomainRegistryError(ValueError):
-    """Raised when dimensions have conflicting evaluation bindings."""
-
-
-class DomainRegistryDimensionsLockedError(RuntimeError):
-    """Raised when trying to bind a new dimension to a locked domain registry."""
 
 
 @typing.runtime_checkable
@@ -65,7 +57,7 @@ class DomainRegistry:
         """Bind the dimensions discovered from a concrete value."""
         if len(value.domain.dims) != len(value.shape):
             message = f"Value rank {len(value.shape)} does not match domain rank {len(value.domain.dims)}."
-            raise DomainRegistryError(message)
+            raise BiltDomainRegistryError(message)
 
         for dimension, size in zip(
             value.domain.dims,
@@ -80,7 +72,7 @@ class DomainRegistry:
 
         if existing is None:
             if self._locked_against_new_dimensions:
-                raise DomainRegistryDimensionsLockedError
+                raise BiltDomainRegistryLockedError
 
             self._bindings[axis.dimension] = axis
             return
@@ -88,17 +80,17 @@ class DomainRegistry:
         if isinstance(existing, int):
             if existing != len(axis):
                 message = f"Dimension {axis.dimension!s} has inconsistent sizes: {existing} and {len(axis)}."
-                raise DomainRegistryError(message)
+                raise BiltDomainRegistryError(message)
 
             if self._locked_against_new_dimensions:
-                raise DomainRegistryDimensionsLockedError
+                raise BiltDomainRegistryLockedError
 
             self._bindings[axis.dimension] = axis
             return
 
         if existing.coordinates != axis.coordinates:
             message = f"Dimension {axis.dimension!s} has conflicting coordinate definitions."
-            raise DomainRegistryError(message)
+            raise BiltDomainRegistryError(message)
 
     def size(self, dimension: Dim) -> int:
         """Return the size bound to a dimension."""
@@ -115,7 +107,7 @@ class DomainRegistry:
 
         if isinstance(binding, int):
             message = f"Dimension {dimension!s} has no coordinate axis."
-            raise DomainRegistryError(message)
+            raise BiltDomainRegistryError(message)
 
         return binding
 
@@ -132,7 +124,7 @@ class DomainRegistry:
                     return position
 
         message = f"Coordinate {coordinate!r} is not present on dimension {dim!r}."
-        raise DomainRegistryError(message)
+        raise BiltDomainRegistryError(message)
 
     def lock_against_new_dimensions(self) -> None:
         self._locked_against_new_dimensions = True
@@ -146,7 +138,7 @@ class DomainRegistry:
 
         if existing is None:
             if self._locked_against_new_dimensions:
-                raise DomainRegistryDimensionsLockedError
+                raise BiltDomainRegistryLockedError
 
             self._bindings[dimension] = size
             return
@@ -155,11 +147,11 @@ class DomainRegistry:
 
         if existing_size != size:
             message = f"Dimension {dimension!s} has inconsistent sizes: {existing_size} and {size}."
-            raise DomainRegistryError(message)
+            raise BiltDomainRegistryError(message)
 
     def _binding(self, dimension: Dim) -> int | CoordinateAxis:
         try:
             return self._bindings[dimension]
         except KeyError:
             message = f"Dimension {dimension!s} is not bound."
-            raise DomainRegistryError(message) from None
+            raise BiltDomainRegistryError(message) from None

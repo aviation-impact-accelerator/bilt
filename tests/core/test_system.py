@@ -6,9 +6,6 @@ import pytest
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core import (
-    BiltSystemAnalysisError,
-    BiltSystemDefinitionError,
-    BiltUnknownSystemAttributeError,
     Implementation,
     Interface,
     field,
@@ -16,6 +13,11 @@ from bilt.core import (
     transform,
 )
 from bilt.core._equation import equation
+from bilt.errors import (
+    BiltAnalysisError,
+    BiltSystemDefinitionError,
+    BiltUnknownSystemAttributeError,
+)
 
 if TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -237,7 +239,7 @@ def test_evaluation_of_attribute_with_no_path_raises_system_evaluation_error() -
     b = 2.0
     demo = Demo(a=a, b=b)
 
-    with basic, pytest.raises(BiltSystemAnalysisError):
+    with basic, pytest.raises(BiltAnalysisError):
         _ = demo.c
 
 

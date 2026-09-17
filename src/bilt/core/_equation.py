@@ -8,7 +8,7 @@ import inspect
 import types
 import typing
 
-from bilt.core._error import EquationReturnError
+from bilt.core._errors import BiltEquationReturnError, BiltEquationSignatureError
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
 from bilt.core._sub_system import validate_name
@@ -87,7 +87,7 @@ def _validate_equation_signature(
                 f"Equation function {name!r} must use only named parameters "
                 "(no positional-only parameters, *args, or **kwargs)."
             )
-            raise TypeError(msg)
+            raise BiltEquationSignatureError(msg)
 
 
 def _sub_system_parameters(signature: inspect.Signature) -> dict[str, Interface]:
@@ -154,10 +154,10 @@ def _build_equation_tree[R, **P](
     result = symbolic_function(**symbols)
 
     if not isinstance(result, Tree):
-        raise EquationReturnError(_equation_return_error_message(name, result))
+        raise BiltEquationReturnError(_equation_return_error_message(name, result))
 
     if not result.is_relation:
-        raise EquationReturnError(_equation_return_error_message(name, result))
+        raise BiltEquationReturnError(_equation_return_error_message(name, result))
 
     return result
 

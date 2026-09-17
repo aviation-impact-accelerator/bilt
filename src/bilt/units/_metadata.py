@@ -1,6 +1,7 @@
 import typing
 
-from ._errors import MetadataError
+from bilt.units._errors import BiltMetadataError
+
 from ._quantities import Quantity
 from ._units import Unit, UnitComposition, UnitOrder
 
@@ -17,7 +18,7 @@ class Metadata:
 
         if value == "":
             message = "Metadata must be a non-empty value"
-            raise MetadataError(message)
+            raise BiltMetadataError(message)
 
         instance = object.__new__(cls)
         cls._cache[value] = instance

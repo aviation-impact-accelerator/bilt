@@ -2,10 +2,9 @@ import typing
 
 import pytest
 
-from bilt._backend._errors import UnsupportedNodeError
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
-from bilt.core import BiltSystemAnalysisError, Implementation, Interface, field, system, transform
+from bilt.core import Implementation, Interface, field, system, transform
 from bilt.core._equation import equation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis import StructuralAnalyser
@@ -14,7 +13,7 @@ from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
 from bilt.core._structural_analysis._plan import PlanStep
 from bilt.core._structural_analysis._realize import RealizationFailure, _operation_to_callable
 from bilt.core._sub_system import SubSystemConstituent
-from bilt.symbolic._isolation._errors import IsolationError
+from bilt.errors import BiltAnalysisError, BiltIsolationError, BiltUnsupportedNodeError
 
 if typing.TYPE_CHECKING:
     import ast
@@ -31,7 +30,7 @@ class _RuntimeStructuralAnalyser(StructuralAnalyser, typing.Protocol):
 def _refuse_to_compile(_function_definition: object) -> typing.NoReturn:
     """Stand in for a backend meeting a construct it does not support."""
     msg = "AST node 'While' is unsupported by this backend."
-    raise UnsupportedNodeError(msg)
+    raise BiltUnsupportedNodeError(msg)
 
 
 def _refuse_one_transform(
@@ -194,7 +193,7 @@ def test_search_rejects_an_output_that_is_not_in_the_graph() -> None:
 
     graph = BipartiteGraph([c], PYTHON_BACKEND)
 
-    with pytest.raises(BiltSystemAnalysisError, match="not in the graph"):
+    with pytest.raises(BiltAnalysisError, match="not in the graph"):
         graph.search({"a", "b"}, "missing")
 
 
@@ -232,7 +231,7 @@ def test_analyser_raises_when_no_route_survives_pruning_but_other_routes_still_w
     expected_z = 5.0
     analyser = ExhaustiveStructuralAnalyser([square, offset], PYTHON_BACKEND)
 
-    with pytest.raises(BiltSystemAnalysisError, match="Cannot compute x"):
+    with pytest.raises(BiltAnalysisError, match="Cannot compute x"):
         analyser.analyse({"z"}, "x")
 
     surviving_case = PYTHON_BACKEND.chain_case(analyser.analyse({"y"}, "z"))
@@ -258,7 +257,7 @@ def test_a_step_one_backend_refuses_is_only_attempted_once_across_queries(
     attempts = _refuse_one_transform(monkeypatch, PYTHON_BACKEND, "b")
 
     for output in ("c", "d"):
-        with pytest.raises(BiltSystemAnalysisError):
+        with pytest.raises(BiltAnalysisError):
             analyser.analyse({"a"}, output)
 
     assert attempts == ["b"]
@@ -281,7 +280,7 @@ def test_a_step_one_backend_refuses_stays_available_to_another_backend(
     request = EvaluationRequest(output="c", available=frozenset({"a"}))
 
     _refuse_one_transform(monkeypatch, PYTHON_BACKEND, "c")
-    with pytest.raises(BiltSystemAnalysisError):
+    with pytest.raises(BiltAnalysisError):
         implementation.get_evaluation(request, PYTHON_BACKEND)
 
     surviving = implementation.get_evaluation(request, JAX_BACKEND)
@@ -296,10 +295,10 @@ def test_exhausted_search_reports_why_the_last_route_was_rejected(monkeypatch: p
     analyser = ExhaustiveStructuralAnalyser([from_w], PYTHON_BACKEND)
     monkeypatch.setattr(PYTHON_BACKEND, "transpile", _refuse_to_compile)
 
-    with pytest.raises(BiltSystemAnalysisError, match="unsupported") as raised:
+    with pytest.raises(BiltAnalysisError, match="unsupported") as raised:
         analyser.analyse({"w"}, "x")
 
-    assert isinstance(raised.value.__cause__, UnsupportedNodeError)
+    assert isinstance(raised.value.__cause__, BiltUnsupportedNodeError)
 
 
 def test_exhausted_search_reports_an_isolation_failure_as_the_cause() -> None:
@@ -309,10 +308,10 @@ def test_exhausted_search_reports_an_isolation_failure_as_the_cause() -> None:
 
     analyser = ExhaustiveStructuralAnalyser([square], PYTHON_BACKEND)
 
-    with pytest.raises(BiltSystemAnalysisError) as raised:
+    with pytest.raises(BiltAnalysisError) as raised:
         analyser.analyse({"z"}, "x")
 
-    assert isinstance(raised.value.__cause__, IsolationError)
+    assert isinstance(raised.value.__cause__, BiltIsolationError)
 
 
 def _resistor_sub_system(name: str = "resistor") -> SubSystemConstituent:
@@ -537,7 +536,7 @@ def test_retrying_a_sub_system_still_ends_when_the_backend_refuses_everything(
     rig = _rig_over_sensor()
     monkeypatch.setattr(PYTHON_BACKEND, "transpile", _refuse_to_compile)
 
-    with pytest.raises(BiltSystemAnalysisError, match="Cannot compute answer"):
+    with pytest.raises(BiltAnalysisError, match="Cannot compute answer"):
         rig.analyser_for(PYTHON_BACKEND).analyse({"raw", "calibration"}, "answer")
 
 
