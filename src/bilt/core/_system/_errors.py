@@ -46,17 +46,16 @@ class BiltSystemDefinitionError(BiltDefinitionError):
         )
 
 
-class BiltUnknownSystemAttributeError(BiltEvaluationError):
+class BiltUnknownSystemAttributeError(BiltEvaluationError, AttributeError):
     """Raised when an attribute was not set during initialization and no implementation has been selected."""
 
-    name: str
-
     def __init__(self, name: str, instance: SystemInstance) -> None:
-        self.name = name
         super().__init__(
             f"Cannot evaluate attribute {name!r} because it was not set during initialization and no implementation "
             f"has been selected for this instance of the {instance.__class__.__name__!r} interface. Set an "
-            f"implementation for the instance."
+            f"implementation for the instance.",
+            name=name,
+            obj=instance,
         )
 
 
