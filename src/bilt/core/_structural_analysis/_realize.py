@@ -62,9 +62,7 @@ def _transform_to_callable(
         "ast.FunctionDef",
         ast.parse(textwrap.dedent(inspect.getsource(transform._function))).body[0],  # noqa: SLF001
     )
-    function_ast.decorator_list = [
-        d for d in function_ast.decorator_list if not (isinstance(d, ast.Name) and d.id == "transform")
-    ]
+    function_ast.decorator_list = []
     return _guarded_transpile(function_ast, plan_step, backend)
 
 
