@@ -7,19 +7,14 @@ import pytest
 import bilt
 from bilt._backend._jax import JAX_BACKEND
 
-_EXTRA_PACKAGES = {"jax": ("jax", "jaxlib")}
 
-
-def _run_without(extra: str, code: str) -> subprocess.CompletedProcess[str]:
-    blocked = "".join(f"sys.modules[{package!r}] = None\n" for package in _EXTRA_PACKAGES[extra])
-    script = "import sys\n" + blocked + textwrap.dedent(code)
+def _run_without_jax(code: str) -> subprocess.CompletedProcess[str]:
+    script = 'import sys\nsys.modules["jax"] = None\n' + textwrap.dedent(code)
     return subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=False)  # noqa: S603
 
 
-@pytest.mark.parametrize("extra", sorted({extra for _, extra in bilt._OPTIONAL.values()}))  # noqa: SLF001
-def test_import_bilt_and_evaluate_on_python_backend_without_extra(extra: str) -> None:
-    result = _run_without(
-        extra,
+def test_import_bilt_and_evaluate_on_python_backend_without_jax() -> None:
+    result = _run_without_jax(
         """
         from bilt import PYTHON_BACKEND, Implementation, Interface, field, system, transform
 
@@ -39,27 +34,21 @@ def test_import_bilt_and_evaluate_on_python_backend_without_extra(extra: str) ->
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.parametrize(("name", "extra"), [(name, extra) for name, (_, extra) in bilt._OPTIONAL.items()])  # noqa: SLF001
-def test_optional_name_without_extra_raises_import_error_naming_extra(name: str, extra: str) -> None:
-    result = _run_without(
-        extra,
-        f"""
+def test_jax_backend_without_jax_raises_import_error_naming_extra() -> None:
+    result = _run_without_jax(
+        """
         import bilt
 
         try:
-            getattr(bilt, {name!r})
+            bilt.JAX_BACKEND
         except ImportError as error:
-            assert "bilt[{extra}]" in str(error), error
+            assert "bilt[jax]" in str(error), error
             assert isinstance(error.__cause__, ModuleNotFoundError)
         else:
             raise AssertionError("expected ImportError")
         """,
     )
     assert result.returncode == 0, result.stderr
-
-
-def test_optional_names_are_public() -> None:
-    assert set(bilt._OPTIONAL) <= set(bilt.__all__)  # noqa: SLF001
 
 
 def test_jax_backend_is_adapter_instance_when_jax_installed() -> None:
