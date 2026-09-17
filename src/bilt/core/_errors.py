@@ -12,7 +12,7 @@ __all__ = [
     "BiltNoActiveEvaluationError",
 ]
 
-from bilt._errors import BiltError
+from bilt._base_error import BiltError
 
 
 class BiltDefinitionError(BiltError):

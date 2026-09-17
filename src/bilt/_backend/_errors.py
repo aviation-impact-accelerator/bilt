@@ -2,7 +2,7 @@
 
 __all__ = ["BiltBackendError", "BiltCompilationError", "BiltUnsupportedNodeError"]
 
-from bilt._errors import BiltError
+from bilt._base_error import BiltError
 
 
 class BiltBackendError(BiltError):

@@ -9,7 +9,7 @@ __all__ = [
     "BiltUnknownPortError",
 ]
 
-from bilt._errors import BiltError
+from bilt._base_error import BiltError
 
 
 class BiltSymbolicError(BiltError):

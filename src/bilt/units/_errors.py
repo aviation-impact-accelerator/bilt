@@ -7,7 +7,7 @@ __all__ = [
     "BiltUnitsError",
 ]
 
-from bilt._errors import BiltError
+from bilt._base_error import BiltError
 
 
 class BiltUnitsError(BiltError):

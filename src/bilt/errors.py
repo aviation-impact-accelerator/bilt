@@ -53,7 +53,7 @@ __all__ = [
 ]
 
 from bilt._backend._errors import BiltBackendError, BiltCompilationError, BiltUnsupportedNodeError
-from bilt._errors import BiltError
+from bilt._base_error import BiltError
 from bilt.core._errors import (
     BiltAnalysisError,
     BiltDefinitionError,
