@@ -3,6 +3,7 @@
 __all__ = [
     "BiltAnalysisError",
     "BiltDefinitionError",
+    "BiltDomainBindingError",
     "BiltDomainRegistryError",
     "BiltDomainRegistryLockedError",
     "BiltEquationReturnError",
@@ -43,7 +44,11 @@ class BiltNoActiveEvaluationError(BiltEvaluationError, RuntimeError):
     """Raised when an operation requires an active evaluation context that is not available."""
 
 
-class BiltDomainRegistryError(BiltEvaluationError, ValueError):
+class BiltDomainRegistryError(BiltEvaluationError):
+    """Base for failures binding or looking up dimensions in a domain registry."""
+
+
+class BiltDomainBindingError(BiltDomainRegistryError, ValueError):
     """Raised when dimensions have conflicting evaluation bindings."""
 
 

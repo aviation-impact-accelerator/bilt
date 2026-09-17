@@ -19,6 +19,7 @@ __all__ = [
     "BiltCompilationError",
     "BiltDefinitionError",
     "BiltDimensionalityError",
+    "BiltDomainBindingError",
     "BiltDomainRegistryError",
     "BiltDomainRegistryLockedError",
     "BiltEquationReturnError",
@@ -57,6 +58,7 @@ from bilt._base_error import BiltError
 from bilt.core._errors import (
     BiltAnalysisError,
     BiltDefinitionError,
+    BiltDomainBindingError,
     BiltDomainRegistryError,
     BiltDomainRegistryLockedError,
     BiltEquationReturnError,

@@ -41,7 +41,7 @@ def test_direct_subclasses_of_bilt_error() -> None:
         ("BiltNoActiveEvaluationError", RuntimeError),
         ("BiltTensorDomainError", ValueError),
         ("BiltSymbolicLoweringError", ValueError),
-        ("BiltDomainRegistryError", ValueError),
+        ("BiltDomainBindingError", ValueError),
         ("BiltDomainRegistryLockedError", RuntimeError),
         ("BiltAtomMutationError", AttributeError),
         ("BiltTreeMutationError", AttributeError),
