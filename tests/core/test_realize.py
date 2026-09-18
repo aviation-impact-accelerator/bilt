@@ -79,3 +79,33 @@ def test_realize_plan_mangles_an_equation_solving_for_a_dotted_port() -> None:
     assert case.intermediates[0].name == "resistor__v"
     assert case.intermediates[0].parameters == ("supply",)
     assert case.intermediates[0].evaluate({"supply": SUPPLY_VOLTAGE}) == SUPPLY_VOLTAGE
+
+
+def test_realize_plan_accepts_a_transform_decorated_through_the_package() -> None:
+    import bilt  # noqa: PLC0415
+
+    @bilt.transform
+    def doubled(a: float) -> float:
+        return 2 * a
+
+    plan = AnalysisPlan(inputs=frozenset({"a"}), output="c", steps=(PlanStep(operation=doubled, output="c"),))
+
+    case = realize_plan(plan, PYTHON_BACKEND)
+
+    assert not isinstance(case, RealizationFailure)
+    assert case.intermediates[0].evaluate({"a": SUPPLY_VOLTAGE}) == 2 * SUPPLY_VOLTAGE
+
+
+def test_realize_plan_accepts_a_transform_decorated_through_an_alias() -> None:
+    from bilt import transform as renamed_transform  # noqa: PLC0415
+
+    @renamed_transform
+    def doubled(a: float) -> float:
+        return 2 * a
+
+    plan = AnalysisPlan(inputs=frozenset({"a"}), output="c", steps=(PlanStep(operation=doubled, output="c"),))
+
+    case = realize_plan(plan, PYTHON_BACKEND)
+
+    assert not isinstance(case, RealizationFailure)
+    assert case.intermediates[0].evaluate({"a": SUPPLY_VOLTAGE}) == 2 * SUPPLY_VOLTAGE
