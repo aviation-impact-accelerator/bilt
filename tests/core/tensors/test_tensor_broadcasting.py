@@ -6,11 +6,11 @@ import pytest
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core import system, transform
-from bilt.core._domain_registry import DomainRegistryError
 from bilt.core._interface import Interface
 from bilt.core._system._field import field
 from bilt.core._system._implementation import Implementation
 from bilt.core._tensors._tensors import Tensor, tensor
+from bilt.errors import BiltDomainRegistryError
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain
 
@@ -603,7 +603,7 @@ def test_conflicting_sizes_for_same_dimension_raise(
         backend,
         basic,
         pytest.raises(
-            DomainRegistryError,
+            BiltDomainRegistryError,
             match=r"Dimension time has inconsistent sizes: 3 and 2",
         ),
     ):
@@ -639,7 +639,7 @@ def test_size_one_does_not_broadcast_over_same_named_dimension(
         backend,
         basic,
         pytest.raises(
-            DomainRegistryError,
+            BiltDomainRegistryError,
             match="Dimension time has inconsistent sizes: 1 and 3",
         ),
     ):
@@ -676,7 +676,7 @@ def test_failed_evaluation_does_not_contaminate_next_evaluation(
     )
 
     with backend, basic:
-        with pytest.raises(DomainRegistryError):
+        with pytest.raises(BiltDomainRegistryError):
             _ = invalid.c
 
         result = valid.c

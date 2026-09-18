@@ -2,7 +2,7 @@
 
 import ast
 
-from bilt._backend._errors import UnsupportedNodeError
+from bilt._backend._errors import BiltUnsupportedNodeError
 
 __all__ = ()
 
@@ -69,4 +69,4 @@ def _validate(fdef: ast.FunctionDef) -> None:
         if type(node) not in _SUPPORTED_NODES:
             lineno = getattr(node, "lineno", "?")
             msg = f"AST node '{type(node).__name__}' at line {lineno} is unsupported by the Bilt Jax Backend."
-            raise UnsupportedNodeError(msg)
+            raise BiltUnsupportedNodeError(msg)

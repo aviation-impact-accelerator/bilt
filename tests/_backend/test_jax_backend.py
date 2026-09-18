@@ -7,7 +7,8 @@ import jax.numpy as jnp
 import pytest
 
 from bilt._backend import Backend, BackendCase
-from bilt._backend._jax import JAX_BACKEND, UnsupportedNodeError
+from bilt._backend._jax import JAX_BACKEND
+from bilt.errors import BiltUnsupportedNodeError
 
 if typing.TYPE_CHECKING:
     from bilt._backend._jax._backend import JAXBackend
@@ -76,7 +77,7 @@ def test_transpile_jnp_call(jax_backend: JAXBackend) -> None:
 
 
 def test_transpile_raises_on_unsupported_node(jax_backend: JAXBackend) -> None:
-    with pytest.raises(UnsupportedNodeError):
+    with pytest.raises(BiltUnsupportedNodeError):
         jax_backend.transpile(parse_to_ast("def f(x):\n    if x > 0:\n        return x\n    return -x"))
 
 

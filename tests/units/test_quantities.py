@@ -3,7 +3,7 @@ import re
 
 import pytest
 
-from bilt.units._errors import DimensionalityError, UnitError
+from bilt.errors import BiltDimensionalityError, BiltUnitError
 from bilt.units._metadata import Metadata
 from bilt.units._quantities import Quantity
 from bilt.units._units import (
@@ -133,7 +133,7 @@ class TestQuantity:
         right: Quantity,
     ) -> None:
         with pytest.raises(
-            DimensionalityError,
+            BiltDimensionalityError,
             match="as they are dimensionally inconsistent",
         ):
             _ = left + right
@@ -157,7 +157,7 @@ class TestQuantity:
         right: Quantity,
     ) -> None:
         with pytest.raises(
-            UnitError,
+            BiltUnitError,
             match=re.escape("as the units are inconsistent, use the `Quantity.cast_to()` method"),
         ):
             _ = left + right
@@ -165,7 +165,7 @@ class TestQuantity:
     @staticmethod
     def test_addition_unit_error_if_units_not_equivalent() -> None:
         with pytest.raises(
-            UnitError,
+            BiltUnitError,
             match=re.escape("as the units are inconsistent, use the `Quantity.convert_to()` method"),
         ):
             _ = 1.0 * kilometer + 1.0 * mile
@@ -189,7 +189,7 @@ class TestQuantity:
         right: Quantity,
     ) -> None:
         with pytest.raises(
-            UnitError,
+            BiltUnitError,
             match="because the units do not have consistent metadata",
         ):
             _ = left + right
@@ -197,7 +197,7 @@ class TestQuantity:
     @staticmethod
     def test_addition_rejects_two_absolute_quantities() -> None:
         with pytest.raises(
-            UnitError,
+            BiltUnitError,
             match="Cannot add two quantities with absolute units",
         ):
             _ = 1.0 * abs(celsius) + 1.0 * abs(celsius)
@@ -508,7 +508,7 @@ class TestQuantity:
     def test_comparison() -> None:
         assert 1.0 * meter < 2.0 * meter
 
-        with pytest.raises(UnitError, match="Cannot compare quantity"):
+        with pytest.raises(BiltUnitError, match="Cannot compare quantity"):
             _ = 1.0 * meter < 1.0 * kilometer
 
     @staticmethod
@@ -595,7 +595,7 @@ class TestQuantity:
         quantity: Quantity,
         unit: Unit,
     ) -> None:
-        with pytest.raises(UnitError, match="Cannot cast quantity"):
+        with pytest.raises(BiltUnitError, match="Cannot cast quantity"):
             quantity.cast_to(unit)
 
     @staticmethod
@@ -685,19 +685,19 @@ class TestQuantity:
         unit: Unit,
     ) -> None:
         with pytest.raises(
-            DimensionalityError,
+            BiltDimensionalityError,
             match="Cannot convert quantity",
         ):
             quantity.convert_to(unit)
 
     @staticmethod
     def test_quantity_convert_to_unit_error_if_units_have_different_metadata() -> None:
-        with pytest.raises(UnitError, match="Cannot convert quantity"):
+        with pytest.raises(BiltUnitError, match="Cannot convert quantity"):
             (1.0 * kilogram * co2).convert_to(kilogram * nox)
 
     @staticmethod
     def test_quantity_convert_to_unit_error_if_converting_absolute_to_relative() -> None:
-        with pytest.raises(UnitError, match="Cannot convert quantity"):
+        with pytest.raises(BiltUnitError, match="Cannot convert quantity"):
             (1.0 * absolute_year).convert_to(second)
 
     @staticmethod

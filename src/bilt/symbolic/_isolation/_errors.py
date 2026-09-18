@@ -1,22 +1,26 @@
+"""Errors for symbolic equation isolation."""
+
 __all__ = [
-    "IsolationError",
-    "TargetNotFoundError",
-    "TargetOnBothSidesError",
-    "UnsupportedIsolationError",
+    "BiltIsolationError",
+    "BiltTargetNotFoundError",
+    "BiltTargetOnBothSidesError",
+    "BiltUnsupportedIsolationError",
 ]
 
+from bilt.symbolic._errors import BiltSymbolicError
 
-class IsolationError(Exception):
+
+class BiltIsolationError(BiltSymbolicError):
     """Base class for symbolic isolation failures."""
 
 
-class TargetNotFoundError(IsolationError):
+class BiltTargetNotFoundError(BiltIsolationError):
     """Raised when the target does not occur in the equation."""
 
 
-class TargetOnBothSidesError(IsolationError):
+class BiltTargetOnBothSidesError(BiltIsolationError):
     """Raised when the target occurs on both sides of the equation."""
 
 
-class UnsupportedIsolationError(IsolationError):
+class BiltUnsupportedIsolationError(BiltIsolationError):
     """Raised when the target occurs in a form the isolator cannot handle."""

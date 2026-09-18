@@ -1,11 +1,9 @@
 import numpy as np
 import pytest
 
-from bilt.core._domain_registry import (
-    DomainRegistry,
-    DomainRegistryError,
-)
+from bilt.core._domain_registry import DomainRegistry
 from bilt.core._tensors._tensors import tensor
+from bilt.errors import BiltDomainRegistryError
 from bilt.symbolic._dimensions import coordinate_axis, dim
 
 
@@ -39,7 +37,7 @@ def test_registry_rejects_inconsistent_dimension_sizes() -> None:
     registry.bind(tensor([1.0, 2.0], over=first_time))
 
     with pytest.raises(
-        DomainRegistryError,
+        BiltDomainRegistryError,
         match="inconsistent sizes",
     ):
         registry.bind(
@@ -106,7 +104,7 @@ def test_registry_rejects_axis_with_inconsistent_size() -> None:
     registry.bind_value(tensor([1.0, 2.0, 3.0], over=location))
 
     with pytest.raises(
-        DomainRegistryError,
+        BiltDomainRegistryError,
         match="inconsistent sizes",
     ):
         registry.bind_axis(
@@ -129,7 +127,7 @@ def test_registry_rejects_conflicting_coordinates() -> None:
     )
 
     with pytest.raises(
-        DomainRegistryError,
+        BiltDomainRegistryError,
         match="conflicting coordinate definitions",
     ):
         registry.bind(

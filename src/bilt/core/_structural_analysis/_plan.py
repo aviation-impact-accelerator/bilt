@@ -4,7 +4,7 @@ import dataclasses
 import typing
 
 from bilt.core._equation import BasicEquation
-from bilt.core._error import BiltSystemAnalysisError
+from bilt.core._errors import BiltAnalysisError
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform
 
@@ -42,7 +42,7 @@ class PlanStep:
             case SubSystemConstituent() as sub_system:
                 if self.request is None:
                     msg = f"{sub_system!r} step for {self.output!r} has not settled on a route through the child."
-                    raise BiltSystemAnalysisError(msg)
+                    raise BiltAnalysisError(msg)
                 return tuple(sorted(sub_system.qualify(port) for port in self.request.available))
             case BasicEquation() as equation:
                 return tuple(sorted(set(equation.__bilt_parameters__) - {self.output}))

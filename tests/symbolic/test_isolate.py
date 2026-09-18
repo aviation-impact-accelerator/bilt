@@ -2,14 +2,14 @@ import typing
 
 import pytest
 
+from bilt.errors import (
+    BiltTargetNotFoundError,
+    BiltTargetOnBothSidesError,
+    BiltUnsupportedIsolationError,
+)
 from bilt.math import mean
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._expressions import Expr
-from bilt.symbolic._isolation._errors import (
-    TargetNotFoundError,
-    TargetOnBothSidesError,
-    UnsupportedIsolationError,
-)
 from bilt.symbolic._isolation._expr_ops import (
     make_add,
     make_inv,
@@ -118,7 +118,7 @@ def test_isolate_raises_when_target_missing() -> None:
     a = Expr.symbol("a")
     y = Expr.symbol("y")
 
-    with pytest.raises(TargetNotFoundError):
+    with pytest.raises(BiltTargetNotFoundError):
         isolate(a == y, x)
 
 
@@ -126,7 +126,7 @@ def test_isolate_raises_when_target_on_both_sides() -> None:
     x = Expr.symbol("x")
     a = Expr.symbol("a")
 
-    with pytest.raises(TargetOnBothSidesError):
+    with pytest.raises(BiltTargetOnBothSidesError):
         isolate(make_add(x, a) == x, x)
 
 
@@ -134,7 +134,7 @@ def test_isolate_raises_when_target_occurs_more_than_once() -> None:
     x = Expr.symbol("x")
     y = Expr.symbol("y")
 
-    with pytest.raises(UnsupportedIsolationError):
+    with pytest.raises(BiltUnsupportedIsolationError):
         isolate(make_add(x, x) == y, x)
 
 
@@ -165,5 +165,5 @@ def test_isolate_cannot_invert_mean() -> None:
     x = Expr.symbol("x")
     y = Expr.symbol("y")
 
-    with pytest.raises(UnsupportedIsolationError):
+    with pytest.raises(BiltUnsupportedIsolationError):
         isolate(y == mean(x, time), x)

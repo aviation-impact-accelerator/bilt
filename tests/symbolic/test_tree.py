@@ -1,5 +1,6 @@
 import pytest
 
+from bilt.errors import BiltTreeMutationError
 from bilt.symbolic._atoms import (
     ADD,
     EQUALS,
@@ -10,7 +11,6 @@ from bilt.symbolic._atoms import (
     axis,
     symbol,
 )
-from bilt.symbolic._errors import TreeMutationError
 from bilt.symbolic._tree import (
     Tree,
     axis_tree,
@@ -140,16 +140,16 @@ def test_tree_hash_is_identity_based() -> None:
 def test_tree_is_immutable() -> None:
     x = symbol_tree("x")
 
-    with pytest.raises(TreeMutationError, match="immutable"):
+    with pytest.raises(BiltTreeMutationError, match="immutable"):
         x.head = symbol("y")
 
-    with pytest.raises(TreeMutationError, match="immutable"):
+    with pytest.raises(BiltTreeMutationError, match="immutable"):
         x.args = ()
 
-    with pytest.raises(TreeMutationError, match="immutable"):
+    with pytest.raises(BiltTreeMutationError, match="immutable"):
         del x.head
 
-    with pytest.raises(TreeMutationError, match="immutable"):
+    with pytest.raises(BiltTreeMutationError, match="immutable"):
         x.extra = 1  # type: ignore[attr-defined]
 
 

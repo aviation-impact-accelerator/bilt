@@ -1,10 +1,10 @@
 import pytest
 
-from bilt.core._tensors._errors import TensorDomainError
 from bilt.core._tensors._expression_lowering import (
     LoweredExpression,
     lower_expression,
 )
+from bilt.errors import BiltSymbolicLoweringError, BiltTensorDomainError
 from bilt.math import mean
 from bilt.symbolic._atoms import MEAN
 from bilt.symbolic._dimensions import Dim
@@ -70,7 +70,7 @@ def test_mean_rejects_dimension_not_in_value_domain() -> None:
     time = Dim("time")
     value = Expr.symbol("value")
 
-    with pytest.raises(TensorDomainError):
+    with pytest.raises(BiltTensorDomainError):
         lower_expression(
             mean(value, time),
             symbol_domains={
@@ -107,7 +107,7 @@ def test_lowered_expression_rejects_symbolic_dimension() -> None:
     time = Dim("time")
     value = Expr.symbol("value")
 
-    with pytest.raises(ValueError, match="cannot contain symbolic dimensions"):
+    with pytest.raises(BiltSymbolicLoweringError, match="cannot contain symbolic dimensions"):
         LoweredExpression(
             tree=mean(value, time).rep,
             domain=domain(),

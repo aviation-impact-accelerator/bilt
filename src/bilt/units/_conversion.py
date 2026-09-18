@@ -1,7 +1,7 @@
 import typing
 
 from bilt.units._category import UnitCategory
-from bilt.units._errors import DimensionalityError, UnitError
+from bilt.units._errors import BiltDimensionalityError, BiltUnitError
 
 if typing.TYPE_CHECKING:
     from bilt.units._units import Unit
@@ -32,7 +32,7 @@ def _create_absolute_unit_stack(unit: Unit) -> list[Unit]:
             f"unit must supply a zero point to anchor the chain back to an SI base "
             f"unit"
         )
-        raise UnitError(message)
+        raise BiltUnitError(message)
 
     return _create_absolute_unit_stack(unit.offset.composition[0].unit) + stack
 
@@ -46,7 +46,7 @@ def _validate_matching_dimensions(source: Unit, target: Unit) -> None:
         f"to unit {target!s} with dimensionality {target.dimension!s} as they "
         f"are different"
     )
-    raise DimensionalityError(message)
+    raise BiltDimensionalityError(message)
 
 
 def _find_common_unit_index(
@@ -83,7 +83,7 @@ def _convert_absolute_quantity_value(
             f"Cannot convert quantity with unit {quantity!s} to unit {unit!s} "
             f"as the two do not share a common root unit in their definition"
         )
-        raise UnitError(message)
+        raise BiltUnitError(message)
 
     index = _find_common_unit_index(
         start_unit_stack,
@@ -121,7 +121,7 @@ def _convert_relative_quantity_value(
             f"{quantity.unit.metadata!s} to unit {unit!s} with metadata "
             f"{unit.metadata!s} as they are different"
         )
-        raise UnitError(message)
+        raise BiltUnitError(message)
 
     scale = quantity.unit.to_si_base_units().relation.scale / unit.to_si_base_units().relation.scale
 
@@ -137,7 +137,7 @@ def _raise_relative_to_absolute_error(
         f"absolute unit {unit} because relative and absolute units cannot be "
         f"interconverted"
     )
-    raise UnitError(message)
+    raise BiltUnitError(message)
 
 
 def _raise_absolute_to_relative_error(
@@ -149,7 +149,7 @@ def _raise_absolute_to_relative_error(
         f"with unit {unit} because relative and absolute units cannot be "
         f"interconverted"
     )
-    raise UnitError(message)
+    raise BiltUnitError(message)
 
 
 def convert_quantity_value(

@@ -3,7 +3,7 @@ __all__ = ["ExhaustiveStructuralAnalyser"]
 import typing
 
 from bilt._backend import BackendCase
-from bilt.core._error import BiltSystemAnalysisError
+from bilt.core._errors import BiltAnalysisError
 from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
 from bilt.core._structural_analysis._plan import AnalysisPlan
 from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan
@@ -28,12 +28,12 @@ class ExhaustiveStructuralAnalyser:
             if steps is None:
                 msg = f"Cannot compute {output} from available inputs {available}."
                 if last_failure is None or last_failure.cause is None:
-                    raise BiltSystemAnalysisError(msg)
+                    raise BiltAnalysisError(msg)
                 msg = (
                     f"{msg} The last route tried was rejected with: "
                     f"{type(last_failure.cause).__name__}: {last_failure.cause}"
                 )
-                raise BiltSystemAnalysisError(msg) from last_failure.cause
+                raise BiltAnalysisError(msg) from last_failure.cause
 
             realised_plan = realize_plan(
                 AnalysisPlan(inputs=frozenset(available), output=output, steps=tuple(steps)),
@@ -54,7 +54,7 @@ class ExhaustiveStructuralAnalyser:
         """
         try:
             steps = self.bipartite_graph.search(available, output)
-        except BiltSystemAnalysisError:
+        except BiltAnalysisError:
             return None
 
         if steps is None:

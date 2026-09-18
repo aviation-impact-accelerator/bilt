@@ -4,7 +4,7 @@ import typing
 from bilt.symbolic import _atoms as ops
 from bilt.symbolic._atoms import FloatType, IntType, SymbolType
 from bilt.symbolic._expressions import Expr
-from bilt.symbolic._isolation._errors import TargetNotFoundError, UnsupportedIsolationError
+from bilt.symbolic._isolation._errors import BiltTargetNotFoundError, BiltUnsupportedIsolationError
 from bilt.symbolic._isolation._isolate import isolate
 
 if typing.TYPE_CHECKING:
@@ -50,7 +50,7 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
         if tree.head.atom_type in (IntType, FloatType):
             return ast.Constant(value=typing.cast("int | float", tree.head.value))
         message = f"Unsupported symbolic leaf {tree.head!r} in AST conversion."
-        raise UnsupportedIsolationError(message)
+        raise BiltUnsupportedIsolationError(message)
 
     match tree.head:
         case ops.ADD:
@@ -73,13 +73,13 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
             )
         case _:
             message = f"Unsupported symbolic head {tree.head!r} in AST conversion."
-            raise UnsupportedIsolationError(message)
+            raise BiltUnsupportedIsolationError(message)
 
 
 def _fold_binop(children: tuple[Tree, ...], operator_type: type[ast.operator]) -> ast.expr:
     if not children:
         message = "Cannot lower an empty n-ary symbolic operator."
-        raise UnsupportedIsolationError(message)
+        raise BiltUnsupportedIsolationError(message)
 
     iterator = iter(children)
     expr = _tree_to_ast_expr(next(iterator))
@@ -94,7 +94,7 @@ def equation_to_ast(
 ) -> ast.FunctionDef:
     if target not in equation.__bilt_equation_symbols__:
         message = f"Target {target!r} is not a parameter of the equation {equation!s}."
-        raise TargetNotFoundError(message)
+        raise BiltTargetNotFoundError(message)
 
     target_expr = Expr.symbol(target)
     isolated = isolate(

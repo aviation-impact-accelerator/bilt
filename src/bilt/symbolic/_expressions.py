@@ -10,6 +10,7 @@ from bilt.symbolic._atoms import (
     IntType,
     SymbolType,
 )
+from bilt.symbolic._errors import BiltSymbolicConversionError, BiltUnknownPortError
 from bilt.symbolic._tree import Tree, float_tree, int_tree, relation_tree, symbol_tree
 
 if typing.TYPE_CHECKING:
@@ -173,7 +174,7 @@ class SubSystemExpr:
         symbol_name = self.__ports.get(port)
         if symbol_name is None:
             msg = f"{self.__name!r} has no port {port!r}. Valid ports: {', '.join(self.__ports)}"
-            raise AttributeError(msg)
+            raise BiltUnknownPortError(msg)
 
         return symbol_expr(symbol_name)
 
@@ -191,7 +192,7 @@ def as_tree(value: object) -> Tree:
 
     if isinstance(value, bool):
         msg = "Boolean values cannot be converted to symbolic expressions."
-        raise TypeError(msg)
+        raise BiltSymbolicConversionError(msg)
 
     if isinstance(value, int):
         return int_tree(value)
@@ -200,7 +201,7 @@ def as_tree(value: object) -> Tree:
         return float_tree(value)
 
     msg = f"Cannot convert {type(value).__name__!r} to symbolic Tree."
-    raise TypeError(msg)
+    raise BiltSymbolicConversionError(msg)
 
 
 def as_expr(value: object) -> Expr:

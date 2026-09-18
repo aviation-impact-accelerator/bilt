@@ -5,9 +5,9 @@ import enum
 import typing
 
 from bilt.core._interface import Interface
+from bilt.core._system._errors import BiltSystemDefinitionError
 
 from ._dispatch import _dispatch_evaluation
-from ._error import BiltSystemDefinitionError
 from ._sentinel import MISSING
 
 if typing.TYPE_CHECKING:

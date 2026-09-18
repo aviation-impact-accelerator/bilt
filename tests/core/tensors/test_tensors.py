@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from bilt.core._tensors._errors import TensorDomainError
 from bilt.core._tensors._tensors import Tensor, tensor
+from bilt.errors import BiltTensorDomainError
 from bilt.symbolic._dimensions import dim
 from bilt.symbolic._domains import domain
 
@@ -28,7 +28,7 @@ def test_tensor_over_dimension() -> None:
 
 def test_tensor_rejects_missing_domain() -> None:
     with pytest.raises(
-        TensorDomainError,
+        BiltTensorDomainError,
         match="Non-scalar values need an explicit domain",
     ):
         tensor([1.0, 2.0])
@@ -38,7 +38,7 @@ def test_tensor_rejects_incorrect_rank() -> None:
     time = dim("time")
 
     with pytest.raises(
-        TensorDomainError,
+        BiltTensorDomainError,
         match="Value rank 2 does not match domain rank 1",
     ):
         Tensor(
@@ -51,7 +51,7 @@ def test_tensor_rejects_over_and_domain() -> None:
     time = dim("time")
 
     with pytest.raises(
-        TensorDomainError,
+        BiltTensorDomainError,
         match="Pass either over= or domain=, not both",
     ):
         tensor(

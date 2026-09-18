@@ -4,6 +4,7 @@ import typing
 
 import pytest
 
+from bilt.errors import BiltUnitError
 from bilt.units import (
     DIMENSIONLESS,
     USD,
@@ -44,7 +45,6 @@ from bilt.units import (
     yard,
 )
 from bilt.units._dimensions import LENGTH, TEMPERATURE, Dimension
-from bilt.units._errors import UnitError
 from bilt.units._metadata import Metadata
 from bilt.units._prefix import Prefix
 from bilt.units._units import Unit, UnitComposition, UnitOrder
@@ -351,7 +351,7 @@ class TestUnitComposition:
     @staticmethod
     def test_multiply_by_zero_is_error() -> None:
         with pytest.raises(
-            UnitError,
+            BiltUnitError,
             match="Cannot multiply unit composition .* by 0.0 as result is ambiguous",  # noqa: RUF043
         ):
             _ = 0.0 * UnitComposition()
@@ -563,7 +563,7 @@ class TestUnit:
 
     @staticmethod
     def test_cannot_instantiate_unit_with_prefix_where_name_does_not_match() -> None:
-        with pytest.raises(UnitError, match="does not start with its defined prefix"):
+        with pytest.raises(BiltUnitError, match="does not start with its defined prefix"):
             _ = Unit.new_named(
                 "faulty",
                 relation=UnitComposition(),
@@ -572,7 +572,7 @@ class TestUnit:
 
     @staticmethod
     def test_cannot_instantiate_unit_with_inconsistent_relation() -> None:
-        with pytest.raises(UnitError, match="Cannot instantiate unit .* because relation .* does not match"):  # noqa: RUF043
+        with pytest.raises(BiltUnitError, match="Cannot instantiate unit .* because relation .* does not match"):  # noqa: RUF043
             _ = Unit.new_named("meter", relation=UnitComposition(UnitOrder(second, 1)))
 
     @staticmethod
@@ -658,7 +658,7 @@ class TestUnit:
     @pytest.mark.parametrize("unit", (joule, milligram, kilowatthour, meter / second))
     def test_unit_error_if_no_corresponding_absolute_unit(unit: Unit) -> None:
         message = "No absolute unit corresponding to .* exists"
-        with pytest.raises(UnitError, match=message):
+        with pytest.raises(BiltUnitError, match=message):
             _ = abs(unit)
 
     @staticmethod
@@ -914,14 +914,14 @@ class TestAbsoluteUnit:
             "Cannot instantiate new .*Unit.* with zero .* because one already exists with the same "
             "name .* and scale .* but a different zero .*"
         )
-        with pytest.raises(UnitError, match=message):
+        with pytest.raises(BiltUnitError, match=message):
             _ = Unit.new_absolute("|celsius|", scale=celsius, zero=0.0 * abs(kelvin))
 
     @staticmethod
     def test_unit_error_if_reinstantiation_with_different_scale() -> None:
         _absolute_celsius = Unit.new_absolute("|celsius|", scale=celsius, zero=273.15 * abs(kelvin))
         message = "Cannot instantiate new .*Unit.* with scale .* because one already exists with the same scale"
-        with pytest.raises(UnitError, match=message):
+        with pytest.raises(BiltUnitError, match=message):
             _ = Unit.new_absolute("|celsius|", scale=kelvin, zero=273.15 * abs(kelvin))
 
     @staticmethod
@@ -951,7 +951,7 @@ class TestAbsoluteUnit:
     )
     def test_unit_error_for_addition_of_two_absolute_units(left: Quantity, right: Quantity) -> None:
         message = "Cannot add two quantities with absolute units of .* and .*"
-        with pytest.raises(UnitError, match=message):
+        with pytest.raises(BiltUnitError, match=message):
             _ = left + right
 
     @staticmethod

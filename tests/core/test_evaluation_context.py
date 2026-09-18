@@ -4,11 +4,12 @@ from bilt.core._evaluation_context import (
     EvaluationContext,
     current_evaluation,
 )
+from bilt.errors import BiltNoActiveEvaluationError
 
 
 def test_current_evaluation_requires_active_context() -> None:
     with pytest.raises(
-        RuntimeError,
+        BiltNoActiveEvaluationError,
         match="No Bilt evaluation is currently active",
     ):
         current_evaluation()
@@ -26,7 +27,7 @@ def test_nested_contexts_share_outer_evaluation() -> None:
         assert current_evaluation() is outer
 
     with pytest.raises(
-        RuntimeError,
+        BiltNoActiveEvaluationError,
         match="No Bilt evaluation is currently active",
     ):
         current_evaluation()

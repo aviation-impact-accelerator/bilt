@@ -28,7 +28,7 @@ __all__ = [
 
 from bilt.symbolic._atoms import ADD, INV, MUL, NEG
 from bilt.symbolic._expressions import Expr
-from bilt.symbolic._isolation._errors import UnsupportedIsolationError
+from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
 from bilt.symbolic._tree import Tree
 from bilt.symbolic._walk import contains, count_occurrences
 
@@ -153,7 +153,7 @@ def make_div(lhs: Expr, rhs: Expr) -> Expr:
 def assert_binary_relation_tree(tree: Tree) -> None:
     if len(tree.args) != BINARY_ARG_COUNT:
         message = f"Expected a binary equation/relation tree with {BINARY_ARG_COUNT} args, got {len(tree.args)}."
-        raise UnsupportedIsolationError(message)
+        raise BiltUnsupportedIsolationError(message)
 
 
 def relation_lhs(tree: Tree) -> Tree:
@@ -181,7 +181,7 @@ def expr_args(expr: Expr) -> tuple[Expr, ...]:
 def unary_child(expr: Expr) -> Expr:
     if len(expr.rep.args) != UNARY_ARG_COUNT:
         message = f"Expected unary expression {expr!r} to have {UNARY_ARG_COUNT} arg, got {len(expr.rep.args)}."
-        raise UnsupportedIsolationError(message)
+        raise BiltUnsupportedIsolationError(message)
 
     return Expr(expr.rep.args[0])
 

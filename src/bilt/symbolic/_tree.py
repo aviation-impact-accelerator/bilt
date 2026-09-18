@@ -13,7 +13,7 @@ from bilt.symbolic._atoms import (
     relation_operator,
     symbol,
 )
-from bilt.symbolic._errors import TreeMutationError
+from bilt.symbolic._errors import BiltTreeMutationError
 
 if typing.TYPE_CHECKING:
     from bilt.symbolic._dimensions import Dim
@@ -78,13 +78,13 @@ class Tree:
     def __setattr__(self, name: str, value: object) -> None:
         if getattr(self, "_locked", False):
             msg = f"{self.__class__.__name__} is immutable. This cannot be updated once it is set."
-            raise TreeMutationError(msg)
+            raise BiltTreeMutationError(msg)
         object.__setattr__(self, name, value)
 
     def __delattr__(self, name: str) -> None:
         if getattr(self, "_locked", False):
             msg = f"{self.__class__.__name__} is immutable. It cannot be deleted once it is set."
-            raise TreeMutationError(msg)
+            raise BiltTreeMutationError(msg)
         object.__delattr__(self, name)
 
     @property

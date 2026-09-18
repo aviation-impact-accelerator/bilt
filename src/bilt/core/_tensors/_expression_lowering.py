@@ -7,7 +7,7 @@ import dataclasses
 import typing
 
 from bilt.core._canonical_ordering import canonicalized
-from bilt.core._tensors._errors import TensorDomainError
+from bilt.core._tensors._errors import BiltSymbolicLoweringError, BiltTensorDomainError
 from bilt.symbolic._atoms import (
     ADD,
     INV,
@@ -41,7 +41,7 @@ class LoweredExpression:
     def __post_init__(self) -> None:
         if _contains_atom_type(self.tree, DimensionType):
             message = "Lowered expressions cannot contain symbolic dimensions."
-            raise ValueError(message)
+            raise BiltSymbolicLoweringError(message)
 
 
 def lower_expression(
@@ -53,7 +53,7 @@ def lower_expression(
     """Lower a symbolic expression into positional tensor operations."""
     if _contains_atom_type(expression.rep, AxisType):
         message = "Symbolic expressions cannot contain positional axes."
-        raise ValueError(message)
+        raise BiltSymbolicLoweringError(message)
 
     return _lower_tree(
         expression.rep,
@@ -128,7 +128,7 @@ def _lower_leaf(
             value_domain = symbol_domains[name]
         except KeyError:
             message = f"No domain is known for symbol {name!r}."
-            raise TensorDomainError(message) from None
+            raise BiltTensorDomainError(message) from None
 
         return LoweredExpression(
             tree=tree,
@@ -155,7 +155,7 @@ def _lower_mean(
 
     if not dim_tree.is_leaf or dim_tree.head.atom_type is not DimensionType:
         message = "Mean reduction requires a symbolic dimension."
-        raise TensorDomainError(message)
+        raise BiltTensorDomainError(message)
 
     dim = typing.cast("Dim", dim_tree.head.value)
 
@@ -167,13 +167,13 @@ def _lower_mean(
 
     if dim not in value.domain.dims:
         message = f"Cannot reduce dimension {dim!s}; it is not present in domain {value.domain!s}."
-        raise TensorDomainError(message)
+        raise BiltTensorDomainError(message)
 
     try:
         axis = canonical_order.dims.index(dim)
     except ValueError:
         message = f"Dimension {dim!s} is not present in canonical order {canonical_order!s}."
-        raise TensorDomainError(message) from None
+        raise BiltTensorDomainError(message) from None
 
     output_domain = Domain(tuple(domain_dim for domain_dim in value.domain.dims if domain_dim is not dim))
 

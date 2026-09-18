@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import networkx as nx
 
 from bilt.core._equation import BasicEquation
-from bilt.core._error import BiltSystemAnalysisError
+from bilt.core._errors import BiltAnalysisError
 from bilt.core._structural_analysis._plan import PlanStep
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform
@@ -92,7 +92,7 @@ class BipartiteGraph:
         """Depth-first search for a path from available inputs to the desired output."""
         if output not in self.graph:
             msg = f"Output {output} is not in the graph. Please check the constituents provided."
-            raise BiltSystemAnalysisError(msg)
+            raise BiltAnalysisError(msg)
         if output in available:
             return []
 

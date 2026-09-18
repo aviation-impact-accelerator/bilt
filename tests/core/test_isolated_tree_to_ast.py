@@ -5,9 +5,9 @@ import pytest
 
 from bilt.core._equation import equation
 from bilt.core._to_ast import equation_to_ast, isolated_tree_to_functiondef
+from bilt.errors import BiltTargetNotFoundError
 from bilt.symbolic._atoms import EQUALS
 from bilt.symbolic._expressions import Expr
-from bilt.symbolic._isolation._errors import TargetNotFoundError
 from bilt.symbolic._isolation._types import IsolatedTree
 
 
@@ -63,5 +63,5 @@ def test_equation_to_ast_rejects_unknown_target_name() -> None:
     def model(x: float, a: float) -> bool:
         return x == a
 
-    with pytest.raises(TargetNotFoundError, match="is not a parameter"):
+    with pytest.raises(BiltTargetNotFoundError, match="is not a parameter"):
         equation_to_ast(model, "missing")
