@@ -1,4 +1,4 @@
-from bilt.core import transform
+from bilt import transform
 
 
 def test_transform_decorator_adds_bilt_metadata() -> None:
