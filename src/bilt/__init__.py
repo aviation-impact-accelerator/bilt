@@ -35,8 +35,8 @@ __all__ = [
     "transform",
 ]
 
-_OPTIONAL: dict[str, tuple[str, str]] = {
-    "JAX_BACKEND": ("bilt._backend._jax", "jax"),
+_OPTIONAL: dict[str, tuple[str, str, frozenset[str]]] = {
+    "JAX_BACKEND": ("bilt._backend._jax", "jax", frozenset({"jax"})),
 }
 
 
@@ -48,14 +48,14 @@ def __getattr__(name: str) -> typing.Any:  # noqa: ANN401
         ImportError: If a third-party dependency of the extra is not installed.
     """
     try:
-        module_name, extra = _OPTIONAL[name]
+        module_name, extra, extra_modules = _OPTIONAL[name]
     except KeyError:
         msg = f"module {__name__!r} has no attribute {name!r}"
         raise AttributeError(msg) from None
     try:
         module = importlib.import_module(module_name)
     except ModuleNotFoundError as error:
-        if error.name is None or error.name == "bilt" or error.name.startswith("bilt."):
+        if error.name is None or error.name.partition(".")[0] not in extra_modules:
             raise
         msg = f"{name} requires the {extra!r} extra; install it with `pip install 'bilt[{extra}]'`."
         raise ImportError(msg) from error

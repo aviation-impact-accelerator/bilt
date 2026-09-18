@@ -56,8 +56,16 @@ def test_jax_backend_is_adapter_instance_when_jax_installed() -> None:
 
 
 def test_missing_bilt_module_is_not_reported_as_missing_extra(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setitem(bilt._OPTIONAL, "BROKEN", ("bilt._no_such_module", "broken"))  # noqa: SLF001
+    monkeypatch.setitem(bilt._OPTIONAL, "BROKEN", ("bilt._no_such_module", "broken", frozenset({"jax"})))  # noqa: SLF001
     with pytest.raises(ModuleNotFoundError, match=r"bilt\._no_such_module"):
+        _ = bilt.BROKEN
+
+
+def test_missing_third_party_module_outside_extra_is_not_reported_as_missing_extra(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(bilt._OPTIONAL, "BROKEN", ("no_such_third_party_module", "jax", frozenset({"jax"})))  # noqa: SLF001
+    with pytest.raises(ModuleNotFoundError, match="no_such_third_party_module"):
         _ = bilt.BROKEN
 
 
