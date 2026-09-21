@@ -27,3 +27,15 @@ Worked examples show how these concepts fit together in complete models.
 ### Choosing computational backends
 
 - [Compiling a Bilt model with JAX](worked_examples/compiling-a-bilt-model-with-JAX.md) - a detailed example of how to compile a Bilt model with JAX.
+
+## Worked examples
+
+Worked examples show how these concepts fit together in complete models.
+
+### Dimensions, Tensors and broadcasting
+
+- [Battery electric mission model with quasi-monte carlo broadcasting](worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md) - a simple example of broadcasting in a model with a large number of variables.
+
+### Choosing computational backends
+
+- [Compiling a Bilt model with JAX](worked_examples/compiling-a-bilt-model-with-JAX.md) - a detailed example of how to compile a Bilt model with JAX.
