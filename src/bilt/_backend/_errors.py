@@ -1,11 +1,6 @@
 """Errors for backend compilation and evaluation."""
 
-__all__ = [
-    "BiltBackendError",
-    "BiltBackendOutputArityError",
-    "BiltCompilationError",
-    "BiltUnsupportedNodeError",
-]
+__all__ = ["BiltBackendError", "BiltCompilationError", "BiltUnsupportedNodeError"]
 
 from bilt._base_error import BiltError
 
@@ -20,7 +15,3 @@ class BiltUnsupportedNodeError(BiltBackendError):
 
 class BiltCompilationError(BiltBackendError):
     """Raised when compilation to a backend fails."""
-
-
-class BiltBackendOutputArityError(BiltBackendError, ValueError):
-    """Raised when a backend callable returns a different number of values than it names."""
