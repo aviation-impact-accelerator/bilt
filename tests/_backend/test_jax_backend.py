@@ -101,24 +101,22 @@ def test_transpile_nested_list_both_converted(jax_backend: JAXBackend) -> None:
     (
         (
             SIMPLE_CASE,
-            (3.0, 1.0, 2.0),
+            {"a": 3.0, "b": 1.0, "d": 2.0},
             {"c": 4.0, "e": 8.0},
         ),
         (
             DIAMOND_CASE,
-            (3.0,),
+            {"x": 3.0},
             {"f": 4.0, "g": 12.0, "h": 1.0, "i": 13.0},
         ),
     ),
 )
 def test_build_pipeline_for_cases(
-    case: BackendCase, inputs: tuple[float, ...], expected: dict[str, float], jax_backend: JAXBackend
+    case: BackendCase, inputs: dict[str, float], expected: dict[str, float], jax_backend: JAXBackend
 ) -> None:
     pipeline = jax_backend.chain_case(case)
-    result = pipeline.callable(*inputs)
 
-    assert pipeline.outputs == tuple(expected)
-    assert {name: float(value) for name, value in result.items()} == pytest.approx(expected)
+    assert pipeline.evaluate(inputs) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(
@@ -144,30 +142,15 @@ def test_pipeline_rejects_unexpected_input(
 
 def test_build_pipeline_with_list_operation(jax_backend: JAXBackend) -> None:
     pipeline = jax_backend.chain_case(LIST_CASE)
-    assert pipeline.callable()["l2"] == pytest.approx([2.0, 3.0, 4.0, 5.0, 6.0])
+    assert pipeline.evaluate({})["l2"] == pytest.approx([2.0, 3.0, 4.0, 5.0, 6.0])
 
 
-@pytest.mark.parametrize(
-    ("case", "inputs"),
-    (
-        (
-            SIMPLE_CASE,
-            {"a": 3.0, "b": 1.0, "d": 2.0},
-        ),
-        (
-            SIMPLE_CASE,
-            (3.0, 1.0, 2.0),
-        ),
-    ),
-)
-def test_can_accept_args_or_kwargs(
-    case: BackendCase, inputs: dict[str, float] | tuple[float, ...], jax_backend: JAXBackend
-) -> None:
-    pipeline = jax_backend.chain_case(case)
-    if isinstance(inputs, dict):
-        assert float(pipeline.callable(**inputs)["e"]) == pytest.approx(8.0)
-    else:
-        assert float(pipeline.callable(*inputs)["e"]) == pytest.approx(8.0)
+def test_a_chained_case_returns_its_values_positionally(jax_backend: JAXBackend) -> None:
+    """The one place the positional return shape is pinned; everything else goes through `evaluate`."""
+    pipeline = jax_backend.chain_case(SIMPLE_CASE)
+
+    assert pipeline.outputs == ("c", "e")
+    assert [float(value) for value in pipeline.callable(a=3.0, b=1.0, d=2.0)] == pytest.approx([4.0, 8.0])
 
 
 def test_a_case_that_does_not_expose_intermediates_returns_one_value(jax_backend: JAXBackend) -> None:
@@ -191,7 +174,6 @@ def test_a_chained_case_can_be_an_intermediate_of_another_case(jax_backend: JAXB
         return_name="f",
     )
     pipeline = jax_backend.chain_case(outer)
-    result = pipeline.callable(a=3.0, b=1.0, d=2.0, k=5.0)
+    result = pipeline.evaluate({"a": 3.0, "b": 1.0, "d": 2.0, "k": 5.0})
 
-    assert pipeline.outputs == ("e", "f")
-    assert {name: float(value) for name, value in result.items()} == pytest.approx({"e": 8.0, "f": 13.0})
+    assert result == pytest.approx({"e": 8.0, "f": 13.0})

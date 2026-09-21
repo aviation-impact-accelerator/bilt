@@ -79,8 +79,7 @@ def test_build_pipeline_for_cases(
     case: BackendCase, inputs: dict[str, float], expected: dict[str, float], python_backend: PythonBackend
 ) -> None:
     pipeline = python_backend.chain_case(case)
-    assert pipeline.outputs == tuple(expected)
-    assert pipeline.callable(**inputs) == pytest.approx(expected)
+    assert pipeline.evaluate(inputs) == pytest.approx(expected)
 
 
 def test_evaluate_selects_only_the_parameters_the_case_declared(python_backend: PythonBackend) -> None:
@@ -113,27 +112,12 @@ def test_pipeline_rejects_unexpected_input(
         pipeline.callable(**inputs)
 
 
-@pytest.mark.parametrize(
-    ("case", "inputs"),
-    (
-        (
-            SIMPLE_CASE,
-            {"a": 3.0, "b": 1.0, "d": 2.0},
-        ),
-        (
-            SIMPLE_CASE,
-            (3.0, 1.0, 2.0),
-        ),
-    ),
-)
-def test_can_accept_args_or_kwargs(
-    case: BackendCase, inputs: dict[str, float] | tuple[float, ...], python_backend: PythonBackend
-) -> None:
-    pipeline = python_backend.chain_case(case)
-    if isinstance(inputs, dict):
-        assert pipeline.callable(**inputs)["e"] == pytest.approx(8.0)
-    else:
-        assert pipeline.callable(*inputs)["e"] == pytest.approx(8.0)
+def test_a_chained_case_returns_its_values_positionally(python_backend: PythonBackend) -> None:
+    """The one place the positional return shape is pinned; everything else goes through `evaluate`."""
+    pipeline = python_backend.chain_case(SIMPLE_CASE)
+
+    assert pipeline.outputs == ("c", "e")
+    assert pipeline.callable(a=3.0, b=1.0, d=2.0) == pytest.approx((4.0, 8.0))
 
 
 def test_a_case_that_does_not_expose_intermediates_returns_one_value(python_backend: PythonBackend) -> None:
@@ -158,5 +142,4 @@ def test_a_chained_case_can_be_an_intermediate_of_another_case(python_backend: P
     )
     pipeline = python_backend.chain_case(outer)
 
-    assert pipeline.outputs == ("e", "f")
-    assert pipeline.callable(a=3.0, b=1.0, d=2.0, k=5.0) == pytest.approx({"e": 8.0, "f": 13.0})
+    assert pipeline.evaluate({"a": 3.0, "b": 1.0, "d": 2.0, "k": 5.0}) == pytest.approx({"e": 8.0, "f": 13.0})

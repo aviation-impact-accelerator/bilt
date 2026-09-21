@@ -574,7 +574,7 @@ def test_recomputing_an_available_value_raises_internal_error() -> None:
             return BackendCallable(
                 name=case.return_name,
                 parameters=case.parameters,
-                callable=lambda **_: {"c": 3.0, "a": 99.0},
+                callable=lambda **_: (3.0, 99.0),
                 outputs=("c", "a"),
             )
 

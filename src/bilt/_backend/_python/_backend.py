@@ -32,7 +32,7 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
                 inputs[intermediate.name] = result
             if not case.expose_intermediates:
                 return inputs[case.return_name]
-            return {name: inputs[name] for name in case.output_names}
+            return tuple(inputs[name] for name in case.output_names)
 
         final_callable.__signature__ = (  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
             expected_signature

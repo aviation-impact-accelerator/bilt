@@ -39,9 +39,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
                 )
             })\n"
         if case.expose_intermediates:
-            chained_callable_as_string += (
-                f"    return {{{', '.join(f'{name!r}: {name}_' for name in case.output_names)}}}\n"
-            )
+            chained_callable_as_string += f"    return ({', '.join(f'{name}_' for name in case.output_names)},)\n"
         else:
             chained_callable_as_string += f"    return {case.return_name}_\n"
         chained_callable_ast = typing.cast("ast.FunctionDef", ast.parse(chained_callable_as_string).body[0])
