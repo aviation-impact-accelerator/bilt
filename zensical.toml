@@ -12,4 +12,36 @@ extra_css = [
     "stylesheets/mermaid-zoom.css",
 ]
 
+nav = [
+    { "Home" = "index.md" },
+
+    { "Bilt user guide" = [
+        { "Systems and values" = "guide/systems-and-values.md" },
+        { "Equations and acausal modelling" = "guide/equations-and-acausal-modelling.md" },
+        { "Transforms and implementations" = "guide/transforms-and-implementations.md" },
+        { "Models to computation" = "guide/models-to-computation.md" },
+        { "Dimensions, domains and tensors" = "guide/dimensions-domains-and-tensors.md" },
+        { "System of systems" = "guide/systems-of-systems.md" },
+        { "Backends" = "guide/backends.md" },
+    ] },
+
+    { "Bilt worked examples" = [
+
+        { "Dimensions, Tensors and broadcasting" = [
+            {"Battery electric mission model with quasi-monte carlo broadcasting" = "worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md"},
+        ] },
+
+        { "Backends" = [
+            { "Compiling a Bilt model with JAX" = "worked_examples/compiling-a-bilt-model-with-JAX.md" },
+        ] },
+    ] },
+]
+
+
+[project.theme]
+features = [
+    "navigation.indexes",
+]
+
+
 [project.plugins.markdown-exec]
