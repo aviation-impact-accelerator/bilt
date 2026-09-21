@@ -22,31 +22,8 @@ Worked examples show how these concepts fit together in complete models.
 
 ### Systems of systems
 
+- [Two springs in series](worked_examples/two-springs-in-series.md)
 - [Two shaft gas turbine](worked_examples/two-shaft-gas-turbine.md)
-
-### Dimensions, Tensors and broadcasting
-
-- [Battery electric mission model with quasi-monte carlo broadcasting](worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md) - a simple example of broadcasting in a model with a large number of variables.
-
-### Choosing computational backends
-
-- [Compiling a Bilt model with JAX](worked_examples/compiling-a-bilt-model-with-JAX.md) - a detailed example of how to compile a Bilt model with JAX.
-
-## Worked examples
-
-Worked examples show how these concepts fit together in complete models.
-
-### Dimensions, Tensors and broadcasting
-
-- [Battery electric mission model with quasi-monte carlo broadcasting](worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md) - a simple example of broadcasting in a model with a large number of variables.
-
-### Choosing computational backends
-
-- [Compiling a Bilt model with JAX](worked_examples/compiling-a-bilt-model-with-JAX.md) - a detailed example of how to compile a Bilt model with JAX.
-
-## Worked examples
-
-Worked examples show how these concepts fit together in complete models.
 
 ### Dimensions, Tensors and broadcasting
 
