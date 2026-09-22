@@ -5,7 +5,7 @@ import textwrap
 import pytest
 
 import bilt
-from bilt._backend._jax import JAX_BACKEND
+from bilt.backend._jax import JAX_BACKEND
 
 
 def _run_without_jax(code: str) -> subprocess.CompletedProcess[str]:

@@ -1,10 +1,10 @@
 import ast
 import inspect
 
-from bilt._backend import BackendCallable, BackendCase
-from bilt._backend._base_backend import ActivatableBackendMixin
-from bilt._backend._in_process_python_mixin import InProcessPythonMixin
-from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
+from bilt.backend import BackendCallable, BackendCase
+from bilt.backend._base_backend import ActivatableBackendMixin
+from bilt.backend._in_process_python_mixin import InProcessPythonMixin
+from bilt.backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
 
 class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignmentMixin):

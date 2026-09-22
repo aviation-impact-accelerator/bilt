@@ -15,7 +15,7 @@ from bilt.core._transform import BasicTransform
 if TYPE_CHECKING:
     import collections.abc
 
-    from bilt._backend._base_backend import Backend
+    from bilt.backend._base_backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
 
 type Attribute = str

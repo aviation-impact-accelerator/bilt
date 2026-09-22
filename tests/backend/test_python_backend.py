@@ -5,11 +5,11 @@ import typing
 
 import pytest
 
-from bilt._backend import Backend, BackendCase
-from bilt._backend._python import PYTHON_BACKEND
+from bilt.backend import Backend, BackendCase
+from bilt.backend._python import PYTHON_BACKEND
 
 if typing.TYPE_CHECKING:
-    from bilt._backend._python._backend import PythonBackend
+    from bilt.backend._python._backend import PythonBackend
 
 
 @typing.runtime_checkable

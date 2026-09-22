@@ -1,7 +1,7 @@
 import pytest
 
 from bilt import Interface, field, system
-from bilt._backend._python._backend import PYTHON_BACKEND
+from bilt.backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan

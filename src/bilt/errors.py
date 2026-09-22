@@ -54,8 +54,8 @@ __all__ = [
     "BiltUnsupportedNodeError",
 ]
 
-from bilt._backend._errors import BiltBackendError, BiltCompilationError, BiltUnsupportedNodeError
 from bilt._base_error import BiltError
+from bilt.backend._errors import BiltBackendError, BiltCompilationError, BiltUnsupportedNodeError
 from bilt.core._errors import (
     BiltAnalysisError,
     BiltDefinitionError,

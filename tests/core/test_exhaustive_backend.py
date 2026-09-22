@@ -3,8 +3,8 @@ import typing
 import pytest
 
 from bilt import Implementation, Interface, field, system, transform
-from bilt._backend._jax._backend import JAX_BACKEND
-from bilt._backend._python._backend import PYTHON_BACKEND
+from bilt.backend._jax._backend import JAX_BACKEND
+from bilt.backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis import StructuralAnalyser
@@ -18,8 +18,8 @@ from bilt.errors import BiltAnalysisError, BiltIsolationError, BiltUnsupportedNo
 if typing.TYPE_CHECKING:
     import ast
 
-    from bilt._backend._base_backend import Backend
-    from bilt._backend._callable import BackendCallable
+    from bilt.backend._base_backend import Backend
+    from bilt.backend._callable import BackendCallable
 
 
 @typing.runtime_checkable

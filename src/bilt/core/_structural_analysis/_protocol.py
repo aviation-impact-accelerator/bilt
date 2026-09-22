@@ -3,7 +3,7 @@ __all__ = ["StructuralAnalyser"]
 import typing
 
 if typing.TYPE_CHECKING:
-    from bilt._backend._case import BackendCase
+    from bilt.backend._case import BackendCase
 
 
 class StructuralAnalyser(typing.Protocol):

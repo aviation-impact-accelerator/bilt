@@ -2,4 +2,4 @@
 
 __all__ = ("JAX_BACKEND",)
 
-from bilt._backend._jax._backend import JAX_BACKEND
+from bilt.backend._jax._backend import JAX_BACKEND

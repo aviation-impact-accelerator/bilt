@@ -6,12 +6,12 @@ import typing
 import jax.numpy as jnp
 import pytest
 
-from bilt._backend import Backend, BackendCase
-from bilt._backend._jax import JAX_BACKEND
+from bilt.backend import Backend, BackendCase
+from bilt.backend._jax import JAX_BACKEND
 from bilt.errors import BiltUnsupportedNodeError
 
 if typing.TYPE_CHECKING:
-    from bilt._backend._jax._backend import JAXBackend
+    from bilt.backend._jax._backend import JAXBackend
 
 
 @typing.runtime_checkable

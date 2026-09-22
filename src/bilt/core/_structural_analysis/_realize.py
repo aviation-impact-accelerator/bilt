@@ -6,9 +6,9 @@ import inspect
 import textwrap
 import typing
 
-from bilt._backend._callable import BackendCallable
-from bilt._backend._case import BackendCase
-from bilt._backend._errors import BiltBackendError
+from bilt.backend._callable import BackendCallable
+from bilt.backend._case import BackendCase
+from bilt.backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError
 from bilt.core._port import mangle_name
@@ -18,7 +18,7 @@ from bilt.core._transform import BasicTransform
 from bilt.symbolic._isolation._errors import BiltIsolationError
 
 if typing.TYPE_CHECKING:
-    from bilt._backend._base_backend import Backend
+    from bilt.backend._base_backend import Backend
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 
 

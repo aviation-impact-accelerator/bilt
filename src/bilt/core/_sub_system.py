@@ -9,7 +9,7 @@ from bilt.core._port import MANGLED_SEPARATOR, QualifiedPort
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt._backend._base_backend import Backend
+    from bilt.backend._base_backend import Backend
     from bilt.core._system._implementation import Implementation
 
 

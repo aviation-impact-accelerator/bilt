@@ -2,14 +2,14 @@ __all__ = ["ExhaustiveStructuralAnalyser"]
 
 import typing
 
-from bilt._backend import BackendCase
+from bilt.backend import BackendCase
 from bilt.core._errors import BiltAnalysisError
 from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
 from bilt.core._structural_analysis._plan import AnalysisPlan
 from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan
 
 if typing.TYPE_CHECKING:
-    from bilt._backend import Backend
+    from bilt.backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
 
 

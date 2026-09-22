@@ -9,8 +9,8 @@ from bilt import (
     system,
     transform,
 )
-from bilt._backend._jax._backend import JAX_BACKEND
-from bilt._backend._python._backend import PYTHON_BACKEND
+from bilt.backend._jax._backend import JAX_BACKEND
+from bilt.backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.errors import (
@@ -24,7 +24,7 @@ from bilt.errors import (
 )
 
 if TYPE_CHECKING:
-    from bilt._backend._base_backend import Backend
+    from bilt.backend._base_backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
 
 CURRENT = 2.0

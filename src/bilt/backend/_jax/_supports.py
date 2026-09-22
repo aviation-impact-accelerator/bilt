@@ -2,7 +2,7 @@
 
 import ast
 
-from bilt._backend._errors import BiltUnsupportedNodeError
+from bilt.backend._errors import BiltUnsupportedNodeError
 
 __all__ = ()
 

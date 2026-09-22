@@ -23,7 +23,7 @@ from bilt.core._system._errors import (
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt._backend import Backend, BackendCallable
+    from bilt.backend import Backend, BackendCallable
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis import StructuralAnalyser
