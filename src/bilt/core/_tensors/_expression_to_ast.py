@@ -36,10 +36,7 @@ def _mean_to_ast(
 ) -> ast.expr:
     value_tree, axis_tree = tree.args
 
-    if (
-        not axis_tree.is_leaf
-        or axis_tree.head.atom_type is not AxisType
-    ):
+    if not axis_tree.is_leaf or axis_tree.head.atom_type is not AxisType:
         message = "Lowered mean requires a positional axis."
         raise ValueError(message)
 
