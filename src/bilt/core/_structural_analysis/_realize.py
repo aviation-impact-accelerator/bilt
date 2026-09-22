@@ -11,6 +11,7 @@ from bilt.backend._case import BackendCase
 from bilt.backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError
+from bilt.core._evaluation_context import current_evaluation
 from bilt.core._port import mangle_name
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._to_ast import equation_to_ast
@@ -18,15 +19,14 @@ from bilt.core._transform import BasicTransform
 from bilt.symbolic._isolation._errors import BiltIsolationError
 
 if typing.TYPE_CHECKING:
-    from bilt.backend._base_backend import Backend
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 
 
-def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
+def realize_plan(plan: AnalysisPlan) -> BackendCase | RealizationFailure:
     """Convert an AnalysisPlan into a BackendCase by compiling each step to a callable."""
     intermediates = []
     for step in plan.steps:
-        result = _operation_to_callable(step, backend=backend)
+        result = _operation_to_callable(step)
         if isinstance(result, RealizationFailure):
             return result
         intermediates.append(result)
@@ -40,14 +40,14 @@ def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | Realizat
     )
 
 
-def _operation_to_callable(plan_step: PlanStep, backend: Backend) -> BackendCallable | RealizationFailure:
+def _operation_to_callable(plan_step: PlanStep) -> BackendCallable | RealizationFailure:
     match plan_step.operation:
         case BasicTransform() as transform:
-            return _transform_to_callable(transform, plan_step, backend)
+            return _transform_to_callable(transform, plan_step)
         case BasicEquation() as equation:
-            return _equation_to_callable(equation, plan_step, backend)
+            return _equation_to_callable(equation, plan_step)
         case SubSystemConstituent() as sub_system:
-            return _sub_system_to_callable(sub_system, plan_step, backend)
+            return _sub_system_to_callable(sub_system, plan_step)
         case _:
             msg = f"Operation type {type(plan_step.operation)} is not supported for evaluation."
             raise NotImplementedError(msg)
@@ -56,26 +56,24 @@ def _operation_to_callable(plan_step: PlanStep, backend: Backend) -> BackendCall
 def _transform_to_callable(
     transform: BasicTransform,
     plan_step: PlanStep,
-    backend: Backend,
 ) -> BackendCallable | RealizationFailure:
     function_ast = typing.cast(
         "ast.FunctionDef",
         ast.parse(textwrap.dedent(inspect.getsource(transform._function))).body[0],  # noqa: SLF001
     )
     function_ast.decorator_list = []
-    return _guarded_transpile(function_ast, plan_step, backend)
+    return _guarded_transpile(function_ast, plan_step)
 
 
 def _equation_to_callable(
     equation: BasicEquation,
     plan_step: PlanStep,
-    backend: Backend,
 ) -> BackendCallable | RealizationFailure:
     try:
         function_ast = equation_to_ast(equation, plan_step.output)
     except BiltIsolationError as error:
         return RealizationFailure(failed_plan_step=plan_step, cause=error)
-    return _guarded_transpile(_NameMangler().visit(function_ast), plan_step, backend)
+    return _guarded_transpile(_NameMangler().visit(function_ast), plan_step)
 
 
 class _NameMangler(ast.NodeTransformer):
@@ -96,14 +94,13 @@ class _NameMangler(ast.NodeTransformer):
 def _sub_system_to_callable(
     sub_system: SubSystemConstituent,
     plan_step: PlanStep,
-    backend: Backend,
 ) -> BackendCallable | RealizationFailure:
     if plan_step.request is None:
         msg = f"{sub_system!r} step for {plan_step.output!r} names no route through the child."
         return RealizationFailure(failed_plan_step=plan_step, cause=BiltAnalysisError(msg))
 
     try:
-        child_callable = sub_system.implementation.get_evaluation(plan_step.request, backend)
+        child_callable = sub_system.implementation.get_evaluation(plan_step.request)
     except BiltAnalysisError as error:
         return RealizationFailure(failed_plan_step=plan_step, cause=error)
 
@@ -114,11 +111,9 @@ def _sub_system_to_callable(
     )
 
 
-def _guarded_transpile(
-    function_ast: ast.FunctionDef, plan_step: PlanStep, backend: Backend
-) -> BackendCallable | RealizationFailure:
+def _guarded_transpile(function_ast: ast.FunctionDef, plan_step: PlanStep) -> BackendCallable | RealizationFailure:
     try:
-        return backend.transpile(function_ast)
+        return current_evaluation().backend.transpile(function_ast)
     except BiltBackendError as error:
         return RealizationFailure(failed_plan_step=plan_step, cause=error)
 

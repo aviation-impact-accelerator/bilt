@@ -1,5 +1,7 @@
 """Minimal interface for bilt backend, that will be utilised by the analysis layer."""
 
+__all__ = ["ActivatableBackendMixin", "Backend", "current_backend"]
+
 import typing
 
 if typing.TYPE_CHECKING:
@@ -41,3 +43,13 @@ class ActivatableBackendMixin:
 
     def __exit__(self, *_: object) -> None:
         _backend_stack.pop()
+
+
+def current_backend() -> Backend:
+    """Return the innermost activated backend, or the Python backend when none is activated."""
+    if _backend_stack:
+        return _backend_stack[-1]
+
+    from bilt.backend._python import PYTHON_BACKEND  # noqa: PLC0415  # the Python backend imports this module
+
+    return PYTHON_BACKEND

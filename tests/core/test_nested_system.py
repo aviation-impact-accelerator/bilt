@@ -12,6 +12,7 @@ from bilt import (
 from bilt.backend._jax._backend import JAX_BACKEND
 from bilt.backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
+from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.errors import (
     BiltAnalysisError,
@@ -1114,7 +1115,8 @@ def test_building_a_parents_analyser_does_not_reach_down_the_hierarchy(
     resistor = _child_implementation(component_over_resistor, "resistor")
     _, rig = _rig_over(component_over_resistor)
 
-    rig.analyser_for(backend)
+    with EvaluationContext(backend):
+        rig.analyser()
 
     assert component_over_resistor._analysers == {}  # noqa: SLF001
     assert resistor._analysers == {}  # noqa: SLF001
@@ -1240,3 +1242,47 @@ def test_a_direction_the_child_cannot_solve_is_rejected() -> None:
     instance = Component(voltage=VOLTAGE, resistance=RESISTANCE)
     with component, pytest.raises(BiltAnalysisError):
         _ = instance.current
+
+
+def test_a_python_transform_can_evaluate_another_implementation_under_jax(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The escape hatch documented in `docs/guide/backends.md`.
+
+    A transform running under one backend evaluates another implementation under another, so the
+    nested result carries the nested backend's array type rather than the outer backend's float.
+    """
+
+    @system
+    class JaxSubproblem(metaclass=Interface):
+        value: float = field()
+        result: float = field()
+
+    @transform
+    def result(value: float) -> float:
+        return value**2
+
+    subproblem = Implementation(JaxSubproblem, [result])
+
+    @system
+    class Outer(metaclass=Interface):
+        input_value: float = field()
+        output_value: float = field()
+
+    @transform
+    def output_value(input_value: float) -> float:
+        with JAX_BACKEND, subproblem:
+            return JaxSubproblem(value=input_value).result
+
+    # The docs spell these as imports inside the body, because a transform is recompiled from
+    # source into the backend's namespace. Locals of a test are not importable, so seed them.
+    monkeypatch.setitem(PYTHON_BACKEND.compilation_namespace, "JAX_BACKEND", JAX_BACKEND)
+    monkeypatch.setitem(PYTHON_BACKEND.compilation_namespace, "JaxSubproblem", JaxSubproblem)
+    monkeypatch.setitem(PYTHON_BACKEND.compilation_namespace, "subproblem", subproblem)
+
+    expected = 9.0
+    with PYTHON_BACKEND, Implementation(Outer, [output_value]):
+        nested = Outer(input_value=3.0).output_value
+
+    assert float(nested) == expected
+    assert type(nested).__module__.startswith("jaxlib")

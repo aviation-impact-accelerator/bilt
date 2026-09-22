@@ -3,6 +3,7 @@ import pytest
 from bilt import Interface, field, system
 from bilt.backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
+from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan
 
@@ -22,7 +23,7 @@ def wiring(supply: float, resistor: Resistor) -> bool:
 def test_realize_plan_mangles_the_case_names() -> None:
     plan = AnalysisPlan(inputs=frozenset({"resistor.i", "resistor.r"}), output="resistor.v", steps=())
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+    case = realize_plan(plan)
 
     assert not isinstance(case, RealizationFailure)
     assert case.name == "resistor__v"
@@ -33,7 +34,7 @@ def test_realize_plan_mangles_the_case_names() -> None:
 def test_realize_plan_leaves_plain_names_alone() -> None:
     plan = AnalysisPlan(inputs=frozenset({"a", "b"}), output="c", steps=())
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+    case = realize_plan(plan)
 
     assert not isinstance(case, RealizationFailure)
     assert case.name == "c"
@@ -48,64 +49,68 @@ def test_realize_plan_rejects_an_unsupported_operation() -> None:
     plan = AnalysisPlan(inputs=frozenset(), output="c", steps=(PlanStep(operation=Unsupported(), output="c"),))
 
     with pytest.raises(NotImplementedError, match="is not supported for evaluation"):
-        realize_plan(plan, PYTHON_BACKEND)
+        realize_plan(plan)
 
 
 def test_realize_plan_mangles_an_equation_reading_a_dotted_port() -> None:
-    plan = AnalysisPlan(
-        inputs=frozenset({"resistor.v"}),
-        output="supply",
-        steps=(PlanStep(operation=wiring, output="supply"),),
-    )
+    with EvaluationContext(PYTHON_BACKEND):
+        plan = AnalysisPlan(
+            inputs=frozenset({"resistor.v"}),
+            output="supply",
+            steps=(PlanStep(operation=wiring, output="supply"),),
+        )
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+        case = realize_plan(plan)
 
-    assert not isinstance(case, RealizationFailure)
-    assert case.intermediates[0].name == "supply"
-    assert case.intermediates[0].parameters == ("resistor__v",)
-    assert case.intermediates[0].evaluate({"resistor__v": SUPPLY_VOLTAGE}) == SUPPLY_VOLTAGE
+        assert not isinstance(case, RealizationFailure)
+        assert case.intermediates[0].name == "supply"
+        assert case.intermediates[0].parameters == ("resistor__v",)
+        assert case.intermediates[0].evaluate({"resistor__v": SUPPLY_VOLTAGE}) == SUPPLY_VOLTAGE
 
 
 def test_realize_plan_mangles_an_equation_solving_for_a_dotted_port() -> None:
-    plan = AnalysisPlan(
-        inputs=frozenset({"supply"}),
-        output="resistor.v",
-        steps=(PlanStep(operation=wiring, output="resistor.v"),),
-    )
+    with EvaluationContext(PYTHON_BACKEND):
+        plan = AnalysisPlan(
+            inputs=frozenset({"supply"}),
+            output="resistor.v",
+            steps=(PlanStep(operation=wiring, output="resistor.v"),),
+        )
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+        case = realize_plan(plan)
 
-    assert not isinstance(case, RealizationFailure)
-    assert case.intermediates[0].name == "resistor__v"
-    assert case.intermediates[0].parameters == ("supply",)
-    assert case.intermediates[0].evaluate({"supply": SUPPLY_VOLTAGE}) == SUPPLY_VOLTAGE
+        assert not isinstance(case, RealizationFailure)
+        assert case.intermediates[0].name == "resistor__v"
+        assert case.intermediates[0].parameters == ("supply",)
+        assert case.intermediates[0].evaluate({"supply": SUPPLY_VOLTAGE}) == SUPPLY_VOLTAGE
 
 
 def test_realize_plan_accepts_a_transform_decorated_through_the_package() -> None:
-    import bilt  # noqa: PLC0415
+    with EvaluationContext(PYTHON_BACKEND):
+        import bilt  # noqa: PLC0415
 
-    @bilt.transform
-    def doubled(a: float) -> float:
-        return 2 * a
+        @bilt.transform
+        def doubled(a: float) -> float:
+            return 2 * a
 
-    plan = AnalysisPlan(inputs=frozenset({"a"}), output="c", steps=(PlanStep(operation=doubled, output="c"),))
+        plan = AnalysisPlan(inputs=frozenset({"a"}), output="c", steps=(PlanStep(operation=doubled, output="c"),))
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+        case = realize_plan(plan)
 
-    assert not isinstance(case, RealizationFailure)
-    assert case.intermediates[0].evaluate({"a": SUPPLY_VOLTAGE}) == 2 * SUPPLY_VOLTAGE
+        assert not isinstance(case, RealizationFailure)
+        assert case.intermediates[0].evaluate({"a": SUPPLY_VOLTAGE}) == 2 * SUPPLY_VOLTAGE
 
 
 def test_realize_plan_accepts_a_transform_decorated_through_an_alias() -> None:
-    from bilt import transform as renamed_transform  # noqa: PLC0415
+    with EvaluationContext(PYTHON_BACKEND):
+        from bilt import transform as renamed_transform  # noqa: PLC0415
 
-    @renamed_transform
-    def doubled(a: float) -> float:
-        return 2 * a
+        @renamed_transform
+        def doubled(a: float) -> float:
+            return 2 * a
 
-    plan = AnalysisPlan(inputs=frozenset({"a"}), output="c", steps=(PlanStep(operation=doubled, output="c"),))
+        plan = AnalysisPlan(inputs=frozenset({"a"}), output="c", steps=(PlanStep(operation=doubled, output="c"),))
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+        case = realize_plan(plan)
 
-    assert not isinstance(case, RealizationFailure)
-    assert case.intermediates[0].evaluate({"a": SUPPLY_VOLTAGE}) == 2 * SUPPLY_VOLTAGE
+        assert not isinstance(case, RealizationFailure)
+        assert case.intermediates[0].evaluate({"a": SUPPLY_VOLTAGE}) == 2 * SUPPLY_VOLTAGE

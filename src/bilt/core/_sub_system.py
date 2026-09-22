@@ -9,7 +9,6 @@ from bilt.core._port import MANGLED_SEPARATOR, QualifiedPort
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt.backend._base_backend import Backend
     from bilt.core._system._implementation import Implementation
 
 
@@ -38,7 +37,6 @@ class SubSystemConstituent:
     def request_for(
         self,
         qualified_output: str,
-        backend: Backend,
         *,
         within: collections.abc.Iterable[str] | None = None,
     ) -> EvaluationRequest | None:
@@ -53,7 +51,7 @@ class SubSystemConstituent:
             set(self.interface.__bilt_parameters__) if within is None else {self.child_port(port) for port in within}
         )
         available = reachable - {child_output}
-        required = self.implementation.analyser_for(backend).required_inputs_for_target(available, child_output)
+        required = self.implementation.analyser().required_inputs_for_target(available, child_output)
         if required is None:
             return None
         return EvaluationRequest(output=child_output, available=required)

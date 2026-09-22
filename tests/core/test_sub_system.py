@@ -3,6 +3,7 @@ import pytest
 from bilt import Implementation, Interface, field, system
 from bilt.backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
+from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import DOTTED_SEPARATOR, MANGLED_SEPARATOR, QualifiedPort
 from bilt.core._sub_system import SubSystemConstituent, validate_name
@@ -130,40 +131,40 @@ def test_child_port_rejects_a_name_that_is_not_one_of_its_ports(
 
 
 def test_a_request_names_its_ports_in_child_local_terms(sub_system: SubSystemConstituent) -> None:
-    request = sub_system.request_for("resistor.v", PYTHON_BACKEND, within={"resistor.i", "resistor.r"})
+    with EvaluationContext(PYTHON_BACKEND):
+        request = sub_system.request_for("resistor.v", within={"resistor.i", "resistor.r"})
 
     assert request == EvaluationRequest(output="v", available=frozenset({"i", "r"}))
 
 
-def test_a_request_asks_only_for_the_ports_the_child_uses(
-    spare_port_sub_system: SubSystemConstituent,
-) -> None:
+def test_a_request_asks_only_for_the_ports_the_child_uses(spare_port_sub_system: SubSystemConstituent) -> None:
     """Given a port no equation reads, the child leaves it out of the request."""
-    request = spare_port_sub_system.request_for(
-        "resistor.v",
-        PYTHON_BACKEND,
-        within={"resistor.i", "resistor.r", "resistor.temperature"},
-    )
+    with EvaluationContext(PYTHON_BACKEND):
+        request = spare_port_sub_system.request_for(
+            "resistor.v",
+            within={"resistor.i", "resistor.r", "resistor.temperature"},
+        )
 
     assert request is not None
     assert request.available == frozenset({"i", "r"})
 
 
-def test_an_unrestricted_request_may_use_every_port_but_the_output(
-    spare_port_sub_system: SubSystemConstituent,
-) -> None:
+def test_an_unrestricted_request_may_use_every_port_but_the_output(spare_port_sub_system: SubSystemConstituent) -> None:
     """Without ``within`` the child is free to route from any of its own ports."""
-    request = spare_port_sub_system.request_for("resistor.v", PYTHON_BACKEND)
+    with EvaluationContext(PYTHON_BACKEND):
+        request = spare_port_sub_system.request_for("resistor.v")
 
     assert request == EvaluationRequest(output="v", available=frozenset({"i", "r"}))
 
 
 def test_there_is_no_request_without_an_internal_route(sealed_sub_system: SubSystemConstituent) -> None:
-    assert sealed_sub_system.request_for("sealed.a", PYTHON_BACKEND, within={"sealed.b"}) is None
+    with EvaluationContext(PYTHON_BACKEND):
+        assert sealed_sub_system.request_for("sealed.a", within={"sealed.b"}) is None
 
 
 def test_there_is_no_request_when_the_restriction_falls_short(sub_system: SubSystemConstituent) -> None:
-    assert sub_system.request_for("resistor.v", PYTHON_BACKEND, within={"resistor.i"}) is None
+    with EvaluationContext(PYTHON_BACKEND):
+        assert sub_system.request_for("resistor.v", within={"resistor.i"}) is None
 
 
 def test_repr_names_the_reference_and_its_interface(sub_system: SubSystemConstituent) -> None:
@@ -186,14 +187,16 @@ def test_the_realized_callable_speaks_mangled_names(board: Implementation) -> No
     """The compiled callable is bound by keyword, so it answers in the names it was compiled with."""
     request = EvaluationRequest(output="resistor.v", available=frozenset({"resistor.i", "resistor.r"}))
 
-    realized = board.get_evaluation(request, PYTHON_BACKEND)
+    with EvaluationContext(PYTHON_BACKEND):
+        realized = board.get_evaluation(request)
 
     assert realized.parameters == ("resistor__i", "resistor__r")
     assert realized.evaluate({"resistor__i": CURRENT, "resistor__r": RESISTANCE}) == VOLTAGE
 
 
 def test_nothing_a_backend_compiles_carries_a_dotted_name(board: Implementation) -> None:
-    case = board.analyser_for(PYTHON_BACKEND).analyse({"resistor.i", "resistor.r"}, "resistor.v")
+    with EvaluationContext(PYTHON_BACKEND):
+        case = board.analyser().analyse({"resistor.i", "resistor.r"}, "resistor.v")
 
     assert "." not in case.name
     assert "." not in case.return_name

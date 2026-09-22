@@ -9,16 +9,14 @@ from bilt.core._structural_analysis._plan import AnalysisPlan
 from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan
 
 if typing.TYPE_CHECKING:
-    from bilt.backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
 
 
 class ExhaustiveStructuralAnalyser:
     """Analyser that uses an exhaustive bipartite graph search."""
 
-    def __init__(self, constituents: typing.Collection[BiltModelConstituent], backend: Backend) -> None:
-        self.backend = backend
-        self.bipartite_graph = BipartiteGraph(constituents, backend)
+    def __init__(self, constituents: typing.Collection[BiltModelConstituent]) -> None:
+        self.bipartite_graph = BipartiteGraph(constituents)
 
     def analyse(self, available: set[str], output: str) -> BackendCase:
         """Find a plan to compute the desired output, pruning steps that fail."""
@@ -35,10 +33,7 @@ class ExhaustiveStructuralAnalyser:
                 )
                 raise BiltAnalysisError(msg) from last_failure.cause
 
-            realised_plan = realize_plan(
-                AnalysisPlan(inputs=frozenset(available), output=output, steps=tuple(steps)),
-                self.backend,
-            )
+            realised_plan = realize_plan(AnalysisPlan(inputs=frozenset(available), output=output, steps=tuple(steps)))
             match realised_plan:
                 case BackendCase() as successful_plan:
                     return successful_plan
