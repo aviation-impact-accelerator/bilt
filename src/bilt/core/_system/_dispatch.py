@@ -34,7 +34,7 @@ def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -
     if collisions := outputs.keys() & inputs.keys():
         msg = (
             f"Evaluating {attribute.name!r} produced values for {sorted(collisions)}, which the instance "
-            f"already holds. A plan should never recompute an available attribute. This is a bug in bilt."
+            f"already holds. A plan should never recompute an available attribute. "
         )
         raise RuntimeError(msg)
     instance.__bilt_system_instance_variables__.update(outputs)
