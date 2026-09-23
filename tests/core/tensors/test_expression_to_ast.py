@@ -1,9 +1,9 @@
 import ast
 
 from bilt.core._tensors._expression_lowering import lower_expression
-from bilt.core._tensors._expression_to_ast import (
+from bilt.core._to_ast import _tree_to_ast_expr
+from bilt.core._to_ast import (
     MEAN_INTRINSIC_NAME,
-    lowered_expression_to_ast,
 )
 from bilt.math import mean
 from bilt.symbolic._dimensions import Dim
@@ -24,7 +24,7 @@ def test_mean_lowers_to_backend_intrinsic() -> None:
         canonical_order=domain(location, time),
     )
 
-    actual = lowered_expression_to_ast(lowered)
+    actual = _tree_to_ast_expr(lowered.tree)
 
     length_keywords = 2
 
@@ -64,7 +64,7 @@ def test_mean_lowers_inside_arithmetic_expression() -> None:
         canonical_order=domain(location, time),
     )
 
-    actual = lowered_expression_to_ast(lowered)
+    actual = _tree_to_ast_expr(lowered.tree)
 
     assert isinstance(actual, ast.BinOp)
     assert isinstance(actual.op, ast.Add)

@@ -14,7 +14,6 @@ if typing.TYPE_CHECKING:
 
 __all__ = [
     "isolated_tree_to_functiondef",
-    "tree_to_ast_expr",
 ]
 
 MEAN_INTRINSIC_NAME = "__bilt_mean__"
@@ -24,7 +23,7 @@ def isolated_tree_to_functiondef(
     isolated: IsolatedTree,
     parameter_order: tuple[str, ...],
 ) -> ast.FunctionDef:
-    rhs_expr = tree_to_ast_expr(isolated.rhs.rep)
+    rhs_expr = _tree_to_ast_expr(isolated.rhs.rep)
     function_name = typing.cast("str", isolated.target.rep.head.value)
     parameter_order = tuple(name for name in parameter_order if name != function_name)
 
@@ -48,7 +47,7 @@ def isolated_tree_to_functiondef(
     return function_def
 
 
-def tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
+def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
     """Convert a symbolic tree to Python AST."""
     if tree.is_leaf:
         return _leaf_to_ast(tree)
@@ -62,22 +61,22 @@ def tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
 
         case ops.POW:
             return ast.BinOp(
-                left=tree_to_ast_expr(tree.args[0]),
+                left=_tree_to_ast_expr(tree.args[0]),
                 op=ast.Pow(),
-                right=tree_to_ast_expr(tree.args[1]),
+                right=_tree_to_ast_expr(tree.args[1]),
             )
 
         case ops.NEG:
             return ast.UnaryOp(
                 op=ast.USub(),
-                operand=tree_to_ast_expr(tree.args[0]),
+                operand=_tree_to_ast_expr(tree.args[0]),
             )
 
         case ops.INV:
             return ast.BinOp(
                 left=ast.Constant(value=1),
                 op=ast.Div(),
-                right=tree_to_ast_expr(tree.args[0]),
+                right=_tree_to_ast_expr(tree.args[0]),
             )
 
         case ops.MEAN:
@@ -118,7 +117,7 @@ def _mean_to_ast(tree: Tree) -> ast.expr:
             id=MEAN_INTRINSIC_NAME,
             ctx=ast.Load(),
         ),
-        args=[tree_to_ast_expr(value_tree)],
+        args=[_tree_to_ast_expr(value_tree)],
         keywords=[
             ast.keyword(
                 arg="axis",
@@ -141,13 +140,13 @@ def _fold_binop(
         raise BiltUnsupportedIsolationError(message)
 
     iterator = iter(children)
-    expr = tree_to_ast_expr(next(iterator))
+    expr = _tree_to_ast_expr(next(iterator))
 
     for child in iterator:
         expr = ast.BinOp(
             left=expr,
             op=operator_type(),
-            right=tree_to_ast_expr(child),
+            right=_tree_to_ast_expr(child),
         )
 
     return expr
