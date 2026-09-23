@@ -2,7 +2,7 @@ import ast
 import typing
 
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._atoms import Atom, FloatType, IntType, SymbolType
+from bilt.symbolic._atoms import AxisType, FloatType, IntType, SymbolType
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltTargetNotFoundError, BiltUnsupportedIsolationError
 from bilt.symbolic._isolation._isolate import isolate
@@ -16,6 +16,8 @@ __all__ = [
     "isolated_tree_to_functiondef",
     "tree_to_ast_expr",
 ]
+
+MEAN_INTRINSIC_NAME = "__bilt_mean__"
 
 
 def isolated_tree_to_functiondef(
@@ -46,37 +48,44 @@ def isolated_tree_to_functiondef(
     return function_def
 
 
-def tree_to_ast_expr(
-    tree: Tree,
-    *,
-    operation_handlers: typing.Mapping[
-        Atom,
-        typing.Callable[
-            [Tree, typing.Callable[[Tree], ast.expr]],
-            ast.expr,
-        ],
-    ]
-    | None = None,
-) -> ast.expr:
+def tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
     """Convert a symbolic tree to Python AST."""
-    handlers = operation_handlers or {}
+    if tree.is_leaf:
+        return _leaf_to_ast(tree)
 
-    def convert(node: Tree) -> ast.expr:
-        if node.is_leaf:
-            return _leaf_to_ast(node)
+    match tree.head:
+        case ops.ADD:
+            return _fold_binop(tree.args, ast.Add)
 
-        built_in = _built_in_operation_to_ast(node, convert)
-        if built_in is not None:
-            return built_in
+        case ops.MUL:
+            return _fold_binop(tree.args, ast.Mult)
 
-        handler = handlers.get(node.head)
-        if handler is not None:
-            return handler(node, convert)
+        case ops.POW:
+            return ast.BinOp(
+                left=tree_to_ast_expr(tree.args[0]),
+                op=ast.Pow(),
+                right=tree_to_ast_expr(tree.args[1]),
+            )
 
-        message = f"Unsupported symbolic head {node.head!r} in AST conversion."
-        raise BiltUnsupportedIsolationError(message)
+        case ops.NEG:
+            return ast.UnaryOp(
+                op=ast.USub(),
+                operand=tree_to_ast_expr(tree.args[0]),
+            )
 
-    return convert(tree)
+        case ops.INV:
+            return ast.BinOp(
+                left=ast.Constant(value=1),
+                op=ast.Div(),
+                right=tree_to_ast_expr(tree.args[0]),
+            )
+
+        case ops.MEAN:
+            return _mean_to_ast(tree)
+
+        case _:
+            message = f"Unsupported symbolic head {tree.head!r} in AST conversion."
+            raise BiltUnsupportedIsolationError(message)
 
 
 def _leaf_to_ast(tree: Tree) -> ast.expr:
@@ -95,58 +104,50 @@ def _leaf_to_ast(tree: Tree) -> ast.expr:
     raise BiltUnsupportedIsolationError(message)
 
 
-def _built_in_operation_to_ast(
-    tree: Tree,
-    convert: typing.Callable[[Tree], ast.expr],
-) -> ast.expr | None:
-    match tree.head:
-        case ops.ADD:
-            return _fold_binop(tree.args, ast.Add, convert)
+def _mean_to_ast(tree: Tree) -> ast.expr:
+    value_tree, axis_tree = tree.args
 
-        case ops.MUL:
-            return _fold_binop(tree.args, ast.Mult, convert)
+    if not axis_tree.is_leaf or axis_tree.head.atom_type is not AxisType:
+        message = "Lowered mean requires a positional axis."
+        raise BiltUnsupportedIsolationError(message)
 
-        case ops.POW:
-            return ast.BinOp(
-                left=convert(tree.args[0]),
-                op=ast.Pow(),
-                right=convert(tree.args[1]),
-            )
+    axis = typing.cast("int", axis_tree.head.value)
 
-        case ops.NEG:
-            return ast.UnaryOp(
-                op=ast.USub(),
-                operand=convert(tree.args[0]),
-            )
-
-        case ops.INV:
-            return ast.BinOp(
-                left=ast.Constant(value=1),
-                op=ast.Div(),
-                right=convert(tree.args[0]),
-            )
-
-        case _:
-            return None
+    return ast.Call(
+        func=ast.Name(
+            id=MEAN_INTRINSIC_NAME,
+            ctx=ast.Load(),
+        ),
+        args=[tree_to_ast_expr(value_tree)],
+        keywords=[
+            ast.keyword(
+                arg="axis",
+                value=ast.Constant(value=axis),
+            ),
+            ast.keyword(
+                arg="keepdims",
+                value=ast.Constant(value=True),
+            ),
+        ],
+    )
 
 
 def _fold_binop(
     children: tuple[Tree, ...],
     operator_type: type[ast.operator],
-    convert: typing.Callable[[Tree], ast.expr],
 ) -> ast.expr:
     if not children:
         message = "Cannot lower an empty n-ary symbolic operator."
         raise BiltUnsupportedIsolationError(message)
 
     iterator = iter(children)
-    expr = convert(next(iterator))
+    expr = tree_to_ast_expr(next(iterator))
 
     for child in iterator:
         expr = ast.BinOp(
             left=expr,
             op=operator_type(),
-            right=convert(child),
+            right=tree_to_ast_expr(child),
         )
 
     return expr
