@@ -7,7 +7,7 @@ import types
 import typing
 
 from bilt.core._equation import BasicEquation
-from bilt.core._evaluation_context import EvaluationContext
+from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
@@ -19,6 +19,8 @@ from bilt.core._system._errors import (
     BiltSubSystemNameCollisionError,
     BiltSubSystemUnreferencedEntryError,
 )
+from bilt.core._tensors._tensors import Tensor
+from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -51,7 +53,11 @@ class Implementation:
             named_components | sub_systems
         )
         self._evaluation_cache: dict[
-            tuple[EvaluationRequest, Backend],
+            tuple[
+                EvaluationRequest,
+                Backend,
+                Domain,
+            ],
             BackendCallable,
         ] = {}
         self._analysers: dict[Backend, StructuralAnalyser] = {}
@@ -81,9 +87,12 @@ class Implementation:
             if output in inputs:
                 output_value = inputs[output]
             else:
-                request = EvaluationRequest(
+                request = EvaluationRequest.from_domains(
                     output=output,
-                    available=frozenset(inputs),
+                    input_domains={
+                        name: value.domain if isinstance(value, Tensor) else Domain.scalar()
+                        for name, value in inputs.items()
+                    },
                 )
 
                 backend_callable = self.get_evaluation(request, backend)
@@ -93,7 +102,8 @@ class Implementation:
                 aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
                 raw_output_value = backend_callable.evaluate(mangle_inputs(aligned_inputs))
 
-                lifting_plan = generate_lifting_plan(inputs)
+                output_domain = typing.cast("Domain", backend_callable.output_domain)
+                lifting_plan = generate_lifting_plan(output_domain)
                 output_value = lift_output(raw_output_value, lifting_plan)
 
             evaluation.domains.bind(output_value)
@@ -105,20 +115,26 @@ class Implementation:
         request: EvaluationRequest,
         backend: Backend,
     ) -> BackendCallable:
+        canonical_order = current_evaluation().canonical_order
         cache_key = (
             request,
             backend,
+            canonical_order,
         )
 
         if cached := self._evaluation_cache.get(cache_key):
             return cached
 
-        planned_case = self.analyser_for(backend).analyse(
-            set(request.available),
-            request.output,
-        )
+        planned_case = self.analyser_for(backend).analyse(request)
 
         backend_callable = backend.chain_case(planned_case)
+        if planned_case.intermediates:
+            output_domain = planned_case.intermediates[-1].output_domain
+        else:
+            output_domain = request.domains[request.output]
+
+        backend_callable.output_domain = output_domain
+
         self._evaluation_cache[cache_key] = backend_callable
 
         return backend_callable
@@ -133,6 +149,7 @@ class Implementation:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Implementation):
             return NotImplemented
+
         return self.system == other.system and self._components == other._components
 
     def __hash__(self) -> int:

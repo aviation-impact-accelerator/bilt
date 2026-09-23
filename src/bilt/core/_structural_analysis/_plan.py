@@ -21,17 +21,21 @@ class PlanStep:
     For transforms, ``output`` equals the transform's ``__bilt_name__``.
     For equations, ``output`` is whichever parameter is being isolated.
 
-    For sub-systems, ``request`` is the child-local evaluation the search settled on, and is None
-    on graph nodes, which stand for a sub-system before any direction is chosen. It is excluded
-    from equality so a step handed back from realization still finds its node.
+    For sub-systems, ``child_inputs`` contains the child-local ports the selected route requires,
+    and is None on graph nodes before a route has been chosen. It is excluded from equality so a
+    step handed back from realization still finds its node.
 
-    This is intentionally decoupled from the actual isolation or system evaluation logic which takes place in _realize.
-    We are only looking to determine if the path is valid through the system graph rather than if the steps can actually be performed.
+    This is intentionally decoupled from the actual isolation or system evaluation logic which
+    takes place in _realize. We are only looking to determine if the path is valid through the
+    system graph rather than if the steps can actually be performed.
     """
 
     operation: BiltModelConstituent
     output: str
-    request: EvaluationRequest | None = dataclasses.field(default=None, compare=False)
+    child_inputs: frozenset[str] | None = dataclasses.field(
+        default=None,
+        compare=False,
+    )
 
     @property
     def consumed(self) -> tuple[str, ...]:
@@ -39,13 +43,17 @@ class PlanStep:
         match self.operation:
             case BasicTransform() as transform:
                 return tuple(sorted(transform.__bilt_parameters__))
+
             case SubSystemConstituent() as sub_system:
-                if self.request is None:
+                if self.child_inputs is None:
                     msg = f"{sub_system!r} step for {self.output!r} has not settled on a route through the child."
                     raise BiltAnalysisError(msg)
-                return tuple(sorted(sub_system.qualify(port) for port in self.request.available))
+
+                return tuple(sorted(sub_system.qualify(port) for port in self.child_inputs))
+
             case BasicEquation() as equation:
                 return tuple(sorted(set(equation.__bilt_parameters__) - {self.output}))
+
             case _:
                 msg = f"Constituent type {type(self.operation)} is not supported."
                 raise NotImplementedError(msg)
@@ -53,8 +61,17 @@ class PlanStep:
 
 @dataclasses.dataclass(frozen=True)
 class AnalysisPlan:
-    """A plan through a complete system graph to compute a desired output from available inputs."""
+    """A plan through a complete system graph to satisfy an evaluation request."""
 
-    inputs: frozenset[str]
+    request: EvaluationRequest
     steps: tuple[PlanStep, ...]
-    output: str
+
+    @property
+    def inputs(self) -> frozenset[str]:
+        """Return the values available at the start of the plan."""
+        return self.request.available
+
+    @property
+    def output(self) -> str:
+        """Return the output the plan computes."""
+        return self.request.output

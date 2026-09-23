@@ -13,38 +13,54 @@ if typing.TYPE_CHECKING:
     from bilt.symbolic._tree import Tree
 
 __all__ = [
+    "equation_to_ast",
     "isolated_tree_to_functiondef",
+    "tree_to_functiondef",
 ]
 
 MEAN_INTRINSIC_NAME = "__bilt_mean__"
 
 
-def isolated_tree_to_functiondef(
-    isolated: IsolatedTree,
+def tree_to_functiondef(
+    tree: Tree,
+    *,
+    name: str,
     parameter_order: tuple[str, ...],
 ) -> ast.FunctionDef:
-    rhs_expr = _tree_to_ast_expr(isolated.rhs.rep)
-    function_name = typing.cast("str", isolated.target.rep.head.value)
-    parameter_order = tuple(name for name in parameter_order if name != function_name)
+    """Convert a symbolic tree into a Python function returning its value."""
+    parameter_order = tuple(parameter for parameter in parameter_order if parameter != name)
 
     function_def = ast.FunctionDef(
-        name=function_name,
+        name=name,
         args=ast.arguments(
             posonlyargs=[],
-            args=[ast.arg(arg=name, annotation=None) for name in parameter_order],
+            args=[ast.arg(arg=parameter, annotation=None) for parameter in parameter_order],
             kwonlyargs=[],
             kw_defaults=[],
             defaults=[],
             vararg=None,
             kwarg=None,
         ),
-        body=[ast.Return(value=rhs_expr)],
+        body=[ast.Return(value=_tree_to_ast_expr(tree))],
         decorator_list=[],
         returns=None,
         type_comment=None,
     )
     ast.fix_missing_locations(function_def)
     return function_def
+
+
+def isolated_tree_to_functiondef(
+    isolated: IsolatedTree,
+    parameter_order: tuple[str, ...],
+) -> ast.FunctionDef:
+    function_name = typing.cast("str", isolated.target.rep.head.value)
+
+    return tree_to_functiondef(
+        isolated.rhs.rep,
+        name=function_name,
+        parameter_order=parameter_order,
+    )
 
 
 def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911

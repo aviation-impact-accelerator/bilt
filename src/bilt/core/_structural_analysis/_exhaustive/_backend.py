@@ -10,6 +10,7 @@ from bilt.core._structural_analysis._realize import RealizationFailure, realize_
 
 if typing.TYPE_CHECKING:
     from bilt._backend import Backend
+    from bilt.core._evaluation_request import EvaluationRequest
     from bilt.core._model_constituent import BiltModelConstituent
 
 
@@ -20,15 +21,22 @@ class ExhaustiveStructuralAnalyser:
         self.backend = backend
         self.bipartite_graph = BipartiteGraph(constituents, backend)
 
-    def analyse(self, available: set[str], output: str) -> BackendCase:
-        """Find a plan to compute the desired output, pruning steps that fail."""
+    def analyse(
+        self,
+        request: EvaluationRequest,
+    ) -> BackendCase:
+        """Find a plan to satisfy the request, pruning steps that fail."""
+        available = set(request.available)
+        output = request.output
         last_failure: RealizationFailure | None = None
+
         while True:
             steps = self.bipartite_graph.search(available, output)
             if steps is None:
                 msg = f"Cannot compute {output} from available inputs {available}."
                 if last_failure is None or last_failure.cause is None:
                     raise BiltAnalysisError(msg)
+
                 msg = (
                     f"{msg} The last route tried was rejected with: "
                     f"{type(last_failure.cause).__name__}: {last_failure.cause}"
@@ -36,9 +44,13 @@ class ExhaustiveStructuralAnalyser:
                 raise BiltAnalysisError(msg) from last_failure.cause
 
             realised_plan = realize_plan(
-                AnalysisPlan(inputs=frozenset(available), output=output, steps=tuple(steps)),
+                AnalysisPlan(
+                    request=request,
+                    steps=tuple(steps),
+                ),
                 self.backend,
             )
+
             match realised_plan:
                 case BackendCase() as successful_plan:
                     return successful_plan

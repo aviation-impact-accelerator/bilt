@@ -3,10 +3,14 @@ import pytest
 from bilt import Interface, field, system
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
+from bilt.core._evaluation_context import EvaluationContext
+from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan
+from bilt.symbolic._domains import Domain
 
 SUPPLY_VOLTAGE = 3.0
+SCALAR_DOMAIN = Domain.scalar()
 
 
 @system
@@ -19,10 +23,37 @@ def wiring(supply: float, resistor: Resistor) -> bool:
     return supply == resistor.v
 
 
-def test_realize_plan_mangles_the_case_names() -> None:
-    plan = AnalysisPlan(inputs=frozenset({"resistor.i", "resistor.r"}), output="resistor.v", steps=())
+def _scalar_plan(
+    *,
+    inputs: frozenset[str],
+    output: str,
+    steps: tuple[PlanStep, ...],
+) -> AnalysisPlan:
+    return AnalysisPlan(
+        request=EvaluationRequest.from_domains(
+            output=output,
+            input_domains=dict.fromkeys(inputs, SCALAR_DOMAIN),
+        ),
+        steps=steps,
+    )
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+
+def _realize_scalar_plan(plan: AnalysisPlan):  # noqa: ANN202
+    with EvaluationContext():
+        return realize_plan(
+            plan,
+            PYTHON_BACKEND,
+        )
+
+
+def test_realize_plan_mangles_the_case_names() -> None:
+    plan = _scalar_plan(
+        inputs=frozenset({"resistor.i", "resistor.r"}),
+        output="resistor.v",
+        steps=(),
+    )
+
+    case = _realize_scalar_plan(plan)
 
     assert not isinstance(case, RealizationFailure)
     assert case.name == "resistor__v"
@@ -31,12 +62,17 @@ def test_realize_plan_mangles_the_case_names() -> None:
 
 
 def test_realize_plan_leaves_plain_names_alone() -> None:
-    plan = AnalysisPlan(inputs=frozenset({"a", "b"}), output="c", steps=())
+    plan = _scalar_plan(
+        inputs=frozenset({"a", "b"}),
+        output="a",
+        steps=(),
+    )
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+    case = _realize_scalar_plan(plan)
 
     assert not isinstance(case, RealizationFailure)
-    assert case.name == "c"
+    assert case.name == "a"
+    assert case.return_name == "a"
     assert case.parameters == ("a", "b")
 
 
@@ -45,40 +81,65 @@ def test_realize_plan_rejects_an_unsupported_operation() -> None:
         __bilt_name__: str = "unsupported"
         __bilt_parameters__: tuple[str, ...] = ("a",)
 
-    plan = AnalysisPlan(inputs=frozenset(), output="c", steps=(PlanStep(operation=Unsupported(), output="c"),))
+    plan = _scalar_plan(
+        inputs=frozenset(),
+        output="c",
+        steps=(
+            PlanStep(
+                operation=Unsupported(),
+                output="c",
+            ),
+        ),
+    )
 
     with pytest.raises(NotImplementedError, match="is not supported for evaluation"):
-        realize_plan(plan, PYTHON_BACKEND)
+        _realize_scalar_plan(plan)
 
 
 def test_realize_plan_mangles_an_equation_reading_a_dotted_port() -> None:
-    plan = AnalysisPlan(
+    plan = _scalar_plan(
         inputs=frozenset({"resistor.v"}),
         output="supply",
-        steps=(PlanStep(operation=wiring, output="supply"),),
+        steps=(
+            PlanStep(
+                operation=wiring,
+                output="supply",
+            ),
+        ),
     )
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+    case = _realize_scalar_plan(plan)
 
     assert not isinstance(case, RealizationFailure)
+    assert case.name == "supply"
+    assert case.parameters == ("resistor__v",)
     assert case.intermediates[0].name == "supply"
     assert case.intermediates[0].parameters == ("resistor__v",)
     assert case.intermediates[0].evaluate({"resistor__v": SUPPLY_VOLTAGE}) == SUPPLY_VOLTAGE
+    assert case.intermediates[0].output_domain == SCALAR_DOMAIN
 
 
 def test_realize_plan_mangles_an_equation_solving_for_a_dotted_port() -> None:
-    plan = AnalysisPlan(
+    plan = _scalar_plan(
         inputs=frozenset({"supply"}),
         output="resistor.v",
-        steps=(PlanStep(operation=wiring, output="resistor.v"),),
+        steps=(
+            PlanStep(
+                operation=wiring,
+                output="resistor.v",
+            ),
+        ),
     )
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+    case = _realize_scalar_plan(plan)
 
     assert not isinstance(case, RealizationFailure)
+    assert case.name == "resistor__v"
+    assert case.parameters == ("supply",)
     assert case.intermediates[0].name == "resistor__v"
     assert case.intermediates[0].parameters == ("supply",)
     assert case.intermediates[0].evaluate({"supply": SUPPLY_VOLTAGE}) == SUPPLY_VOLTAGE
+    assert case.intermediates[0].output_domain == SCALAR_DOMAIN
 
 
 def test_realize_plan_accepts_a_transform_decorated_through_the_package() -> None:
@@ -88,12 +149,22 @@ def test_realize_plan_accepts_a_transform_decorated_through_the_package() -> Non
     def doubled(a: float) -> float:
         return 2 * a
 
-    plan = AnalysisPlan(inputs=frozenset({"a"}), output="c", steps=(PlanStep(operation=doubled, output="c"),))
+    plan = _scalar_plan(
+        inputs=frozenset({"a"}),
+        output="c",
+        steps=(
+            PlanStep(
+                operation=doubled,
+                output="c",
+            ),
+        ),
+    )
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+    case = _realize_scalar_plan(plan)
 
     assert not isinstance(case, RealizationFailure)
     assert case.intermediates[0].evaluate({"a": SUPPLY_VOLTAGE}) == 2 * SUPPLY_VOLTAGE
+    assert case.intermediates[0].output_domain == SCALAR_DOMAIN
 
 
 def test_realize_plan_accepts_a_transform_decorated_through_an_alias() -> None:
@@ -103,9 +174,19 @@ def test_realize_plan_accepts_a_transform_decorated_through_an_alias() -> None:
     def doubled(a: float) -> float:
         return 2 * a
 
-    plan = AnalysisPlan(inputs=frozenset({"a"}), output="c", steps=(PlanStep(operation=doubled, output="c"),))
+    plan = _scalar_plan(
+        inputs=frozenset({"a"}),
+        output="c",
+        steps=(
+            PlanStep(
+                operation=doubled,
+                output="c",
+            ),
+        ),
+    )
 
-    case = realize_plan(plan, PYTHON_BACKEND)
+    case = _realize_scalar_plan(plan)
 
     assert not isinstance(case, RealizationFailure)
     assert case.intermediates[0].evaluate({"a": SUPPLY_VOLTAGE}) == 2 * SUPPLY_VOLTAGE
+    assert case.intermediates[0].output_domain == SCALAR_DOMAIN

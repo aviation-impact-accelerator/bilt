@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from bilt.core._canonical_ordering import canonicalized
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors._tensors import Tensor, tensor
-from bilt.symbolic._domains import union
 
 if TYPE_CHECKING:
     from bilt.core._canonical_ordering import CanonicalizedDomain
@@ -15,6 +14,7 @@ if TYPE_CHECKING:
 @dataclasses.dataclass(frozen=True)
 class LiftingPlan:
     output_domain: CanonicalizedDomain
+    squeezed_axes: tuple[int, ...]
 
     @functools.cached_property
     def should_lift_into_tensor(self) -> bool:
@@ -33,20 +33,41 @@ def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
     return lowered_inputs
 
 
-def generate_lifting_plan(inputs: dict[str, object]) -> LiftingPlan:
-    return LiftingPlan(_derive_output_domain(inputs))
+def generate_lifting_plan(output_domain: Domain) -> LiftingPlan:
+    canonical_order = current_evaluation().canonical_order
+
+    return LiftingPlan(
+        output_domain=canonicalized(output_domain, canonical_order),
+        squeezed_axes=tuple(axis for axis, dim in enumerate(canonical_order.dims) if dim not in output_domain.dims),
+    )
 
 
-def lift_output(output_value: object, lifting_plan: LiftingPlan) -> Tensor | object:
+def lift_output(
+    output_value: object,
+    lifting_plan: LiftingPlan,
+) -> Tensor | object:
+    if lifting_plan.squeezed_axes:
+        output_value = _squeeze_axes(
+            output_value,
+            lifting_plan.squeezed_axes,
+        )
+
     if lifting_plan.should_lift_into_tensor:
-        output_value = tensor(output_value, over=lifting_plan.output_domain.domain.dims)
+        output_value = tensor(
+            output_value,
+            over=lifting_plan.output_domain.domain.dims,
+        )
 
     return output_value
 
 
-def _derive_output_domain(inputs: dict[str, object]) -> CanonicalizedDomain:
-    input_domains: list[Domain] = [
-        input_value.domain for input_value in inputs.values() if isinstance(input_value, Tensor)
-    ]
+def _squeeze_axes(
+    value: object,
+    axes: tuple[int, ...],
+) -> object:
+    squeeze = getattr(value, "squeeze", None)
 
-    return canonicalized(union(*input_domains), current_evaluation().canonical_order)  # assuming no addition/reduction
+    if squeeze is None:
+        return value
+
+    return squeeze(axis=axes)

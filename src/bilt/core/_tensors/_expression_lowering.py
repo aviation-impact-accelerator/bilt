@@ -175,7 +175,7 @@ def _lower_mean(
         message = f"Dimension {dim!s} is not present in canonical order {canonical_order!s}."
         raise BiltTensorDomainError(message) from None
 
-    output_domain = Domain(tuple(domain_dim for domain_dim in value.domain.dims if domain_dim is not dim))
+    output_domain = Domain(tuple(domain_dim for domain_dim in value.domain.dims if domain_dim != dim))
 
     return LoweredExpression(
         tree=Tree(
