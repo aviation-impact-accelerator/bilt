@@ -7,7 +7,7 @@ from bilt.errors import BiltDimensionalityError, BiltUnitError
 from bilt.units._metadata import Metadata
 from bilt.units._quantities import Quantity
 from bilt.units._units import (
-    DIMENSIONLESS,
+    UNITLESS,
     Unit,
     ampere,
     kelvin,
@@ -402,38 +402,38 @@ class TestQuantity:
         ("quantity", "exponent", "expected"),
         (
             (
-                4.7 * DIMENSIONLESS,
+                4.7 * UNITLESS,
                 0,
-                1.0 * DIMENSIONLESS,
+                1.0 * UNITLESS,
             ),
             (
-                3.4 * DIMENSIONLESS,
+                3.4 * UNITLESS,
                 1,
-                3.4 * DIMENSIONLESS,
+                3.4 * UNITLESS,
             ),
             (
-                2.0 * DIMENSIONLESS,
+                2.0 * UNITLESS,
                 -3,
-                0.125 * DIMENSIONLESS,
+                0.125 * UNITLESS,
             ),
             (
-                4.7 * DIMENSIONLESS,
+                4.7 * UNITLESS,
                 0.0,
-                1.0 * DIMENSIONLESS,
+                1.0 * UNITLESS,
             ),
             (
-                9.0 * DIMENSIONLESS,
+                9.0 * UNITLESS,
                 1.5,
-                27.0 * DIMENSIONLESS,
+                27.0 * UNITLESS,
             ),
             (
-                16.0 * DIMENSIONLESS,
+                16.0 * UNITLESS,
                 -0.5,
-                0.25 * DIMENSIONLESS,
+                0.25 * UNITLESS,
             ),
         ),
     )
-    def test_exponentiation_dimensionless_unit(
+    def test_exponentiation_unitless_unit(
         quantity: Quantity,
         exponent: float,
         expected: Quantity,
@@ -447,7 +447,7 @@ class TestQuantity:
             (
                 1.5 * kilogram,
                 0,
-                1.0 * DIMENSIONLESS,
+                1.0 * UNITLESS,
             ),
             (
                 2.5 * kilogram * meter / second**2,
@@ -492,23 +492,23 @@ class TestQuantity:
         (
             (
                 2.0,
-                0.0 * DIMENSIONLESS,
-                1.0 * DIMENSIONLESS,
+                0.0 * UNITLESS,
+                1.0 * UNITLESS,
             ),
             (
                 2.0,
-                1.0 * DIMENSIONLESS,
-                2.0 * DIMENSIONLESS,
+                1.0 * UNITLESS,
+                2.0 * UNITLESS,
             ),
             (
                 2.0,
-                2.0 * DIMENSIONLESS,
-                4.0 * DIMENSIONLESS,
+                2.0 * UNITLESS,
+                4.0 * UNITLESS,
             ),
             (
                 4.0,
-                0.5 * DIMENSIONLESS,
-                2.0 * DIMENSIONLESS,
+                0.5 * UNITLESS,
+                2.0 * UNITLESS,
             ),
         ),
     )
