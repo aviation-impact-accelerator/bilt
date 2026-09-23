@@ -1,9 +1,9 @@
 import ast
 
 from bilt.core._tensors._expression_lowering import lower_expression
-from bilt.core._to_ast import _tree_to_ast_expr
 from bilt.core._to_ast import (
     MEAN_INTRINSIC_NAME,
+    _tree_to_ast_expr,
 )
 from bilt.math import mean
 from bilt.symbolic._dimensions import Dim
