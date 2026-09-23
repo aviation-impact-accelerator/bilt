@@ -1,10 +1,10 @@
 """Common units defined with the (mostly SI) units system."""
 
 __all__ = [
-    "DIMENSIONLESS",
     "EUR",
     "GBP",
     "JPY",
+    "UNITLESS",
     "USD",
     "absolute_celsius",
     "absolute_fahrenheit",
@@ -94,7 +94,7 @@ from bilt.units._currencies import EUR, GBP, JPY, USD
 
 from ._prefix import Prefix
 from ._units import (
-    DIMENSIONLESS,
+    UNITLESS,
     Unit,
     ampere,
     candela,
@@ -106,9 +106,9 @@ from ._units import (
 )
 
 # Dimensionless
-radian = Unit.new_named("radian", relation=DIMENSIONLESS)
+radian = Unit.new_named("radian", relation=UNITLESS)
 degree = Unit.new_named("degree", relation=(math.pi / 180.0) * radian)
-fraction = Unit.new_named("fraction", relation=DIMENSIONLESS)
+fraction = Unit.new_named("fraction", relation=UNITLESS)
 percent = Unit.new_named("percent", relation=0.01 * fraction)
 
 # Mass
