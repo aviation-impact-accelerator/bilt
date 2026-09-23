@@ -92,9 +92,9 @@ class UnitComposition:
     _dimension: Dimension
 
     def __new__(cls, *composition: UnitOrder, scale: float = 1.0) -> typing.Self:
-        unit_to_order_mapping = {term.unit: 0 for term in composition if term.unit is not DIMENSIONLESS}
+        unit_to_order_mapping = {term.unit: 0 for term in composition if term.unit is not UNITLESS}
         for term in composition:
-            if term.unit is not DIMENSIONLESS:
+            if term.unit is not UNITLESS:
                 unit_to_order_mapping[term.unit] += term.order
         composition = tuple(
             sorted(UnitOrder(unit, order) for unit, order in unit_to_order_mapping.items() if order != 0)
@@ -236,7 +236,7 @@ class UnitComposition:
 
         composition = " ".join(format_term(term.unit.name, term.order) for term in self.composition)
         if not composition:
-            composition = "DIMENSIONLESS"
+            composition = "UNITLESS"
         if self.scale == 1.0:
             return composition
         return f"{self.scale} {composition}"
@@ -549,7 +549,7 @@ class Unit:
                 else self.relation
             )
             return self.__class__(base**other)
-        if isinstance(other, float) and self is DIMENSIONLESS:
+        if isinstance(other, float) and self is UNITLESS:
             return self
         return NotImplemented
 
@@ -614,7 +614,7 @@ def _create_name(relation: UnitComposition, metadata: Metadata | None) -> str:
     denominator = " ".join(format_term(term) for term in relation.composition if term.order <= -1)
     match (numerator, denominator):
         case "", "":
-            name = "DIMENSIONLESS"
+            name = "UNITLESS"
         case n, "" if n != "":
             name = numerator
         case "", d if d != "":
@@ -646,7 +646,7 @@ def _define_base_unit(name: str, dimension: Dimension, prefix: Prefix | None = N
     return base_unit
 
 
-DIMENSIONLESS = Unit(UnitComposition())
+UNITLESS = Unit(UnitComposition())
 
 kilogram = _define_base_unit("kilogram", MASS, prefix=Prefix.KILO)
 meter = _define_base_unit("meter", LENGTH)
