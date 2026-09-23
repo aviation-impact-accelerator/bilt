@@ -20,6 +20,11 @@ The user guide introduces the main Bilt concepts:
 
 Worked examples show how these concepts fit together in complete models.
 
+### Systems of systems
+
+- [Two springs in series](worked_examples/two-springs-in-series.md)
+- [Two shaft gas turbine](worked_examples/two-shaft-gas-turbine.md)
+
 ### Dimensions, Tensors and broadcasting
 
 - [Battery electric mission model with quasi-monte carlo broadcasting](worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md) - a simple example of broadcasting in a model with a large number of variables.
