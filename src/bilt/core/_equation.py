@@ -8,7 +8,13 @@ import inspect
 import types
 import typing
 
-from bilt.core._errors import BiltEquationReturnError, BiltEquationSignatureError, BiltUnresolvedAnnotationError
+from bilt.core._dimensional_analysis import dimensionality_of
+from bilt.core._errors import (
+    BiltEquationDimensionalityError,
+    BiltEquationReturnError,
+    BiltEquationSignatureError,
+    BiltUnresolvedAnnotationError,
+)
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
 from bilt.core._port_declaration import port_declarations
@@ -16,6 +22,7 @@ from bilt.core._sub_system import validate_name
 from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
 from bilt.symbolic._walk import subtrees
+from bilt.units._errors import BiltDimensionalityError
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -76,6 +83,7 @@ class BasicEquation[R, **P]:
         self.__bilt_equation_tree__ = tree
         self.__bilt_sub_systems__ = types.MappingProxyType(referenced_sub_systems)
         self._function = function
+        _check_homogeneity(self)
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self._function(*args, **kwargs)
@@ -217,3 +225,24 @@ def equation[R, **P](
 ) -> BasicEquation[R, P]:
     """Decorator to denote a function as an equation."""
     return BasicEquation(function)
+
+
+def _check_homogeneity(equation: BasicEquation[object, ...]) -> None:
+    """Demand that both sides of an equation's relation share a dimensionality, from those its ports declare."""
+    dimensionalities = {
+        port: declaration.dimensionality
+        for port, declaration in equation.__bilt_port_declarations__.items()
+        if declaration.dimensionality is not None
+    }
+
+    try:
+        left = dimensionality_of(equation.__bilt_equation_tree__.left, dimensionalities)
+        right = dimensionality_of(equation.__bilt_equation_tree__.right, dimensionalities)
+    except BiltDimensionalityError as error:
+        raise BiltEquationDimensionalityError(
+            equation.__bilt_name__, f"is dimensionally inconsistent: {error}"
+        ) from error
+
+    if left is not None and right is not None and left is not right:
+        msg = f"relates {left} to {right}"
+        raise BiltEquationDimensionalityError(equation.__bilt_name__, msg)
