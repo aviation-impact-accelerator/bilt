@@ -36,7 +36,6 @@ def test_unprobeable_body_decorates() -> None:
         return m * 2.0
 
 
-@pytest.mark.xfail(reason="the transform body is not probed at decoration yet")
 def test_probe_contradicting_the_return_annotation_raises() -> None:
     with pytest.raises(BiltUnitsError, match="mislabelled") as raised:
 
@@ -49,7 +48,6 @@ def test_probe_contradicting_the_return_annotation_raises() -> None:
     assert "voltage" in message
 
 
-@pytest.mark.xfail(reason="an inhomogeneous transform body is not rejected at decoration yet")
 def test_inhomogeneous_transform_body_raises() -> None:
     with pytest.raises(BiltUnitsError, match="combine") as raised:
 

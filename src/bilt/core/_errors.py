@@ -12,9 +12,11 @@ __all__ = [
     "BiltNameError",
     "BiltNoActiveEvaluationError",
     "BiltPortDeclarationError",
+    "BiltTransformDimensionalityError",
 ]
 
 from bilt._base_error import BiltError
+from bilt.units._errors import BiltDimensionalityError
 
 
 class BiltDefinitionError(BiltError):
@@ -38,6 +40,13 @@ class BiltPortDeclarationError(BiltDefinitionError, TypeError):
 
     def __init__(self, owner_name: str, port: str, problem: str) -> None:
         super().__init__(f"Port {port!r} of {owner_name!r} {problem}")
+
+
+class BiltTransformDimensionalityError(BiltDimensionalityError):
+    """Raised when probing a transform's body finds it inhomogeneous or contradicting its return annotation."""
+
+    def __init__(self, transform_name: str, problem: str) -> None:
+        super().__init__(f"Transform {transform_name!r} {problem}")
 
 
 class BiltAnalysisError(BiltError):

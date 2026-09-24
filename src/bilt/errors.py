@@ -46,6 +46,7 @@ __all__ = [
     "BiltTargetNotFoundError",
     "BiltTargetOnBothSidesError",
     "BiltTensorDomainError",
+    "BiltTransformDimensionalityError",
     "BiltTreeMutationError",
     "BiltUnitError",
     "BiltUnitsError",
@@ -69,6 +70,7 @@ from bilt.core._errors import (
     BiltNameError,
     BiltNoActiveEvaluationError,
     BiltPortDeclarationError,
+    BiltTransformDimensionalityError,
 )
 from bilt.core._system._errors import (
     BiltSubSystemConflictError,
