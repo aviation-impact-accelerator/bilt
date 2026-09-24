@@ -2,6 +2,8 @@ import dataclasses
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    import collections.abc
+
     from bilt._backend import BackendCallable, BackendLinearSystem
 
 
@@ -11,5 +13,5 @@ class BackendCase:
 
     name: str
     parameters: tuple[str, ...]
-    intermediates: list[BackendCallable | BackendLinearSystem]
+    intermediates: collections.abc.Sequence[BackendCallable | BackendLinearSystem]
     return_name: str

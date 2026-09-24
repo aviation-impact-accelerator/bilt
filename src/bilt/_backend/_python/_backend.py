@@ -1,12 +1,16 @@
 import ast
 import inspect
+import typing
 
-from bilt._backend import BackendCallable, BackendCase
+import numpy as np
+
+from bilt._backend import BackendCallable, BackendCase, BackendLinearSystem
 from bilt._backend._base_backend import ActivatableBackendMixin
 from bilt._backend._in_process_python_mixin import InProcessPythonMixin
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
-from bilt._backend import Backend, BackendCallable, BackendCase, BackendLinearSystem
-from bilt._backend._python._numerics import ScipyNumerics
+
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 
 
 class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignmentMixin):
@@ -22,14 +26,11 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
         inputs: dict[str, object],
     ) -> dict[str, object]:
         coefficient_values = tuple(
-            coefficient.evaluate(inputs)
+            typing.cast("npt.ArrayLike", coefficient.evaluate(inputs))
             for row in system.coefficients
             for coefficient in row
         )
-        rhs_values = tuple(
-            rhs.evaluate(inputs)
-            for rhs in system.rhs
-        )
+        rhs_values = tuple(typing.cast("npt.ArrayLike", rhs.evaluate(inputs)) for rhs in system.rhs)
 
         size = len(system.unknowns)
 
@@ -50,12 +51,12 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
 
         rhs = np.stack(rhs_values, axis=-1)
 
-        solution = np.linalg.solve(matrix, rhs)
+        solution = np.linalg.solve(
+            matrix,
+            rhs[..., np.newaxis],
+        )[..., 0]
 
-        return {
-            unknown: solution[..., index]
-            for index, unknown in enumerate(system.unknowns)
-        }
+        return {unknown: solution[..., index] for index, unknown in enumerate(system.unknowns)}
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
         """Chain a BackendCase into a single callable function."""
@@ -77,15 +78,10 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
 
             for intermediate in case.intermediates:
                 if isinstance(intermediate, BackendLinearSystem):
-                    inputs.update(
-                        self.solve_linear(intermediate, inputs)
-                    )
+                    inputs.update(self.solve_linear(intermediate, inputs))
                     continue
 
-                args_for_intermediate = [
-                    inputs[name]
-                    for name in intermediate.parameters
-                ]
+                args_for_intermediate = [inputs[name] for name in intermediate.parameters]
                 result = intermediate.callable(*args_for_intermediate)
                 inputs[intermediate.name] = result
 
@@ -100,3 +96,6 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
             parameters=case.parameters,
             callable=final_callable,
         )
+
+
+PYTHON_BACKEND = PythonBackend()
