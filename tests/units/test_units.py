@@ -44,10 +44,10 @@ from bilt.units import (
     watthour,
     yard,
 )
-from bilt.units._dimensions import LENGTH, TEMPERATURE, Dimension
 from bilt.units._metadata import Metadata
 from bilt.units._prefix import Prefix
 from bilt.units._units import Unit, UnitComposition, UnitOrder
+from bilt.units.dimensions._dimensions import LENGTH, TEMPERATURE, Dimension
 
 if typing.TYPE_CHECKING:
     from bilt.units._quantities import Quantity
