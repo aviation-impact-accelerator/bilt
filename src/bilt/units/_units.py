@@ -6,7 +6,9 @@ import typing
 from bilt.units._errors import BiltUnitError
 
 from ._category import UnitCategory
-from ._dimensions import (
+from ._prefix import PREFIX_NAMES, Prefix
+from ._quantities import Quantity
+from .dimensions._dimensions import (
     AMOUNT,
     CURRENCY,
     CURRENT,
@@ -17,8 +19,6 @@ from ._dimensions import (
     TIME,
     Dimension,
 )
-from ._prefix import PREFIX_NAMES, Prefix
-from ._quantities import Quantity
 
 if typing.TYPE_CHECKING:
     from ._metadata import Metadata

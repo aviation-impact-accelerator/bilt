@@ -177,6 +177,12 @@ class Dimension:
         return f"{self.__class__.__name__}({kwargs})"
 
     def __str__(self) -> str:
+        name = _NAMES.get(self)
+        if name is None:
+            return self._exponent_form()
+        return f"{name} ({self._exponent_form()})"
+
+    def _exponent_form(self) -> str:
         def format_term(dimension: str, index: int) -> str:
             match index:
                 case 0:
@@ -215,3 +221,39 @@ CURRENCY = Dimension(currency=1)
 SI_DIMENSIONS = (MASS, LENGTH, TIME, TEMPERATURE, CURRENCY, AMOUNT)
 NON_SI_DIMENSION = (CURRENCY,)
 DIMENSIONS = SI_DIMENSIONS + NON_SI_DIMENSION
+
+DIMENSIONLESS = Dimension()
+AREA = LENGTH**2
+VOLUME = LENGTH**3
+FORCE = MASS * LENGTH / TIME**2
+ENERGY = MASS * LENGTH**2 / TIME**2
+POWER = MASS * LENGTH**2 / TIME**3
+PRESSURE = MASS / (LENGTH * TIME**2)
+DYNAMIC_VISCOSITY = MASS / (LENGTH * TIME)
+CHARGE = TIME * CURRENT
+VOLTAGE = MASS * LENGTH**2 / (TIME**3 * CURRENT)
+RESISTANCE = MASS * LENGTH**2 / (TIME**3 * CURRENT**2)
+CONDUCTANCE = TIME**3 * CURRENT**2 / (MASS * LENGTH**2)
+
+_NAMES: dict[Dimension, str] = {
+    MASS: "mass",
+    LENGTH: "length",
+    TIME: "time",
+    TEMPERATURE: "temperature",
+    CURRENT: "current",
+    AMOUNT: "amount",
+    LUMINOSITY: "luminosity",
+    CURRENCY: "currency",
+    DIMENSIONLESS: "dimensionless",
+    AREA: "area",
+    VOLUME: "volume",
+    FORCE: "force",
+    ENERGY: "energy",
+    POWER: "power",
+    PRESSURE: "pressure",
+    DYNAMIC_VISCOSITY: "dynamic viscosity",
+    CHARGE: "charge",
+    VOLTAGE: "voltage",
+    RESISTANCE: "resistance",
+    CONDUCTANCE: "conductance",
+}
