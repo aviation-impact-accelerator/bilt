@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from bilt import system, transform
-from bilt._backend._jax._backend import JAX_BACKEND
-from bilt._backend._python._backend import PYTHON_BACKEND
+from bilt.backend._jax._backend import JAX_BACKEND
+from bilt.backend._python._backend import PYTHON_BACKEND
 from bilt.core._interface import Interface
 from bilt.core._system._field import field
 from bilt.core._system._implementation import Implementation
@@ -15,7 +15,7 @@ from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain
 
 if TYPE_CHECKING:
-    from bilt._backend._base_backend import Backend
+    from bilt.backend._base_backend import Backend
 
 
 @pytest.mark.parametrize(

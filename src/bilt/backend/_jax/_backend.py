@@ -4,14 +4,14 @@ import typing
 import jax
 import jax.numpy as jnp
 
-from bilt._backend._base_backend import ActivatableBackendMixin
-from bilt._backend._in_process_python_mixin import InProcessPythonMixin
-from bilt._backend._jax._ast import JAXASTTransformer
-from bilt._backend._jax._supports import _validate
-from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
+from bilt.backend._base_backend import ActivatableBackendMixin
+from bilt.backend._in_process_python_mixin import InProcessPythonMixin
+from bilt.backend._jax._ast import JAXASTTransformer
+from bilt.backend._jax._supports import _validate
+from bilt.backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
 if typing.TYPE_CHECKING:
-    from bilt._backend import BackendCallable, BackendCase
+    from bilt.backend import BackendCallable, BackendCase
 
 
 class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignmentMixin):

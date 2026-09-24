@@ -5,8 +5,8 @@ __all__ = ["InProcessPythonMixin"]
 import ast
 import typing
 
-from bilt._backend._callable import BackendCallable
-from bilt._backend._errors import BiltCompilationError
+from bilt.backend._callable import BackendCallable
+from bilt.backend._errors import BiltCompilationError
 
 
 class InProcessPythonMixin:

@@ -15,7 +15,6 @@ from bilt.core._transform import BasicTransform
 if TYPE_CHECKING:
     import collections.abc
 
-    from bilt._backend._base_backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
 
 type Attribute = str
@@ -31,9 +30,8 @@ def _flatten_sub_paths(sub_paths: collections.abc.Iterable[list[PlanStep]]) -> l
 
 
 class BipartiteGraph:
-    def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent], backend: Backend) -> None:
+    def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent]) -> None:
         self.graph = nx.DiGraph()
-        self._backend = backend
         for constituent in constituents:
             self._add_constituent(constituent)
 
@@ -77,9 +75,7 @@ class BipartiteGraph:
     ) -> None:
         """Remove a step that failed realization, unless its sub-system still names another way."""
         sub_system = plan_step.operation
-        if isinstance(sub_system, SubSystemConstituent) and (
-            sub_system.request_for(plan_step.output, self._backend) is not None
-        ):
+        if isinstance(sub_system, SubSystemConstituent) and (sub_system.request_for(plan_step.output) is not None):
             return
         self.graph.remove_node(plan_step)
 
@@ -133,7 +129,7 @@ class BipartiteGraph:
         visited: set[Node],
     ) -> list[PlanStep] | None:
         """Search for a path through a sub-system, from the ports the parent can reach."""
-        unconstrained = sub_system.request_for(plan_step.output, self._backend)
+        unconstrained = sub_system.request_for(plan_step.output)
         if unconstrained is None:
             return None
         settled = dataclasses.replace(plan_step, request=unconstrained)
@@ -142,7 +138,7 @@ class BipartiteGraph:
             return [*_flatten_sub_paths(resolved.values()), settled]
         rest = [port for port in sorted(sub_system.__bilt_parameters__) if port not in resolved]
         reached = resolved | self._resolve_inputs(rest, available, visited)
-        request = sub_system.request_for(plan_step.output, self._backend, within=reached)
+        request = sub_system.request_for(plan_step.output, within=reached)
         if request is None:
             return None
         settled = dataclasses.replace(plan_step, request=request)

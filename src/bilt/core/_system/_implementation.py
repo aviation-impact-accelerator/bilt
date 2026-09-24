@@ -7,7 +7,7 @@ import types
 import typing
 
 from bilt.core._equation import BasicEquation
-from bilt.core._evaluation_context import EvaluationContext
+from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
@@ -23,7 +23,7 @@ from bilt.core._system._errors import (
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt._backend import Backend, BackendCallable
+    from bilt.backend import Backend, BackendCallable
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis import StructuralAnalyser
@@ -61,11 +61,18 @@ class Implementation:
     def system(self) -> Interface:
         return self._system
 
-    def analyser_for(self, backend: Backend) -> StructuralAnalyser:
-        """The structural analyser for this implementation's components under ``backend``."""
+    def analyser(self) -> StructuralAnalyser:
+        """The structural analyser for this implementation's components under the backend in force.
+
+        Analysers are cached per backend because a realization failure prunes the plan step from the
+        search graph permanently, so a graph pruned under one backend must never serve another. The
+        analyser itself holds no backend: this lookup is what pairs a graph with one, so an analyser
+        kept past the evaluation it was fetched in is not guaranteed that pairing.
+        """
+        backend = current_evaluation().backend
         analyser = self._analysers.get(backend)
         if analyser is None:
-            analyser = ExhaustiveStructuralAnalyser(tuple(self._components.values()), backend)
+            analyser = ExhaustiveStructuralAnalyser(tuple(self._components.values()))
             self._analysers[backend] = analyser
         return analyser
 
@@ -73,9 +80,9 @@ class Implementation:
         self,
         inputs: dict[str, object],
         output: str,
-        backend: Backend,
+        backend: Backend | None = None,
     ) -> object:
-        with EvaluationContext() as evaluation:
+        with EvaluationContext(backend) as evaluation:
             evaluation.domains.bind_all(inputs.values())
 
             if output in inputs:
@@ -86,11 +93,11 @@ class Implementation:
                     available=frozenset(inputs),
                 )
 
-                backend_callable = self.get_evaluation(request, backend)
+                backend_callable = self.get_evaluation(request)
 
                 lowered_inputs = lower_inputs(inputs)
                 alignment_plan = generate_alignment_plan(inputs)
-                aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
+                aligned_inputs = evaluation.backend.apply_alignment(lowered_inputs, alignment_plan)
                 raw_output_value = backend_callable.evaluate(mangle_inputs(aligned_inputs))
 
                 lifting_plan = generate_lifting_plan(inputs)
@@ -100,11 +107,8 @@ class Implementation:
 
         return output_value
 
-    def get_evaluation(
-        self,
-        request: EvaluationRequest,
-        backend: Backend,
-    ) -> BackendCallable:
+    def get_evaluation(self, request: EvaluationRequest) -> BackendCallable:
+        backend = current_evaluation().backend
         cache_key = (
             request,
             backend,
@@ -113,7 +117,7 @@ class Implementation:
         if cached := self._evaluation_cache.get(cache_key):
             return cached
 
-        planned_case = self.analyser_for(backend).analyse(
+        planned_case = self.analyser().analyse(
             set(request.available),
             request.output,
         )
