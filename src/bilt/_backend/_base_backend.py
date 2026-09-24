@@ -1,4 +1,4 @@
-"""Minimal interface for bilt backend, that will be utilised by the analysis layer."""
+"""Minimal interface for Bilt backends used by the analysis layer."""
 
 import typing
 
@@ -9,6 +9,7 @@ if typing.TYPE_CHECKING:
 
     from ._callable import BackendCallable
     from ._case import BackendCase
+    from ._linear_solve import BackendLinearSystem
 
 _backend_stack: list[Backend] = []
 
@@ -17,19 +18,32 @@ class Backend(typing.Protocol):
     """Interface a backend must expose. `ActivatableBackendMixin` supplies the context manager half."""
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
-        """Compile a single transform AST into a callable function, that can then be chained into the execution pipeline."""
+        """Compile a transform AST into a backend callable."""
         ...
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
-        """Chain the callables of a case into a single callable."""
+        """Chain the operations of a case into a single callable."""
+        ...
+
+    def solve_linear(
+        self,
+        system: BackendLinearSystem,
+        inputs: dict[str, object],
+    ) -> dict[str, object]:
+        """Solve a concrete linear system."""
         ...
 
     def __enter__(self) -> typing.Self: ...
 
     def __exit__(self, *_: object) -> None: ...
 
-    def apply_alignment(self, lowered_inputs: dict[str, object], alignment_plan: AlignmentPlan) -> dict[str, object]:
-        """Apply the given alignment plan on the provided lowered inputs."""
+    def apply_alignment(
+        self,
+        lowered_inputs: dict[str, object],
+        alignment_plan: AlignmentPlan,
+    ) -> dict[str, object]:
+        """Apply the given alignment plan to the provided lowered inputs."""
+        ...
 
 
 class ActivatableBackendMixin:
