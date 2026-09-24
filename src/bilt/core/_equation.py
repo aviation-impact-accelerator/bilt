@@ -11,6 +11,7 @@ import typing
 from bilt.core._errors import BiltEquationReturnError, BiltEquationSignatureError
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
+from bilt.core._port_declaration import port_declarations
 from bilt.core._sub_system import validate_name
 from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
@@ -51,6 +52,10 @@ class BasicEquation[R, **P]:
 
         self.__bilt_name__ = name
         self.__bilt_parameters__ = tuple(equation_symbols)
+        self.__bilt_port_declarations__ = port_declarations(
+            name,
+            {port: parameter.annotation for port, parameter in signature.parameters.items() if port not in sub_systems},
+        )
         self.__bilt_equation_symbols__ = equation_symbols
         self.__bilt_equation_tree__ = tree
         self.__bilt_sub_systems__ = types.MappingProxyType(referenced_sub_systems)
