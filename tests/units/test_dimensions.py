@@ -136,11 +136,11 @@ def test_dimension_repr(dimension: Dimension, expected: str) -> None:
 @pytest.mark.parametrize(
     ("dimension", "expected"),
     (
-        (Dimension(), "[Dimensionless]"),
+        (Dimension(), "dimensionless ([Dimensionless])"),
         (Dimension(length=1, time=-1), "[Length] [Time]^(-1)"),
-        (Dimension(mass=1, length=1, time=-2), "[Mass] [Length] [Time]^(-2)"),
-        (Dimension(mass=1, length=2, time=-3), "[Mass] [Length]^2 [Time]^(-3)"),
-        (Dimension(time=1, current=1), "[Time] [Current]"),
+        (Dimension(mass=1, length=1, time=-2), "force ([Mass] [Length] [Time]^(-2))"),
+        (Dimension(mass=1, length=2, time=-3), "power ([Mass] [Length]^2 [Time]^(-3))"),
+        (Dimension(time=1, current=1), "charge ([Time] [Current])"),
         (
             Dimension(mass=1, length=2, time=-2, current=-2),
             "[Mass] [Length]^2 [Time]^(-2) [Current]^(-2)",
