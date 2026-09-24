@@ -65,7 +65,7 @@ def _probe(transform: BasicTransform[object, ...]) -> None:
         raise BiltTransformDimensionalityError(
             transform.__bilt_name__, f"is dimensionally inconsistent: {error}"
         ) from error
-    except Exception:  # noqa: BLE001 -- the body cannot run on quantities, so its annotation stands
+    except Exception:  # noqa: BLE001
         return
 
     declared = transform.__bilt_port_declarations__[transform.__bilt_name__].dimensionality
