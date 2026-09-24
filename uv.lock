@@ -50,7 +50,7 @@ provides-extras = ["jax"]
 dev = [
     { name = "examples", editable = "packages/examples" },
     { name = "prek", specifier = ">=0.5.2" },
-    { name = "pyrefly", specifier = ">=1.2.0" },
+    { name = "pyrefly", specifier = ">=1.3.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "ruff", specifier = ">=0.16.6" },
     { name = "ty", specifier = ">=0.0.80" },
