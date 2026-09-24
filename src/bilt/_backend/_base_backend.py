@@ -1,4 +1,4 @@
-"""Minimal interface for bilt backend, that will be utilised by the analysis layer."""
+"""Minimal interface for Bilt backends used by the analysis layer."""
 
 import typing
 
@@ -9,8 +9,9 @@ if typing.TYPE_CHECKING:
 
     from ._callable import BackendCallable
     from ._case import BackendCase
+    from ._linear_solve import BackendLinearSystem
 
-_backend_stack: list[Backend] = []
+_backend_stack: list["Backend"] = []
 
 
 class Backend(typing.Protocol):

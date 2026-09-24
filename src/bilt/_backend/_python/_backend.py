@@ -15,7 +15,47 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
     def __init__(self) -> None:
         self.ast_transformer = ast.NodeTransformer()
         self.compilation_namespace = {"__builtins__": __builtins__}
-        self.numerics = ScipyNumerics()
+
+    def solve_linear(
+        self,
+        system: BackendLinearSystem,
+        inputs: dict[str, object],
+    ) -> dict[str, object]:
+        coefficient_values = tuple(
+            coefficient.evaluate(inputs)
+            for row in system.coefficients
+            for coefficient in row
+        )
+        rhs_values = tuple(
+            rhs.evaluate(inputs)
+            for rhs in system.rhs
+        )
+
+        size = len(system.unknowns)
+
+        values = np.broadcast_arrays(
+            *coefficient_values,
+            *rhs_values,
+        )
+
+        coefficients = values[: size * size]
+        rhs_values = values[size * size :]
+
+        batch_shape = coefficients[0].shape
+
+        matrix = np.stack(
+            coefficients,
+            axis=-1,
+        ).reshape((*batch_shape, size, size))
+
+        rhs = np.stack(rhs_values, axis=-1)
+
+        solution = np.linalg.solve(matrix, rhs)
+
+        return {
+            unknown: solution[..., index]
+            for index, unknown in enumerate(system.unknowns)
+        }
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
         """Chain a BackendCase into a single callable function."""
@@ -32,23 +72,31 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
         def final_callable(*args, **kwargs) -> object:  # noqa: ANN002, ANN003
             bound = expected_signature.bind(*args, **kwargs)
             bound.apply_defaults()
+
             inputs = dict(bound.arguments)
 
             for intermediate in case.intermediates:
                 if isinstance(intermediate, BackendLinearSystem):
-                    inputs.update(self.solve_linear(intermediate, inputs))
+                    inputs.update(
+                        self.solve_linear(intermediate, inputs)
+                    )
                     continue
 
-                args_for_intermediate = [inputs[name] for name in intermediate.parameters]
+                args_for_intermediate = [
+                    inputs[name]
+                    for name in intermediate.parameters
+                ]
                 result = intermediate.callable(*args_for_intermediate)
                 inputs[intermediate.name] = result
+
             return inputs[case.return_name]
 
         final_callable.__signature__ = (  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
             expected_signature
         )
 
-        return BackendCallable(name=case.name, parameters=case.parameters, callable=final_callable)
-
-
-PYTHON_BACKEND = PythonBackend()
+        return BackendCallable(
+            name=case.name,
+            parameters=case.parameters,
+            callable=final_callable,
+        )
