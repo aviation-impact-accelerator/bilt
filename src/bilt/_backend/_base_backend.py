@@ -21,7 +21,12 @@ class Backend(typing.Protocol):
         ...
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
-        """Chain the callables of a case into a single callable."""
+        """Chain the callables of a case into a single callable.
+
+        If the case has expose_intermediates is true: returns a tuple of all outputs, in the order
+        `case.output_names` lists them.
+        If the case has expose_intermediates is false: returns a single object corresponding to return name.
+        """
         ...
 
     def __enter__(self) -> typing.Self: ...

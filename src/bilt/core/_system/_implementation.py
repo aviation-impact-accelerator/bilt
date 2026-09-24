@@ -3,13 +3,14 @@ from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 
 __all__ = ["Implementation"]
 
+import dataclasses
 import types
 import typing
 
 from bilt.core._equation import BasicEquation
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._port import mangle_inputs
+from bilt.core._port import mangle_inputs, mangle_name
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._system._errors import (
@@ -27,6 +28,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis import StructuralAnalyser
+    from bilt.core._system._lowering_and_lifting import LiftingPlan
 
 
 class Implementation:
@@ -51,7 +53,7 @@ class Implementation:
             named_components | sub_systems
         )
         self._evaluation_cache: dict[
-            tuple[EvaluationRequest, Backend],
+            tuple[EvaluationRequest, Backend, bool],
             BackendCallable,
         ] = {}
         self._analysers: dict[Backend, StructuralAnalyser] = {}
@@ -74,12 +76,13 @@ class Implementation:
         inputs: dict[str, object],
         output: str,
         backend: Backend,
-    ) -> object:
+    ) -> dict[str, object]:
+        """Compute ``output``, returning it alongside every value computed on the way to it."""
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
 
             if output in inputs:
-                output_value = inputs[output]
+                outputs = {output: inputs[output]}
             else:
                 request = EvaluationRequest(
                     output=output,
@@ -91,23 +94,27 @@ class Implementation:
                 lowered_inputs = lower_inputs(inputs)
                 alignment_plan = generate_alignment_plan(inputs)
                 aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
-                raw_output_value = backend_callable.evaluate(mangle_inputs(aligned_inputs))
+                raw_outputs = backend_callable.evaluate(mangle_inputs(aligned_inputs))
 
                 lifting_plan = generate_lifting_plan(inputs)
-                output_value = lift_output(raw_output_value, lifting_plan)
+                outputs = _name_outputs(raw_outputs, output, lifting_plan)
 
-            evaluation.domains.bind(output_value)
+            evaluation.domains.bind_all(outputs.values())
 
-        return output_value
+        return outputs
 
     def get_evaluation(
         self,
         request: EvaluationRequest,
         backend: Backend,
+        *,
+        expose_intermediates: bool = True,
     ) -> BackendCallable:
+        """The compiled callable for ``request``, naming every value it computes unless asked not to."""
         cache_key = (
             request,
             backend,
+            expose_intermediates,
         )
 
         if cached := self._evaluation_cache.get(cache_key):
@@ -118,7 +125,9 @@ class Implementation:
             request.output,
         )
 
-        backend_callable = backend.chain_case(planned_case)
+        backend_callable = backend.chain_case(
+            dataclasses.replace(planned_case, expose_intermediates=expose_intermediates)
+        )
         self._evaluation_cache[cache_key] = backend_callable
 
         return backend_callable
@@ -145,6 +154,22 @@ class Implementation:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self._components.values())!r})"
+
+
+def _name_outputs(
+    raw_outputs: dict[str, object],
+    output: str,
+    lifting_plan: LiftingPlan,
+) -> dict[str, object]:
+    """Name the values a compiled callable returned, with the requested one under the name it was asked for.
+
+    A lifting plan describes the requested output's domain alone, so a run that lifts its result into a
+    tensor reports that result on its own rather than lifting the intermediates into a domain not theirs.
+    """
+    requested = raw_outputs[mangle_name(output)]
+    if lifting_plan.should_lift_into_tensor:
+        return {output: lift_output(requested, lifting_plan)}
+    return {name: value for name, value in raw_outputs.items() if name != mangle_name(output)} | {output: requested}
 
 
 def _required_sub_system_interfaces(

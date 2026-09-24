@@ -338,7 +338,7 @@ def test_a_reference_annotated_but_never_read_does_not_need_an_implementation() 
     board = Implementation(Board, [voltage_eq])
 
     assert "resistor" not in board._components  # noqa: SLF001
-    assert board.evaluate({"supply": VOLTAGE}, "voltage", PYTHON_BACKEND) == VOLTAGE
+    assert board.evaluate({"supply": VOLTAGE}, "voltage", PYTHON_BACKEND)["voltage"] == VOLTAGE
 
 
 def test_an_implementation_of_the_wrong_interface_is_rejected() -> None:
@@ -777,7 +777,7 @@ def test_a_child_port_is_solved_from_the_parents_own_inputs(
     """The target is a port of the child, named as the parent sees it."""
     result = component_over_resistor.evaluate({"voltage": VOLTAGE, "resistance": RESISTANCE}, "resistor.i", backend)
 
-    assert result == CURRENT
+    assert result["resistor.i"] == CURRENT
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
@@ -786,7 +786,7 @@ def test_a_parent_port_is_solved_from_dotted_child_inputs(
 ) -> None:
     result = component_over_resistor.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}, "voltage", backend)
 
-    assert result == VOLTAGE
+    assert result["voltage"] == VOLTAGE
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))

@@ -13,3 +13,9 @@ class BackendCase:
     parameters: tuple[str, ...]
     intermediates: list[BackendCallable]
     return_name: str
+    expose_intermediates: bool = True
+
+    @property
+    def output_names(self) -> tuple[str, ...]:
+        """The values the case computes, named in the order the intermediates produce them."""
+        return tuple(intermediate.name for intermediate in self.intermediates)

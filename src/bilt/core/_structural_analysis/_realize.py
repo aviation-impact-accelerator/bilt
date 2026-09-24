@@ -6,7 +6,6 @@ import inspect
 import textwrap
 import typing
 
-from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
@@ -19,6 +18,7 @@ from bilt.symbolic._isolation._errors import BiltIsolationError
 
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
+    from bilt._backend._callable import BackendCallable
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 
 
@@ -103,14 +103,16 @@ def _sub_system_to_callable(
         return RealizationFailure(failed_plan_step=plan_step, cause=BiltAnalysisError(msg))
 
     try:
-        child_callable = sub_system.implementation.get_evaluation(plan_step.request, backend)
+        child_callable = sub_system.implementation.get_evaluation(
+            plan_step.request, backend, expose_intermediates=False
+        )
     except BiltAnalysisError as error:
         return RealizationFailure(failed_plan_step=plan_step, cause=error)
 
-    return BackendCallable(
+    return dataclasses.replace(
+        child_callable,
         name=mangle_name(plan_step.output),
         parameters=tuple(mangle_name(port) for port in plan_step.consumed),
-        callable=child_callable.callable,
     )
 
 

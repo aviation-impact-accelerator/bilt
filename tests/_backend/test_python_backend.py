@@ -1,6 +1,7 @@
 """Tests for transform_to_jax module."""
 
 import ast
+import dataclasses
 import typing
 
 import pytest
@@ -65,20 +66,29 @@ def test_transpile_simple_arithmetic(python_backend: PythonBackend) -> None:
         (
             SIMPLE_CASE,
             {"a": 3.0, "b": 1.0, "d": 2.0},
-            8.0,
+            {"c": 4.0, "e": 8.0},
         ),
         (
             DIAMOND_CASE,
             {"x": 3.0},
-            13.0,
+            {"f": 4.0, "g": 12.0, "h": 1.0, "i": 13.0},
         ),
     ),
 )
 def test_build_pipeline_for_cases(
-    case: BackendCase, inputs: dict[str, float], expected: float, python_backend: PythonBackend
+    case: BackendCase, inputs: dict[str, float], expected: dict[str, float], python_backend: PythonBackend
 ) -> None:
     pipeline = python_backend.chain_case(case)
-    assert float(pipeline.callable(**inputs)) == pytest.approx(expected)
+    assert pipeline.evaluate(inputs) == pytest.approx(expected)
+
+
+def test_evaluate_selects_only_the_parameters_the_case_declared(python_backend: PythonBackend) -> None:
+    """Dispatch hands over every value the instance holds, so evaluate must pick out its own parameters."""
+    pipeline = python_backend.chain_case(SIMPLE_CASE)
+
+    outputs = pipeline.evaluate({"a": 3.0, "b": 1.0, "d": 2.0, "unrelated": 99.0})
+
+    assert outputs == pytest.approx({"c": 4.0, "e": 8.0})
 
 
 @pytest.mark.parametrize(
@@ -102,24 +112,34 @@ def test_pipeline_rejects_unexpected_input(
         pipeline.callable(**inputs)
 
 
-@pytest.mark.parametrize(
-    ("case", "inputs"),
-    (
-        (
-            SIMPLE_CASE,
-            {"a": 3.0, "b": 1.0, "d": 2.0},
-        ),
-        (
-            SIMPLE_CASE,
-            (3.0, 1.0, 2.0),
-        ),
-    ),
-)
-def test_can_accept_args_or_kwargs(
-    case: BackendCase, inputs: dict[str, float] | tuple[float, ...], python_backend: PythonBackend
-) -> None:
-    pipeline = python_backend.chain_case(case)
-    if isinstance(inputs, dict):
-        assert pipeline.callable(**inputs) == pytest.approx(8.0)
-    else:
-        assert pipeline.callable(*inputs) == pytest.approx(8.0)
+def test_a_chained_case_returns_its_values_positionally(python_backend: PythonBackend) -> None:
+    """The one place the positional return shape is pinned; everything else goes through `evaluate`."""
+    pipeline = python_backend.chain_case(SIMPLE_CASE)
+
+    assert pipeline.outputs == ("c", "e")
+    assert pipeline.callable(a=3.0, b=1.0, d=2.0) == pytest.approx((4.0, 8.0))
+
+
+def test_a_case_that_does_not_expose_intermediates_returns_one_value(python_backend: PythonBackend) -> None:
+    pipeline = python_backend.chain_case(dataclasses.replace(SIMPLE_CASE, expose_intermediates=False))
+
+    assert pipeline.outputs is None
+    assert pipeline.callable(a=3.0, b=1.0, d=2.0) == pytest.approx(8.0)
+
+
+def test_a_chained_case_can_be_an_intermediate_of_another_case(python_backend: PythonBackend) -> None:
+    inner = python_backend.chain_case(dataclasses.replace(SIMPLE_CASE, expose_intermediates=False))
+    assert inner.name == "e"
+
+    outer = BackendCase(
+        name="outer_case",
+        parameters=(*SIMPLE_CASE.parameters, "k"),
+        intermediates=[
+            inner,
+            python_backend.transpile(parse_to_ast("def f(e: int, k: int) -> int:\n    return e + k")),
+        ],
+        return_name="f",
+    )
+    pipeline = python_backend.chain_case(outer)
+
+    assert pipeline.evaluate({"a": 3.0, "b": 1.0, "d": 2.0, "k": 5.0}) == pytest.approx({"e": 8.0, "f": 13.0})
