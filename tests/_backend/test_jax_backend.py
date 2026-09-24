@@ -3,6 +3,7 @@
 import ast
 import typing
 
+import jax
 import jax.numpy as jnp
 import pytest
 
@@ -223,8 +224,11 @@ def test_solve_linear_system_broadcasts_scalar_coefficients(
         {"p": jnp.array([5.0, 8.0])},
     )
 
-    assert result["x"] == pytest.approx([2.0, 3.0])
-    assert result["y"] == pytest.approx([1.0, 2.0])
+    x = typing.cast("jax.Array", result["x"])
+    y = typing.cast("jax.Array", result["y"])
+
+    assert x == pytest.approx([2.0, 3.0])
+    assert y == pytest.approx([1.0, 2.0])
 
 
 def test_chain_case_with_single_unknown_linear_system(
