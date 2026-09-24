@@ -251,3 +251,55 @@ def test_chain_case_with_single_unknown_linear_system(
     pipeline = jax_backend.chain_case(case)
 
     assert float(pipeline.callable(6.0)) == pytest.approx(3.0)
+
+def test_chain_case_can_include_linear_system(
+    jax_backend: JAXBackend,
+) -> None:
+    linear_system = BackendLinearSystem(
+        parameters=("p", "q"),
+        unknowns=("x", "y"),
+        coefficients=(
+            (
+                jax_backend.transpile(
+                    parse_to_ast("def a() -> float:\n    return 2.0")
+                ),
+                jax_backend.transpile(
+                    parse_to_ast("def b() -> float:\n    return 1.0")
+                ),
+            ),
+            (
+                jax_backend.transpile(
+                    parse_to_ast("def c() -> float:\n    return 1.0")
+                ),
+                jax_backend.transpile(
+                    parse_to_ast("def d() -> float:\n    return -1.0")
+                ),
+            ),
+        ),
+        rhs=(
+            jax_backend.transpile(
+                parse_to_ast("def rhs_p(p):\n    return p")
+            ),
+            jax_backend.transpile(
+                parse_to_ast("def rhs_q(q):\n    return q")
+            ),
+        ),
+    )
+
+    total = jax_backend.transpile(
+        parse_to_ast(
+            "def total(x: float, y: float) -> float:\n"
+            "    return x + y"
+        )
+    )
+
+    case = BackendCase(
+        name="linear_case",
+        parameters=("p", "q"),
+        intermediates=[linear_system, total],
+        return_name="total",
+    )
+
+    pipeline = jax_backend.chain_case(case)
+
+    assert float(pipeline.callable(p=5.0, q=1.0)) == pytest.approx(3.0)
