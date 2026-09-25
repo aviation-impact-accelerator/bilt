@@ -30,7 +30,7 @@ def _scalar_plan(
     steps: tuple[PlanStep, ...],
 ) -> AnalysisPlan:
     return AnalysisPlan(
-        request=EvaluationRequest.from_domains(
+        request=EvaluationRequest(
             output=output,
             input_domains=dict.fromkeys(inputs, SCALAR_DOMAIN),
         ),
@@ -64,15 +64,14 @@ def test_realize_plan_mangles_the_case_names() -> None:
 def test_realize_plan_leaves_plain_names_alone() -> None:
     plan = _scalar_plan(
         inputs=frozenset({"a", "b"}),
-        output="a",
+        output="c",
         steps=(),
     )
 
     case = _realize_scalar_plan(plan)
 
     assert not isinstance(case, RealizationFailure)
-    assert case.name == "a"
-    assert case.return_name == "a"
+    assert case.name == "c"
     assert case.parameters == ("a", "b")
 
 

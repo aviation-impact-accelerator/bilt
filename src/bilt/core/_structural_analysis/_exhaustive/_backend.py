@@ -21,19 +21,17 @@ class ExhaustiveStructuralAnalyser:
         self.backend = backend
         self.bipartite_graph = BipartiteGraph(constituents, backend)
 
-    def analyse(
-        self,
-        request: EvaluationRequest,
-    ) -> BackendCase:
+    def analyse(self, request: EvaluationRequest) -> BackendCase:
         """Find a plan to satisfy the request, pruning steps that fail."""
-        available = set(request.available)
-        output = request.output
         last_failure: RealizationFailure | None = None
 
         while True:
-            steps = self.bipartite_graph.search(available, output)
+            steps = self.bipartite_graph.search(
+                set(request.input_domains),
+                request.output,
+            )
             if steps is None:
-                msg = f"Cannot compute {output} from available inputs {available}."
+                msg = f"Cannot compute {request.output} from available inputs {set(request.input_domains)}."
                 if last_failure is None or last_failure.cause is None:
                     raise BiltAnalysisError(msg)
 
@@ -56,7 +54,7 @@ class ExhaustiveStructuralAnalyser:
                     return successful_plan
                 case RealizationFailure() as failure:
                     last_failure = failure
-                    self.bipartite_graph.remove_failed_plan_step(failure.failed_plan_step)
+                    self.bipartite_graph.remove_failed_plan_step(failure.failed_plan_step,)
 
     def required_inputs_for_target(self, available: set[str], output: str) -> frozenset[str] | None:
         """Return the inputs a plan for ``output`` would actually consume, or None when no plan exists.

@@ -34,7 +34,7 @@ def realize_plan(
     backend: Backend,
 ) -> BackendCase | RealizationFailure:
     """Convert an AnalysisPlan into a BackendCase by compiling each step to a callable."""
-    symbol_domains = plan.request.domains
+    symbol_domains = plan.request.input_domains.copy()
     intermediates = []
 
     for step in plan.steps:
@@ -212,7 +212,7 @@ def _sub_system_to_callable(
 
     child_input_domains = {port: symbol_domains[sub_system.qualify(port)] for port in plan_step.child_inputs}
 
-    child_request = EvaluationRequest.from_domains(
+    child_request = EvaluationRequest(
         output=sub_system.child_port(plan_step.output),
         input_domains=child_input_domains,
     )

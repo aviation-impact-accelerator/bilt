@@ -279,7 +279,7 @@ def test_the_realized_callable_speaks_mangled_names(
     board: Implementation,
 ) -> None:
     """The compiled callable is bound by keyword, so it answers in the names it was compiled with."""
-    request = EvaluationRequest.from_domains(
+    request = EvaluationRequest(
         output="resistor.v",
         input_domains={
             "resistor.i": SCALAR_DOMAIN,
@@ -312,7 +312,7 @@ def test_the_realized_callable_speaks_mangled_names(
 def test_nothing_a_backend_compiles_carries_a_dotted_name(
     board: Implementation,
 ) -> None:
-    request = EvaluationRequest.from_domains(
+    request = EvaluationRequest(
         output="resistor.v",
         input_domains={
             "resistor.i": SCALAR_DOMAIN,

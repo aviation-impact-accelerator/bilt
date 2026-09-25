@@ -53,11 +53,7 @@ class Implementation:
             named_components | sub_systems
         )
         self._evaluation_cache: dict[
-            tuple[
-                EvaluationRequest,
-                Backend,
-                Domain,
-            ],
+            tuple[str, frozenset[tuple[str, Domain]], Backend, Domain],
             BackendCallable,
         ] = {}
         self._analysers: dict[Backend, StructuralAnalyser] = {}
@@ -87,7 +83,7 @@ class Implementation:
             if output in inputs:
                 output_value = inputs[output]
             else:
-                request = EvaluationRequest.from_domains(
+                request = EvaluationRequest(
                     output=output,
                     input_domains={
                         name: value.domain if isinstance(value, Tensor) else Domain.scalar()
@@ -117,7 +113,8 @@ class Implementation:
     ) -> BackendCallable:
         canonical_order = current_evaluation().canonical_order
         cache_key = (
-            request,
+            request.output,
+            frozenset(request.input_domains.items()),
             backend,
             canonical_order,
         )
@@ -131,7 +128,7 @@ class Implementation:
         if planned_case.intermediates:
             output_domain = planned_case.intermediates[-1].output_domain
         else:
-            output_domain = request.domains[request.output]
+            output_domain = request.input_domains[request.output]
 
         backend_callable.output_domain = output_domain
 

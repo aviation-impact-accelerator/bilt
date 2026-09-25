@@ -69,7 +69,7 @@ class AnalysisPlan:
     @property
     def inputs(self) -> frozenset[str]:
         """Return the values available at the start of the plan."""
-        return self.request.available
+        return frozenset(self.request.input_domains)
 
     @property
     def output(self) -> str:
