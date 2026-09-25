@@ -13,7 +13,6 @@ if typing.TYPE_CHECKING:
     from bilt.symbolic._tree import Tree
 
 __all__ = [
-    "equation_to_ast",
     "isolated_tree_to_functiondef",
     "tree_to_functiondef",
 ]
