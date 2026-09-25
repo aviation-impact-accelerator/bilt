@@ -34,10 +34,7 @@ def _resistor_implementation() -> Implementation:
 @pytest.fixture
 def sub_system() -> SubSystemConstituent:
     """A resistor whose one equation solves for any of its three ports."""
-    return SubSystemConstituent(
-        name="resistor",
-        implementation=_resistor_implementation(),
-    )
+    return SubSystemConstituent(name="resistor", implementation=_resistor_implementation())
 
 
 @pytest.fixture
@@ -49,10 +46,7 @@ def sealed_sub_system() -> SubSystemConstituent:
         a: float = field()
         b: float = field()
 
-    return SubSystemConstituent(
-        name="sealed",
-        implementation=Implementation(Sealed, []),
-    )
+    return SubSystemConstituent(name="sealed", implementation=Implementation(Sealed, []))
 
 
 @pytest.fixture
@@ -70,10 +64,7 @@ def spare_port_sub_system() -> SubSystemConstituent:
     def ohms_law(v: float, i: float, r: float) -> bool:
         return v == i * r
 
-    return SubSystemConstituent(
-        name="resistor",
-        implementation=Implementation(SensedResistor, [ohms_law]),
-    )
+    return SubSystemConstituent(name="resistor", implementation=Implementation(SensedResistor, [ohms_law]))
 
 
 @pytest.fixture
@@ -106,80 +97,44 @@ def wired_board() -> Implementation:
         supply_voltage: float = field()
 
     @equation
-    def supply_is_across_the_resistor(
-        supply_voltage: float,
-        resistor: Resistor,
-    ) -> bool:
+    def supply_is_across_the_resistor(supply_voltage: float, resistor: Resistor) -> bool:
         return supply_voltage == resistor.v
 
-    resistor = SubSystemConstituent(
-        name="resistor",
-        implementation=Implementation(Resistor, [ohms_law]),
-    )
-    return Implementation(
-        Board,
-        [supply_is_across_the_resistor, resistor],
-    )
+    resistor = SubSystemConstituent(name="resistor", implementation=Implementation(Resistor, [ohms_law]))
+    return Implementation(Board, [supply_is_across_the_resistor, resistor])
 
 
-def test_parameters_are_the_qualified_child_ports(
-    sub_system: SubSystemConstituent,
-) -> None:
-    assert sub_system.__bilt_parameters__ == (
-        "resistor.v",
-        "resistor.i",
-        "resistor.r",
-    )
+def test_parameters_are_the_qualified_child_ports(sub_system: SubSystemConstituent) -> None:
+    assert sub_system.__bilt_parameters__ == ("resistor.v", "resistor.i", "resistor.r")
 
 
 def test_the_constituent_keeps_its_reference_name() -> None:
     implementation = _resistor_implementation()
 
-    renamed = SubSystemConstituent(
-        name="r1",
-        implementation=implementation,
-    )
+    renamed = SubSystemConstituent(name="r1", implementation=implementation)
 
     assert renamed.__bilt_name__ == "r1"
-    assert renamed.__bilt_parameters__ == (
-        "r1.v",
-        "r1.i",
-        "r1.r",
-    )
+    assert renamed.__bilt_parameters__ == ("r1.v", "r1.i", "r1.r")
 
 
-def test_qualify_is_the_dotted_spelling_of_a_child_port(
-    sub_system: SubSystemConstituent,
-) -> None:
+def test_qualify_is_the_dotted_spelling_of_a_child_port(sub_system: SubSystemConstituent) -> None:
     assert sub_system.qualify("v") == "resistor.v"
 
 
-def test_child_port_recovers_the_child_local_name(
-    sub_system: SubSystemConstituent,
-) -> None:
+def test_child_port_recovers_the_child_local_name(sub_system: SubSystemConstituent) -> None:
     assert sub_system.child_port("resistor.v") == "v"
 
 
-@pytest.mark.parametrize(
-    "qualified",
-    ("v", "capacitor.v", "resistor.typo"),
-)
+@pytest.mark.parametrize("qualified", ("v", "capacitor.v", "resistor.typo"))
 def test_child_port_rejects_a_name_that_is_not_one_of_its_ports(
-    sub_system: SubSystemConstituent,
-    qualified: str,
+    sub_system: SubSystemConstituent, qualified: str
 ) -> None:
     with pytest.raises(BiltAnalysisError, match="does not have port"):
         sub_system.child_port(qualified)
 
 
-def test_required_inputs_are_named_in_child_local_terms(
-    sub_system: SubSystemConstituent,
-) -> None:
-    required = sub_system.required_inputs_for(
-        "resistor.v",
-        PYTHON_BACKEND,
-        within={"resistor.i", "resistor.r"},
-    )
+def test_required_inputs_are_named_in_child_local_terms(sub_system: SubSystemConstituent) -> None:
+    required = sub_system.required_inputs_for("resistor.v", PYTHON_BACKEND, within={"resistor.i", "resistor.r"})
 
     assert required == frozenset({"i", "r"})
 
@@ -191,11 +146,7 @@ def test_required_inputs_include_only_the_ports_the_child_uses(
     required = spare_port_sub_system.required_inputs_for(
         "resistor.v",
         PYTHON_BACKEND,
-        within={
-            "resistor.i",
-            "resistor.r",
-            "resistor.temperature",
-        },
+        within={"resistor.i", "resistor.r", "resistor.temperature"},
     )
 
     assert required == frozenset({"i", "r"})
@@ -205,79 +156,36 @@ def test_unrestricted_required_inputs_may_use_every_port_but_the_output(
     spare_port_sub_system: SubSystemConstituent,
 ) -> None:
     """Without ``within`` the child is free to use any of its own ports."""
-    required = spare_port_sub_system.required_inputs_for(
-        "resistor.v",
-        PYTHON_BACKEND,
-    )
+    required = spare_port_sub_system.required_inputs_for("resistor.v", PYTHON_BACKEND)
 
     assert required == frozenset({"i", "r"})
 
 
-def test_there_are_no_required_inputs_without_an_internal_route(
-    sealed_sub_system: SubSystemConstituent,
-) -> None:
-    assert (
-        sealed_sub_system.required_inputs_for(
-            "sealed.a",
-            PYTHON_BACKEND,
-            within={"sealed.b"},
-        )
-        is None
-    )
+def test_there_are_no_required_inputs_without_an_internal_route(sealed_sub_system: SubSystemConstituent) -> None:
+    assert sealed_sub_system.required_inputs_for("sealed.a", PYTHON_BACKEND, within={"sealed.b"}) is None
 
 
-def test_there_are_no_required_inputs_when_the_restriction_falls_short(
-    sub_system: SubSystemConstituent,
-) -> None:
-    assert (
-        sub_system.required_inputs_for(
-            "resistor.v",
-            PYTHON_BACKEND,
-            within={"resistor.i"},
-        )
-        is None
-    )
+def test_there_are_no_required_inputs_when_the_restriction_falls_short(sub_system: SubSystemConstituent) -> None:
+    assert sub_system.required_inputs_for("resistor.v", PYTHON_BACKEND, within={"resistor.i"}) is None
 
 
-def test_repr_names_the_reference_and_its_interface(
-    sub_system: SubSystemConstituent,
-) -> None:
+def test_repr_names_the_reference_and_its_interface(sub_system: SubSystemConstituent) -> None:
     assert repr(sub_system) == "SubSystemConstituent(name='resistor', interface='Resistor')"
 
 
-def test_a_parent_solves_a_child_port_through_the_sub_system(
-    board: Implementation,
-) -> None:
-    result = board.evaluate(
-        {
-            "resistor.i": CURRENT,
-            "resistor.r": RESISTANCE,
-        },
-        "resistor.v",
-        PYTHON_BACKEND,
-    )
+def test_a_parent_solves_a_child_port_through_the_sub_system(board: Implementation) -> None:
+    result = board.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}, "resistor.v", PYTHON_BACKEND)
 
     assert result == VOLTAGE
 
 
-def test_a_parent_solves_a_child_port_in_the_inward_direction(
-    board: Implementation,
-) -> None:
-    result = board.evaluate(
-        {
-            "resistor.v": VOLTAGE,
-            "resistor.r": RESISTANCE,
-        },
-        "resistor.i",
-        PYTHON_BACKEND,
-    )
+def test_a_parent_solves_a_child_port_in_the_inward_direction(board: Implementation) -> None:
+    result = board.evaluate({"resistor.v": VOLTAGE, "resistor.r": RESISTANCE}, "resistor.i", PYTHON_BACKEND)
 
     assert result == CURRENT
 
 
-def test_the_realized_callable_speaks_mangled_names(
-    board: Implementation,
-) -> None:
+def test_the_realized_callable_speaks_mangled_names(board: Implementation) -> None:
     """The compiled callable is bound by keyword, so it answers in the names it was compiled with."""
     request = EvaluationRequest(
         output="resistor.v",
@@ -288,30 +196,14 @@ def test_the_realized_callable_speaks_mangled_names(
     )
 
     with EvaluationContext():
-        realized = board.get_evaluation(
-            request,
-            PYTHON_BACKEND,
-        )
+        realized = board.get_evaluation(request, PYTHON_BACKEND)
 
-    assert realized.parameters == (
-        "resistor__i",
-        "resistor__r",
-    )
-    assert (
-        realized.evaluate(
-            {
-                "resistor__i": CURRENT,
-                "resistor__r": RESISTANCE,
-            }
-        )
-        == VOLTAGE
-    )
+    assert realized.parameters == ("resistor__i", "resistor__r")
+    assert realized.evaluate({"resistor__i": CURRENT, "resistor__r": RESISTANCE}) == VOLTAGE
     assert realized.output_domain == SCALAR_DOMAIN
 
 
-def test_nothing_a_backend_compiles_carries_a_dotted_name(
-    board: Implementation,
-) -> None:
+def test_nothing_a_backend_compiles_carries_a_dotted_name(board: Implementation) -> None:
     request = EvaluationRequest(
         output="resistor.v",
         input_domains={
@@ -329,34 +221,16 @@ def test_nothing_a_backend_compiles_carries_a_dotted_name(
     assert not any("." in name for intermediate in case.intermediates for name in intermediate.parameters)
 
 
-def test_a_parent_reuses_one_cache_entry_across_repeated_evaluations(
-    board: Implementation,
-) -> None:
+def test_a_parent_reuses_one_cache_entry_across_repeated_evaluations(board: Implementation) -> None:
     backend = PYTHON_BACKEND
 
-    board.evaluate(
-        {
-            "resistor.i": CURRENT,
-            "resistor.r": RESISTANCE,
-        },
-        "resistor.v",
-        backend,
-    )
-    board.evaluate(
-        {
-            "resistor.i": CURRENT + 1,
-            "resistor.r": RESISTANCE + 1,
-        },
-        "resistor.v",
-        backend,
-    )
+    board.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}, "resistor.v", backend)
+    board.evaluate({"resistor.i": CURRENT + 1, "resistor.r": RESISTANCE + 1}, "resistor.v", backend)
 
     assert len(board._evaluation_cache) == 1  # noqa: SLF001
 
 
-def test_two_parents_can_share_one_sub_system(
-    sub_system: SubSystemConstituent,
-) -> None:
+def test_two_parents_can_share_one_sub_system(sub_system: SubSystemConstituent) -> None:
     """A parent relabels the child's callable to its own names; the child's cached one is not its to edit."""
 
     @system
@@ -364,27 +238,10 @@ def test_two_parents_can_share_one_sub_system(
         supply_voltage: float = field()
 
     backend = PYTHON_BACKEND
-    inputs: dict[str, object] = {
-        "resistor.i": CURRENT,
-        "resistor.r": RESISTANCE,
-    }
+    inputs: dict[str, object] = {"resistor.i": CURRENT, "resistor.r": RESISTANCE}
 
-    first = Implementation(
-        Rig,
-        [sub_system],
-    ).evaluate(
-        inputs,
-        "resistor.v",
-        backend,
-    )
-    second = Implementation(
-        Rig,
-        [sub_system],
-    ).evaluate(
-        inputs,
-        "resistor.v",
-        backend,
-    )
+    first = Implementation(Rig, [sub_system]).evaluate(inputs, "resistor.v", backend)
+    second = Implementation(Rig, [sub_system]).evaluate(inputs, "resistor.v", backend)
 
     assert first == second == VOLTAGE
 
@@ -396,59 +253,30 @@ def test_a_parent_cannot_solve_a_child_port_the_child_has_no_route_to(
     class Rack(metaclass=Interface):
         supply_voltage: float = field()
 
-    rack = Implementation(
-        Rack,
-        [sealed_sub_system],
-    )
+    rack = Implementation(Rack, [sealed_sub_system])
 
     with pytest.raises(BiltAnalysisError, match="Cannot compute"):
-        rack.evaluate(
-            {"sealed.b": 1.0},
-            "sealed.a",
-            PYTHON_BACKEND,
-        )
+        rack.evaluate({"sealed.b": 1.0}, "sealed.a", PYTHON_BACKEND)
 
 
 def test_a_sub_system_name_carrying_the_mangled_separator_is_rejected() -> None:
     """``foo__bar.v`` and ``foo.bar.v`` would otherwise both realize as ``foo__bar__v``."""
     with pytest.raises(BiltNameError, match="'foo__bar' may not contain"):
-        SubSystemConstituent(
-            name="foo__bar",
-            implementation=_resistor_implementation(),
-        )
+        SubSystemConstituent(name="foo__bar", implementation=_resistor_implementation())
 
 
 def test_validate_name_accepts_a_name_without_the_separator() -> None:
     assert validate_name("supply_voltage") is None
 
 
-@pytest.mark.parametrize(
-    "name",
-    (
-        "foo__bar",
-        "__leading",
-        "trailing__",
-        "a__b__c",
-    ),
-)
-def test_validate_name_rejects_a_name_carrying_the_mangled_separator(
-    name: str,
-) -> None:
+@pytest.mark.parametrize("name", ("foo__bar", "__leading", "trailing__", "a__b__c"))
+def test_validate_name_rejects_a_name_carrying_the_mangled_separator(name: str) -> None:
     with pytest.raises(BiltNameError, match="may not contain"):
         validate_name(name)
 
 
 def test_a_qualified_name_is_unambiguous_once_no_segment_carries_the_separator() -> None:
     """The rule exists so splitting a flattened name back into segments is well defined."""
-    flattened = QualifiedPort(
-        "outer",
-        "inner",
-    ).dotted.replace(
-        DOTTED_SEPARATOR,
-        MANGLED_SEPARATOR,
-    )
+    flattened = QualifiedPort("outer", "inner").dotted.replace(DOTTED_SEPARATOR, MANGLED_SEPARATOR)
 
-    assert flattened.split(MANGLED_SEPARATOR) == [
-        "outer",
-        "inner",
-    ]
+    assert flattened.split(MANGLED_SEPARATOR) == ["outer", "inner"]
