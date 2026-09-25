@@ -54,7 +54,7 @@ class ExhaustiveStructuralAnalyser:
                     return successful_plan
                 case RealizationFailure() as failure:
                     last_failure = failure
-                    self.bipartite_graph.remove_failed_plan_step(failure.failed_plan_step,)
+                    self.bipartite_graph.remove_failed_plan_step(failure.failed_plan_step)
 
     def required_inputs_for_target(self, available: set[str], output: str) -> frozenset[str] | None:
         """Return the inputs a plan for ``output`` would actually consume, or None when no plan exists.

@@ -43,7 +43,6 @@ class PlanStep:
         match self.operation:
             case BasicTransform() as transform:
                 return tuple(sorted(transform.__bilt_parameters__))
-
             case SubSystemConstituent() as sub_system:
                 if self.child_inputs is None:
                     msg = f"{sub_system!r} step for {self.output!r} has not settled on a route through the child."
@@ -53,7 +52,6 @@ class PlanStep:
 
             case BasicEquation() as equation:
                 return tuple(sorted(set(equation.__bilt_parameters__) - {self.output}))
-
             case _:
                 msg = f"Constituent type {type(self.operation)} is not supported."
                 raise NotImplementedError(msg)

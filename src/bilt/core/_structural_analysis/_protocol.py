@@ -10,13 +10,6 @@ if typing.TYPE_CHECKING:
 class StructuralAnalyser(typing.Protocol):
     """Protocol for a structural analyser that searches for a solution plan for a certain backend."""
 
-    def analyse(
-        self,
-        request: EvaluationRequest,
-    ) -> BackendCase: ...
+    def analyse(self, request: EvaluationRequest) -> BackendCase: ...
 
-    def required_inputs_for_target(
-        self,
-        available: set[str],
-        output: str,
-    ) -> frozenset[str] | None: ...
+    def required_inputs_for_target(self, available: set[str], output: str) -> frozenset[str] | None: ...

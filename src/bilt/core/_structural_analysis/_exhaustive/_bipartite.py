@@ -1,5 +1,4 @@
 __all__ = ["BipartiteGraph"]
-
 import dataclasses
 import itertools
 import typing
@@ -58,7 +57,6 @@ class BipartiteGraph:
             plan_step = PlanStep(operation=relation, output=param)
             self.graph.add_node(plan_step, bipartite="constituent")
             self.graph.add_edge(plan_step, param)
-
             for param2 in relation.__bilt_parameters__:
                 if param2 != param:
                     self.graph.add_edge(param2, plan_step)
@@ -69,7 +67,6 @@ class BipartiteGraph:
         self.graph.add_node(plan_step, bipartite="constituent")
         self.graph.add_node(transform.__bilt_name__, bipartite="attribute")
         self.graph.add_edge(plan_step, transform.__bilt_name__)
-
         for param in transform.__bilt_parameters__:
             self.graph.add_node(param, bipartite="attribute")
             self.graph.add_edge(param, plan_step)
@@ -140,18 +137,15 @@ class BipartiteGraph:
         child_inputs = sub_system.required_inputs_for(plan_step.output, self._backend)
         if child_inputs is None:
             return None
-
         settled = dataclasses.replace(plan_step, child_inputs=child_inputs)
         resolved = self._resolve_inputs(settled.consumed, available, visited)
         if len(resolved) == len(settled.consumed):
             return [*_flatten_sub_paths(resolved.values()), settled]
-
         rest = [port for port in sorted(sub_system.__bilt_parameters__) if port not in resolved]
         reached = resolved | self._resolve_inputs(rest, available, visited)
         child_inputs = sub_system.required_inputs_for(plan_step.output, self._backend, within=reached)
         if child_inputs is None:
             return None
-
         settled = dataclasses.replace(plan_step, child_inputs=child_inputs)
         return [*_flatten_sub_paths(reached[port] for port in settled.consumed), settled]
 
