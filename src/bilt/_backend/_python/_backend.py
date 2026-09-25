@@ -1,9 +1,11 @@
 import ast
 import inspect
 
+import numpy as np
+
 from bilt._backend import BackendCallable, BackendCase
 from bilt._backend._base_backend import ActivatableBackendMixin
-from bilt._backend._in_process_python_mixin import InProcessPythonMixin
+from bilt._backend._in_process_python_mixin import InProcessPythonMixin, PythonIntrinsicBindings
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
 
@@ -12,7 +14,12 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
 
     def __init__(self) -> None:
         self.ast_transformer = ast.NodeTransformer()
-        self.compilation_namespace = {"__builtins__": __builtins__}
+        self.compilation_namespace = {
+            "__builtins__": __builtins__,
+        }
+        self.intrinsic_bindings = PythonIntrinsicBindings(
+            mean=np.mean,
+        )
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
         """Chain a BackendCase into a single callable function."""

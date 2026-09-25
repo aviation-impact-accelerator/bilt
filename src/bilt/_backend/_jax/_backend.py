@@ -5,7 +5,7 @@ import jax
 import jax.numpy as jnp
 
 from bilt._backend._base_backend import ActivatableBackendMixin
-from bilt._backend._in_process_python_mixin import InProcessPythonMixin
+from bilt._backend._in_process_python_mixin import InProcessPythonMixin, PythonIntrinsicBindings
 from bilt._backend._jax._ast import JAXASTTransformer
 from bilt._backend._jax._supports import _validate
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
@@ -19,7 +19,13 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
 
     def __init__(self) -> None:
         self.ast_transformer = JAXASTTransformer()
-        self.compilation_namespace = {"jnp": jnp, "jax.jit": jax.jit, "__builtins__": __builtins__}
+        self.compilation_namespace = {
+            "jnp": jnp,
+            "jax.jit": jax.jit,
+        }
+        self.intrinsic_bindings = PythonIntrinsicBindings(
+            mean=jnp.mean,
+        )
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Compile a single transform AST into a callable function."""
