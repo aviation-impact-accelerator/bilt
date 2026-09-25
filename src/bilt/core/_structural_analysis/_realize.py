@@ -29,7 +29,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 
 
-def realize_plan(plan: AnalysisPlan,backend: Backend) -> BackendCase | RealizationFailure:
+def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
     """Convert an AnalysisPlan into a BackendCase by compiling each step to a callable."""
     symbol_domains = plan.request.input_domains.copy()
     intermediates = []
@@ -58,7 +58,9 @@ def realize_plan(plan: AnalysisPlan,backend: Backend) -> BackendCase | Realizati
     )
 
 
-def _operation_to_callable(plan_step: PlanStep,backend: Backend,*,symbol_domains: dict[str, Domain]) -> BackendCallable | RealizationFailure:
+def _operation_to_callable(
+    plan_step: PlanStep, backend: Backend, *, symbol_domains: dict[str, Domain]
+) -> BackendCallable | RealizationFailure:
     match plan_step.operation:
         case BasicTransform() as transform:
             return _transform_to_callable(
