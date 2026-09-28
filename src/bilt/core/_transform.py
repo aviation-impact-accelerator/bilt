@@ -19,7 +19,7 @@ class Transform[R, **P](typing.Protocol):
 class BasicTransform[R, **P]:
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
         self.__bilt_name__ = function.__name__  # ty: ignore[unresolved-attribute]
-        signature = inspect.signature(function)
+        signature = inspect.signature(function, eval_str=True)
         self.__bilt_parameters__ = tuple(signature.parameters.keys())
         self.__bilt_port_declarations__ = port_declarations(
             self.__bilt_name__,

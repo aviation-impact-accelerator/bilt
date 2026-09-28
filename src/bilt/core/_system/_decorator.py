@@ -2,6 +2,7 @@ __all__ = ["system"]
 
 import dataclasses
 import enum
+import inspect
 import typing
 
 from bilt.core._interface import Interface
@@ -43,7 +44,7 @@ def _validate_cls_is_interface(cls: type) -> None:
 def _create_bilt_system_class_attribute(cls: Interface) -> None:
     attributes = {
         name: Attribute(name, typing.cast("type[object]", annotation))
-        for name, annotation in cls.__annotations__.items()
+        for name, annotation in inspect.get_annotations(cls, eval_str=True).items()
         if typing.get_origin(annotation) is not typing.ClassVar  # type: ignore[comparison-overlap]
     }
     setattr(cls, "__bilt_system_attributes__", attributes)  # noqa: B010

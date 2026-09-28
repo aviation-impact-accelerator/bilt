@@ -74,6 +74,26 @@ def test_transform_without_a_return_annotation_has_an_unconstrained_output() -> 
     assert doubled.__bilt_port_declarations__["doubled"] == PortDeclaration()
 
 
+def test_quoted_annotations_are_resolved() -> None:
+    @system
+    class Rig(metaclass=Interface):
+        mass: "Mass" = field()  # noqa: UP037
+        limit: "typing.ClassVar[float]" = 1.0  # noqa: UP037
+
+    @equation
+    def balance(m: "Mass", k: float) -> bool:  # noqa: UP037
+        return m == m * k
+
+    @transform
+    def doubled(m: Mass) -> "Mass":  # noqa: UP037
+        return m * 2.0
+
+    mass = PortDeclaration(carries_quantity=True, dimensionality=MASS)
+    assert Rig.__bilt_port_declarations__ == {"mass": mass}
+    assert balance.__bilt_port_declarations__["m"] == mass
+    assert doubled.__bilt_port_declarations__["doubled"] == mass
+
+
 def test_foreign_metadata_is_ignored() -> None:
     @system
     class Rig(metaclass=Interface):
