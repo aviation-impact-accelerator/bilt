@@ -6,6 +6,7 @@ from bilt import Implementation, Interface, field, system, transform
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
+from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis import StructuralAnalyser
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
@@ -14,17 +15,36 @@ from bilt.core._structural_analysis._plan import PlanStep
 from bilt.core._structural_analysis._realize import RealizationFailure, _operation_to_callable
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.errors import BiltAnalysisError, BiltIsolationError, BiltUnsupportedNodeError
+from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
     import ast
 
     from bilt._backend._base_backend import Backend
     from bilt._backend._callable import BackendCallable
+    from bilt._backend._case import BackendCase
 
 
 @typing.runtime_checkable
 class _RuntimeStructuralAnalyser(StructuralAnalyser, typing.Protocol):
     """An isinstance-able view of the protocol, so it need not be runtime checkable in the source."""
+
+
+SCALAR_DOMAIN = Domain.scalar()
+
+
+def _analyse_scalar(
+    analyser: StructuralAnalyser,
+    available: set[str],
+    output: str,
+) -> BackendCase:
+    request = EvaluationRequest(
+        output=output,
+        input_domains=dict.fromkeys(available, SCALAR_DOMAIN),
+    )
+
+    with EvaluationContext():
+        return analyser.analyse(request)
 
 
 def _refuse_to_compile(_function_definition: object) -> typing.NoReturn:
@@ -71,9 +91,11 @@ def test_exhaustive_analyser_produces_a_working_callable() -> None:
     def c(a: float, b: float) -> float:
         return a + b
 
-    result = ExhaustiveStructuralAnalyser([c], PYTHON_BACKEND).analyse({"a", "b"}, "c")
+    result = _analyse_scalar(ExhaustiveStructuralAnalyser([c], PYTHON_BACKEND), {"a", "b"}, "c")
     backend_case = PYTHON_BACKEND.chain_case(result)
+
     assert backend_case.callable(a=1.0, b=2.0) == c(a=1.0, b=2.0)
+    assert result.intermediates[-1].output_domain == SCALAR_DOMAIN
 
 
 def test_bipartite_graph_shape_for_an_equation() -> None:
@@ -210,11 +232,11 @@ def test_analyser_prunes_an_unrealizable_step_and_keeps_it_pruned() -> None:
     analyser = ExhaustiveStructuralAnalyser([square, linear], PYTHON_BACKEND)
     pruned_step = PlanStep(operation=square, output="x")
 
-    first_case = PYTHON_BACKEND.chain_case(analyser.analyse({"z", "w"}, "x"))
+    first_case = PYTHON_BACKEND.chain_case(_analyse_scalar(analyser, {"z", "w"}, "x"))
     assert first_case.callable(w=4.0, z=25.0) == expected_x
     assert pruned_step not in analyser.bipartite_graph.graph
 
-    second_case = PYTHON_BACKEND.chain_case(analyser.analyse({"z", "w"}, "x"))
+    second_case = PYTHON_BACKEND.chain_case(_analyse_scalar(analyser, {"z", "w"}, "x"))
     assert second_case.callable(w=4.0, z=25.0) == expected_x
     assert pruned_step not in analyser.bipartite_graph.graph
 
@@ -232,9 +254,9 @@ def test_analyser_raises_when_no_route_survives_pruning_but_other_routes_still_w
     analyser = ExhaustiveStructuralAnalyser([square, offset], PYTHON_BACKEND)
 
     with pytest.raises(BiltAnalysisError, match="Cannot compute x"):
-        analyser.analyse({"z"}, "x")
+        _analyse_scalar(analyser, {"z"}, "x")
 
-    surviving_case = PYTHON_BACKEND.chain_case(analyser.analyse({"y"}, "z"))
+    surviving_case = PYTHON_BACKEND.chain_case(_analyse_scalar(analyser, {"y"}, "z"))
     assert surviving_case.callable(y=4.0) == expected_z
 
 
@@ -258,7 +280,7 @@ def test_a_step_one_backend_refuses_is_only_attempted_once_across_queries(
 
     for output in ("c", "d"):
         with pytest.raises(BiltAnalysisError):
-            analyser.analyse({"a"}, output)
+            _analyse_scalar(analyser, {"a"}, output)
 
     assert attempts == ["b"]
 
@@ -277,17 +299,24 @@ def test_a_step_one_backend_refuses_stays_available_to_another_backend(
 
     expected_c = 4.0
     implementation = Implementation(Doubler, [c])
-    request = EvaluationRequest(output="c", available=frozenset({"a"}))
+    request = EvaluationRequest(
+        output="c",
+        input_domains={"a": SCALAR_DOMAIN},
+    )
 
     _refuse_one_transform(monkeypatch, PYTHON_BACKEND, "c")
-    with pytest.raises(BiltAnalysisError):
-        implementation.get_evaluation(request, PYTHON_BACKEND)
+    with EvaluationContext():
+        with pytest.raises(BiltAnalysisError):
+            implementation.get_evaluation(request, PYTHON_BACKEND)
 
-    surviving = implementation.get_evaluation(request, JAX_BACKEND)
+        surviving = implementation.get_evaluation(request, JAX_BACKEND)
+
     assert surviving.callable(a=2.0) == expected_c
 
 
-def test_exhausted_search_reports_why_the_last_route_was_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_exhausted_search_reports_why_the_last_route_was_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     @equation
     def from_w(x: float, w: float) -> bool:
         return x == w + 1.0
@@ -296,7 +325,7 @@ def test_exhausted_search_reports_why_the_last_route_was_rejected(monkeypatch: p
     monkeypatch.setattr(PYTHON_BACKEND, "transpile", _refuse_to_compile)
 
     with pytest.raises(BiltAnalysisError, match="unsupported") as raised:
-        analyser.analyse({"w"}, "x")
+        _analyse_scalar(analyser, {"w"}, "x")
 
     assert isinstance(raised.value.__cause__, BiltUnsupportedNodeError)
 
@@ -309,7 +338,7 @@ def test_exhausted_search_reports_an_isolation_failure_as_the_cause() -> None:
     analyser = ExhaustiveStructuralAnalyser([square], PYTHON_BACKEND)
 
     with pytest.raises(BiltAnalysisError) as raised:
-        analyser.analyse({"z"}, "x")
+        _analyse_scalar(analyser, {"z"}, "x")
 
     assert isinstance(raised.value.__cause__, BiltIsolationError)
 
@@ -327,7 +356,10 @@ def _resistor_sub_system(name: str = "resistor") -> SubSystemConstituent:
     def ohms_law(v: float, i: float, r: float) -> bool:
         return v == i * r
 
-    return SubSystemConstituent(name=name, implementation=Implementation(Resistor, [ohms_law]))
+    return SubSystemConstituent(
+        name=name,
+        implementation=Implementation(Resistor, [ohms_law]),
+    )
 
 
 def _sealed_sub_system(name: str = "sealed") -> SubSystemConstituent:
@@ -338,7 +370,10 @@ def _sealed_sub_system(name: str = "sealed") -> SubSystemConstituent:
         a: float = field()
         b: float = field()
 
-    return SubSystemConstituent(name=name, implementation=Implementation(Sealed, []))
+    return SubSystemConstituent(
+        name=name,
+        implementation=Implementation(Sealed, []),
+    )
 
 
 def test_a_sub_system_enters_the_graph_shaped_like_an_equation() -> None:
@@ -366,11 +401,11 @@ def test_search_solves_a_sub_system_port_in_either_direction() -> None:
     assert outward is not None
     assert inward is not None
 
-    assert [(step.operation, step.output, step.request) for step in outward] == [
-        (sub_system, "resistor.v", EvaluationRequest(output="v", available=frozenset({"i", "r"})))
+    assert [(step.operation, step.output, step.child_inputs) for step in outward] == [
+        (sub_system, "resistor.v", frozenset({"i", "r"}))
     ]
-    assert [(step.operation, step.output, step.request) for step in inward] == [
-        (sub_system, "resistor.i", EvaluationRequest(output="i", available=frozenset({"v", "r"})))
+    assert [(step.operation, step.output, step.child_inputs) for step in inward] == [
+        (sub_system, "resistor.i", frozenset({"v", "r"}))
     ]
 
 
@@ -438,7 +473,10 @@ def test_required_inputs_for_target_reaches_through_a_sub_system_step() -> None:
     sub_system = _resistor_sub_system()
     analyser = ExhaustiveStructuralAnalyser([sub_system], PYTHON_BACKEND)
 
-    required = analyser.required_inputs_for_target({"resistor.i", "resistor.r"}, "resistor.v")
+    required = analyser.required_inputs_for_target(
+        {"resistor.i", "resistor.r"},
+        "resistor.v",
+    )
 
     assert required == frozenset({"resistor.i", "resistor.r"})
 
@@ -447,14 +485,23 @@ def test_realizing_a_sub_system_step_mangles_its_qualified_parameters() -> None:
     step = PlanStep(
         operation=_resistor_sub_system(),
         output="resistor.v",
-        request=EvaluationRequest(output="v", available=frozenset({"i", "r"})),
+        child_inputs=frozenset({"i", "r"}),
     )
 
-    realized = _operation_to_callable(step, PYTHON_BACKEND)
+    with EvaluationContext():
+        realized = _operation_to_callable(
+            step,
+            PYTHON_BACKEND,
+            symbol_domains={
+                "resistor.i": SCALAR_DOMAIN,
+                "resistor.r": SCALAR_DOMAIN,
+            },
+        )
 
     assert not isinstance(realized, RealizationFailure)
     assert realized.name == "resistor__v"
     assert realized.parameters == ("resistor__i", "resistor__r")
+    assert realized.output_domain == SCALAR_DOMAIN
 
 
 def _rig_over_sensor() -> Implementation:
@@ -483,7 +530,10 @@ def _rig_over_sensor() -> Implementation:
     def calibrated(reading: float, calibration: float) -> bool:
         return reading == calibration + 1.0
 
-    sensor = Implementation(Sensor, [scaled, via_scaled, calibrated])
+    sensor = Implementation(
+        Sensor,
+        [scaled, via_scaled, calibrated],
+    )
 
     @system
     class Rig(metaclass=Interface):
@@ -523,7 +573,11 @@ def test_a_sub_system_is_asked_again_after_the_way_it_first_named_is_refused(
     expected_answer = 4.0
     attempts = _refuse_one_transform(monkeypatch, PYTHON_BACKEND, "scaled")
 
-    case = rig.analyser_for(PYTHON_BACKEND).analyse({"raw", "calibration"}, "answer")
+    case = _analyse_scalar(
+        rig.analyser_for(PYTHON_BACKEND),
+        {"raw", "calibration"},
+        "answer",
+    )
 
     assert attempts.count("scaled") == 1
     assert PYTHON_BACKEND.chain_case(case).callable(raw=1.0, calibration=3.0) == expected_answer
@@ -537,7 +591,11 @@ def test_retrying_a_sub_system_still_ends_when_the_backend_refuses_everything(
     monkeypatch.setattr(PYTHON_BACKEND, "transpile", _refuse_to_compile)
 
     with pytest.raises(BiltAnalysisError, match="Cannot compute answer"):
-        rig.analyser_for(PYTHON_BACKEND).analyse({"raw", "calibration"}, "answer")
+        _analyse_scalar(
+            rig.analyser_for(PYTHON_BACKEND),
+            {"raw", "calibration"},
+            "answer",
+        )
 
 
 def test_removing_a_failed_sub_system_step_keeps_it_while_the_child_names_a_way() -> None:

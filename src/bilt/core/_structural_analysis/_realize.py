@@ -9,13 +9,20 @@ import typing
 from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
+from bilt.core._canonical_ordering import canonicalized
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError
+from bilt.core._evaluation_context import current_evaluation
+from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_name
 from bilt.core._sub_system import SubSystemConstituent
-from bilt.core._to_ast import equation_to_ast
+from bilt.core._tensors._expression_lowering import lower_expression
+from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
+from bilt.symbolic._domains import Domain, union
+from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltIsolationError
+from bilt.symbolic._isolation._isolate import isolate
 
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -24,12 +31,23 @@ if typing.TYPE_CHECKING:
 
 def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
     """Convert an AnalysisPlan into a BackendCase by compiling each step to a callable."""
+    symbol_domains = plan.request.input_domains.copy()
     intermediates = []
     for step in plan.steps:
-        result = _operation_to_callable(step, backend=backend)
+        result = _operation_to_callable(
+            step,
+            backend=backend,
+            symbol_domains=symbol_domains,
+        )
         if isinstance(result, RealizationFailure):
             return result
         intermediates.append(result)
+
+        if result.output_domain is None:
+            msg = f"Realized step {step.output!r} has no output domain."
+            raise BiltAnalysisError(msg)
+
+        symbol_domains[step.output] = result.output_domain
 
     output = mangle_name(plan.output)
     return BackendCase(
@@ -40,14 +58,34 @@ def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | Realizat
     )
 
 
-def _operation_to_callable(plan_step: PlanStep, backend: Backend) -> BackendCallable | RealizationFailure:
+def _operation_to_callable(
+    plan_step: PlanStep, backend: Backend, *, symbol_domains: dict[str, Domain]
+) -> BackendCallable | RealizationFailure:
     match plan_step.operation:
         case BasicTransform() as transform:
-            return _transform_to_callable(transform, plan_step, backend)
+            return _transform_to_callable(
+                transform,
+                plan_step,
+                backend,
+                symbol_domains=symbol_domains,
+            )
+
         case BasicEquation() as equation:
-            return _equation_to_callable(equation, plan_step, backend)
+            return _equation_to_callable(
+                equation,
+                plan_step,
+                backend,
+                symbol_domains=symbol_domains,
+            )
+
         case SubSystemConstituent() as sub_system:
-            return _sub_system_to_callable(sub_system, plan_step, backend)
+            return _sub_system_to_callable(
+                sub_system,
+                plan_step,
+                backend,
+                symbol_domains=symbol_domains,
+            )
+
         case _:
             msg = f"Operation type {type(plan_step.operation)} is not supported for evaluation."
             raise NotImplementedError(msg)
@@ -57,25 +95,81 @@ def _transform_to_callable(
     transform: BasicTransform,
     plan_step: PlanStep,
     backend: Backend,
+    *,
+    symbol_domains: dict[str, Domain],
 ) -> BackendCallable | RealizationFailure:
     function_ast = typing.cast(
         "ast.FunctionDef",
-        ast.parse(textwrap.dedent(inspect.getsource(transform._function))).body[0],  # noqa: SLF001
+        ast.parse(
+            textwrap.dedent(
+                inspect.getsource(transform._function),  # noqa: SLF001
+            )
+        ).body[0],
     )
     function_ast.decorator_list = []
-    return _guarded_transpile(function_ast, plan_step, backend)
+
+    callable_ = _guarded_transpile(
+        function_ast,
+        plan_step,
+        backend,
+    )
+    if isinstance(callable_, RealizationFailure):
+        return callable_
+
+    output_domain = canonicalized(
+        union(*(symbol_domains[name] for name in plan_step.consumed)),
+        current_evaluation().canonical_order,
+    ).domain
+
+    return dataclasses.replace(
+        callable_,
+        output_domain=output_domain,
+    )
 
 
 def _equation_to_callable(
     equation: BasicEquation,
     plan_step: PlanStep,
     backend: Backend,
+    *,
+    symbol_domains: dict[str, Domain],
 ) -> BackendCallable | RealizationFailure:
     try:
-        function_ast = equation_to_ast(equation, plan_step.output)
+        target = Expr.symbol(plan_step.output)
+        isolated = isolate(
+            equation.__bilt_equation_tree__,
+            target,
+        )
     except BiltIsolationError as error:
-        return RealizationFailure(failed_plan_step=plan_step, cause=error)
-    return _guarded_transpile(_NameMangler().visit(function_ast), plan_step, backend)
+        return RealizationFailure(
+            failed_plan_step=plan_step,
+            cause=error,
+        )
+
+    lowered = lower_expression(
+        isolated.rhs,
+        symbol_domains=symbol_domains,
+        canonical_order=current_evaluation().canonical_order,
+    )
+
+    function_ast = tree_to_functiondef(
+        lowered.tree,
+        name=plan_step.output,
+        parameter_order=equation.__bilt_parameters__,
+    )
+
+    callable_ = _guarded_transpile(
+        _NameMangler().visit(function_ast),
+        plan_step,
+        backend,
+    )
+    if isinstance(callable_, RealizationFailure):
+        return callable_
+
+    return dataclasses.replace(
+        callable_,
+        output_domain=lowered.domain,
+    )
 
 
 class _NameMangler(ast.NodeTransformer):
@@ -97,30 +191,54 @@ def _sub_system_to_callable(
     sub_system: SubSystemConstituent,
     plan_step: PlanStep,
     backend: Backend,
+    *,
+    symbol_domains: dict[str, Domain],
 ) -> BackendCallable | RealizationFailure:
-    if plan_step.request is None:
+    if plan_step.child_inputs is None:
         msg = f"{sub_system!r} step for {plan_step.output!r} names no route through the child."
-        return RealizationFailure(failed_plan_step=plan_step, cause=BiltAnalysisError(msg))
+        return RealizationFailure(
+            failed_plan_step=plan_step,
+            cause=BiltAnalysisError(msg),
+        )
+
+    child_input_domains = {port: symbol_domains[sub_system.qualify(port)] for port in plan_step.child_inputs}
+
+    child_request = EvaluationRequest(
+        output=sub_system.child_port(plan_step.output),
+        input_domains=child_input_domains,
+    )
 
     try:
-        child_callable = sub_system.implementation.get_evaluation(plan_step.request, backend)
+        child_callable = sub_system.implementation.get_evaluation(
+            child_request,
+            backend,
+        )
     except BiltAnalysisError as error:
-        return RealizationFailure(failed_plan_step=plan_step, cause=error)
+        return RealizationFailure(
+            failed_plan_step=plan_step,
+            cause=error,
+        )
 
     return BackendCallable(
         name=mangle_name(plan_step.output),
         parameters=tuple(mangle_name(port) for port in plan_step.consumed),
         callable=child_callable.callable,
+        output_domain=child_callable.output_domain,
     )
 
 
 def _guarded_transpile(
-    function_ast: ast.FunctionDef, plan_step: PlanStep, backend: Backend
+    function_ast: ast.FunctionDef,
+    plan_step: PlanStep,
+    backend: Backend,
 ) -> BackendCallable | RealizationFailure:
     try:
         return backend.transpile(function_ast)
     except BiltBackendError as error:
-        return RealizationFailure(failed_plan_step=plan_step, cause=error)
+        return RealizationFailure(
+            failed_plan_step=plan_step,
+            cause=error,
+        )
 
 
 @dataclasses.dataclass

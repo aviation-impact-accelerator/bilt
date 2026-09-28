@@ -3,7 +3,6 @@ __all__ = ["SubSystemConstituent"]
 import typing
 
 from bilt.core._errors import BiltAnalysisError, BiltNameError
-from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import MANGLED_SEPARATOR, QualifiedPort
 
 if typing.TYPE_CHECKING:
@@ -29,34 +28,40 @@ class SubSystemConstituent:
 
     def child_port(self, qualified: str) -> str:
         """Return the child-local port name, raising when this sub-system has no such port."""
-        port = QualifiedPort.unqualify(qualified, self.__bilt_name__, self.interface.__bilt_parameters__)
+        port = QualifiedPort.unqualify(
+            qualified,
+            self.__bilt_name__,
+            self.interface.__bilt_parameters__,
+        )
         if port is None:
             msg = f"{self!r} does not have port {qualified!r}."
             raise BiltAnalysisError(msg)
+
         return port
 
-    def request_for(
+    def required_inputs_for(
         self,
         qualified_output: str,
         backend: Backend,
         *,
         within: collections.abc.Iterable[str] | None = None,
-    ) -> EvaluationRequest | None:
-        """Return the child-local request producing ``qualified_output``, or None if no route exists.
+    ) -> frozenset[str] | None:
+        """Return the child-local inputs required to produce ``qualified_output``.
 
         ``within`` restricts the child to those ports, named as the parent sees them; omitted, it
-        may use any of its ports. Either way the port asked for is never one the child may use.
-        The request names only the ports it will use.
+        may use any of its ports. Either way the output itself is not available as an input.
         """
         child_output = self.child_port(qualified_output)
+
         reachable = (
             set(self.interface.__bilt_parameters__) if within is None else {self.child_port(port) for port in within}
         )
         available = reachable - {child_output}
-        required = self.implementation.analyser_for(backend).required_inputs_for_target(available, child_output)
-        if required is None:
-            return None
-        return EvaluationRequest(output=child_output, available=required)
+
+        return self.implementation.analyser_for(backend).required_inputs_for_target(
+            available,
+            child_output,
+        )
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(name={self.__bilt_name__!r}, interface={self.interface.__bilt_name__!r})"

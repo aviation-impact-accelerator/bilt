@@ -1,12 +1,20 @@
+import numpy as np
 import pytest
 
 from bilt import Implementation, Interface, field, system
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
+from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import DOTTED_SEPARATOR, MANGLED_SEPARATOR, QualifiedPort
 from bilt.core._sub_system import SubSystemConstituent, validate_name
+from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.errors import BiltAnalysisError, BiltNameError
+from bilt.math import mean
+from bilt.symbolic._dimensions import Dim
+from bilt.symbolic._domains import Domain
+
+SCALAR_DOMAIN = Domain.scalar()
 
 CURRENT = 2.0
 RESISTANCE = 3.0
@@ -129,41 +137,40 @@ def test_child_port_rejects_a_name_that_is_not_one_of_its_ports(
         sub_system.child_port(qualified)
 
 
-def test_a_request_names_its_ports_in_child_local_terms(sub_system: SubSystemConstituent) -> None:
-    request = sub_system.request_for("resistor.v", PYTHON_BACKEND, within={"resistor.i", "resistor.r"})
+def test_required_inputs_are_named_in_child_local_terms(sub_system: SubSystemConstituent) -> None:
+    required = sub_system.required_inputs_for("resistor.v", PYTHON_BACKEND, within={"resistor.i", "resistor.r"})
 
-    assert request == EvaluationRequest(output="v", available=frozenset({"i", "r"}))
+    assert required == frozenset({"i", "r"})
 
 
-def test_a_request_asks_only_for_the_ports_the_child_uses(
+def test_required_inputs_include_only_the_ports_the_child_uses(
     spare_port_sub_system: SubSystemConstituent,
 ) -> None:
-    """Given a port no equation reads, the child leaves it out of the request."""
-    request = spare_port_sub_system.request_for(
+    """Given a port no equation reads, the child leaves it out of the required inputs."""
+    required = spare_port_sub_system.required_inputs_for(
         "resistor.v",
         PYTHON_BACKEND,
         within={"resistor.i", "resistor.r", "resistor.temperature"},
     )
 
-    assert request is not None
-    assert request.available == frozenset({"i", "r"})
+    assert required == frozenset({"i", "r"})
 
 
-def test_an_unrestricted_request_may_use_every_port_but_the_output(
+def test_unrestricted_required_inputs_may_use_every_port_but_the_output(
     spare_port_sub_system: SubSystemConstituent,
 ) -> None:
-    """Without ``within`` the child is free to route from any of its own ports."""
-    request = spare_port_sub_system.request_for("resistor.v", PYTHON_BACKEND)
+    """Without ``within`` the child is free to use any of its own ports."""
+    required = spare_port_sub_system.required_inputs_for("resistor.v", PYTHON_BACKEND)
 
-    assert request == EvaluationRequest(output="v", available=frozenset({"i", "r"}))
-
-
-def test_there_is_no_request_without_an_internal_route(sealed_sub_system: SubSystemConstituent) -> None:
-    assert sealed_sub_system.request_for("sealed.a", PYTHON_BACKEND, within={"sealed.b"}) is None
+    assert required == frozenset({"i", "r"})
 
 
-def test_there_is_no_request_when_the_restriction_falls_short(sub_system: SubSystemConstituent) -> None:
-    assert sub_system.request_for("resistor.v", PYTHON_BACKEND, within={"resistor.i"}) is None
+def test_there_are_no_required_inputs_without_an_internal_route(sealed_sub_system: SubSystemConstituent) -> None:
+    assert sealed_sub_system.required_inputs_for("sealed.a", PYTHON_BACKEND, within={"sealed.b"}) is None
+
+
+def test_there_are_no_required_inputs_when_the_restriction_falls_short(sub_system: SubSystemConstituent) -> None:
+    assert sub_system.required_inputs_for("resistor.v", PYTHON_BACKEND, within={"resistor.i"}) is None
 
 
 def test_repr_names_the_reference_and_its_interface(sub_system: SubSystemConstituent) -> None:
@@ -184,16 +191,33 @@ def test_a_parent_solves_a_child_port_in_the_inward_direction(board: Implementat
 
 def test_the_realized_callable_speaks_mangled_names(board: Implementation) -> None:
     """The compiled callable is bound by keyword, so it answers in the names it was compiled with."""
-    request = EvaluationRequest(output="resistor.v", available=frozenset({"resistor.i", "resistor.r"}))
+    request = EvaluationRequest(
+        output="resistor.v",
+        input_domains={
+            "resistor.i": SCALAR_DOMAIN,
+            "resistor.r": SCALAR_DOMAIN,
+        },
+    )
 
-    realized = board.get_evaluation(request, PYTHON_BACKEND)
+    with EvaluationContext():
+        realized = board.get_evaluation(request, PYTHON_BACKEND)
 
     assert realized.parameters == ("resistor__i", "resistor__r")
     assert realized.evaluate({"resistor__i": CURRENT, "resistor__r": RESISTANCE}) == VOLTAGE
+    assert realized.output_domain == SCALAR_DOMAIN
 
 
 def test_nothing_a_backend_compiles_carries_a_dotted_name(board: Implementation) -> None:
-    case = board.analyser_for(PYTHON_BACKEND).analyse({"resistor.i", "resistor.r"}, "resistor.v")
+    request = EvaluationRequest(
+        output="resistor.v",
+        input_domains={
+            "resistor.i": SCALAR_DOMAIN,
+            "resistor.r": SCALAR_DOMAIN,
+        },
+    )
+
+    with EvaluationContext():
+        case = board.analyser_for(PYTHON_BACKEND).analyse(request)
 
     assert "." not in case.name
     assert "." not in case.return_name
@@ -260,3 +284,56 @@ def test_a_qualified_name_is_unambiguous_once_no_segment_carries_the_separator()
     flattened = QualifiedPort("outer", "inner").dotted.replace(DOTTED_SEPARATOR, MANGLED_SEPARATOR)
 
     assert flattened.split(MANGLED_SEPARATOR) == ["outer", "inner"]
+
+
+def test_reduced_child_domain_propagates_through_parent_equation() -> None:
+    location = Dim("location")
+    time = Dim("time")
+
+    @system
+    class Measurements(metaclass=Interface):
+        values: Tensor = field()
+        averaged: Tensor = field()
+
+    @equation
+    def average(values: Tensor, averaged: Tensor) -> bool:
+        return averaged == mean(values, time)
+
+    child = SubSystemConstituent(
+        name="measurements",
+        implementation=Implementation(Measurements, [average]),
+    )
+
+    @system
+    class Report(metaclass=Interface):
+        offset: float = field()
+        result: Tensor = field()
+
+    @equation
+    def add_offset(
+        measurements: Measurements,
+        offset: float,
+        result: Tensor,
+    ) -> bool:
+        return result == measurements.averaged + offset
+
+    parent = Implementation(Report, [add_offset, child])
+
+    result = parent.evaluate(
+        {
+            "measurements.values": tensor(
+                [
+                    [1.0, 3.0, 5.0],
+                    [2.0, 4.0, 6.0],
+                ],
+                over=(location, time),
+            ),
+            "offset": 10.0,
+        },
+        "result",
+        PYTHON_BACKEND,
+    )
+
+    assert isinstance(result, Tensor)
+    assert result.domain == Domain((location,))
+    np.testing.assert_allclose(result.values, [13.0, 14.0])

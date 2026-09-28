@@ -77,8 +77,9 @@ class BipartiteGraph:
     ) -> None:
         """Remove a step that failed realization, unless its sub-system still names another way."""
         sub_system = plan_step.operation
-        if isinstance(sub_system, SubSystemConstituent) and (
-            sub_system.request_for(plan_step.output, self._backend) is not None
+        if (
+            isinstance(sub_system, SubSystemConstituent)
+            and sub_system.required_inputs_for(plan_step.output, self._backend) is not None
         ):
             return
         self.graph.remove_node(plan_step)
@@ -133,19 +134,19 @@ class BipartiteGraph:
         visited: set[Node],
     ) -> list[PlanStep] | None:
         """Search for a path through a sub-system, from the ports the parent can reach."""
-        unconstrained = sub_system.request_for(plan_step.output, self._backend)
-        if unconstrained is None:
+        child_inputs = sub_system.required_inputs_for(plan_step.output, self._backend)
+        if child_inputs is None:
             return None
-        settled = dataclasses.replace(plan_step, request=unconstrained)
+        settled = dataclasses.replace(plan_step, child_inputs=child_inputs)
         resolved = self._resolve_inputs(settled.consumed, available, visited)
         if len(resolved) == len(settled.consumed):
             return [*_flatten_sub_paths(resolved.values()), settled]
         rest = [port for port in sorted(sub_system.__bilt_parameters__) if port not in resolved]
         reached = resolved | self._resolve_inputs(rest, available, visited)
-        request = sub_system.request_for(plan_step.output, self._backend, within=reached)
-        if request is None:
+        child_inputs = sub_system.required_inputs_for(plan_step.output, self._backend, within=reached)
+        if child_inputs is None:
             return None
-        settled = dataclasses.replace(plan_step, request=request)
+        settled = dataclasses.replace(plan_step, child_inputs=child_inputs)
         return [*_flatten_sub_paths(reached[port] for port in settled.consumed), settled]
 
     def _resolve_inputs(
