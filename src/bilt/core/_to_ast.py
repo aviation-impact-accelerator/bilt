@@ -3,17 +3,12 @@ import typing
 
 from bilt.symbolic import _atoms as ops
 from bilt.symbolic._atoms import AxisType, FloatType, IntType, SymbolType
-from bilt.symbolic._expressions import Expr
-from bilt.symbolic._isolation._errors import BiltTargetNotFoundError, BiltUnsupportedIsolationError
-from bilt.symbolic._isolation._isolate import isolate
+from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
 
 if typing.TYPE_CHECKING:
-    from bilt.core._equation import BasicEquation
-    from bilt.symbolic._isolation._types import IsolatedTree
     from bilt.symbolic._tree import Tree
 
 __all__ = [
-    "isolated_tree_to_functiondef",
     "tree_to_functiondef",
 ]
 
@@ -47,19 +42,6 @@ def tree_to_functiondef(
     )
     ast.fix_missing_locations(function_def)
     return function_def
-
-
-def isolated_tree_to_functiondef(
-    isolated: IsolatedTree,
-    parameter_order: tuple[str, ...],
-) -> ast.FunctionDef:
-    function_name = typing.cast("str", isolated.target.rep.head.value)
-
-    return tree_to_functiondef(
-        isolated.rhs.rep,
-        name=function_name,
-        parameter_order=parameter_order,
-    )
 
 
 def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
@@ -165,23 +147,3 @@ def _fold_binop(
         )
 
     return expr
-
-
-def equation_to_ast(
-    equation: BasicEquation,
-    target: str,
-) -> ast.FunctionDef:
-    if target not in equation.__bilt_equation_symbols__:
-        message = f"Target {target!r} is not a parameter of the equation {equation!s}."
-        raise BiltTargetNotFoundError(message)
-
-    target_expr = Expr.symbol(target)
-    isolated = isolate(
-        equation.__bilt_equation_tree__,
-        target_expr,
-    )
-
-    return isolated_tree_to_functiondef(
-        isolated,
-        parameter_order=equation.__bilt_parameters__,
-    )
