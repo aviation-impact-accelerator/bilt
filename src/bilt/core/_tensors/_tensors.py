@@ -77,6 +77,10 @@ class Tensor:
     def __neg__(self) -> Tensor:
         raise _arithmetic_not_implemented()
 
+    def mean(self, dim: Dim) -> Tensor:  # noqa: ARG002
+        """Return the mean over a named dimension in a Bilt model."""
+        raise _symbolic_operation_only()
+
 
 def tensor(
     values: object,
@@ -134,3 +138,7 @@ def _arithmetic_not_implemented() -> NotImplementedError:
     return NotImplementedError(
         "Tensor arithmetic is not implemented. Operations will be dispatched through an active backend."
     )
+
+
+def _symbolic_operation_only() -> TypeError:
+    return TypeError("Tensor operations are symbolic and may only be used within Bilt equations and transforms.")

@@ -1,6 +1,7 @@
 __all__ = [
     "LoweredExpression",
     "lower_expression",
+    "reduce_dimension",
 ]
 
 import dataclasses
@@ -60,6 +61,28 @@ def lower_expression(
         symbol_domains=symbol_domains,
         canonical_order=canonical_order,
     )
+
+
+def reduce_dimension(
+    value_domain: Domain,
+    dim: Dim,
+    *,
+    canonical_order: Domain,
+) -> tuple[Domain, int]:
+    """Return the output domain and positional axis for a named reduction."""
+    if dim not in value_domain.dims:
+        message = f"Cannot reduce dimension {dim!s}; it is not present in domain {value_domain!s}."
+        raise BiltTensorDomainError(message)
+
+    try:
+        axis = canonical_order.dims.index(dim)
+    except ValueError:
+        message = f"Dimension {dim!s} is not present in canonical order {canonical_order!s}."
+        raise BiltTensorDomainError(message) from None
+
+    output_domain = Domain(tuple(domain_dim for domain_dim in value_domain.dims if domain_dim != dim))
+
+    return output_domain, axis
 
 
 def _lower_tree(
@@ -165,17 +188,11 @@ def _lower_mean(
         canonical_order=canonical_order,
     )
 
-    if dim not in value.domain.dims:
-        message = f"Cannot reduce dimension {dim!s}; it is not present in domain {value.domain!s}."
-        raise BiltTensorDomainError(message)
-
-    try:
-        axis = canonical_order.dims.index(dim)
-    except ValueError:
-        message = f"Dimension {dim!s} is not present in canonical order {canonical_order!s}."
-        raise BiltTensorDomainError(message) from None
-
-    output_domain = Domain(tuple(domain_dim for domain_dim in value.domain.dims if domain_dim != dim))
+    output_domain, axis = reduce_dimension(
+        value.domain,
+        dim,
+        canonical_order=canonical_order,
+    )
 
     return LoweredExpression(
         tree=Tree(

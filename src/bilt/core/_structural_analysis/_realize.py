@@ -17,6 +17,7 @@ from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_name
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._tensors._expression_lowering import lower_expression
+from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
 from bilt.symbolic._domains import Domain, union
@@ -106,7 +107,13 @@ def _transform_to_callable(
             )
         ).body[0],
     )
-    function_ast.decorator_list = []
+
+    function_ast, output_domain = lower_transform(
+        function_ast,
+        function=transform._function,  # noqa: SLF001
+        symbol_domains=symbol_domains,
+        canonical_order=current_evaluation().canonical_order,
+    )
 
     callable_ = _guarded_transpile(
         function_ast,
@@ -116,10 +123,11 @@ def _transform_to_callable(
     if isinstance(callable_, RealizationFailure):
         return callable_
 
-    output_domain = canonicalized(
-        union(*(symbol_domains[name] for name in plan_step.consumed)),
-        current_evaluation().canonical_order,
-    ).domain
+    if output_domain is None:
+        output_domain = canonicalized(
+            union(*(symbol_domains[name] for name in plan_step.consumed)),
+            current_evaluation().canonical_order,
+        ).domain
 
     return dataclasses.replace(
         callable_,

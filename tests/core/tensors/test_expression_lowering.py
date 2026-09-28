@@ -5,21 +5,20 @@ from bilt.core._tensors._expression_lowering import (
     lower_expression,
 )
 from bilt.errors import BiltSymbolicLoweringError, BiltTensorDomainError
-from bilt.math import mean
 from bilt.symbolic._atoms import MEAN
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import domain
-from bilt.symbolic._expressions import Expr
+from bilt.symbolic._expressions import Expr, tensor_symbol_expr
 from bilt.symbolic._tree import axis_tree
 
 
 def test_mean_lowers_dimension_to_canonical_axis() -> None:
     location = Dim("location")
     time = Dim("time")
-    value = Expr.symbol("value")
+    value = tensor_symbol_expr("value")
 
     actual = lower_expression(
-        mean(value, time),
+        value.mean(time),
         symbol_domains={
             "value": domain(location, time),
         },
@@ -35,10 +34,10 @@ def test_mean_lowers_dimension_to_canonical_axis() -> None:
 def test_mean_uses_canonical_axis_not_local_domain_position() -> None:
     location = Dim("location")
     time = Dim("time")
-    value = Expr.symbol("value")
+    value = tensor_symbol_expr("value")
 
     actual = lower_expression(
-        mean(value, time),
+        value.mean(time),
         symbol_domains={
             "value": domain(location, time),
         },
@@ -51,10 +50,10 @@ def test_mean_uses_canonical_axis_not_local_domain_position() -> None:
 
 def test_mean_over_only_dimension_returns_scalar_domain() -> None:
     time = Dim("time")
-    value = Expr.symbol("value")
+    value = tensor_symbol_expr("value")
 
     actual = lower_expression(
-        mean(value, time),
+        value.mean(time),
         symbol_domains={
             "value": domain(time),
         },
@@ -68,11 +67,11 @@ def test_mean_over_only_dimension_returns_scalar_domain() -> None:
 def test_mean_rejects_dimension_not_in_value_domain() -> None:
     location = Dim("location")
     time = Dim("time")
-    value = Expr.symbol("value")
+    value = tensor_symbol_expr("value")
 
     with pytest.raises(BiltTensorDomainError):
         lower_expression(
-            mean(value, time),
+            value.mean(time),
             symbol_domains={
                 "value": domain(location),
             },
@@ -83,11 +82,11 @@ def test_mean_rejects_dimension_not_in_value_domain() -> None:
 def test_mean_lowers_inside_arithmetic_expression() -> None:
     location = Dim("location")
     time = Dim("time")
-    value = Expr.symbol("value")
+    value = tensor_symbol_expr("value")
     offset = Expr.symbol("offset")
 
     actual = lower_expression(
-        mean(value, time) + offset,
+        value.mean(time) + offset,
         symbol_domains={
             "value": domain(location, time),
             "offset": domain(),
@@ -105,10 +104,10 @@ def test_mean_lowers_inside_arithmetic_expression() -> None:
 
 def test_lowered_expression_rejects_symbolic_dimension() -> None:
     time = Dim("time")
-    value = Expr.symbol("value")
+    value = tensor_symbol_expr("value")
 
     with pytest.raises(BiltSymbolicLoweringError, match="cannot contain symbolic dimensions"):
         LoweredExpression(
-            tree=mean(value, time).rep,
+            tree=value.mean(time).rep,
             domain=domain(),
         )

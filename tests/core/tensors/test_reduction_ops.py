@@ -3,13 +3,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, field, system
+from bilt import Implementation, Interface, field, system, transform
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._tensors._tensors import Tensor, tensor
-from bilt.math import mean
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain, domain
 
@@ -34,7 +33,7 @@ def test_mean_reduces_named_dimension(
 
     @equation
     def average(values: Tensor, averaged: Tensor) -> bool:
-        return averaged == mean(values, time)
+        return averaged == values.mean(time)
 
     implementation = Implementation(Demo, [average])
     demo = Demo(
@@ -73,7 +72,7 @@ def test_mean_over_only_dimension_returns_scalar(
 
     @equation
     def average(values: Tensor, averaged: float) -> bool:
-        return averaged == mean(values, time)
+        return averaged == values.mean(time)
 
     implementation = Implementation(Demo, [average])
     demo = Demo(
@@ -108,7 +107,7 @@ def test_reduced_domain_propagates_to_later_equation(
 
     @equation
     def average(values: Tensor, averaged: Tensor) -> bool:
-        return averaged == mean(values, time)
+        return averaged == values.mean(time)
 
     @equation
     def add_offset(
@@ -165,7 +164,7 @@ def test_mean_uses_aligned_canonical_axis(
         reference: Tensor,
         averaged: Tensor,
     ) -> bool:
-        return averaged == mean(values, time) + 0 * reference
+        return averaged == values.mean(time) + 0 * reference
 
     implementation = Implementation(Demo, [average])
     demo = Demo(
@@ -214,7 +213,7 @@ def test_evaluation_cache_distinguishes_input_domains(
         offset: Tensor,
         result: Tensor,
     ) -> bool:
-        return result == mean(values, time) + offset
+        return result == values.mean(time) + offset
 
     implementation = Implementation(Demo, [average_with_offset])
 
@@ -271,7 +270,7 @@ def test_evaluation_cache_distinguishes_canonical_order(
 
     @equation
     def average(values: Tensor, averaged: Tensor) -> bool:
-        return averaged == mean(values, time)
+        return averaged == values.mean(time)
 
     implementation = Implementation(Demo, [average])
     inputs: dict[str, object] = {
@@ -300,3 +299,88 @@ def test_evaluation_cache_distinguishes_canonical_order(
         assert isinstance(result, Tensor)
         assert result.domain == domain(location)
         np.testing.assert_allclose(result.values, [3.0, 4.0])
+
+
+@pytest.mark.parametrize(
+    "backend",
+    (PYTHON_BACKEND, JAX_BACKEND),
+)
+def test_transform_mean_reduces_named_dimension(
+    backend: Backend,
+) -> None:
+    location = Dim("location")
+    time = Dim("time")
+
+    @system
+    class Demo(metaclass=Interface):
+        values: Tensor = field()
+        averaged: Tensor = field()
+
+    @transform
+    def averaged(values: Tensor) -> Tensor:
+        return values.mean(time)
+
+    implementation = Implementation(Demo, [averaged])
+    demo = Demo(
+        values=tensor(
+            [
+                [1.0, 3.0, 5.0],
+                [2.0, 4.0, 6.0],
+            ],
+            over=(location, time),
+        ),
+    )
+
+    with backend, implementation:
+        result = demo.averaged
+
+    assert result.domain == domain(location)
+    np.testing.assert_allclose(
+        result.values,
+        np.array([3.0, 4.0]),
+    )
+
+
+@pytest.mark.parametrize(
+    "backend",
+    (PYTHON_BACKEND, JAX_BACKEND),
+)
+def test_transform_mean_inside_arithmetic(
+    backend: Backend,
+) -> None:
+    location = Dim("location")
+    time = Dim("time")
+
+    @system
+    class Demo(metaclass=Interface):
+        values: Tensor = field()
+        offset: Tensor = field()
+        result: Tensor = field()
+
+    @transform
+    def result(
+        values: Tensor,
+        offset: Tensor,
+    ) -> Tensor:
+        return values.mean(time) + offset
+
+    implementation = Implementation(Demo, [result])
+    demo = Demo(
+        values=tensor(
+            [
+                [1.0, 3.0, 5.0],
+                [2.0, 4.0, 6.0],
+            ],
+            over=(location, time),
+        ),
+        offset=tensor(10.0, over=()),
+    )
+
+    with backend, implementation:
+        evaluated = demo.result
+
+    assert evaluated.domain == domain(location)
+    np.testing.assert_allclose(
+        evaluated.values,
+        np.array([13.0, 14.0]),
+    )
