@@ -41,7 +41,7 @@ class BasicEquation[R, **P]:
 
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
         name = _function_name(function)
-        signature = inspect.signature(function)
+        signature = inspect.signature(function, eval_str=True)
 
         _validate_equation_signature(name, signature)
 
