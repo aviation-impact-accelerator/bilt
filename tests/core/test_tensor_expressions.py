@@ -1,7 +1,3 @@
-from bilt.core._equation import equation
-from bilt.core._tensors._tensors import Tensor
-from bilt.symbolic._expressions import Expr, TensorExpr, tensor_symbol_expr
-
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -16,18 +12,7 @@ from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.math import mean
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain, domain
-
-import numpy as np
-
-from bilt import Implementation, Interface, field, system
-from bilt._backend._jax._backend import JAX_BACKEND
-from bilt._backend._python._backend import PYTHON_BACKEND
-from bilt.core._equation import equation
-from bilt.core._evaluation_context import EvaluationContext
-from bilt.core._tensors._tensors import Tensor, tensor
-from bilt.math import mean
-from bilt.symbolic._dimensions import Dim
-from bilt.symbolic._domains import Domain, domain
+from bilt.symbolic._expressions import Expr, TensorExpr, tensor_symbol_expr
 
 if TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -346,6 +331,7 @@ def test_evaluation_cache_distinguishes_canonical_order(
         assert isinstance(result, Tensor)
         assert result.domain == domain(location)
         np.testing.assert_allclose(result.values, [3.0, 4.0])
+
 
 def test_tensor_expression_arithmetic_returns_plain_expression() -> None:
     left = tensor_symbol_expr("left")
