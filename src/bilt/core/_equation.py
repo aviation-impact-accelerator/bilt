@@ -26,6 +26,7 @@ if typing.TYPE_CHECKING:
 class Equation[R, **P](typing.Protocol):
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
+    __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
@@ -36,6 +37,7 @@ class Equation[R, **P](typing.Protocol):
 class BasicEquation[R, **P]:
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
+    __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]

@@ -8,10 +8,13 @@ from bilt.core._port_declaration import port_declarations
 if typing.TYPE_CHECKING:
     import collections.abc
 
+    from bilt.core._port_declaration import PortDeclaration
+
 
 class Transform[R, **P](typing.Protocol):
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
+    __bilt_port_declarations__: dict[str, PortDeclaration]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
