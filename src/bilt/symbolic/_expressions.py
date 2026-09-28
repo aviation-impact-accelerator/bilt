@@ -19,13 +19,14 @@ if typing.TYPE_CHECKING:
 __all__ = [
     "Expr",
     "SubSystemExpr",
+    "TensorExpr",
     "as_expr",
     "as_tree",
     "symbol_expr",
+    "tensor_symbol_expr",
 ]
 
 
-@typing.final
 class Expr:
     """Thin user-facing symbolic expression wrapper.
 
@@ -152,6 +153,13 @@ class Expr:
         return str(self._rep)
 
 
+@typing.final
+class TensorExpr(Expr):
+    """A symbolic expression representing a tensor-valued quantity."""
+
+    __slots__ = ()
+
+
 class SubSystemExpr:
     """The sub-system an equation parameter stands for, whose ports are its symbols."""
 
@@ -215,3 +223,8 @@ def as_expr(value: object) -> Expr:
 def symbol_expr(name: str) -> Expr:
     """Construct a symbolic expression placeholder."""
     return Expr(symbol_tree(name))
+
+
+def tensor_symbol_expr(name: str) -> TensorExpr:
+    """Construct a symbolic tensor expression placeholder."""
+    return TensorExpr(symbol_tree(name))
