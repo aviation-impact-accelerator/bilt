@@ -42,16 +42,20 @@ def test_equation_records_a_declaration_per_parameter() -> None:
     }
 
 
-def test_equation_does_not_record_sub_system_ports() -> None:
+def test_equation_records_the_child_declaration_of_each_referenced_sub_system_port() -> None:
     @system
     class Child(metaclass=Interface):
         v: Mass = field()
+        unused: float = field()
 
     @equation
     def link(child: Child, x: Mass) -> bool:
         return child.v == x
 
-    assert link.__bilt_port_declarations__ == {"x": PortDeclaration(carries_quantity=True, dimensionality=MASS)}
+    assert link.__bilt_port_declarations__ == {
+        "child.v": PortDeclaration(carries_quantity=True, dimensionality=MASS),
+        "x": PortDeclaration(carries_quantity=True, dimensionality=MASS),
+    }
 
 
 def test_transform_records_its_return_annotation_under_its_own_name() -> None:
