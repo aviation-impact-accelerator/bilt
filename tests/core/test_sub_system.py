@@ -10,6 +10,12 @@ from bilt.core._sub_system import SubSystemConstituent, validate_name
 from bilt.errors import BiltAnalysisError, BiltNameError
 from bilt.symbolic._domains import Domain
 
+import numpy as np
+
+from bilt.core._tensors._tensors import Tensor, tensor
+from bilt.math import mean
+from bilt.symbolic._dimensions import Dim
+
 SCALAR_DOMAIN = Domain.scalar()
 
 CURRENT = 2.0
@@ -280,3 +286,55 @@ def test_a_qualified_name_is_unambiguous_once_no_segment_carries_the_separator()
     flattened = QualifiedPort("outer", "inner").dotted.replace(DOTTED_SEPARATOR, MANGLED_SEPARATOR)
 
     assert flattened.split(MANGLED_SEPARATOR) == ["outer", "inner"]
+
+def test_reduced_child_domain_propagates_through_parent_equation() -> None:
+    location = Dim("location")
+    time = Dim("time")
+
+    @system
+    class Measurements(metaclass=Interface):
+        values: Tensor = field()
+        averaged: Tensor = field()
+
+    @equation
+    def average(values: Tensor, averaged: Tensor) -> bool:
+        return averaged == mean(values, time)
+
+    child = SubSystemConstituent(
+        name="measurements",
+        implementation=Implementation(Measurements, [average]),
+    )
+
+    @system
+    class Report(metaclass=Interface):
+        offset: float = field()
+        result: Tensor = field()
+
+    @equation
+    def add_offset(
+        measurements: Measurements,
+        offset: float,
+        result: Tensor,
+    ) -> bool:
+        return result == measurements.averaged + offset
+
+    parent = Implementation(Report, [add_offset, child])
+
+    result = parent.evaluate(
+        {
+            "measurements.values": tensor(
+                [
+                    [1.0, 3.0, 5.0],
+                    [2.0, 4.0, 6.0],
+                ],
+                over=(location, time),
+            ),
+            "offset": 10.0,
+        },
+        "result",
+        PYTHON_BACKEND,
+    )
+
+    assert isinstance(result, Tensor)
+    assert result.domain == Domain((location,))
+    np.testing.assert_allclose(result.values, [13.0, 14.0])
