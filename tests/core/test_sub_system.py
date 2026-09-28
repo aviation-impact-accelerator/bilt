@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from bilt import Implementation, Interface, field, system
@@ -7,14 +8,11 @@ from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import DOTTED_SEPARATOR, MANGLED_SEPARATOR, QualifiedPort
 from bilt.core._sub_system import SubSystemConstituent, validate_name
-from bilt.errors import BiltAnalysisError, BiltNameError
-from bilt.symbolic._domains import Domain
-
-import numpy as np
-
 from bilt.core._tensors._tensors import Tensor, tensor
+from bilt.errors import BiltAnalysisError, BiltNameError
 from bilt.math import mean
 from bilt.symbolic._dimensions import Dim
+from bilt.symbolic._domains import Domain
 
 SCALAR_DOMAIN = Domain.scalar()
 
@@ -286,6 +284,7 @@ def test_a_qualified_name_is_unambiguous_once_no_segment_carries_the_separator()
     flattened = QualifiedPort("outer", "inner").dotted.replace(DOTTED_SEPARATOR, MANGLED_SEPARATOR)
 
     assert flattened.split(MANGLED_SEPARATOR) == ["outer", "inner"]
+
 
 def test_reduced_child_domain_propagates_through_parent_equation() -> None:
     location = Dim("location")

@@ -7,11 +7,11 @@ from bilt import Implementation, Interface, field, system
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
+from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.math import mean
 from bilt.symbolic._dimensions import Dim
-from bilt.symbolic._domains import domain
-from bilt.core._evaluation_context import EvaluationContext
+from bilt.symbolic._domains import Domain, domain
 
 if TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -192,6 +192,7 @@ def test_mean_uses_aligned_canonical_axis(
         np.array([3.0, 4.0]),
     )
 
+
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
 def test_evaluation_cache_distinguishes_input_domains(
     backend: Backend,
@@ -217,7 +218,7 @@ def test_evaluation_cache_distinguishes_input_domains(
 
     implementation = Implementation(Demo, [average_with_offset])
 
-    cases = [
+    cases: list[tuple[dict[str, object], Domain, np.ndarray]] = [
         (
             {
                 "values": tensor(
@@ -254,6 +255,7 @@ def test_evaluation_cache_distinguishes_input_domains(
         assert result.domain == expected_domain
         np.testing.assert_allclose(result.values, expected_values)
 
+
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
 def test_evaluation_cache_distinguishes_canonical_order(
     backend: Backend,
@@ -272,7 +274,7 @@ def test_evaluation_cache_distinguishes_canonical_order(
         return averaged == mean(values, time)
 
     implementation = Implementation(Demo, [average])
-    inputs = {
+    inputs: dict[str, object] = {
         "values": tensor(
             [[1.0, 3.0, 5.0], [2.0, 4.0, 6.0]],
             over=(location, time),
