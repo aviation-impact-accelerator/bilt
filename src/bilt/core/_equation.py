@@ -20,6 +20,8 @@ from bilt.symbolic._walk import subtrees
 if typing.TYPE_CHECKING:
     import collections.abc
 
+    from bilt.core._port_declaration import PortDeclaration
+
 
 class Equation[R, **P](typing.Protocol):
     __bilt_name__: str
@@ -48,13 +50,22 @@ class BasicEquation[R, **P]:
         sub_systems = _sub_system_parameters(signature)
         symbols = _build_symbols(tuple(signature.parameters), sub_systems)
         tree = _build_equation_tree(name, function, symbols)
-        equation_symbols, referenced_sub_systems = _expand_sub_system_parameters(symbols, sub_systems, tree)
+        equation_symbols, referenced_sub_systems, sub_system_declarations = _expand_sub_system_parameters(
+            symbols, sub_systems, tree
+        )
 
         self.__bilt_name__ = name
         self.__bilt_parameters__ = tuple(equation_symbols)
-        self.__bilt_port_declarations__ = port_declarations(
-            name,
-            {port: parameter.annotation for port, parameter in signature.parameters.items() if port not in sub_systems},
+        self.__bilt_port_declarations__ = (
+            port_declarations(
+                name,
+                {
+                    port: parameter.annotation
+                    for port, parameter in signature.parameters.items()
+                    if port not in sub_systems
+                },
+            )
+            | sub_system_declarations
         )
         self.__bilt_equation_symbols__ = equation_symbols
         self.__bilt_equation_tree__ = tree
@@ -123,15 +134,17 @@ def _expand_sub_system_parameters(
     symbols: dict[str, Expr | SubSystemExpr],
     sub_systems: collections.abc.Mapping[str, Interface],
     tree: Tree,
-) -> tuple[dict[str, Expr], dict[str, Interface]]:
+) -> tuple[dict[str, Expr], dict[str, Interface], dict[str, PortDeclaration]]:
     """Replace each sub-system parameter with the dotted ports the equation actually references.
 
     Keys keep signature order, so the parameter tuple reads straight off the result. A port the
     equation never mentions is not a parameter of it, so a sub-system contributes only what it uses.
+    Each dotted port carries the declaration its sub-system's interface gives it.
     """
     occurring = subtrees(tree)
     equation_symbols: dict[str, Expr] = {}
     referenced_sub_systems: dict[str, Interface] = {}
+    sub_system_declarations: dict[str, PortDeclaration] = {}
 
     for name, symbol in symbols.items():
         if isinstance(symbol, Expr):
@@ -143,8 +156,9 @@ def _expand_sub_system_parameters(
             if symbol_tree(dotted) in occurring:
                 equation_symbols[dotted] = symbol_expr(dotted)
                 referenced_sub_systems[name] = sub_systems[name]
+                sub_system_declarations[dotted] = sub_systems[name].__bilt_port_declarations__[port]
 
-    return equation_symbols, referenced_sub_systems
+    return equation_symbols, referenced_sub_systems, sub_system_declarations
 
 
 def _build_equation_tree[R, **P](
