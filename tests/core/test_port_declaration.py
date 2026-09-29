@@ -125,6 +125,14 @@ def _equation_parameter(annotation: object) -> None:
     equation(rig)
 
 
+def _transform_parameter(annotation: object) -> None:
+    def rig(m, k: float) -> float:  # noqa: ANN001
+        return m * k
+
+    rig.__annotations__["m"] = annotation
+    transform(rig)
+
+
 def _transform_return(annotation: object) -> None:
     def rig(k: float):  # noqa: ANN202
         return k
@@ -136,6 +144,7 @@ def _transform_return(annotation: object) -> None:
 SITES = (
     pytest.param(_system_field, "Rig", "m", id="system field"),
     pytest.param(_equation_parameter, "rig", "m", id="equation parameter"),
+    pytest.param(_transform_parameter, "rig", "m", id="transform parameter"),
     pytest.param(_transform_return, "rig", "rig", id="transform return"),
 )
 
