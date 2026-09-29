@@ -12,7 +12,7 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class PortDeclaration:
     """What a port's annotation declares: whether it carries a quantity, and of what dimensionality."""
 
