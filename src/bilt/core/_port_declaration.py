@@ -30,6 +30,8 @@ def port_declarations(
 
 def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclaration:
     """Classify one annotation, ignoring `Annotated` metadata that is not a dimensionality."""
+    while isinstance(annotation, typing.TypeAliasType):
+        annotation = annotation.__value__
     base_type, *metadata = (
         typing.get_args(annotation) if typing.get_origin(annotation) is typing.Annotated else (annotation,)
     )

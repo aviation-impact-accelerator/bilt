@@ -15,6 +15,8 @@ Mass = typing.Annotated[Quantity, MASS]
 Kilograms = typing.Annotated[Quantity, kilogram]
 MassAsFloat = typing.Annotated[float, MASS]
 MassAndLength = typing.Annotated[Quantity, MASS, LENGTH]
+type MassAlias = typing.Annotated[Quantity, MASS]
+type MassAliasAlias = MassAlias
 
 
 def test_system_records_a_declaration_per_field() -> None:
@@ -94,6 +96,26 @@ def test_quoted_annotations_are_resolved() -> None:
 
     mass = PortDeclaration(carries_quantity=True, dimensionality=MASS)
     assert Rig.__bilt_port_declarations__ == {"mass": mass}
+    assert balance.__bilt_port_declarations__["m"] == mass
+    assert doubled.__bilt_port_declarations__["doubled"] == mass
+
+
+def test_type_statement_aliases_are_resolved() -> None:
+    @system
+    class Rig(metaclass=Interface):
+        mass: MassAlias = field()
+        nested: MassAliasAlias = field()
+
+    @equation
+    def balance(m: MassAlias, k: float) -> bool:
+        return m == m * k
+
+    @transform
+    def doubled(m: Mass) -> MassAlias:
+        return m * 2.0
+
+    mass = PortDeclaration(carries_quantity=True, dimensionality=MASS)
+    assert Rig.__bilt_port_declarations__ == {"mass": mass, "nested": mass}
     assert balance.__bilt_port_declarations__["m"] == mass
     assert doubled.__bilt_port_declarations__["doubled"] == mass
 
