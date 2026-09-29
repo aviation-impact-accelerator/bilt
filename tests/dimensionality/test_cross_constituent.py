@@ -7,10 +7,9 @@ import pytest
 from bilt import Implementation, Interface, equation, field, system
 from bilt.errors import BiltUnitsError
 from bilt.units import Quantity
-from bilt.units.dimensions import CURRENT, FORCE, MASS, RESISTANCE, VOLTAGE
+from bilt.units.dimensions import CURRENT, MASS, RESISTANCE, VOLTAGE
 
 Current = typing.Annotated[Quantity, CURRENT]
-Force = typing.Annotated[Quantity, FORCE]
 Mass = typing.Annotated[Quantity, MASS]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
@@ -58,10 +57,10 @@ def test_constituents_disagreeing_on_a_shared_port_raise() -> None:
         v: Voltage = field()
         i: Current = field()
         r: Resistance = field()
-        scaled: Force = field()
+        scaled: Mass = field()
 
     @equation
-    def doubling(scaled: Force, v: Mass) -> bool:
+    def doubling(scaled: Mass, v: Mass) -> bool:
         return scaled == v * 2.0
 
     with pytest.raises(BiltUnitsError, match="'v'") as raised:
