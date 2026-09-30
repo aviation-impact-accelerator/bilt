@@ -11,6 +11,7 @@ import typing
 from bilt.core._errors import BiltEquationReturnError, BiltEquationSignatureError
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
+from bilt.core._port_declaration import port_declarations
 from bilt.core._sub_system import validate_name
 from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr, tensor_symbol_expr
@@ -20,10 +21,13 @@ from bilt.symbolic._walk import subtrees
 if typing.TYPE_CHECKING:
     import collections.abc
 
+    from bilt.core._port_declaration import PortDeclaration
+
 
 class Equation[R, **P](typing.Protocol):
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
+    __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
@@ -34,6 +38,7 @@ class Equation[R, **P](typing.Protocol):
 class BasicEquation[R, **P]:
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
+    __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
@@ -41,17 +46,30 @@ class BasicEquation[R, **P]:
 
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
         name = _function_name(function)
-        signature = inspect.signature(function)
+        signature = inspect.signature(function, eval_str=True)
 
         _validate_equation_signature(name, signature)
 
         sub_systems = _sub_system_parameters(signature)
         symbols = _build_symbols(signature, sub_systems)
         tree = _build_equation_tree(name, function, symbols)
-        equation_symbols, referenced_sub_systems = _expand_sub_system_parameters(symbols, sub_systems, tree)
+        equation_symbols, referenced_sub_systems, sub_system_declarations = _expand_sub_system_parameters(
+            symbols, sub_systems, tree
+        )
 
         self.__bilt_name__ = name
         self.__bilt_parameters__ = tuple(equation_symbols)
+        self.__bilt_port_declarations__ = (
+            port_declarations(
+                name,
+                {
+                    port: parameter.annotation
+                    for port, parameter in signature.parameters.items()
+                    if port not in sub_systems
+                },
+            )
+            | sub_system_declarations
+        )
         self.__bilt_equation_symbols__ = equation_symbols
         self.__bilt_equation_tree__ = tree
         self.__bilt_sub_systems__ = types.MappingProxyType(referenced_sub_systems)
@@ -125,15 +143,17 @@ def _expand_sub_system_parameters(
     symbols: dict[str, Expr | SubSystemExpr],
     sub_systems: collections.abc.Mapping[str, Interface],
     tree: Tree,
-) -> tuple[dict[str, Expr], dict[str, Interface]]:
+) -> tuple[dict[str, Expr], dict[str, Interface], dict[str, PortDeclaration]]:
     """Replace each sub-system parameter with the dotted ports the equation actually references.
 
     Keys keep signature order, so the parameter tuple reads straight off the result. A port the
     equation never mentions is not a parameter of it, so a sub-system contributes only what it uses.
+    Each dotted port carries the declaration its sub-system's interface gives it.
     """
     occurring = subtrees(tree)
     equation_symbols: dict[str, Expr] = {}
     referenced_sub_systems: dict[str, Interface] = {}
+    sub_system_declarations: dict[str, PortDeclaration] = {}
 
     for name, symbol in symbols.items():
         if isinstance(symbol, Expr):
@@ -145,8 +165,9 @@ def _expand_sub_system_parameters(
             if symbol_tree(dotted) in occurring:
                 equation_symbols[dotted] = symbol_expr(dotted)
                 referenced_sub_systems[name] = sub_systems[name]
+                sub_system_declarations[dotted] = sub_systems[name].__bilt_port_declarations__[port]
 
-    return equation_symbols, referenced_sub_systems
+    return equation_symbols, referenced_sub_systems, sub_system_declarations
 
 
 def _build_equation_tree[R, **P](

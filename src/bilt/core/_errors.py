@@ -11,6 +11,7 @@ __all__ = [
     "BiltEvaluationError",
     "BiltNameError",
     "BiltNoActiveEvaluationError",
+    "BiltPortDeclarationError",
 ]
 
 from bilt._base_error import BiltError
@@ -30,6 +31,13 @@ class BiltEquationReturnError(BiltDefinitionError, TypeError):
 
 class BiltEquationSignatureError(BiltDefinitionError, TypeError):
     """Raised when an equation function signature is invalid."""
+
+
+class BiltPortDeclarationError(BiltDefinitionError, TypeError):
+    """Raised when a port's annotation declares a dimensionality in a form bilt cannot read, or declares a unit."""
+
+    def __init__(self, owner_name: str, port: str, problem: str) -> None:
+        super().__init__(f"Port {port!r} of {owner_name!r} {problem}")
 
 
 class BiltAnalysisError(BiltError):
