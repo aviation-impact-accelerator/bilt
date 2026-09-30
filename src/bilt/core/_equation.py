@@ -12,7 +12,8 @@ from bilt.core._errors import BiltEquationReturnError, BiltEquationSignatureErro
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
 from bilt.core._sub_system import validate_name
-from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr
+from bilt.core._tensors._tensors import Tensor
+from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr, tensor_symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
 from bilt.symbolic._walk import subtrees
 
@@ -45,7 +46,7 @@ class BasicEquation[R, **P]:
         _validate_equation_signature(name, signature)
 
         sub_systems = _sub_system_parameters(signature)
-        symbols = _build_symbols(tuple(signature.parameters), sub_systems)
+        symbols = _build_symbols(signature, sub_systems)
         tree = _build_equation_tree(name, function, symbols)
         equation_symbols, referenced_sub_systems = _expand_sub_system_parameters(symbols, sub_systems, tree)
 
@@ -100,18 +101,24 @@ def _sub_system_parameters(signature: inspect.Signature) -> dict[str, Interface]
 
 
 def _build_symbols(
-    parameters: tuple[str, ...],
+    signature: inspect.Signature,
     sub_systems: collections.abc.Mapping[str, Interface],
 ) -> dict[str, Expr | SubSystemExpr]:
-    """Bind each parameter to what the equation function sees when it is called symbolically."""
-    return {
-        name: SubSystemExpr(
-            name, {port: QualifiedPort(name, port).dotted for port in sub_systems[name].__bilt_parameters__}
-        )
-        if name in sub_systems
-        else symbol_expr(name)
-        for name in parameters
-    }
+    """Bind each parameter to what the equation function sees when called symbolically."""
+    symbols: dict[str, Expr | SubSystemExpr] = {}
+
+    for name, parameter in signature.parameters.items():
+        if name in sub_systems:
+            symbols[name] = SubSystemExpr(
+                name,
+                {port: QualifiedPort(name, port).dotted for port in sub_systems[name].__bilt_parameters__},
+            )
+        elif parameter.annotation is Tensor:
+            symbols[name] = tensor_symbol_expr(name)
+        else:
+            symbols[name] = symbol_expr(name)
+
+    return symbols
 
 
 def _expand_sub_system_parameters(
