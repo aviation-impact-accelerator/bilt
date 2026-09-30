@@ -5,11 +5,12 @@ import typing
 
 import pytest
 
+from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._tensors._errors import BiltTensorDomainError
 from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import MEAN_INTRINSIC_NAME
 from bilt.symbolic._dimensions import Dim
-from bilt.symbolic._domains import domain
+from bilt.symbolic._domains import Domain, domain
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -30,6 +31,25 @@ def _function_ast(
     )
 
 
+def _lower_transform(
+    function: collections.abc.Callable[..., object],
+    *,
+    symbol_domains: collections.abc.Mapping[str, Domain],
+    canonical_order: Domain,
+) -> tuple[ast.FunctionDef, Domain]:
+    with EvaluationContext() as evaluation, pytest.MonkeyPatch.context() as patch:
+        patch.setattr(
+            evaluation,
+            "canonical_order",
+            canonical_order,
+        )
+        return lower_transform(
+            _function_ast(function),
+            function=function,
+            symbol_domains=symbol_domains,
+        )
+
+
 def test_lower_transform_lowers_mean_to_backend_intrinsic() -> None:
     location = Dim("location")
     time = Dim("time")
@@ -37,9 +57,8 @@ def test_lower_transform_lowers_mean_to_backend_intrinsic() -> None:
     def averaged(values: Tensor) -> Tensor:
         return values.mean(time)
 
-    function_ast, output_domain = lower_transform(
-        _function_ast(averaged),
-        function=averaged,
+    function_ast, output_domain = _lower_transform(
+        averaged,
         symbol_domains={
             "values": domain(location, time),
         },
@@ -78,9 +97,8 @@ def test_lower_transform_uses_canonical_axis() -> None:
     def averaged(values: Tensor) -> Tensor:
         return values.mean(time)
 
-    function_ast, output_domain = lower_transform(
-        _function_ast(averaged),
-        function=averaged,
+    function_ast, output_domain = _lower_transform(
+        averaged,
         symbol_domains={
             "values": domain(location, time),
         },
@@ -111,9 +129,8 @@ def test_lower_transform_lowers_mean_inside_arithmetic() -> None:
     ) -> Tensor:
         return values.mean(time) + offset
 
-    function_ast, output_domain = lower_transform(
-        _function_ast(result),
-        function=result,
+    function_ast, output_domain = _lower_transform(
+        result,
         symbol_domains={
             "values": domain(location, time),
             "offset": domain(),
@@ -148,9 +165,8 @@ def test_lower_transform_propagates_broadcast_domain() -> None:
     ) -> Tensor:
         return values.mean(time) + offset
 
-    _, output_domain = lower_transform(
-        _function_ast(result),
-        function=result,
+    _, output_domain = _lower_transform(
+        result,
         symbol_domains={
             "values": domain(time),
             "offset": domain(location, time),
@@ -167,9 +183,8 @@ def test_lower_transform_strips_annotations() -> None:
     def averaged(values: Tensor) -> Tensor:
         return values.mean(time)
 
-    function_ast, _ = lower_transform(
-        _function_ast(averaged),
-        function=averaged,
+    function_ast, _ = _lower_transform(
+        averaged,
         symbol_domains={
             "values": domain(time),
         },
@@ -192,9 +207,8 @@ def test_lower_transform_rejects_dimension_not_in_value_domain() -> None:
         BiltTensorDomainError,
         match="Cannot reduce dimension",
     ):
-        lower_transform(
-            _function_ast(averaged),
-            function=averaged,
+        _lower_transform(
+            averaged,
             symbol_domains={
                 "values": domain(location),
             },
@@ -208,9 +222,8 @@ def test_lower_transform_preserves_plain_name_return() -> None:
     def result(values: Tensor) -> Tensor:
         return values
 
-    function_ast, output_domain = lower_transform(
-        _function_ast(result),
-        function=result,
+    function_ast, output_domain = _lower_transform(
+        result,
         symbol_domains={
             "values": domain(time),
         },
@@ -233,9 +246,8 @@ def test_lower_transform_lowers_mean_inside_multiplication() -> None:
     def result(values: Tensor) -> Tensor:
         return 2 * values.mean(time)
 
-    function_ast, output_domain = lower_transform(
-        _function_ast(result),
-        function=result,
+    function_ast, output_domain = _lower_transform(
+        result,
         symbol_domains={
             "values": domain(location, time),
         },

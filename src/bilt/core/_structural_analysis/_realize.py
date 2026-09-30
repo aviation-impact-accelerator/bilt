@@ -59,7 +59,10 @@ def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | Realizat
 
 
 def _operation_to_callable(
-    plan_step: PlanStep, backend: Backend, *, symbol_domains: dict[str, Domain]
+    plan_step: PlanStep,
+    backend: Backend,
+    *,
+    symbol_domains: dict[str, Domain],
 ) -> BackendCallable | RealizationFailure:
     match plan_step.operation:
         case BasicTransform() as transform:
@@ -111,7 +114,6 @@ def _transform_to_callable(
         function_ast,
         function=transform._function,  # noqa: SLF001
         symbol_domains=symbol_domains,
-        canonical_order=current_evaluation().canonical_order,
     )
 
     callable_ = _guarded_transpile(

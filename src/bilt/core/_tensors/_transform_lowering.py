@@ -3,6 +3,7 @@ import inspect
 import typing
 
 from bilt.core._canonical_ordering import canonicalized
+from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors._errors import BiltTensorDomainError
 from bilt.core._tensors._expression_lowering import reduce_dimension
 from bilt.core._to_ast import mean_intrinsic_ast
@@ -18,20 +19,13 @@ def lower_transform(
     *,
     function: collections.abc.Callable[..., object],
     symbol_domains: collections.abc.Mapping[str, Domain],
-    canonical_order: Domain,
 ) -> tuple[ast.FunctionDef, Domain]:
     """Lower named tensor operations in a transform to backend intrinsics."""
+    canonical_order = current_evaluation().canonical_order
     function_ast.decorator_list = []
     _strip_annotations(function_ast)
 
-    parameter_names = (
-        argument.arg
-        for argument in (
-            *function_ast.args.posonlyargs,
-            *function_ast.args.args,
-            *function_ast.args.kwonlyargs,
-        )
-    )
+    parameter_names = (argument.arg for argument in _arguments(function_ast))
     fallback_domain = canonicalized(
         union(*(symbol_domains[name] for name in parameter_names)),
         canonical_order,
@@ -224,12 +218,16 @@ def _resolve_dimension(
     return dim
 
 
-def _strip_annotations(function_ast: ast.FunctionDef) -> None:
-    for argument in (
+def _arguments(function_ast: ast.FunctionDef) -> tuple[ast.arg, ...]:
+    return (
         *function_ast.args.posonlyargs,
         *function_ast.args.args,
         *function_ast.args.kwonlyargs,
-    ):
+    )
+
+
+def _strip_annotations(function_ast: ast.FunctionDef) -> None:
+    for argument in _arguments(function_ast):
         argument.annotation = None
 
     if function_ast.args.vararg is not None:
