@@ -32,6 +32,7 @@ __all__ = [
     "BiltMetadataError",
     "BiltNameError",
     "BiltNoActiveEvaluationError",
+    "BiltPortDeclarationError",
     "BiltSubSystemConflictError",
     "BiltSubSystemError",
     "BiltSubSystemMismatchedImplementationError",
@@ -67,6 +68,7 @@ from bilt.core._errors import (
     BiltEvaluationError,
     BiltNameError,
     BiltNoActiveEvaluationError,
+    BiltPortDeclarationError,
 )
 from bilt.core._system._errors import (
     BiltSubSystemConflictError,
