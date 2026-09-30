@@ -3,6 +3,7 @@ import inspect
 import typing
 
 from bilt.core._canonical_ordering import canonicalized
+from bilt.core._tensors._errors import BiltTensorDomainError
 from bilt.core._tensors._expression_lowering import reduce_dimension
 from bilt.core._to_ast import mean_intrinsic_ast
 from bilt.symbolic._dimensions import Dim
@@ -10,40 +11,58 @@ from bilt.symbolic._domains import Domain, union
 
 if typing.TYPE_CHECKING:
     import collections.abc
-    from collections.abc import Mapping
 
 
 def lower_transform(
     function_ast: ast.FunctionDef,
     *,
     function: collections.abc.Callable[..., object],
-    symbol_domains: Mapping[str, Domain],
+    symbol_domains: collections.abc.Mapping[str, Domain],
     canonical_order: Domain,
-) -> tuple[ast.FunctionDef, Domain | None]:
+) -> tuple[ast.FunctionDef, Domain]:
     """Lower named tensor operations in a transform to backend intrinsics."""
     function_ast.decorator_list = []
     _strip_annotations(function_ast)
 
+    parameter_names = (
+        argument.arg
+        for argument in (
+            *function_ast.args.posonlyargs,
+            *function_ast.args.args,
+            *function_ast.args.kwonlyargs,
+        )
+    )
+    fallback_domain = canonicalized(
+        union(*(symbol_domains[name] for name in parameter_names)),
+        canonical_order,
+    ).domain
+
+    closure = inspect.getclosurevars(function)
+    bindings = {
+        **closure.globals,
+        **closure.nonlocals,
+    }
+
     if len(function_ast.body) != 1 or not isinstance(function_ast.body[0], ast.Return):
         ast.fix_missing_locations(function_ast)
-        return function_ast, None
+        return function_ast, fallback_domain
 
     return_statement = function_ast.body[0]
 
     if return_statement.value is None:
         ast.fix_missing_locations(function_ast)
-        return function_ast, None
+        return function_ast, fallback_domain
 
     lowered = _lower_expression(
         return_statement.value,
-        function=function,
+        bindings=bindings,
         symbol_domains=symbol_domains,
         canonical_order=canonical_order,
     )
 
     if lowered is None:
         ast.fix_missing_locations(function_ast)
-        return function_ast, None
+        return function_ast, fallback_domain
 
     expression, output_domain = lowered
 
@@ -60,56 +79,58 @@ def lower_transform(
 def _lower_expression(
     node: ast.expr,
     *,
-    function: collections.abc.Callable[..., object],
-    symbol_domains: Mapping[str, Domain],
+    bindings: collections.abc.Mapping[str, object],
+    symbol_domains: collections.abc.Mapping[str, Domain],
     canonical_order: Domain,
 ) -> tuple[ast.expr, Domain] | None:
-    if isinstance(node, ast.Name):
-        try:
-            value_domain = symbol_domains[node.id]
-        except KeyError:
+    match node:
+        case ast.Name(id=name):
+            try:
+                value_domain = symbol_domains[name]
+            except KeyError:
+                return None
+
+            return node, value_domain
+
+        case ast.Constant():
+            return node, Domain.scalar()
+
+        case ast.BinOp():
+            return _lower_binop(
+                node,
+                bindings=bindings,
+                symbol_domains=symbol_domains,
+                canonical_order=canonical_order,
+            )
+
+        case ast.Call():
+            return _lower_mean(
+                node,
+                bindings=bindings,
+                symbol_domains=symbol_domains,
+                canonical_order=canonical_order,
+            )
+
+        case _:
             return None
-
-        return node, value_domain
-
-    if isinstance(node, ast.Constant):
-        return node, Domain.scalar()
-
-    if isinstance(node, ast.BinOp):
-        return _lower_binop(
-            node,
-            function=function,
-            symbol_domains=symbol_domains,
-            canonical_order=canonical_order,
-        )
-
-    if isinstance(node, ast.Call):
-        return _lower_mean(
-            node,
-            function=function,
-            symbol_domains=symbol_domains,
-            canonical_order=canonical_order,
-        )
-
-    return None
 
 
 def _lower_binop(
     node: ast.BinOp,
     *,
-    function: collections.abc.Callable[..., object],
-    symbol_domains: Mapping[str, Domain],
+    bindings: collections.abc.Mapping[str, object],
+    symbol_domains: collections.abc.Mapping[str, Domain],
     canonical_order: Domain,
 ) -> tuple[ast.expr, Domain] | None:
     left = _lower_expression(
         node.left,
-        function=function,
+        bindings=bindings,
         symbol_domains=symbol_domains,
         canonical_order=canonical_order,
     )
     right = _lower_expression(
         node.right,
-        function=function,
+        bindings=bindings,
         symbol_domains=symbol_domains,
         canonical_order=canonical_order,
     )
@@ -138,8 +159,8 @@ def _lower_binop(
 def _lower_mean(
     node: ast.Call,
     *,
-    function: collections.abc.Callable[..., object],
-    symbol_domains: Mapping[str, Domain],
+    bindings: collections.abc.Mapping[str, object],
+    symbol_domains: collections.abc.Mapping[str, Domain],
     canonical_order: Domain,
 ) -> tuple[ast.expr, Domain] | None:
     if not (
@@ -157,11 +178,11 @@ def _lower_mean(
         value_domain = symbol_domains[value_name]
     except KeyError:
         message = f"No domain is known for transform parameter {value_name!r}."
-        raise NotImplementedError(message) from None
+        raise BiltTensorDomainError(message) from None
 
     dim = _resolve_dimension(
         node.args[0],
-        function=function,
+        bindings=bindings,
     )
 
     output_domain, axis = reduce_dimension(
@@ -184,18 +205,11 @@ def _lower_mean(
 def _resolve_dimension(
     node: ast.expr,
     *,
-    function: collections.abc.Callable[..., object],
+    bindings: collections.abc.Mapping[str, object],
 ) -> Dim:
     if not isinstance(node, ast.Name):
         message = "Tensor.mean() currently requires a named dimension."
         raise NotImplementedError(message)
-
-    closure = inspect.getclosurevars(function)
-
-    bindings = {
-        **closure.globals,
-        **closure.nonlocals,
-    }
 
     try:
         dim = bindings[node.id]

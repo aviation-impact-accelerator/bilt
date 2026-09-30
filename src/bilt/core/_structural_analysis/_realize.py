@@ -9,7 +9,6 @@ import typing
 from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
-from bilt.core._canonical_ordering import canonicalized
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError
 from bilt.core._evaluation_context import current_evaluation
@@ -20,7 +19,6 @@ from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
-from bilt.symbolic._domains import Domain, union
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltIsolationError
 from bilt.symbolic._isolation._isolate import isolate
@@ -28,6 +26,7 @@ from bilt.symbolic._isolation._isolate import isolate
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
+    from bilt.symbolic._domains import Domain
 
 
 def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
@@ -122,12 +121,6 @@ def _transform_to_callable(
     )
     if isinstance(callable_, RealizationFailure):
         return callable_
-
-    if output_domain is None:
-        output_domain = canonicalized(
-            union(*(symbol_domains[name] for name in plan_step.consumed)),
-            current_evaluation().canonical_order,
-        ).domain
 
     return dataclasses.replace(
         callable_,
