@@ -12,6 +12,7 @@ __all__ = [
     "BiltNameError",
     "BiltNoActiveEvaluationError",
     "BiltPortDeclarationError",
+    "BiltUnresolvedAnnotationError",
 ]
 
 from bilt._base_error import BiltError
@@ -38,6 +39,21 @@ class BiltPortDeclarationError(BiltDefinitionError, TypeError):
 
     def __init__(self, owner_name: str, port: str, problem: str) -> None:
         super().__init__(f"Port {port!r} of {owner_name!r} {problem}")
+
+
+class BiltUnresolvedAnnotationError(BiltDefinitionError, NameError):
+    """Raised when a decorated definition's annotations name something that is not defined at runtime."""
+
+    owner_name: str
+
+    def __init__(self, owner_name: str, error: NameError) -> None:
+        self.owner_name = owner_name
+        super().__init__(
+            f"Cannot read the annotations of {owner_name!r}: {error}. bilt reads annotations when the decorator "
+            f"runs, so every name they use must be imported or defined before {owner_name!r}, outside any "
+            "`if typing.TYPE_CHECKING:` block.",
+            name=error.name,
+        )
 
 
 class BiltAnalysisError(BiltError):

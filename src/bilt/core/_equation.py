@@ -8,7 +8,7 @@ import inspect
 import types
 import typing
 
-from bilt.core._errors import BiltEquationReturnError, BiltEquationSignatureError
+from bilt.core._errors import BiltEquationReturnError, BiltEquationSignatureError, BiltUnresolvedAnnotationError
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
 from bilt.core._port_declaration import port_declarations
@@ -45,7 +45,10 @@ class BasicEquation[R, **P]:
 
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
         name = _function_name(function)
-        signature = inspect.signature(function, eval_str=True)
+        try:
+            signature = inspect.signature(function, eval_str=True)
+        except NameError as error:
+            raise BiltUnresolvedAnnotationError(name, error) from error
 
         _validate_equation_signature(name, signature)
 
