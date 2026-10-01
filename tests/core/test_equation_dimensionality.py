@@ -87,6 +87,14 @@ def test_dimensional_exponent_raises() -> None:
             return y == x**n
 
 
+def test_a_power_no_unannotated_port_can_meet_raises() -> None:
+    with pytest.raises(BiltEquationDimensionalityError, match="admits no dimensionality for 'b'"):
+
+        @equation
+        def squared(a: Length, b: Quantity) -> bool:
+            return a == b**2
+
+
 def test_fully_unannotated_equation_decorates() -> None:
     @equation
     def summation(a: float, b: float, c: float) -> bool:

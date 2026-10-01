@@ -8,7 +8,7 @@ import inspect
 import types
 import typing
 
-from bilt.core._dimensional_analysis import dimensionality_of
+from bilt.core._dimensional_analysis import dimensionality_of, implied_dimensionality
 from bilt.core._errors import (
     BiltEquationDimensionalityError,
     BiltEquationReturnError,
@@ -28,6 +28,7 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt.core._port_declaration import PortDeclaration
+    from bilt.units import Dimension
 
 
 class Equation[R, **P](typing.Protocol):
@@ -47,6 +48,7 @@ class BasicEquation[R, **P]:
     __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
+    __bilt_relation_ports__: tuple[str, ...]
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
     _function: collections.abc.Callable[P, R]
 
@@ -62,8 +64,9 @@ class BasicEquation[R, **P]:
         sub_systems = _sub_system_parameters(signature)
         symbols = _build_symbols(tuple(signature.parameters), sub_systems)
         tree = _build_equation_tree(name, function, symbols)
+        occurring = subtrees(tree)
         equation_symbols, referenced_sub_systems, sub_system_declarations = _expand_sub_system_parameters(
-            symbols, sub_systems, tree
+            symbols, sub_systems, occurring
         )
 
         self.__bilt_name__ = name
@@ -81,9 +84,19 @@ class BasicEquation[R, **P]:
         )
         self.__bilt_equation_symbols__ = equation_symbols
         self.__bilt_equation_tree__ = tree
+        self.__bilt_relation_ports__ = tuple(
+            port for port, symbol in equation_symbols.items() if symbol.rep in occurring
+        )
         self.__bilt_sub_systems__ = types.MappingProxyType(referenced_sub_systems)
         self._function = function
-        _check_homogeneity(self)
+        _check_homogeneity(
+            self,
+            {
+                port: declaration.dimensionality
+                for port, declaration in self.__bilt_port_declarations__.items()
+                if declaration.dimensionality is not None
+            },
+        )
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self._function(*args, **kwargs)
@@ -146,7 +159,7 @@ def _build_symbols(
 def _expand_sub_system_parameters(
     symbols: dict[str, Expr | SubSystemExpr],
     sub_systems: collections.abc.Mapping[str, Interface],
-    tree: Tree,
+    occurring: collections.abc.Container[Tree],
 ) -> tuple[dict[str, Expr], dict[str, Interface], dict[str, PortDeclaration]]:
     """Replace each sub-system parameter with the dotted ports the equation actually references.
 
@@ -154,7 +167,6 @@ def _expand_sub_system_parameters(
     equation never mentions is not a parameter of it, so a sub-system contributes only what it uses.
     Each dotted port carries the declaration its sub-system's interface gives it.
     """
-    occurring = subtrees(tree)
     equation_symbols: dict[str, Expr] = {}
     referenced_sub_systems: dict[str, Interface] = {}
     sub_system_declarations: dict[str, PortDeclaration] = {}
@@ -227,17 +239,15 @@ def equation[R, **P](
     return BasicEquation(function)
 
 
-def _check_homogeneity(equation: BasicEquation[object, ...]) -> None:
-    """Demand that both sides of an equation's relation share a dimensionality, from those its ports declare."""
-    dimensionalities = {
-        port: declaration.dimensionality
-        for port, declaration in equation.__bilt_port_declarations__.items()
-        if declaration.dimensionality is not None
-    }
-
+def _check_homogeneity(
+    equation: BasicEquation[object, ...],
+    dimensionalities: collections.abc.Mapping[str, Dimension],
+) -> None:
+    """Demand that an equation's relation can be dimensionally homogeneous, given its ports' `dimensionalities`."""
+    tree = equation.__bilt_equation_tree__
     try:
-        left = dimensionality_of(equation.__bilt_equation_tree__.left, dimensionalities)
-        right = dimensionality_of(equation.__bilt_equation_tree__.right, dimensionalities)
+        left = dimensionality_of(tree.left, dimensionalities)
+        right = dimensionality_of(tree.right, dimensionalities)
     except BiltDimensionalityError as error:
         raise BiltEquationDimensionalityError(
             equation.__bilt_name__, f"is dimensionally inconsistent: {error}"
@@ -246,3 +256,11 @@ def _check_homogeneity(equation: BasicEquation[object, ...]) -> None:
     if left is not None and right is not None and left is not right:
         msg = f"relates {left} to {right}"
         raise BiltEquationDimensionalityError(equation.__bilt_name__, msg)
+
+    for port in equation.__bilt_relation_ports__:
+        if port not in dimensionalities:
+            try:
+                implied_dimensionality(tree, port, dimensionalities)
+            except BiltDimensionalityError as error:
+                msg = f"admits no dimensionality for {port!r}: {error}"
+                raise BiltEquationDimensionalityError(equation.__bilt_name__, msg) from error
