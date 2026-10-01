@@ -3,6 +3,7 @@ __all__ = ["transform"]
 import inspect
 import typing
 
+from bilt.core._errors import BiltUnresolvedAnnotationError
 from bilt.core._port_declaration import port_declarations
 
 if typing.TYPE_CHECKING:
@@ -22,7 +23,10 @@ class Transform[R, **P](typing.Protocol):
 class BasicTransform[R, **P]:
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
         self.__bilt_name__ = function.__name__  # ty: ignore[unresolved-attribute]
-        signature = inspect.signature(function, eval_str=True)
+        try:
+            signature = inspect.signature(function, eval_str=True)
+        except NameError as error:
+            raise BiltUnresolvedAnnotationError(self.__bilt_name__, error) from error
         self.__bilt_parameters__ = tuple(signature.parameters.keys())
         self.__bilt_port_declarations__ = port_declarations(
             self.__bilt_name__,

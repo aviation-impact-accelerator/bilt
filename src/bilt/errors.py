@@ -51,6 +51,7 @@ __all__ = [
     "BiltUnitsError",
     "BiltUnknownPortError",
     "BiltUnknownSystemAttributeError",
+    "BiltUnresolvedAnnotationError",
     "BiltUnsupportedIsolationError",
     "BiltUnsupportedNodeError",
 ]
@@ -69,6 +70,7 @@ from bilt.core._errors import (
     BiltNameError,
     BiltNoActiveEvaluationError,
     BiltPortDeclarationError,
+    BiltUnresolvedAnnotationError,
 )
 from bilt.core._system._errors import (
     BiltSubSystemConflictError,
