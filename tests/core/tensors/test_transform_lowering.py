@@ -8,7 +8,13 @@ import pytest
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._tensors._errors import BiltTensorDomainError
 from bilt.core._tensors._transform_lowering import lower_transform
-from bilt.core._to_ast import MEAN_INTRINSIC_NAME
+from bilt.core._to_ast import (
+    MAX_INTRINSIC_NAME,
+    MEAN_INTRINSIC_NAME,
+    MIN_INTRINSIC_NAME,
+    PROD_INTRINSIC_NAME,
+    SUM_INTRINSIC_NAME,
+)
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain, domain
 
@@ -88,6 +94,49 @@ def test_lower_transform_lowers_mean_to_backend_intrinsic() -> None:
     assert keepdims_keyword.arg == "keepdims"
     assert isinstance(keepdims_keyword.value, ast.Constant)
     assert keepdims_keyword.value.value is True
+
+
+def test_lower_transform_lowers_other_reductions_to_backend_intrinsics() -> None:
+    location = Dim("location")
+    time = Dim("time")
+
+    def summed(values: Tensor) -> Tensor:
+        return values.sum(time)
+
+    def minimum(values: Tensor) -> Tensor:
+        return values.min(time)
+
+    def maximum(values: Tensor) -> Tensor:
+        return values.max(time)
+
+    def product(values: Tensor) -> Tensor:
+        return values.prod(time)
+
+    cases = (
+        (summed, SUM_INTRINSIC_NAME),
+        (minimum, MIN_INTRINSIC_NAME),
+        (maximum, MAX_INTRINSIC_NAME),
+        (product, PROD_INTRINSIC_NAME),
+    )
+
+    for function, intrinsic_name in cases:
+        function_ast, output_domain = _lower_transform(
+            function,
+            symbol_domains={
+                "values": domain(location, time),
+            },
+            canonical_order=domain(location, time),
+        )
+
+        assert output_domain == domain(location)
+
+        return_statement = function_ast.body[0]
+        assert isinstance(return_statement, ast.Return)
+
+        expression = return_statement.value
+        assert isinstance(expression, ast.Call)
+        assert isinstance(expression.func, ast.Name)
+        assert expression.func.id == intrinsic_name
 
 
 def test_lower_transform_uses_canonical_axis() -> None:

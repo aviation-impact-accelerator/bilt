@@ -25,6 +25,10 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
         }
         self.intrinsic_bindings = PythonIntrinsicBindings(
             mean=jnp.mean,
+            sum=jnp.sum,
+            min=jnp.min,
+            max=jnp.max,
+            prod=jnp.prod,
         )
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
@@ -45,7 +49,10 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
                 )
             })\n"
         chained_callable_as_string += f"    return {case.return_name}_\n"
-        chained_callable_ast = typing.cast("ast.FunctionDef", ast.parse(chained_callable_as_string).body[0])
+        chained_callable_ast = typing.cast(
+            "ast.FunctionDef",
+            ast.parse(chained_callable_as_string).body[0],
+        )
 
         old_namespace = self.compilation_namespace.copy()
         self.compilation_namespace.update(new_namespace)

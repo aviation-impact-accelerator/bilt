@@ -3,8 +3,13 @@ import weakref
 
 from bilt.symbolic._atoms import (
     EQUALS,
+    MAX,
     MEAN,
+    MIN,
+    PROD,
+    SUM,
     Atom,
+    ReductionOpType,
     RelationOpType,
     axis,
     dimension,
@@ -30,8 +35,13 @@ __all__ = [
     "equality_tree",
     "float_tree",
     "int_tree",
+    "max_tree",
     "mean_tree",
+    "min_tree",
+    "prod_tree",
+    "reduction_tree",
     "relation_tree",
+    "sum_tree",
     "symbol_tree",
 ]
 
@@ -173,15 +183,44 @@ def float_tree(x: float) -> Tree:
     return Tree(floating(x))
 
 
-def mean_tree(value: Tree, dim: Dim) -> Tree:
-    """Construct a symbolic mean reduction tree."""
+def reduction_tree(operator: Atom, value: Tree, dim: Dim) -> Tree:
+    """Construct a symbolic reduction tree."""
+    if operator.atom_type is not ReductionOpType:
+        msg = f"Expected reduction operator atom, got {operator!r}."
+        raise TypeError(msg)
+
     return Tree(
-        MEAN,
+        operator,
         (
             value,
             dimension_tree(dim),
         ),
     )
+
+
+def mean_tree(value: Tree, dim: Dim) -> Tree:
+    """Construct a symbolic mean reduction tree."""
+    return reduction_tree(MEAN, value, dim)
+
+
+def sum_tree(value: Tree, dim: Dim) -> Tree:
+    """Construct a symbolic sum reduction tree."""
+    return reduction_tree(SUM, value, dim)
+
+
+def min_tree(value: Tree, dim: Dim) -> Tree:
+    """Construct a symbolic minimum reduction tree."""
+    return reduction_tree(MIN, value, dim)
+
+
+def max_tree(value: Tree, dim: Dim) -> Tree:
+    """Construct a symbolic maximum reduction tree."""
+    return reduction_tree(MAX, value, dim)
+
+
+def prod_tree(value: Tree, dim: Dim) -> Tree:
+    """Construct a symbolic product reduction tree."""
+    return reduction_tree(PROD, value, dim)
 
 
 def relation_tree(operator: Atom | str, left: Tree, right: Tree) -> Tree:

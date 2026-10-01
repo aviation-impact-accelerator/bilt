@@ -16,11 +16,15 @@ __all__ = [
     "INV",
     "LESS_THAN",
     "LESS_THAN_OR_EQUALS",
+    "MAX",
     "MEAN",
+    "MIN",
     "MUL",
     "NEG",
     "NOT_EQUALS",
     "POW",
+    "PROD",
+    "SUM",
     "Atom",
     "AtomType",
     "AxisType",
@@ -165,6 +169,10 @@ NEG = Atom(OpType, "neg")
 INV = Atom(OpType, "inv")
 
 MEAN = Atom(ReductionOpType, "mean")
+SUM = Atom(ReductionOpType, "sum")
+MIN = Atom(ReductionOpType, "min")
+MAX = Atom(ReductionOpType, "max")
+PROD = Atom(ReductionOpType, "prod")
 
 EQUALS = Atom(RelationOpType, "==")
 NOT_EQUALS = Atom(RelationOpType, "!=")

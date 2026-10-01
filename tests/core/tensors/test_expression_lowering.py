@@ -5,27 +5,40 @@ from bilt.core._tensors._expression_lowering import (
     lower_expression,
 )
 from bilt.errors import BiltSymbolicLoweringError, BiltTensorDomainError
-from bilt.symbolic._atoms import MEAN
+from bilt.symbolic._atoms import MAX, MEAN, MIN, PROD, SUM, Atom
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import domain
 from bilt.symbolic._expressions import Expr, tensor_symbol_expr
 from bilt.symbolic._tree import axis_tree
 
 
-def test_mean_lowers_dimension_to_canonical_axis() -> None:
+@pytest.mark.parametrize(
+    ("method_name", "operator"),
+    (
+        ("mean", MEAN),
+        ("sum", SUM),
+        ("min", MIN),
+        ("max", MAX),
+        ("prod", PROD),
+    ),
+)
+def test_reduction_lowers_dimension_to_canonical_axis(
+    method_name: str,
+    operator: Atom,
+) -> None:
     location = Dim("location")
     time = Dim("time")
     value = tensor_symbol_expr("value")
 
     actual = lower_expression(
-        value.mean(time),
+        getattr(value, method_name)(time),
         symbol_domains={
             "value": domain(location, time),
         },
         canonical_order=domain(location, time),
     )
 
-    assert actual.tree.head is MEAN
+    assert actual.tree.head is operator
     assert actual.tree.args[0] is value.rep
     assert actual.tree.args[1] is axis_tree(1)
     assert actual.domain == domain(location)
@@ -106,7 +119,10 @@ def test_lowered_expression_rejects_symbolic_dimension() -> None:
     time = Dim("time")
     value = tensor_symbol_expr("value")
 
-    with pytest.raises(BiltSymbolicLoweringError, match="cannot contain symbolic dimensions"):
+    with pytest.raises(
+        BiltSymbolicLoweringError,
+        match="cannot contain symbolic dimensions",
+    ):
         LoweredExpression(
             tree=value.mean(time).rep,
             domain=domain(),

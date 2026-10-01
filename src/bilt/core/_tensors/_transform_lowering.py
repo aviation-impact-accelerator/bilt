@@ -6,12 +6,28 @@ from bilt.core._canonical_ordering import canonicalized
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors._errors import BiltTensorDomainError
 from bilt.core._tensors._expression_lowering import reduce_dimension
-from bilt.core._to_ast import mean_intrinsic_ast
+from bilt.core._to_ast import (
+    MAX_INTRINSIC_NAME,
+    MEAN_INTRINSIC_NAME,
+    MIN_INTRINSIC_NAME,
+    PROD_INTRINSIC_NAME,
+    SUM_INTRINSIC_NAME,
+    reduction_intrinsic_ast,
+)
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain, union
 
 if typing.TYPE_CHECKING:
     import collections.abc
+
+
+_REDUCTION_INTRINSICS = {
+    "mean": MEAN_INTRINSIC_NAME,
+    "sum": SUM_INTRINSIC_NAME,
+    "min": MIN_INTRINSIC_NAME,
+    "max": MAX_INTRINSIC_NAME,
+    "prod": PROD_INTRINSIC_NAME,
+}
 
 
 def lower_transform(
@@ -98,7 +114,7 @@ def _lower_expression(
             )
 
         case ast.Call():
-            return _lower_mean(
+            return _lower_reduction(
                 node,
                 bindings=bindings,
                 symbol_domains=symbol_domains,
@@ -150,20 +166,23 @@ def _lower_binop(
     )
 
 
-def _lower_mean(
+def _lower_reduction(
     node: ast.Call,
     *,
     bindings: collections.abc.Mapping[str, object],
     symbol_domains: collections.abc.Mapping[str, Domain],
     canonical_order: Domain,
 ) -> tuple[ast.expr, Domain] | None:
-    if not (
-        isinstance(node.func, ast.Attribute) and node.func.attr == "mean" and isinstance(node.func.value, ast.Name)
-    ):
+    if not (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)):
+        return None
+
+    try:
+        intrinsic_name = _REDUCTION_INTRINSICS[node.func.attr]
+    except KeyError:
         return None
 
     if len(node.args) != 1 or node.keywords:
-        message = "Tensor.mean() requires exactly one named dimension."
+        message = f"Tensor.{node.func.attr}() requires exactly one named dimension."
         raise NotImplementedError(message)
 
     value_name = node.func.value.id
@@ -185,7 +204,8 @@ def _lower_mean(
         canonical_order=canonical_order,
     )
 
-    lowered = mean_intrinsic_ast(
+    lowered = reduction_intrinsic_ast(
+        intrinsic_name,
         ast.Name(
             id=value_name,
             ctx=ast.Load(),
@@ -202,7 +222,7 @@ def _resolve_dimension(
     bindings: collections.abc.Mapping[str, object],
 ) -> Dim:
     if not isinstance(node, ast.Name):
-        message = "Tensor.mean() currently requires a named dimension."
+        message = "Tensor reductions currently require a named dimension."
         raise NotImplementedError(message)
 
     try:

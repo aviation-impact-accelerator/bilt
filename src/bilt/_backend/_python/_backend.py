@@ -19,6 +19,10 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
         }
         self.intrinsic_bindings = PythonIntrinsicBindings(
             mean=np.mean,
+            sum=np.sum,
+            min=np.min,
+            max=np.max,
+            prod=np.prod,
         )
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
