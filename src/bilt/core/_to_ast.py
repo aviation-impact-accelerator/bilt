@@ -9,11 +9,15 @@ if typing.TYPE_CHECKING:
     from bilt.symbolic._tree import Tree
 
 __all__ = [
-    "mean_intrinsic_ast",
+    "reduction_intrinsic_ast",
     "tree_to_functiondef",
 ]
 
 MEAN_INTRINSIC_NAME = "__bilt_mean__"
+SUM_INTRINSIC_NAME = "__bilt_sum__"
+MIN_INTRINSIC_NAME = "__bilt_min__"
+MAX_INTRINSIC_NAME = "__bilt_max__"
+PROD_INTRINSIC_NAME = "__bilt_prod__"
 
 
 def tree_to_functiondef(
@@ -45,7 +49,7 @@ def tree_to_functiondef(
     return function_def
 
 
-def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
+def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: C901, PLR0911
     """Convert a symbolic tree to Python AST."""
     if tree.is_leaf:
         return _leaf_to_ast(tree)
@@ -78,7 +82,19 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
             )
 
         case ops.MEAN:
-            return _mean_to_ast(tree)
+            return _reduction_to_ast(tree, MEAN_INTRINSIC_NAME)
+
+        case ops.SUM:
+            return _reduction_to_ast(tree, SUM_INTRINSIC_NAME)
+
+        case ops.MIN:
+            return _reduction_to_ast(tree, MIN_INTRINSIC_NAME)
+
+        case ops.MAX:
+            return _reduction_to_ast(tree, MAX_INTRINSIC_NAME)
+
+        case ops.PROD:
+            return _reduction_to_ast(tree, PROD_INTRINSIC_NAME)
 
         case _:
             message = f"Unsupported symbolic head {tree.head!r} in AST conversion."
@@ -101,16 +117,20 @@ def _leaf_to_ast(tree: Tree) -> ast.expr:
     raise BiltUnsupportedIsolationError(message)
 
 
-def _mean_to_ast(tree: Tree) -> ast.expr:
+def _reduction_to_ast(
+    tree: Tree,
+    intrinsic_name: str,
+) -> ast.expr:
     value_tree, axis_tree = tree.args
 
     if not axis_tree.is_leaf or axis_tree.head.atom_type is not AxisType:
-        message = "Lowered mean requires a positional axis."
+        message = "Lowered reduction requires a positional axis."
         raise BiltUnsupportedIsolationError(message)
 
     axis = typing.cast("int", axis_tree.head.value)
 
-    return mean_intrinsic_ast(
+    return reduction_intrinsic_ast(
+        intrinsic_name,
         _tree_to_ast_expr(value_tree),
         axis,
     )
@@ -137,14 +157,15 @@ def _fold_binop(
     return expr
 
 
-def mean_intrinsic_ast(
+def reduction_intrinsic_ast(
+    intrinsic_name: str,
     value: ast.expr,
     axis: int,
 ) -> ast.Call:
-    """Construct a backend mean intrinsic call."""
+    """Construct a backend reduction intrinsic call."""
     return ast.Call(
         func=ast.Name(
-            id=MEAN_INTRINSIC_NAME,
+            id=intrinsic_name,
             ctx=ast.Load(),
         ),
         args=[value],

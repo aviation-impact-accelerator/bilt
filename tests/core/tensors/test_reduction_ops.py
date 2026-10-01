@@ -17,11 +17,23 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.parametrize(
+    ("method_name", "expected"),
+    (
+        ("mean", np.array([3.0, 4.0])),
+        ("sum", np.array([9.0, 12.0])),
+        ("min", np.array([1.0, 2.0])),
+        ("max", np.array([5.0, 6.0])),
+        ("prod", np.array([15.0, 48.0])),
+    ),
+)
+@pytest.mark.parametrize(
     "backend",
     (PYTHON_BACKEND, JAX_BACKEND),
 )
-def test_mean_reduces_named_dimension(
+def test_reduction_reduces_named_dimension(
     backend: Backend,
+    method_name: str,
+    expected: np.ndarray,
 ) -> None:
     location = Dim("location")
     time = Dim("time")
@@ -29,13 +41,14 @@ def test_mean_reduces_named_dimension(
     @system
     class Demo(metaclass=Interface):
         values: Tensor = field()
-        averaged: Tensor = field()
+        reduced: Tensor = field()
 
     @equation
-    def average(values: Tensor, averaged: Tensor) -> bool:
-        return averaged == values.mean(time)
+    def reduce(values: Tensor, reduced: Tensor) -> bool:
+        reduction = getattr(values, method_name)
+        return reduced == reduction(time)
 
-    implementation = Implementation(Demo, [average])
+    implementation = Implementation(Demo, [reduce])
     demo = Demo(
         values=tensor(
             [
@@ -47,12 +60,12 @@ def test_mean_reduces_named_dimension(
     )
 
     with backend, implementation:
-        result = demo.averaged
+        result = demo.reduced
 
     assert result.domain == domain(location)
     np.testing.assert_allclose(
         result.values,
-        np.array([3.0, 4.0]),
+        expected,
     )
 
 

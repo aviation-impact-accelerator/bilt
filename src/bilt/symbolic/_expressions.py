@@ -11,7 +11,18 @@ from bilt.symbolic._atoms import (
     SymbolType,
 )
 from bilt.symbolic._errors import BiltSymbolicConversionError, BiltUnknownPortError
-from bilt.symbolic._tree import Tree, float_tree, int_tree, mean_tree, relation_tree, symbol_tree
+from bilt.symbolic._tree import (
+    Tree,
+    float_tree,
+    int_tree,
+    max_tree,
+    mean_tree,
+    min_tree,
+    prod_tree,
+    relation_tree,
+    sum_tree,
+    symbol_tree,
+)
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -164,6 +175,22 @@ class TensorExpr(Expr):
     def mean(self, dim: Dim) -> Expr:
         """Return the symbolic mean over a dimension."""
         return Expr(mean_tree(self.tree, dim))
+
+    def sum(self, dim: Dim) -> Expr:
+        """Return the symbolic sum over a dimension."""
+        return Expr(sum_tree(self.tree, dim))
+
+    def min(self, dim: Dim) -> Expr:
+        """Return the symbolic minimum over a dimension."""
+        return Expr(min_tree(self.tree, dim))
+
+    def max(self, dim: Dim) -> Expr:
+        """Return the symbolic maximum over a dimension."""
+        return Expr(max_tree(self.tree, dim))
+
+    def prod(self, dim: Dim) -> Expr:
+        """Return the symbolic product over a dimension."""
+        return Expr(prod_tree(self.tree, dim))
 
 
 class SubSystemExpr:

@@ -81,6 +81,22 @@ class Tensor:
         """Return the mean over a named dimension in a Bilt model."""
         raise _symbolic_operation_only()
 
+    def sum(self, dim: Dim) -> Tensor:  # noqa: ARG002
+        """Return the sum over a named dimension in a Bilt model."""
+        raise _symbolic_operation_only()
+
+    def min(self, dim: Dim) -> Tensor:  # noqa: ARG002
+        """Return the minimum over a named dimension in a Bilt model."""
+        raise _symbolic_operation_only()
+
+    def max(self, dim: Dim) -> Tensor:  # noqa: ARG002
+        """Return the maximum over a named dimension in a Bilt model."""
+        raise _symbolic_operation_only()
+
+    def prod(self, dim: Dim) -> Tensor:  # noqa: ARG002
+        """Return the product over a named dimension in a Bilt model."""
+        raise _symbolic_operation_only()
+
 
 def tensor(
     values: object,

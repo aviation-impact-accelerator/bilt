@@ -12,7 +12,6 @@ from bilt.core._tensors._errors import BiltSymbolicLoweringError, BiltTensorDoma
 from bilt.symbolic._atoms import (
     ADD,
     INV,
-    MEAN,
     MUL,
     NEG,
     POW,
@@ -20,6 +19,7 @@ from bilt.symbolic._atoms import (
     DimensionType,
     FloatType,
     IntType,
+    ReductionOpType,
     SymbolType,
 )
 from bilt.symbolic._domains import Domain, union
@@ -94,8 +94,8 @@ def _lower_tree(
     if tree.is_leaf:
         return _lower_leaf(tree, symbol_domains)
 
-    if tree.head is MEAN:
-        return _lower_mean(
+    if tree.head.atom_type is ReductionOpType:
+        return _lower_reduction(
             tree,
             symbol_domains=symbol_domains,
             canonical_order=canonical_order,
@@ -168,7 +168,7 @@ def _lower_leaf(
     raise NotImplementedError(message)
 
 
-def _lower_mean(
+def _lower_reduction(
     tree: Tree,
     *,
     symbol_domains: Mapping[str, Domain],
@@ -177,7 +177,7 @@ def _lower_mean(
     value_tree, dim_tree = tree.args
 
     if not dim_tree.is_leaf or dim_tree.head.atom_type is not DimensionType:
-        message = "Mean reduction requires a symbolic dimension."
+        message = f"{tree.head} reduction requires a symbolic dimension."
         raise BiltTensorDomainError(message)
 
     dim = typing.cast("Dim", dim_tree.head.value)
@@ -196,7 +196,7 @@ def _lower_mean(
 
     return LoweredExpression(
         tree=Tree(
-            MEAN,
+            tree.head,
             (
                 value.tree,
                 axis_tree(axis),
