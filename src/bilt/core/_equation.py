@@ -1,6 +1,7 @@
 __all__ = [
     "BasicEquation",
     "Equation",
+    "check_homogeneity",
     "equation",
 ]
 
@@ -89,7 +90,7 @@ class BasicEquation[R, **P]:
         )
         self.__bilt_sub_systems__ = types.MappingProxyType(referenced_sub_systems)
         self._function = function
-        _check_homogeneity(
+        check_homogeneity(
             self,
             {
                 port: declaration.dimensionality
@@ -239,7 +240,7 @@ def equation[R, **P](
     return BasicEquation(function)
 
 
-def _check_homogeneity(
+def check_homogeneity(
     equation: BasicEquation[object, ...],
     dimensionalities: collections.abc.Mapping[str, Dimension],
 ) -> None:

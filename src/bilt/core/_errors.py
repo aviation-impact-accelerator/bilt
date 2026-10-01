@@ -10,6 +10,7 @@ __all__ = [
     "BiltEquationReturnError",
     "BiltEquationSignatureError",
     "BiltEvaluationError",
+    "BiltImplementationDimensionalityError",
     "BiltNameError",
     "BiltNoActiveEvaluationError",
     "BiltPortDeclarationError",
@@ -63,6 +64,13 @@ class BiltEquationDimensionalityError(BiltDimensionalityError):
 
     def __init__(self, equation_name: str, problem: str) -> None:
         super().__init__(f"Equation {equation_name!r} {problem}")
+
+
+class BiltImplementationDimensionalityError(BiltDimensionalityError):
+    """Raised when an implementation gives a port conflicting dimensionalities, or makes a constituent inconsistent."""
+
+    def __init__(self, system_name: str, problem: str) -> None:
+        super().__init__(f"Implementation of {system_name!r} {problem}")
 
 
 class BiltAnalysisError(BiltError):

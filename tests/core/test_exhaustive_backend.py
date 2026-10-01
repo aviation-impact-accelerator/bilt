@@ -23,6 +23,7 @@ if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
     from bilt._backend._callable import BackendCallable
     from bilt._backend._case import BackendCase
+    from bilt.core._port_declaration import PortDeclaration
 
 
 @typing.runtime_checkable
@@ -134,6 +135,7 @@ def test_bipartite_graph_rejects_an_unsupported_constituent() -> None:
     class Unsupported:
         __bilt_name__: str = "unsupported"
         __bilt_parameters__: tuple[str, ...] = ("a",)
+        __bilt_port_declarations__: dict[str, PortDeclaration] = {}  # noqa: RUF012
 
     with pytest.raises(NotImplementedError, match="is not supported in the bipartite graph"):
         BipartiteGraph([Unsupported()], PYTHON_BACKEND)
