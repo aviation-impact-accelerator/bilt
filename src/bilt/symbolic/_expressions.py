@@ -11,10 +11,12 @@ from bilt.symbolic._atoms import (
     SymbolType,
 )
 from bilt.symbolic._errors import BiltSymbolicConversionError, BiltUnknownPortError
-from bilt.symbolic._tree import Tree, float_tree, int_tree, relation_tree, symbol_tree
+from bilt.symbolic._tree import Tree, float_tree, int_tree, mean_tree, relation_tree, symbol_tree
 
 if typing.TYPE_CHECKING:
     import collections.abc
+
+    from bilt.symbolic._dimensions import Dim
 
 __all__ = [
     "Expr",
@@ -158,6 +160,10 @@ class TensorExpr(Expr):
     """A symbolic expression representing a tensor-valued quantity."""
 
     __slots__ = ()
+
+    def mean(self, dim: Dim) -> Expr:
+        """Return the symbolic mean over a dimension."""
+        return Expr(mean_tree(self.tree, dim))
 
 
 class SubSystemExpr:

@@ -7,9 +7,8 @@ from bilt.errors import (
     BiltTargetOnBothSidesError,
     BiltUnsupportedIsolationError,
 )
-from bilt.math import mean
 from bilt.symbolic._dimensions import Dim
-from bilt.symbolic._expressions import Expr
+from bilt.symbolic._expressions import Expr, tensor_symbol_expr
 from bilt.symbolic._isolation._expr_ops import (
     make_add,
     make_inv,
@@ -140,30 +139,30 @@ def test_isolate_raises_when_target_occurs_more_than_once() -> None:
 
 def test_isolate_allows_mean_on_rhs() -> None:
     time = Dim("time")
-    x = Expr.symbol("x")
+    x = tensor_symbol_expr("x")
     y = Expr.symbol("y")
 
-    actual = isolate(y == mean(x, time), y)
+    actual = isolate(y == x.mean(time), y)
 
-    assert_same_tree(actual.as_tree(), y == mean(x, time))
+    assert_same_tree(actual.as_tree(), y == x.mean(time))
 
 
 def test_isolate_rearranges_around_mean() -> None:
     time = Dim("time")
-    x = Expr.symbol("x")
+    x = tensor_symbol_expr("x")
     a = Expr.symbol("a")
     y = Expr.symbol("y")
 
-    actual = isolate(y == a + mean(x, time), a)
+    actual = isolate(y == a + x.mean(time), a)
 
-    expected_rhs = y - mean(x, time)
+    expected_rhs = y - x.mean(time)
     assert_same_tree(actual.as_tree(), a == expected_rhs)
 
 
 def test_isolate_cannot_invert_mean() -> None:
     time = Dim("time")
-    x = Expr.symbol("x")
+    x = tensor_symbol_expr("x")
     y = Expr.symbol("y")
 
     with pytest.raises(BiltUnsupportedIsolationError):
-        isolate(y == mean(x, time), x)
+        isolate(y == x.mean(time), x)

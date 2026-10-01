@@ -10,7 +10,6 @@ from bilt.core._port import DOTTED_SEPARATOR, MANGLED_SEPARATOR, QualifiedPort
 from bilt.core._sub_system import SubSystemConstituent, validate_name
 from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.errors import BiltAnalysisError, BiltNameError
-from bilt.math import mean
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain
 
@@ -297,7 +296,7 @@ def test_reduced_child_domain_propagates_through_parent_equation() -> None:
 
     @equation
     def average(values: Tensor, averaged: Tensor) -> bool:
-        return averaged == mean(values, time)
+        return averaged == values.mean(time)
 
     child = SubSystemConstituent(
         name="measurements",

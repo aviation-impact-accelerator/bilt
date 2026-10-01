@@ -5,19 +5,18 @@ from bilt.core._to_ast import (
     MEAN_INTRINSIC_NAME,
     _tree_to_ast_expr,
 )
-from bilt.math import mean
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import domain
-from bilt.symbolic._expressions import Expr
+from bilt.symbolic._expressions import Expr, tensor_symbol_expr
 
 
 def test_mean_lowers_to_backend_intrinsic() -> None:
     location = Dim("location")
     time = Dim("time")
-    value = Expr.symbol("value")
+    value = tensor_symbol_expr("value")
 
     lowered = lower_expression(
-        mean(value, time),
+        value.mean(time),
         symbol_domains={
             "value": domain(location, time),
         },
@@ -52,11 +51,11 @@ def test_mean_lowers_to_backend_intrinsic() -> None:
 def test_mean_lowers_inside_arithmetic_expression() -> None:
     location = Dim("location")
     time = Dim("time")
-    value = Expr.symbol("value")
+    value = tensor_symbol_expr("value")
     offset = Expr.symbol("offset")
 
     lowered = lower_expression(
-        mean(value, time) + offset,
+        value.mean(time) + offset,
         symbol_domains={
             "value": domain(location, time),
             "offset": domain(),

@@ -9,6 +9,7 @@ if typing.TYPE_CHECKING:
     from bilt.symbolic._tree import Tree
 
 __all__ = [
+    "mean_intrinsic_ast",
     "tree_to_functiondef",
 ]
 
@@ -109,22 +110,9 @@ def _mean_to_ast(tree: Tree) -> ast.expr:
 
     axis = typing.cast("int", axis_tree.head.value)
 
-    return ast.Call(
-        func=ast.Name(
-            id=MEAN_INTRINSIC_NAME,
-            ctx=ast.Load(),
-        ),
-        args=[_tree_to_ast_expr(value_tree)],
-        keywords=[
-            ast.keyword(
-                arg="axis",
-                value=ast.Constant(value=axis),
-            ),
-            ast.keyword(
-                arg="keepdims",
-                value=ast.Constant(value=True),
-            ),
-        ],
+    return mean_intrinsic_ast(
+        _tree_to_ast_expr(value_tree),
+        axis,
     )
 
 
@@ -147,3 +135,27 @@ def _fold_binop(
         )
 
     return expr
+
+
+def mean_intrinsic_ast(
+    value: ast.expr,
+    axis: int,
+) -> ast.Call:
+    """Construct a backend mean intrinsic call."""
+    return ast.Call(
+        func=ast.Name(
+            id=MEAN_INTRINSIC_NAME,
+            ctx=ast.Load(),
+        ),
+        args=[value],
+        keywords=[
+            ast.keyword(
+                arg="axis",
+                value=ast.Constant(value=axis),
+            ),
+            ast.keyword(
+                arg="keepdims",
+                value=ast.Constant(value=True),
+            ),
+        ],
+    )
