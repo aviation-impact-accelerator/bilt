@@ -169,10 +169,6 @@ def test_a_symbol_on_both_sides_raises_when_they_disagree() -> None:
         implied_dimensionality(x + y == z * x, "x", {"y": MASS, "z": LENGTH})
 
 
-def test_the_symbol_is_unknown_whatever_the_dimensionalities_say() -> None:
-    assert implied_dimensionality(x + y == 2 * x, "x", {"x": MASS, "y": LENGTH}) is LENGTH
-
-
 def test_an_absent_symbol_implies_nothing() -> None:
     assert implied_dimensionality(x == y, "w", {"x": LENGTH}) is None
 

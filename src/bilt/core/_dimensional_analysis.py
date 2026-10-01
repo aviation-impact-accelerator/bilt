@@ -131,8 +131,6 @@ def implied_dimensionality(
     dimensionalities: collections.abc.Mapping[str, Dimension],
 ) -> Dimension | None:
     """Return the dimensionality `tree` implies for `symbol`, given the dimensionality of each other symbol."""
-    if symbol in dimensionalities:
-        dimensionalities = {name: dimensionality for name, dimensionality in dimensionalities.items() if name != symbol}
     demands = _demands(tree, symbol_tree(symbol), None, dimensionalities)
     implied = list(dict.fromkeys(demand for demand in demands if demand is not None))
     if len(implied) > 1:

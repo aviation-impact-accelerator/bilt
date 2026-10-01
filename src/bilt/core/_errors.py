@@ -59,7 +59,7 @@ class BiltUnresolvedAnnotationError(BiltDefinitionError, NameError):
 
 
 class BiltEquationDimensionalityError(BiltDimensionalityError):
-    """Raised when an equation's relation is dimensionally inhomogeneous."""
+    """Raised when an equation's relation cannot be dimensionally homogeneous."""
 
     def __init__(self, equation_name: str, problem: str) -> None:
         super().__init__(f"Equation {equation_name!r} {problem}")
