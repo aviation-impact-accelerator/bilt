@@ -5,6 +5,7 @@ import enum
 import inspect
 import typing
 
+from bilt.core._errors import BiltUnresolvedAnnotationError
 from bilt.core._interface import Interface
 from bilt.core._port_declaration import port_declarations
 from bilt.core._system._errors import BiltSystemDefinitionError
@@ -42,9 +43,13 @@ def _validate_cls_is_interface(cls: type) -> None:
 
 
 def _create_bilt_system_class_attribute(cls: Interface) -> None:
+    try:
+        annotations = inspect.get_annotations(cls, eval_str=True)
+    except NameError as error:
+        raise BiltUnresolvedAnnotationError(cls.__name__, error) from error
     attributes = {
         name: Attribute(name, typing.cast("type[object]", annotation))
-        for name, annotation in inspect.get_annotations(cls, eval_str=True).items()
+        for name, annotation in annotations.items()
         if typing.get_origin(annotation) is not typing.ClassVar  # type: ignore[comparison-overlap]
     }
     setattr(cls, "__bilt_system_attributes__", attributes)  # noqa: B010
