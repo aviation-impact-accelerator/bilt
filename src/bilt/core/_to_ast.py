@@ -19,6 +19,14 @@ MIN_INTRINSIC_NAME = "__bilt_min__"
 MAX_INTRINSIC_NAME = "__bilt_max__"
 PROD_INTRINSIC_NAME = "__bilt_prod__"
 
+_REDUCTION_INTRINSICS = {
+    ops.MEAN: MEAN_INTRINSIC_NAME,
+    ops.SUM: SUM_INTRINSIC_NAME,
+    ops.MIN: MIN_INTRINSIC_NAME,
+    ops.MAX: MAX_INTRINSIC_NAME,
+    ops.PROD: PROD_INTRINSIC_NAME,
+}
+
 
 def tree_to_functiondef(
     tree: Tree,
@@ -49,10 +57,13 @@ def tree_to_functiondef(
     return function_def
 
 
-def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: C901, PLR0911
+def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
     """Convert a symbolic tree to Python AST."""
     if tree.is_leaf:
         return _leaf_to_ast(tree)
+
+    if tree.head in _REDUCTION_INTRINSICS:
+        return _reduction_to_ast(tree, _REDUCTION_INTRINSICS[tree.head])
 
     match tree.head:
         case ops.ADD:
@@ -80,21 +91,6 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: C901, PLR0911
                 op=ast.Div(),
                 right=_tree_to_ast_expr(tree.args[0]),
             )
-
-        case ops.MEAN:
-            return _reduction_to_ast(tree, MEAN_INTRINSIC_NAME)
-
-        case ops.SUM:
-            return _reduction_to_ast(tree, SUM_INTRINSIC_NAME)
-
-        case ops.MIN:
-            return _reduction_to_ast(tree, MIN_INTRINSIC_NAME)
-
-        case ops.MAX:
-            return _reduction_to_ast(tree, MAX_INTRINSIC_NAME)
-
-        case ops.PROD:
-            return _reduction_to_ast(tree, PROD_INTRINSIC_NAME)
 
         case _:
             message = f"Unsupported symbolic head {tree.head!r} in AST conversion."
