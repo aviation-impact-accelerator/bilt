@@ -188,10 +188,7 @@ class Implementation:
         )
 
     def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}"
-            f"(system={self.system}, transforms={frozenset(self._components.values())!r})"
-        )
+        return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self._components.values())!r})"
 
 
 def _required_sub_system_interfaces(
@@ -218,9 +215,7 @@ def _build_sub_system_constituents(
 ) -> dict[str, SubSystemConstituent]:
     """Collect the sub-systems into `SubSystemConstituents` ensuring no name collisions."""
     constituents = {
-        name: constituent
-        for name, constituent in components.items()
-        if isinstance(constituent, SubSystemConstituent)
+        name: constituent for name, constituent in components.items() if isinstance(constituent, SubSystemConstituent)
     }
     for name, implementation in internal_implementations.items():
         if name in components:
