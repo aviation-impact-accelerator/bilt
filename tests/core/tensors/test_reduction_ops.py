@@ -8,6 +8,7 @@ from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.core._evaluation_context import EvaluationContext
+from bilt.core._system._implementation import EvaluationRequest
 from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain, domain
@@ -312,6 +313,47 @@ def test_evaluation_cache_distinguishes_canonical_order(
         assert isinstance(result, Tensor)
         assert result.domain == domain(location)
         np.testing.assert_allclose(result.values, [3.0, 4.0])
+
+
+def test_evaluation_cache_reuses_matching_compilation_context() -> None:
+    time = Dim("time")
+
+    @system
+    class Demo(metaclass=Interface):
+        values: Tensor = field()
+        result: Tensor = field()
+
+    @equation
+    def identity(values: Tensor, result: Tensor) -> bool:
+        return result == values
+
+    implementation = Implementation(Demo, [identity])
+
+    request = EvaluationRequest(
+        output="result",
+        input_domains={
+            "values": domain(time),
+        },
+    )
+
+    with EvaluationContext() as evaluation:
+        evaluation.domains.bind(
+            tensor(
+                [1.0, 2.0, 3.0],
+                over=time,
+            )
+        )
+
+        first = implementation.get_evaluation(
+            request,
+            PYTHON_BACKEND,
+        )
+        second = implementation.get_evaluation(
+            request,
+            PYTHON_BACKEND,
+        )
+
+    assert first is second
 
 
 @pytest.mark.parametrize(
