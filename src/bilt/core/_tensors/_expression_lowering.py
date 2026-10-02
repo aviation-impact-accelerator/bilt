@@ -18,6 +18,7 @@ from bilt.symbolic._atoms import (
     AxisType,
     DimensionType,
     FloatType,
+    IndexOpType,
     IntType,
     ReductionOpType,
     SymbolType,
@@ -74,6 +75,19 @@ def reduce_dimension(
         message = f"Cannot reduce dimension {dim!s}; it is not present in domain {value_domain!s}."
         raise BiltTensorDomainError(message)
 
+    return _remove_dimension(
+        value_domain,
+        dim,
+        canonical_order=canonical_order,
+    )
+
+
+def _remove_dimension(
+    value_domain: Domain,
+    dim: Dim,
+    *,
+    canonical_order: Domain,
+) -> tuple[Domain, int]:
     try:
         axis = canonical_order.dims.index(dim)
     except ValueError:
@@ -96,6 +110,13 @@ def _lower_tree(
 
     if tree.head.atom_type is ReductionOpType:
         return _lower_reduction(
+            tree,
+            symbol_domains=symbol_domains,
+            canonical_order=canonical_order,
+        )
+
+    if tree.head.atom_type is IndexOpType:
+        return _lower_index(
             tree,
             symbol_domains=symbol_domains,
             canonical_order=canonical_order,
@@ -200,6 +221,58 @@ def _lower_reduction(
             (
                 value.tree,
                 axis_tree(axis),
+            ),
+        ),
+        domain=output_domain,
+    )
+
+
+def _lower_index(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    value_tree, dim_tree, selector_tree = tree.args
+
+    if not dim_tree.is_leaf or dim_tree.head.atom_type is not DimensionType:
+        message = f"{tree.head} requires a symbolic dimension."
+        raise BiltTensorDomainError(message)
+
+    dim = typing.cast("Dim", dim_tree.head.value)
+
+    value = _lower_tree(
+        value_tree,
+        symbol_domains=symbol_domains,
+        canonical_order=canonical_order,
+    )
+    selector = _lower_tree(
+        selector_tree,
+        symbol_domains=symbol_domains,
+        canonical_order=canonical_order,
+    )
+
+    if not selector.domain.is_scalar:
+        message = f"{tree.head} currently requires a scalar selector."
+        raise BiltTensorDomainError(message)
+
+    if dim not in value.domain.dims:
+        message = f"Cannot index dimension {dim!s}; it is not present in domain {value.domain!s}."
+        raise BiltTensorDomainError(message)
+
+    output_domain, axis = _remove_dimension(
+        value.domain,
+        dim,
+        canonical_order=canonical_order,
+    )
+
+    return LoweredExpression(
+        tree=Tree(
+            tree.head,
+            (
+                value.tree,
+                axis_tree(axis),
+                selector.tree,
             ),
         ),
         domain=output_domain,
