@@ -1,6 +1,7 @@
 __all__ = [
     "BasicEquation",
     "Equation",
+    "check_homogeneity",
     "equation",
 ]
 
@@ -17,7 +18,7 @@ from bilt.core._errors import (
 )
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
-from bilt.core._port_declaration import port_declarations
+from bilt.core._port_declaration import declared_dimensionalities, port_declarations
 from bilt.core._sub_system import validate_name
 from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr, tensor_symbol_expr
@@ -90,14 +91,7 @@ class BasicEquation[R, **P]:
         )
         self.__bilt_sub_systems__ = types.MappingProxyType(referenced_sub_systems)
         self._function = function
-        _check_homogeneity(
-            self,
-            {
-                port: declaration.dimensionality
-                for port, declaration in self.__bilt_port_declarations__.items()
-                if declaration.dimensionality is not None
-            },
-        )
+        check_homogeneity(self, declared_dimensionalities(self.__bilt_port_declarations__))
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self._function(*args, **kwargs)
@@ -246,11 +240,14 @@ def equation[R, **P](
     return BasicEquation(function)
 
 
-def _check_homogeneity(
+def check_homogeneity(
     equation: BasicEquation[object, ...],
     dimensionalities: collections.abc.Mapping[str, Dimension],
-) -> None:
-    """Demand that an equation's relation can be dimensionally homogeneous, given its ports' `dimensionalities`."""
+) -> dict[str, Dimension]:
+    """Demand that an equation's relation can be dimensionally homogeneous, given its ports' `dimensionalities`.
+
+    Return the dimensionality the relation implies for each other port it determines.
+    """
     tree = equation.__bilt_equation_tree__
     try:
         left = dimensionality_of(tree.left, dimensionalities)
@@ -264,10 +261,15 @@ def _check_homogeneity(
         msg = f"relates {left} to {right}"
         raise BiltEquationDimensionalityError(equation.__bilt_name__, msg)
 
+    implied: dict[str, Dimension] = {}
     for port in equation.__bilt_relation_ports__:
         if port not in dimensionalities:
             try:
-                implied_dimensionality(tree, port, dimensionalities)
+                dimensionality = implied_dimensionality(tree, port, dimensionalities)
             except BiltDimensionalityError as error:
                 msg = f"admits no dimensionality for {port!r}: {error}"
                 raise BiltEquationDimensionalityError(equation.__bilt_name__, msg) from error
+            if dimensionality is not None:
+                implied[port] = dimensionality
+
+    return implied
