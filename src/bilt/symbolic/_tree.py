@@ -252,6 +252,7 @@ def isel_tree(value: Tree, dim: Dim, index: Tree) -> Tree:
     """Construct a symbolic positional selection tree."""
     return index_tree(ISEL, value, dim, index)
 
+
 def relation_tree(operator: Atom | str, left: Tree, right: Tree) -> Tree:
     """Construct a binary symbolic relation tree.
 
