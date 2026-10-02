@@ -1,7 +1,8 @@
 """Check dimensionality across an implementation's interface and constituents by shared port name."""
 
-__all__ = ["check_dimensional_consistency"]
+__all__ = ["ResolvedDimensionality", "check_dimensional_consistency"]
 
+import dataclasses
 import typing
 
 from bilt.core._equation import BasicEquation, check_homogeneity
@@ -16,11 +17,21 @@ if typing.TYPE_CHECKING:
     from bilt.units import Dimension
 
 
+@dataclasses.dataclass
+class ResolvedDimensionality:
+    """The dimensionality a port resolves to, and where it came from."""
+
+    dimensionality: Dimension
+    source: str
+
+
 def check_dimensional_consistency(
     system: Interface,
     constituents: collections.abc.Iterable[BiltModelConstituent],
-) -> None:
+) -> dict[str, ResolvedDimensionality]:
     """Demand that each port of an implementation can take one dimensionality that every equation agrees with.
+
+    Return the dimensionality each port resolves to and where it came from, leaving out ports that resolve to none.
 
     Ports are inferred one at a time, so a contradiction carried only by a combination of unresolved ports goes
     unreported: `x * y == length` and `x * y == mass` pass until something resolves `x` or `y`.
@@ -39,6 +50,8 @@ def check_dimensional_consistency(
         for port in resolution.infer_from(equation):
             pending.update(dict.fromkeys(other for other in equations if port in other.__bilt_relation_ports__))
 
+    return resolution.resolved
+
 
 class _Resolution:
     """The dimensionality each port of an implementation resolves to, and where it came from."""
@@ -47,6 +60,14 @@ class _Resolution:
         self._system = system
         self._dimensionalities: dict[str, Dimension] = {}
         self._sources: dict[str, str] = {}
+
+    @property
+    def resolved(self) -> dict[str, ResolvedDimensionality]:
+        """The dimensionality of each port resolved so far, and where it came from."""
+        return {
+            port: ResolvedDimensionality(dimensionality, self._sources[port])
+            for port, dimensionality in self._dimensionalities.items()
+        }
 
     def declare(self, port: str, dimensionality: Dimension, owner_name: str) -> None:
         """Record a declared dimensionality, rejecting one that contradicts an earlier declaration."""
