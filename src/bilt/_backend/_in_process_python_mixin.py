@@ -9,6 +9,7 @@ import typing
 from bilt._backend._callable import BackendCallable
 from bilt._backend._errors import BiltCompilationError
 from bilt.core._to_ast import (
+    ISEL_INTRINSIC_NAME,
     MAX_INTRINSIC_NAME,
     MEAN_INTRINSIC_NAME,
     MIN_INTRINSIC_NAME,
@@ -21,6 +22,7 @@ from bilt.core._to_ast import (
 class PythonIntrinsicBindings:
     """Backend implementations of Bilt intrinsics."""
 
+    isel: typing.Callable[..., typing.Any]
     mean: typing.Callable[..., typing.Any]
     sum: typing.Callable[..., typing.Any]
     min: typing.Callable[..., typing.Any]
@@ -29,6 +31,7 @@ class PythonIntrinsicBindings:
 
     def namespace(self) -> dict[str, typing.Any]:
         return {
+            ISEL_INTRINSIC_NAME: self.isel,
             MEAN_INTRINSIC_NAME: self.mean,
             SUM_INTRINSIC_NAME: self.sum,
             MIN_INTRINSIC_NAME: self.min,
