@@ -5,11 +5,11 @@ from bilt.core._tensors._expression_lowering import (
     lower_expression,
 )
 from bilt.errors import BiltSymbolicLoweringError, BiltTensorDomainError
-from bilt.symbolic._atoms import MAX, MEAN, MIN, PROD, SUM, Atom
+from bilt.symbolic._atoms import ISEL, MAX, MEAN, MIN, PROD, SUM, Atom
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import domain
 from bilt.symbolic._expressions import Expr, tensor_symbol_expr
-from bilt.symbolic._tree import axis_tree
+from bilt.symbolic._tree import axis_tree, int_tree
 
 
 @pytest.mark.parametrize(
@@ -127,3 +127,40 @@ def test_lowered_expression_rejects_symbolic_dimension() -> None:
             tree=value.mean(time).rep,
             domain=domain(),
         )
+
+
+def test_isel_lowers_dimension_to_canonical_axis() -> None:
+    location = Dim("location")
+    time = Dim("time")
+    value = tensor_symbol_expr("value")
+
+    actual = lower_expression(
+        value.isel(time, 1),
+        symbol_domains={
+            "value": domain(location, time),
+        },
+        canonical_order=domain(location, time),
+    )
+
+    assert actual.tree.head is ISEL
+    assert actual.tree.args[0] is value.tree
+    assert actual.tree.args[1] is axis_tree(1)
+    assert actual.tree.args[2] is int_tree(1)
+    assert actual.domain == domain(location)
+
+
+def test_isel_uses_canonical_axis() -> None:
+    location = Dim("location")
+    time = Dim("time")
+    value = tensor_symbol_expr("value")
+
+    actual = lower_expression(
+        value.isel(time, 1),
+        symbol_domains={
+            "value": domain(time, location),
+        },
+        canonical_order=domain(location, time),
+    )
+
+    assert actual.tree.args[1] is axis_tree(1)
+    assert actual.domain == domain(location)

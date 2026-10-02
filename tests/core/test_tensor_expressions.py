@@ -8,6 +8,8 @@ from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._expressions import Expr, TensorExpr, tensor_symbol_expr
 from bilt.symbolic._tree import (
     Tree,
+    int_tree,
+    isel_tree,
     max_tree,
     mean_tree,
     min_tree,
@@ -79,3 +81,17 @@ def test_tensor_expression_arithmetic_returns_plain_expression() -> None:
     result = left + right
 
     assert type(result) is Expr
+
+
+def test_tensor_expression_isel_returns_plain_expression() -> None:
+    time = Dim("time")
+    value = tensor_symbol_expr("value")
+
+    result = value.isel(time, 1)
+
+    assert type(result) is Expr
+    assert result.tree is isel_tree(
+        value.tree,
+        time,
+        int_tree(1),
+    )
