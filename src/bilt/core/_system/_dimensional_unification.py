@@ -20,7 +20,11 @@ def check_dimensional_consistency(
     system: Interface,
     constituents: collections.abc.Iterable[BiltModelConstituent],
 ) -> None:
-    """Demand that each port of an implementation can take one dimensionality that every equation agrees with."""
+    """Demand that each port of an implementation can take one dimensionality that every equation agrees with.
+
+    Ports are inferred one at a time, so a contradiction carried only by a combination of unresolved ports goes
+    unreported: `x * y == length` and `x * y == mass` pass until something resolves `x` or `y`.
+    """
     ordered = sorted(constituents, key=lambda constituent: constituent.__bilt_name__)
     resolution = _Resolution(system)
     for owner in (system, *ordered):

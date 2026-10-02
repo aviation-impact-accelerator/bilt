@@ -252,3 +252,24 @@ def test_a_sub_system_declares_its_ports_under_their_dotted_names() -> None:
     message = _inconsistency(Parent, [resistor, wiring])
     assert "makes equation 'wiring' dimensionally inconsistent" in message
     assert f"'resistor.v': {VOLTAGE}: declared by resistor" in message
+
+
+@pytest.mark.xfail(reason="ports are inferred one at a time, so a product of unresolved ports is never checked")
+def test_equations_giving_one_product_different_dimensionalities_are_inconsistent() -> None:
+    @system
+    class Declared(metaclass=Interface):
+        x: Quantity = field()
+        y: Quantity = field()
+        length: Length = field()
+        m: Mass = field()
+
+    @equation
+    def measuring(x: Quantity, y: Quantity, length: Quantity) -> bool:
+        return x * y == length
+
+    @equation
+    def balancing(x: Quantity, y: Quantity, m: Quantity) -> bool:
+        return x * y == m
+
+    message = _inconsistency(Declared, [measuring, balancing])
+    assert "dimensionally inconsistent" in message
