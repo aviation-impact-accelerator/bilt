@@ -12,6 +12,7 @@ from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._sub_system import SubSystemConstituent
+from bilt.core._system._dimensional_unification import check_dimensional_consistency
 from bilt.core._system._errors import (
     BiltSubSystemConflictError,
     BiltSubSystemMismatchedImplementationError,
@@ -48,6 +49,7 @@ class Implementation:
 
         sub_systems = _build_sub_system_constituents(named_components, internal)
         _validate_sub_systems(named_components, internal, sub_systems)
+        check_dimensional_consistency(system, named_components.values())
 
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             named_components | sub_systems
