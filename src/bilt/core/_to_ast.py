@@ -9,6 +9,7 @@ if typing.TYPE_CHECKING:
     from bilt.symbolic._tree import Tree
 
 __all__ = [
+    "isel_intrinsic_ast",
     "reduction_intrinsic_ast",
     "tree_to_functiondef",
 ]
@@ -18,6 +19,8 @@ SUM_INTRINSIC_NAME = "__bilt_sum__"
 MIN_INTRINSIC_NAME = "__bilt_min__"
 MAX_INTRINSIC_NAME = "__bilt_max__"
 PROD_INTRINSIC_NAME = "__bilt_prod__"
+
+ISEL_INTRINSIC_NAME = "__bilt_isel__"
 
 _REDUCTION_INTRINSICS = {
     ops.MEAN: MEAN_INTRINSIC_NAME,
@@ -92,6 +95,9 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
                 right=_tree_to_ast_expr(tree.args[0]),
             )
 
+        case ops.ISEL:
+            return _isel_to_ast(tree)
+
         case _:
             message = f"Unsupported symbolic head {tree.head!r} in AST conversion."
             raise BiltUnsupportedIsolationError(message)
@@ -128,6 +134,22 @@ def _reduction_to_ast(
     return reduction_intrinsic_ast(
         intrinsic_name,
         _tree_to_ast_expr(value_tree),
+        axis,
+    )
+
+
+def _isel_to_ast(tree: Tree) -> ast.expr:
+    value_tree, axis_tree, selector_tree = tree.args
+
+    if not axis_tree.is_leaf or axis_tree.head.atom_type is not AxisType:
+        message = "Lowered isel requires a positional axis."
+        raise BiltUnsupportedIsolationError(message)
+
+    axis = typing.cast("int", axis_tree.head.value)
+
+    return isel_intrinsic_ast(
+        _tree_to_ast_expr(value_tree),
+        _tree_to_ast_expr(selector_tree),
         axis,
     )
 
@@ -173,6 +195,30 @@ def reduction_intrinsic_ast(
             ast.keyword(
                 arg="keepdims",
                 value=ast.Constant(value=True),
+            ),
+        ],
+    )
+
+
+def isel_intrinsic_ast(
+    value: ast.expr,
+    selector: ast.expr,
+    axis: int,
+) -> ast.Call:
+    """Construct a backend positional-selection intrinsic call."""
+    return ast.Call(
+        func=ast.Name(
+            id=ISEL_INTRINSIC_NAME,
+            ctx=ast.Load(),
+        ),
+        args=[
+            value,
+            selector,
+        ],
+        keywords=[
+            ast.keyword(
+                arg="axis",
+                value=ast.Constant(value=axis),
             ),
         ],
     )
