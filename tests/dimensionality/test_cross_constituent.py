@@ -50,11 +50,10 @@ def test_a_port_only_one_constituent_annotates_constructs() -> None:
     Implementation(Rig, [ohms_law, doubling])
 
 
-@pytest.mark.xfail(reason="dimensionality is not unified across constituents at construction yet")
 def test_constituents_disagreeing_on_a_shared_port_raise() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: Voltage = field()
+        v: float = field()
         i: Current = field()
         r: Resistance = field()
         scaled: Mass = field()
