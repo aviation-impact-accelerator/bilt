@@ -35,7 +35,6 @@ def test_integer_exponent_decorates() -> None:
         return area == side**2
 
 
-@pytest.mark.xfail(reason="equation sides are not compared for dimensional homogeneity yet")
 def test_inhomogeneous_equation_raises() -> None:
     with pytest.raises(BiltUnitsError, match="mislabelled") as raised:
 
@@ -48,7 +47,6 @@ def test_inhomogeneous_equation_raises() -> None:
     assert "force" in message
 
 
-@pytest.mark.xfail(reason="addition of unequal dimensionalities is not rejected yet")
 def test_adding_unequal_dimensionalities_raises() -> None:
     with pytest.raises(BiltUnitsError, match="summation") as raised:
 
@@ -61,7 +59,6 @@ def test_adding_unequal_dimensionalities_raises() -> None:
     assert "length" in message
 
 
-@pytest.mark.xfail(reason="a dimensional exponent is not rejected yet")
 def test_dimensional_exponent_raises() -> None:
     with pytest.raises(BiltUnitsError, match="dimensional_exponent") as raised:
 
