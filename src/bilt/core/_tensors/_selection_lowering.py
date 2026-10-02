@@ -2,7 +2,6 @@ __all__ = ["resolve_static_selections"]
 
 import typing
 
-from bilt.core._errors import BiltDomainBindingError
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors._errors import BiltSymbolicLoweringError
 from bilt.symbolic._atoms import (
@@ -18,7 +17,7 @@ if typing.TYPE_CHECKING:
 
 
 def resolve_static_selections(tree: Tree) -> Tree:
-    """Resolve coordinate selections whose coordinate axes are known."""
+    """Resolve coordinate selections to positional selections."""
     if tree.is_leaf:
         return tree
 
@@ -34,17 +33,11 @@ def resolve_static_selections(tree: Tree) -> Tree:
         raise BiltSymbolicLoweringError(message)
 
     if not selector_tree.is_leaf or selector_tree.head.atom_type is not CoordinateType:
-        return Tree(tree.head, children)
+        message = "Lowered sel requires a coordinate selector."
+        raise BiltSymbolicLoweringError(message)
 
     dim = typing.cast("Dim", coordinate_axis_tree.head.value)
-    domains = current_evaluation().domains
-
-    try:
-        domains.axis(dim)
-    except BiltDomainBindingError:
-        return Tree(tree.head, children)
-
-    position = domains.position(
+    position = current_evaluation().domains.position(
         dim,
         selector_tree.head.value,
     )
