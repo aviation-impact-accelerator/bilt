@@ -33,7 +33,7 @@ if typing.TYPE_CHECKING:
 
 
 @dataclasses.dataclass(frozen=True)
-class _EvaluationCacheKey:
+class _CompilationRequest:
     output: str
     input_domains: frozenset[tuple[str, Domain]]
     backend: Backend
@@ -66,7 +66,7 @@ class Implementation:
             named_components | sub_systems
         )
         self._evaluation_cache: dict[
-            _EvaluationCacheKey,
+            _CompilationRequest,
             dict[_CompilationContext, BackendCallable],
         ] = {}
         self._analysers: dict[Backend, StructuralAnalyser] = {}
@@ -124,7 +124,7 @@ class Implementation:
         request: EvaluationRequest,
         backend: Backend,
     ) -> BackendCallable:
-        evaluation_key = _EvaluationCacheKey(
+        compilation_request = _CompilationRequest(
             output=request.output,
             input_domains=frozenset(request.input_domains.items()),
             backend=backend,
@@ -133,7 +133,7 @@ class Implementation:
             canonical_order=current_evaluation().canonical_order,
         )
 
-        cached_evaluations = self._evaluation_cache.get(evaluation_key)
+        cached_evaluations = self._evaluation_cache.get(compilation_request)
         if cached_evaluations is not None:
             cached = cached_evaluations.get(compilation_context)
             if cached is not None:
@@ -150,7 +150,7 @@ class Implementation:
         backend_callable.output_domain = output_domain
 
         self._evaluation_cache.setdefault(
-            evaluation_key,
+            compilation_request,
             {},
         )[compilation_context] = backend_callable
 
