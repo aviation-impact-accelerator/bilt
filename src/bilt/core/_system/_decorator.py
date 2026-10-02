@@ -5,15 +5,18 @@ import enum
 import inspect
 import typing
 
-from bilt.core._errors import BiltUnresolvedAnnotationError
+from bilt.core._errors import BiltInputDimensionalityError, BiltUnresolvedAnnotationError
 from bilt.core._interface import Interface
 from bilt.core._port_declaration import port_declarations
 from bilt.core._system._errors import BiltSystemDefinitionError
+from bilt.core._tensors._tensors import Tensor
+from bilt.units import Quantity
 
 from ._dispatch import _dispatch_evaluation
 from ._sentinel import MISSING
 
 if typing.TYPE_CHECKING:
+    import collections.abc
     import types
 
 
@@ -67,6 +70,7 @@ def _create_initialize_method(cls: Interface) -> None:
     body = [
         "self.__bilt_system_implementation__ = MISSING",
         f"self.__bilt_system_instance_variables__ = {{{', '.join(f'"{parameter}": {parameter}' for parameter in parameters)}}}",
+        "_check_inputs(type(self), self.__bilt_system_instance_variables__)",
     ]
     _create_method(
         cls,
@@ -75,8 +79,20 @@ def _create_initialize_method(cls: Interface) -> None:
         args=args,
         body=body,
         global_namespace=globals(),
-        local_namespace={"MISSING": MISSING},
+        local_namespace={"MISSING": MISSING, "_check_inputs": _check_inputs},
     )
+
+
+def _check_inputs(cls: Interface, values: collections.abc.Mapping[str, object]) -> None:
+    """Ensure the values an instance is given satisfy the quantities their ports declare."""
+    for port, value in values.items():
+        declaration = cls.__bilt_port_declarations__[port]
+        if value is MISSING or not declaration.carries_quantity or isinstance(value, Tensor):
+            continue
+
+        expected = declaration.dimensionality
+        if not isinstance(value, Quantity) or (expected is not None and value.unit.dimension != expected):
+            raise BiltInputDimensionalityError(cls.__bilt_name__, port, expected, value)
 
 
 def _create_properties(cls: Interface) -> None:

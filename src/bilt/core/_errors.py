@@ -11,14 +11,21 @@ __all__ = [
     "BiltEquationSignatureError",
     "BiltEvaluationError",
     "BiltImplementationDimensionalityError",
+    "BiltInputDimensionalityError",
     "BiltNameError",
     "BiltNoActiveEvaluationError",
     "BiltPortDeclarationError",
     "BiltUnresolvedAnnotationError",
 ]
 
+import typing
+
 from bilt._base_error import BiltError
+from bilt.units import Quantity
 from bilt.units._errors import BiltDimensionalityError
+
+if typing.TYPE_CHECKING:
+    from bilt.units import Dimension
 
 
 class BiltDefinitionError(BiltError):
@@ -71,6 +78,22 @@ class BiltImplementationDimensionalityError(BiltDimensionalityError):
 
     def __init__(self, system_name: str, problem: str) -> None:
         super().__init__(f"Implementation of {system_name!r} {problem}")
+
+
+class BiltInputDimensionalityError(BiltDimensionalityError):
+    """Raised when a value given for a port is not the quantity the port declares."""
+
+    def __init__(
+        self, system_name: str, port: str, expected: Dimension | None, value: object, *, source: str | None = None
+    ) -> None:
+        wanted = "a Quantity" if expected is None else f"a Quantity of {expected}"
+        received = (
+            f"{value} of {value.unit.dimension}" if isinstance(value, Quantity) else f"{type(value).__name__} {value!r}"
+        )
+        msg = f"Input {port!r} of {system_name!r} must be {wanted}, not {received}."
+        if source is not None:
+            msg += f" Its dimensionality was {source}."
+        super().__init__(msg)
 
 
 class BiltAnalysisError(BiltError):
