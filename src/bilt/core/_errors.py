@@ -6,6 +6,7 @@ __all__ = [
     "BiltDomainBindingError",
     "BiltDomainRegistryError",
     "BiltDomainRegistryLockedError",
+    "BiltEquationDimensionalityError",
     "BiltEquationReturnError",
     "BiltEquationSignatureError",
     "BiltEvaluationError",
@@ -16,6 +17,7 @@ __all__ = [
 ]
 
 from bilt._base_error import BiltError
+from bilt.units._errors import BiltDimensionalityError
 
 
 class BiltDefinitionError(BiltError):
@@ -54,6 +56,13 @@ class BiltUnresolvedAnnotationError(BiltDefinitionError, NameError):
             "`if typing.TYPE_CHECKING:` block.",
             name=error.name,
         )
+
+
+class BiltEquationDimensionalityError(BiltDimensionalityError):
+    """Raised when an equation's relation cannot be dimensionally homogeneous."""
+
+    def __init__(self, equation_name: str, problem: str) -> None:
+        super().__init__(f"Equation {equation_name!r} {problem}")
 
 
 class BiltAnalysisError(BiltError):
