@@ -9,6 +9,15 @@ from bilt._backend._in_process_python_mixin import InProcessPythonMixin, PythonI
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
 
+def _isel(
+    value: np.ndarray,
+    index: int,
+    *,
+    axis: int,
+) -> np.ndarray:
+    return np.take(value, [index], axis=axis)
+
+
 class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignmentMixin):
     """Python backend implementation of the Bilt backend interface."""
 
@@ -18,6 +27,7 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
             "__builtins__": __builtins__,
         }
         self.intrinsic_bindings = PythonIntrinsicBindings(
+            isel=_isel,
             mean=np.mean,
             sum=np.sum,
             min=np.min,

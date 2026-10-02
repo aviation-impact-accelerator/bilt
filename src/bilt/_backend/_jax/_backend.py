@@ -14,6 +14,15 @@ if typing.TYPE_CHECKING:
     from bilt._backend import BackendCallable, BackendCase
 
 
+def _isel(
+    value: jax.Array,
+    index: int | jax.Array,
+    *,
+    axis: int,
+) -> jax.Array:
+    return jnp.take(value, jnp.asarray(index)[None], axis=axis)
+
+
 class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignmentMixin):
     """JAX backend implementation of the Bilt backend interface."""
 
@@ -24,6 +33,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
             "jax.jit": jax.jit,
         }
         self.intrinsic_bindings = PythonIntrinsicBindings(
+            isel=_isel,
             mean=jnp.mean,
             sum=jnp.sum,
             min=jnp.min,
@@ -42,12 +52,12 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
         case_parameters = set(case.parameters)
         for interim_callable in case.intermediates:
             new_namespace[interim_callable.name] = interim_callable.callable
-            chained_callable_as_string += f"    {interim_callable.name}_={interim_callable.name}({
-                ', '.join(
-                    parameter if parameter in case_parameters else f'{parameter}_'
+            chained_callable_as_string += f"""    {interim_callable.name}_={interim_callable.name}({
+                ", ".join(
+                    parameter if parameter in case_parameters else f"{parameter}_"
                     for parameter in interim_callable.parameters
                 )
-            })\n"
+            })\n"""
         chained_callable_as_string += f"    return {case.return_name}_\n"
         chained_callable_ast = typing.cast(
             "ast.FunctionDef",

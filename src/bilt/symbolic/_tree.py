@@ -3,12 +3,14 @@ import weakref
 
 from bilt.symbolic._atoms import (
     EQUALS,
+    ISEL,
     MAX,
     MEAN,
     MIN,
     PROD,
     SUM,
     Atom,
+    IndexOpType,
     ReductionOpType,
     RelationOpType,
     axis,
@@ -34,7 +36,9 @@ __all__ = [
     "dimension_tree",
     "equality_tree",
     "float_tree",
+    "index_tree",
     "int_tree",
+    "isel_tree",
     "max_tree",
     "mean_tree",
     "min_tree",
@@ -221,6 +225,32 @@ def max_tree(value: Tree, dim: Dim) -> Tree:
 def prod_tree(value: Tree, dim: Dim) -> Tree:
     """Construct a symbolic product reduction tree."""
     return reduction_tree(PROD, value, dim)
+
+
+def index_tree(
+    operator: Atom,
+    value: Tree,
+    dim: Dim,
+    selector: Tree,
+) -> Tree:
+    """Construct a symbolic indexing tree."""
+    if operator.atom_type is not IndexOpType:
+        msg = f"Expected indexing operator atom, got {operator!r}."
+        raise TypeError(msg)
+
+    return Tree(
+        operator,
+        (
+            value,
+            dimension_tree(dim),
+            selector,
+        ),
+    )
+
+
+def isel_tree(value: Tree, dim: Dim, index: Tree) -> Tree:
+    """Construct a symbolic positional selection tree."""
+    return index_tree(ISEL, value, dim, index)
 
 
 def relation_tree(operator: Atom | str, left: Tree, right: Tree) -> Tree:

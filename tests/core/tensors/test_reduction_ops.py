@@ -397,3 +397,85 @@ def test_transform_mean_inside_arithmetic(
         evaluated.values,
         np.array([13.0, 14.0]),
     )
+
+
+@pytest.mark.parametrize(
+    "backend",
+    (PYTHON_BACKEND, JAX_BACKEND),
+)
+def test_isel_over_only_dimension_returns_scalar(
+    backend: Backend,
+) -> None:
+    time = Dim("time")
+
+    @system
+    class Demo(metaclass=Interface):
+        values: Tensor = field()
+        selected: float = field()
+
+    @equation
+    def select(values: Tensor, selected: float) -> bool:
+        return selected == values.isel(time, 1)
+
+    implementation = Implementation(Demo, [select])
+    demo = Demo(
+        values=tensor(
+            [1.0, 3.0, 5.0],
+            over=time,
+        ),
+    )
+
+    with backend, implementation:
+        result = demo.selected
+
+    assert result == pytest.approx(3.0)
+
+
+@pytest.mark.parametrize(
+    "backend",
+    (PYTHON_BACKEND, JAX_BACKEND),
+)
+def test_isel_uses_aligned_canonical_axis(
+    backend: Backend,
+) -> None:
+    location = Dim("location")
+    time = Dim("time")
+
+    @system
+    class Demo(metaclass=Interface):
+        values: Tensor = field()
+        reference: Tensor = field()
+        selected: Tensor = field()
+
+    @equation
+    def select(
+        values: Tensor,
+        reference: Tensor,
+        selected: Tensor,
+    ) -> bool:
+        return selected == values.isel(time, 1) + 0 * reference
+
+    implementation = Implementation(Demo, [select])
+    demo = Demo(
+        values=tensor(
+            [
+                [1.0, 2.0],
+                [3.0, 4.0],
+                [5.0, 6.0],
+            ],
+            over=(time, location),
+        ),
+        reference=tensor(
+            [0.0, 0.0],
+            over=location,
+        ),
+    )
+
+    with backend, implementation:
+        result = demo.selected
+
+    assert result.domain == domain(location)
+    np.testing.assert_allclose(
+        result.values,
+        np.array([3.0, 4.0]),
+    )

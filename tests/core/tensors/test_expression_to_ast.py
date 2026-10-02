@@ -4,6 +4,7 @@ import pytest
 
 from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._to_ast import (
+    ISEL_INTRINSIC_NAME,
     MAX_INTRINSIC_NAME,
     MEAN_INTRINSIC_NAME,
     MIN_INTRINSIC_NAME,
@@ -89,3 +90,41 @@ def test_mean_lowers_inside_arithmetic_expression() -> None:
 
     assert isinstance(actual.right, ast.Name)
     assert actual.right.id == "offset"
+
+
+def test_isel_lowers_to_backend_intrinsic() -> None:
+    time = Dim("time")
+    value = tensor_symbol_expr("value")
+
+    lowered = lower_expression(
+        value.isel(time, 1),
+        symbol_domains={
+            "value": domain(time),
+        },
+        canonical_order=domain(time),
+    )
+
+    actual = _tree_to_ast_expr(lowered.tree)
+
+    length_args = 2
+
+    assert isinstance(actual, ast.Call)
+    assert isinstance(actual.func, ast.Name)
+    assert actual.func.id == ISEL_INTRINSIC_NAME
+
+    assert len(actual.args) == length_args
+
+    value_arg, selector_arg = actual.args
+
+    assert isinstance(value_arg, ast.Name)
+    assert value_arg.id == "value"
+
+    assert isinstance(selector_arg, ast.Constant)
+    assert selector_arg.value == 1
+
+    assert len(actual.keywords) == 1
+
+    axis = actual.keywords[0]
+    assert axis.arg == "axis"
+    assert isinstance(axis.value, ast.Constant)
+    assert axis.value.value == 0

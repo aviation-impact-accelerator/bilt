@@ -14,6 +14,7 @@ __all__ = [
     "GREATER_THAN",
     "GREATER_THAN_OR_EQUALS",
     "INV",
+    "ISEL",
     "LESS_THAN",
     "LESS_THAN_OR_EQUALS",
     "MAX",
@@ -30,6 +31,7 @@ __all__ = [
     "AxisType",
     "DimensionType",
     "FloatType",
+    "IndexOpType",
     "IntType",
     "OpType",
     "ReductionOpType",
@@ -82,6 +84,7 @@ SymbolType = AtomType("Symbol")
 OpType = AtomType("Op")
 RelationOpType = AtomType("RelationOp")
 ReductionOpType = AtomType("ReductionOp")
+IndexOpType = AtomType("IndexOp")
 DimensionType = AtomType("Dimension")
 AxisType = AtomType("Axis")
 IntType = AtomType("Integer")
@@ -173,6 +176,8 @@ SUM = Atom(ReductionOpType, "sum")
 MIN = Atom(ReductionOpType, "min")
 MAX = Atom(ReductionOpType, "max")
 PROD = Atom(ReductionOpType, "prod")
+
+ISEL = Atom(IndexOpType, "isel")
 
 EQUALS = Atom(RelationOpType, "==")
 NOT_EQUALS = Atom(RelationOpType, "!=")

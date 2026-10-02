@@ -15,6 +15,7 @@ from bilt.symbolic._tree import (
     Tree,
     float_tree,
     int_tree,
+    isel_tree,
     max_tree,
     mean_tree,
     min_tree,
@@ -191,6 +192,10 @@ class TensorExpr(Expr):
     def prod(self, dim: Dim) -> Expr:
         """Return the symbolic product over a dimension."""
         return Expr(prod_tree(self.tree, dim))
+
+    def isel(self, dim: Dim, index: int | Expr) -> Expr:
+        """Select a position along a symbolic dimension."""
+        return Expr(isel_tree(self.tree, dim, as_tree(index)))
 
 
 class SubSystemExpr:
