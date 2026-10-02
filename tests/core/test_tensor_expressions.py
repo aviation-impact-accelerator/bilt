@@ -8,12 +8,14 @@ from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._expressions import Expr, TensorExpr, tensor_symbol_expr
 from bilt.symbolic._tree import (
     Tree,
+    coordinate_tree,
     int_tree,
     isel_tree,
     max_tree,
     mean_tree,
     min_tree,
     prod_tree,
+    sel_tree,
     sum_tree,
 )
 
@@ -94,4 +96,18 @@ def test_tensor_expression_isel_returns_plain_expression() -> None:
         value.tree,
         time,
         int_tree(1),
+    )
+
+
+def test_tensor_expression_sel_returns_plain_expression() -> None:
+    time = Dim("time")
+    value = tensor_symbol_expr("value")
+
+    result = value.sel(time, 2025)
+
+    assert type(result) is Expr
+    assert result.tree is sel_tree(
+        value.tree,
+        time,
+        coordinate_tree(2025),
     )

@@ -15,7 +15,9 @@ from bilt.symbolic._atoms import (
     MUL,
     NEG,
     POW,
+    SEL,
     AxisType,
+    CoordinateType,
     DimensionType,
     FloatType,
     IndexOpType,
@@ -24,7 +26,7 @@ from bilt.symbolic._atoms import (
     SymbolType,
 )
 from bilt.symbolic._domains import Domain, union
-from bilt.symbolic._tree import Tree, axis_tree
+from bilt.symbolic._tree import Tree, axis_tree, coordinate_axis_tree
 
 if typing.TYPE_CHECKING:
     from collections.abc import Mapping
@@ -179,7 +181,7 @@ def _lower_leaf(
             domain=value_domain,
         )
 
-    if tree.head.atom_type in (IntType, FloatType):
+    if tree.head.atom_type in (IntType, FloatType, CoordinateType):
         return LoweredExpression(
             tree=tree,
             domain=Domain.scalar(),
@@ -266,15 +268,28 @@ def _lower_index(
         canonical_order=canonical_order,
     )
 
-    return LoweredExpression(
-        tree=Tree(
+    if tree.head is SEL:
+        lowered_tree = Tree(
+            tree.head,
+            (
+                value.tree,
+                axis_tree(axis),
+                coordinate_axis_tree(dim),
+                selector.tree,
+            ),
+        )
+    else:
+        lowered_tree = Tree(
             tree.head,
             (
                 value.tree,
                 axis_tree(axis),
                 selector.tree,
             ),
-        ),
+        )
+
+    return LoweredExpression(
+        tree=lowered_tree,
         domain=output_domain,
     )
 

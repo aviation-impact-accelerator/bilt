@@ -13,6 +13,7 @@ from bilt.symbolic._atoms import (
 from bilt.symbolic._errors import BiltSymbolicConversionError, BiltUnknownPortError
 from bilt.symbolic._tree import (
     Tree,
+    coordinate_tree,
     float_tree,
     int_tree,
     isel_tree,
@@ -21,6 +22,7 @@ from bilt.symbolic._tree import (
     min_tree,
     prod_tree,
     relation_tree,
+    sel_tree,
     sum_tree,
     symbol_tree,
 )
@@ -28,7 +30,7 @@ from bilt.symbolic._tree import (
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt.symbolic._dimensions import Dim
+    from bilt.symbolic._dimensions import Coordinate, Dim
 
 __all__ = [
     "Expr",
@@ -196,6 +198,16 @@ class TensorExpr(Expr):
     def isel(self, dim: Dim, index: int | Expr) -> Expr:
         """Select a position along a symbolic dimension."""
         return Expr(isel_tree(self.tree, dim, as_tree(index)))
+
+    def sel(self, dim: Dim, coordinate: Coordinate) -> Expr:
+        """Select a coordinate along a symbolic dimension."""
+        return Expr(
+            sel_tree(
+                self.tree,
+                dim,
+                coordinate_tree(coordinate),
+            )
+        )
 
 
 class SubSystemExpr:

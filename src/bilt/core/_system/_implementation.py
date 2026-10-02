@@ -1,4 +1,8 @@
-from bilt.core._system._lowering_and_lifting import generate_lifting_plan, lift_output, lower_inputs
+from bilt.core._system._lowering_and_lifting import (
+    generate_lifting_plan,
+    lift_output,
+    lower_inputs,
+)
 from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 
 __all__ = ["Implementation"]
@@ -30,6 +34,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis import StructuralAnalyser
+    from bilt.symbolic._dimensions import Coordinate, Dim
 
 
 @dataclasses.dataclass(frozen=True)
@@ -42,6 +47,10 @@ class _CompilationRequest:
 @dataclasses.dataclass(frozen=True)
 class _CompilationContext:
     canonical_order: Domain
+    coordinate_signature: tuple[
+        tuple[Dim, tuple[Coordinate, ...]],
+        ...,
+    ]
 
 
 class Implementation:
@@ -130,7 +139,8 @@ class Implementation:
             backend=backend,
         )
         compilation_context = _CompilationContext(
-            canonical_order=current_evaluation().canonical_order,
+            canonical_order=evaluation.canonical_order,
+            coordinate_signature=evaluation.domains.coordinate_signature(),
         )
 
         cached_evaluations = self._evaluation_cache.get(compilation_request)
@@ -178,7 +188,10 @@ class Implementation:
         )
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(system={self.system}, transforms={frozenset(self._components.values())!r})"
+        return (
+            f"{self.__class__.__name__}"
+            f"(system={self.system}, transforms={frozenset(self._components.values())!r})"
+        )
 
 
 def _required_sub_system_interfaces(
@@ -191,7 +204,11 @@ def _required_sub_system_interfaces(
             for name, interface in component.__bilt_sub_systems__.items():
                 declared = required.setdefault(name, interface)
                 if declared is not interface:
-                    raise BiltSubSystemConflictError(name, declared.__bilt_name__, interface.__bilt_name__)
+                    raise BiltSubSystemConflictError(
+                        name,
+                        declared.__bilt_name__,
+                        interface.__bilt_name__,
+                    )
     return required
 
 
@@ -201,12 +218,17 @@ def _build_sub_system_constituents(
 ) -> dict[str, SubSystemConstituent]:
     """Collect the sub-systems into `SubSystemConstituents` ensuring no name collisions."""
     constituents = {
-        name: constituent for name, constituent in components.items() if isinstance(constituent, SubSystemConstituent)
+        name: constituent
+        for name, constituent in components.items()
+        if isinstance(constituent, SubSystemConstituent)
     }
     for name, implementation in internal_implementations.items():
         if name in components:
             raise BiltSubSystemNameCollisionError(name)
-        constituents[name] = SubSystemConstituent(name=name, implementation=implementation)
+        constituents[name] = SubSystemConstituent(
+            name=name,
+            implementation=implementation,
+        )
     return constituents
 
 
@@ -222,13 +244,20 @@ def _validate_sub_systems(
         constituent = sub_systems.get(name)
         if constituent is None:
             raise BiltSubSystemMissingImplementationError(
-                name, interface.__bilt_name__, sorted(internal_implementations)
+                name,
+                interface.__bilt_name__,
+                sorted(internal_implementations),
             )
         if constituent.interface is not interface:
             raise BiltSubSystemMismatchedImplementationError(
-                name, interface.__bilt_name__, constituent.interface.__bilt_name__
+                name,
+                interface.__bilt_name__,
+                constituent.interface.__bilt_name__,
             )
 
     for name in internal_implementations:
         if name not in required_interfaces:
-            raise BiltSubSystemUnreferencedEntryError(name, sorted(required_interfaces))
+            raise BiltSubSystemUnreferencedEntryError(
+                name,
+                sorted(required_interfaces),
+            )
