@@ -3,6 +3,7 @@ from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 
 __all__ = ["Implementation"]
 
+import dataclasses
 import types
 import typing
 
@@ -31,6 +32,18 @@ if typing.TYPE_CHECKING:
     from bilt.core._structural_analysis import StructuralAnalyser
 
 
+@dataclasses.dataclass(frozen=True)
+class _CompilationRequest:
+    output: str
+    input_domains: frozenset[tuple[str, Domain]]
+    backend: Backend
+
+
+@dataclasses.dataclass(frozen=True)
+class _CompilationContext:
+    canonical_order: Domain
+
+
 class Implementation:
     """Register a collection of transforms as an implementation of a system."""
 
@@ -53,8 +66,8 @@ class Implementation:
             named_components | sub_systems
         )
         self._evaluation_cache: dict[
-            tuple[str, frozenset[tuple[str, Domain]], Backend, Domain],
-            BackendCallable,
+            _CompilationRequest,
+            dict[_CompilationContext, BackendCallable],
         ] = {}
         self._analysers: dict[Backend, StructuralAnalyser] = {}
         system.__bilt_system_registry__.add(self)
@@ -111,16 +124,20 @@ class Implementation:
         request: EvaluationRequest,
         backend: Backend,
     ) -> BackendCallable:
-        canonical_order = current_evaluation().canonical_order
-        cache_key = (
-            request.output,
-            frozenset(request.input_domains.items()),
-            backend,
-            canonical_order,
+        compilation_request = _CompilationRequest(
+            output=request.output,
+            input_domains=frozenset(request.input_domains.items()),
+            backend=backend,
+        )
+        compilation_context = _CompilationContext(
+            canonical_order=current_evaluation().canonical_order,
         )
 
-        if cached := self._evaluation_cache.get(cache_key):
-            return cached
+        cached_evaluations = self._evaluation_cache.get(compilation_request)
+        if cached_evaluations is not None:
+            cached = cached_evaluations.get(compilation_context)
+            if cached is not None:
+                return cached
 
         planned_case = self.analyser_for(backend).analyse(request)
 
@@ -132,7 +149,10 @@ class Implementation:
 
         backend_callable.output_domain = output_domain
 
-        self._evaluation_cache[cache_key] = backend_callable
+        self._evaluation_cache.setdefault(
+            compilation_request,
+            {},
+        )[compilation_context] = backend_callable
 
         return backend_callable
 
