@@ -1,6 +1,6 @@
 """What a port's annotation declares about the quantity it carries."""
 
-__all__ = ["PortDeclaration", "port_declarations"]
+__all__ = ["PortDeclaration", "declared_dimensionalities", "port_declarations"]
 
 import dataclasses
 import typing
@@ -26,6 +26,17 @@ def port_declarations(
 ) -> dict[str, PortDeclaration]:
     """Read the value off each port's annotation to keep information about the port."""
     return {port: _declaration(owner_name, port, annotation) for port, annotation in port_annotations.items()}
+
+
+def declared_dimensionalities(
+    declarations: collections.abc.Mapping[str, PortDeclaration],
+) -> dict[str, Dimension]:
+    """Return the dimensionality each port in `declarations` declares, leaving out ports that declare none."""
+    return {
+        port: declaration.dimensionality
+        for port, declaration in declarations.items()
+        if declaration.dimensionality is not None
+    }
 
 
 def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclaration:
