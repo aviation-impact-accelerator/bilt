@@ -4,10 +4,15 @@ import pytest
 
 from bilt import Implementation, Interface, equation, field, system, transform
 from bilt.core._sub_system import SubSystemConstituent
-from bilt.core._system._dimensional_unification import unify_dimensionalities
+from bilt.core._system._dimensional_unification import check_dimensional_consistency
 from bilt.errors import BiltImplementationDimensionalityError
 from bilt.units import Quantity
 from bilt.units.dimensions import AREA, CURRENT, FORCE, LENGTH, MASS, POWER, RESISTANCE, VOLTAGE
+
+if typing.TYPE_CHECKING:
+    import collections.abc
+
+    from bilt.core._model_constituent import BiltModelConstituent
 
 Area = typing.Annotated[Quantity, AREA]
 Current = typing.Annotated[Quantity, CURRENT]
@@ -26,6 +31,7 @@ class Rig(metaclass=Interface):
     scaled: Quantity = field()
     halved: Quantity = field()
     power: Quantity = field()
+    m: Mass = field()
 
 
 @equation
@@ -43,49 +49,74 @@ def halving(halved: Quantity, scaled: Quantity) -> bool:
     return halved == scaled / 2.0
 
 
-def test_declared_dimensionalities_resolve() -> None:
-    resolved = unify_dimensionalities(Rig, [ohms_law])
+@equation
+def weighing(scaled: Quantity, m: Quantity) -> bool:
+    return scaled == m
 
-    assert resolved == {"v": VOLTAGE, "i": CURRENT, "r": RESISTANCE}
+
+@equation
+def metering(power: Quantity, m: Quantity) -> bool:
+    return power == m
+
+
+@equation
+def squared(a: Quantity, scaled: Quantity) -> bool:
+    return a == scaled**2
+
+
+def _inconsistency(system: Interface, constituents: collections.abc.Iterable[BiltModelConstituent]) -> str:
+    """Return the message of the error that checking `constituents` against `system` raises."""
+    with pytest.raises(BiltImplementationDimensionalityError) as raised:
+        check_dimensional_consistency(system, constituents)
+    return str(raised.value)
+
+
+def test_consistent_constituents_pass() -> None:
+    check_dimensional_consistency(Rig, [ohms_law, doubling, halving])
 
 
 def test_an_equation_infers_an_unannotated_port_from_its_neighbours() -> None:
-    assert unify_dimensionalities(Rig, [ohms_law, doubling])["scaled"] is VOLTAGE
+    message = _inconsistency(Rig, [ohms_law, doubling, weighing])
+    assert "makes equation 'weighing' dimensionally inconsistent" in message
+    assert f"'scaled': {VOLTAGE}: inferred by doubling from 'v'" in message
+    assert f"'m': {MASS}: declared by Rig" in message
 
 
 def test_inference_chains_across_constituents() -> None:
-    assert unify_dimensionalities(Rig, [halving, doubling, ohms_law])["halved"] is VOLTAGE
+    @system
+    class Declared(metaclass=Interface):
+        v: Quantity = field()
+        i: Quantity = field()
+        r: Quantity = field()
+        scaled: Quantity = field()
+        halved: Mass = field()
+
+    message = _inconsistency(Declared, [halving, doubling, ohms_law])
+    assert "makes equation 'halving' dimensionally inconsistent" in message
+    assert f"'scaled': {VOLTAGE}: inferred by doubling from 'v'" in message
+    assert f"'halved': {MASS}: declared by Declared" in message
 
 
 def test_a_port_under_an_integer_power_is_inferred() -> None:
     @system
     class Declared(metaclass=Interface):
         a: Area = field()
-        b: Quantity = field()
+        scaled: Quantity = field()
+        m: Mass = field()
 
-    @equation
-    def squared(a: Quantity, b: Quantity) -> bool:
-        return a == b**2
-
-    assert unify_dimensionalities(Declared, [squared])["b"] is LENGTH
+    message = _inconsistency(Declared, [squared, weighing])
+    assert f"'scaled': {LENGTH}: inferred by squared from 'a'" in message
 
 
 def test_a_power_no_dimensionality_can_meet_is_inconsistent() -> None:
     @system
     class Declared(metaclass=Interface):
         a: Length = field()
-        b: Quantity = field()
+        scaled: Quantity = field()
 
-    @equation
-    def squared(a: Quantity, b: Quantity) -> bool:
-        return a == b**2
-
-    with pytest.raises(
-        BiltImplementationDimensionalityError, match="makes equation 'squared' dimensionally inconsistent"
-    ) as raised:
-        unify_dimensionalities(Declared, [squared])
-
-    assert "'a': length ([Length]): declared by Declared" in str(raised.value)
+    message = _inconsistency(Declared, [squared])
+    assert "makes equation 'squared' dimensionally inconsistent" in message
+    assert f"'a': {LENGTH}: declared by Declared" in message
 
 
 def test_a_port_on_both_sides_is_inferred() -> None:
@@ -93,7 +124,8 @@ def test_a_port_on_both_sides_is_inferred() -> None:
     def accumulating(scaled: Quantity, v: Quantity) -> bool:
         return scaled + v == 2.0 * scaled
 
-    assert unify_dimensionalities(Rig, [ohms_law, accumulating])["scaled"] is VOLTAGE
+    message = _inconsistency(Rig, [ohms_law, accumulating, weighing])
+    assert f"'scaled': {VOLTAGE}: inferred by accumulating from 'v'" in message
 
 
 def test_an_inequality_infers_like_an_equality() -> None:
@@ -101,32 +133,17 @@ def test_an_inequality_infers_like_an_equality() -> None:
     def bounding(scaled: Quantity, v: Quantity) -> bool:
         return scaled < v
 
-    assert unify_dimensionalities(Rig, [ohms_law, bounding])["scaled"] is VOLTAGE
+    message = _inconsistency(Rig, [ohms_law, bounding, weighing])
+    assert f"'scaled': {VOLTAGE}: inferred by bounding from 'v'" in message
 
 
 def test_an_inference_from_no_port_names_only_its_equation() -> None:
-    @system
-    class Declared(metaclass=Interface):
-        v: Quantity = field()
-        i: Quantity = field()
-        r: Quantity = field()
-        halved: Quantity = field()
-        m: Mass = field()
-
     @equation
-    def unity(halved: Quantity, i: Quantity) -> bool:  # noqa: ARG001
-        return halved == 1
+    def unity(scaled: Quantity, i: Quantity) -> bool:  # noqa: ARG001
+        return scaled == 1
 
-    @equation
-    def weighing(halved: Quantity, m: Quantity) -> bool:
-        return halved == m
-
-    with pytest.raises(
-        BiltImplementationDimensionalityError, match="makes equation 'weighing' dimensionally inconsistent"
-    ) as raised:
-        unify_dimensionalities(Declared, [ohms_law, unity, weighing])
-
-    message = str(raised.value)
+    message = _inconsistency(Rig, [ohms_law, unity, weighing])
+    assert "makes equation 'weighing' dimensionally inconsistent" in message
     assert "inferred by unity\n" in message
 
 
@@ -135,7 +152,9 @@ def test_a_transform_output_takes_its_return_annotation() -> None:
     def power(v: Quantity, i: Quantity) -> typing.Annotated[Quantity, POWER]:
         return v * i
 
-    assert unify_dimensionalities(Rig, [ohms_law, power])["power"] is POWER
+    message = _inconsistency(Rig, [ohms_law, power, metering])
+    assert "makes equation 'metering' dimensionally inconsistent" in message
+    assert f"'power': {POWER}: declared by power" in message
 
 
 def test_an_unannotated_transform_output_is_not_inferred_from_its_body() -> None:
@@ -143,13 +162,11 @@ def test_an_unannotated_transform_output_is_not_inferred_from_its_body() -> None
     def power(v: Quantity, i: Quantity) -> Quantity:
         return v * i
 
-    assert "power" not in unify_dimensionalities(Rig, [ohms_law, power])
+    check_dimensional_consistency(Rig, [ohms_law, power, metering])
 
 
-def test_ports_nothing_constrains_stay_unresolved() -> None:
-    resolved = unify_dimensionalities(Rig, [doubling, halving])
-
-    assert resolved == {}
+def test_ports_nothing_declares_take_whatever_an_equation_implies() -> None:
+    check_dimensional_consistency(Rig, [doubling, halving, weighing])
 
 
 def test_the_interface_declares_ports() -> None:
@@ -157,8 +174,12 @@ def test_the_interface_declares_ports() -> None:
     class Declared(metaclass=Interface):
         scaled: Force = field()
         v: Quantity = field()
+        i: Quantity = field()
+        r: Quantity = field()
 
-    assert unify_dimensionalities(Declared, [doubling])["v"] is FORCE
+    message = _inconsistency(Declared, [ohms_law, doubling])
+    assert "makes equation 'doubling' dimensionally inconsistent" in message
+    assert f"'scaled': {FORCE}: declared by Declared" in message
 
 
 def test_a_declared_conflict_names_both_sources() -> None:
@@ -169,40 +190,13 @@ def test_a_declared_conflict_names_both_sources() -> None:
         r: Quantity = field()
 
     @equation
-    def weighing(v: Mass) -> bool:
+    def resting(v: Mass) -> bool:
         return v == 0
 
-    with pytest.raises(BiltImplementationDimensionalityError, match="'v'") as raised:
-        unify_dimensionalities(Declared, [ohms_law, weighing])
-
-    message = str(raised.value)
-    assert "voltage" in message
-    assert "mass" in message
-    assert "declared by Declared" in message
-    assert "declared by weighing" in message
-
-
-def test_an_equation_contradicting_an_earlier_inference_is_inconsistent() -> None:
-    @system
-    class Declared(metaclass=Interface):
-        v: Quantity = field()
-        i: Quantity = field()
-        r: Quantity = field()
-        scaled: Quantity = field()
-        m: Mass = field()
-
-    @equation
-    def weighing(scaled: Quantity, m: Quantity) -> bool:
-        return scaled == m * 2.0
-
-    with pytest.raises(
-        BiltImplementationDimensionalityError, match="makes equation 'weighing' dimensionally inconsistent"
-    ) as raised:
-        unify_dimensionalities(Declared, [ohms_law, doubling, weighing])
-
-    message = str(raised.value)
-    assert "inferred by doubling from 'v'" in message
-    assert "declared by Declared" in message
+    message = _inconsistency(Declared, [ohms_law, resting])
+    assert "'v'" in message
+    assert f"{VOLTAGE}: declared by Declared" in message
+    assert f"{MASS}: declared by resting" in message
 
 
 def test_a_conflict_reads_the_same_whatever_the_constituent_order() -> None:
@@ -217,31 +211,10 @@ def test_a_conflict_reads_the_same_whatever_the_constituent_order() -> None:
     messages = set()
     for constituents in ([ohms_law, doubling, halving], [halving, doubling, ohms_law]):
         with pytest.raises(BiltImplementationDimensionalityError) as raised:
-            unify_dimensionalities(Declared, constituents)
+            check_dimensional_consistency(Declared, constituents)
         messages.add(str(raised.value))
 
     assert len(messages) == 1
-
-
-def test_an_equation_inconsistent_with_inferred_ports_raises() -> None:
-    @system
-    class Declared(metaclass=Interface):
-        v: Quantity = field()
-        i: Quantity = field()
-        r: Quantity = field()
-        scaled: Quantity = field()
-        m: Mass = field()
-
-    @equation
-    def squaring(scaled: Quantity, m: Quantity) -> bool:
-        return scaled**2 == m**2
-
-    with pytest.raises(
-        BiltImplementationDimensionalityError, match="makes equation 'squaring' dimensionally inconsistent"
-    ) as raised:
-        unify_dimensionalities(Declared, [ohms_law, doubling, squaring])
-
-    assert "inferred by doubling from 'v'" in str(raised.value)
 
 
 def test_an_equation_contradicting_declared_ports_is_inconsistent() -> None:
@@ -254,10 +227,8 @@ def test_an_equation_contradicting_declared_ports_is_inconsistent() -> None:
     def squares(a: Quantity, b: Quantity) -> bool:
         return a**2 == b**2
 
-    with pytest.raises(BiltImplementationDimensionalityError, match="squares") as raised:
-        unify_dimensionalities(Declared, [squares])
-
-    message = str(raised.value)
+    message = _inconsistency(Declared, [squares])
+    assert "squares" in message
     assert "declared by Declared" in message
 
 
@@ -270,8 +241,14 @@ def test_a_sub_system_declares_its_ports_under_their_dotted_names() -> None:
 
     @system
     class Parent(metaclass=Interface):
-        out: Quantity = field()
+        out: Mass = field()
 
     resistor = SubSystemConstituent("resistor", Implementation(Resistor, []))
 
-    assert unify_dimensionalities(Parent, [resistor]) == {"resistor.v": VOLTAGE}
+    @equation
+    def wiring(out: Quantity, resistor: Resistor) -> bool:
+        return out == resistor.v
+
+    message = _inconsistency(Parent, [resistor, wiring])
+    assert "makes equation 'wiring' dimensionally inconsistent" in message
+    assert f"'resistor.v': {VOLTAGE}: declared by resistor" in message

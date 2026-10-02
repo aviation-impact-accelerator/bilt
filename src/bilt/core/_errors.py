@@ -67,7 +67,7 @@ class BiltEquationDimensionalityError(BiltDimensionalityError):
 
 
 class BiltImplementationDimensionalityError(BiltDimensionalityError):
-    """Raised when an implementation gives a port conflicting dimensionalities, or makes a constituent inconsistent."""
+    """Raised when an implementation gives a port conflicting dimensionalities, or makes an equation inconsistent."""
 
     def __init__(self, system_name: str, problem: str) -> None:
         super().__init__(f"Implementation of {system_name!r} {problem}")
