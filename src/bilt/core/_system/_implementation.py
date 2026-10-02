@@ -1,8 +1,4 @@
-from bilt.core._system._lowering_and_lifting import (
-    generate_lifting_plan,
-    lift_output,
-    lower_inputs,
-)
+from bilt.core._system._lowering_and_lifting import generate_lifting_plan, lift_output, lower_inputs
 from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 
 __all__ = ["Implementation"]
@@ -133,6 +129,8 @@ class Implementation:
         request: EvaluationRequest,
         backend: Backend,
     ) -> BackendCallable:
+        evaluation = current_evaluation()
+
         compilation_request = _CompilationRequest(
             output=request.output,
             input_domains=frozenset(request.input_domains.items()),
@@ -201,11 +199,7 @@ def _required_sub_system_interfaces(
             for name, interface in component.__bilt_sub_systems__.items():
                 declared = required.setdefault(name, interface)
                 if declared is not interface:
-                    raise BiltSubSystemConflictError(
-                        name,
-                        declared.__bilt_name__,
-                        interface.__bilt_name__,
-                    )
+                    raise BiltSubSystemConflictError(name, declared.__bilt_name__, interface.__bilt_name__)
     return required
 
 
@@ -220,10 +214,7 @@ def _build_sub_system_constituents(
     for name, implementation in internal_implementations.items():
         if name in components:
             raise BiltSubSystemNameCollisionError(name)
-        constituents[name] = SubSystemConstituent(
-            name=name,
-            implementation=implementation,
-        )
+        constituents[name] = SubSystemConstituent(name=name, implementation=implementation)
     return constituents
 
 
@@ -239,20 +230,13 @@ def _validate_sub_systems(
         constituent = sub_systems.get(name)
         if constituent is None:
             raise BiltSubSystemMissingImplementationError(
-                name,
-                interface.__bilt_name__,
-                sorted(internal_implementations),
+                name, interface.__bilt_name__, sorted(internal_implementations)
             )
         if constituent.interface is not interface:
             raise BiltSubSystemMismatchedImplementationError(
-                name,
-                interface.__bilt_name__,
-                constituent.interface.__bilt_name__,
+                name, interface.__bilt_name__, constituent.interface.__bilt_name__
             )
 
     for name in internal_implementations:
         if name not in required_interfaces:
-            raise BiltSubSystemUnreferencedEntryError(
-                name,
-                sorted(required_interfaces),
-            )
+            raise BiltSubSystemUnreferencedEntryError(name, sorted(required_interfaces))

@@ -314,7 +314,6 @@ def test_evaluation_cache_distinguishes_canonical_order(
         np.testing.assert_allclose(result.values, [3.0, 4.0])
 
 
-
 @pytest.mark.parametrize(
     "backend",
     (PYTHON_BACKEND, JAX_BACKEND),
