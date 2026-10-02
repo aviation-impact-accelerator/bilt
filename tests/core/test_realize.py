@@ -1,3 +1,5 @@
+import typing
+
 import pytest
 
 from bilt import Interface, field, system
@@ -8,6 +10,9 @@ from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan
 from bilt.symbolic._domains import Domain
+
+if typing.TYPE_CHECKING:
+    from bilt.core._port_declaration import PortDeclaration
 
 SUPPLY_VOLTAGE = 3.0
 SCALAR_DOMAIN = Domain.scalar()
@@ -79,6 +84,7 @@ def test_realize_plan_rejects_an_unsupported_operation() -> None:
     class Unsupported:
         __bilt_name__: str = "unsupported"
         __bilt_parameters__: tuple[str, ...] = ("a",)
+        __bilt_port_declarations__: dict[str, PortDeclaration] = {}  # noqa: RUF012
 
     plan = _scalar_plan(
         inputs=frozenset(),
