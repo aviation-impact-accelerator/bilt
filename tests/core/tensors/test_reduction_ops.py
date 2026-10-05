@@ -441,6 +441,7 @@ def test_sel_over_only_dimension_returns_scalar(
 
     assert result == pytest.approx(20.0)
 
+
 @pytest.mark.parametrize(
     "backend",
     (PYTHON_BACKEND, JAX_BACKEND),
