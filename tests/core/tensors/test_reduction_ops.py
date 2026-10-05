@@ -9,7 +9,7 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._tensors._tensors import Tensor, tensor
-from bilt.symbolic._dimensions import Dim
+from bilt.symbolic._dimensions import Dim, coordinate_axis
 from bilt.symbolic._domains import Domain, domain
 
 if TYPE_CHECKING:
@@ -397,6 +397,89 @@ def test_transform_mean_inside_arithmetic(
         evaluated.values,
         np.array([13.0, 14.0]),
     )
+
+
+@pytest.mark.parametrize(
+    "backend",
+    (PYTHON_BACKEND, JAX_BACKEND),
+)
+def test_sel_over_only_dimension_returns_scalar(
+    backend: Backend,
+) -> None:
+    time = Dim("time")
+
+    @system
+    class Demo(metaclass=Interface):
+        values: Tensor = field()
+        selected: float = field()
+
+    @equation
+    def select(values: Tensor, selected: float) -> bool:
+        return selected == values.sel(time, 2025)
+
+    implementation = Implementation(Demo, [select])
+    inputs: dict[str, object] = {
+        "values": tensor(
+            [10.0, 20.0, 30.0],
+            over=time,
+        ),
+    }
+
+    with EvaluationContext() as evaluation:
+        evaluation.domains.bind(
+            coordinate_axis(
+                time,
+                (2024, 2025, 2026),
+            )
+        )
+
+        result = implementation.evaluate(
+            inputs,
+            "selected",
+            backend,
+        )
+
+    assert result == pytest.approx(20.0)
+
+
+@pytest.mark.parametrize(
+    "backend",
+    (PYTHON_BACKEND, JAX_BACKEND),
+)
+def test_sel_cache_respects_coordinate_order(
+    backend: Backend,
+) -> None:
+    time = Dim("time")
+
+    @system
+    class Demo(metaclass=Interface):
+        values: Tensor = field()
+        selected: float = field()
+
+    @equation
+    def select(values: Tensor, selected: float) -> bool:
+        return selected == values.sel(time, 2025)
+
+    implementation = Implementation(Demo, [select])
+    inputs: dict[str, object] = {
+        "values": tensor([10.0, 20.0, 30.0], over=time),
+    }
+
+    # Reuse one implementation so both evaluations share its compilation cache.
+    for coordinates, expected in (
+        ((2024, 2025, 2026), 20.0),
+        ((2025, 2024, 2026), 10.0),
+    ):
+        with EvaluationContext() as evaluation:
+            evaluation.domains.bind(coordinate_axis(time, coordinates))
+
+            result = implementation.evaluate(
+                inputs,
+                "selected",
+                backend,
+            )
+
+        assert result == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(

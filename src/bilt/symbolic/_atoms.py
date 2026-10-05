@@ -6,7 +6,7 @@ from bilt.symbolic._errors import BiltAtomMutationError
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt.symbolic._dimensions import Dim
+    from bilt.symbolic._dimensions import Coordinate, Dim
 
 __all__ = [
     "ADD",
@@ -25,10 +25,12 @@ __all__ = [
     "NOT_EQUALS",
     "POW",
     "PROD",
+    "SEL",
     "SUM",
     "Atom",
     "AtomType",
     "AxisType",
+    "CoordinateType",
     "DimensionType",
     "FloatType",
     "IndexOpType",
@@ -40,6 +42,7 @@ __all__ = [
     "atom_cache_size",
     "axis",
     "clear_atom_cache",
+    "coordinate",
     "dimension",
     "floating",
     "integer",
@@ -85,6 +88,7 @@ OpType = AtomType("Op")
 RelationOpType = AtomType("RelationOp")
 ReductionOpType = AtomType("ReductionOp")
 IndexOpType = AtomType("IndexOp")
+CoordinateType = AtomType("Coordinate")
 DimensionType = AtomType("Dimension")
 AxisType = AtomType("Axis")
 IntType = AtomType("Integer")
@@ -165,6 +169,10 @@ def axis(value: int) -> Atom:
     return Atom(AxisType, value)
 
 
+def coordinate(value: Coordinate) -> Atom:
+    return Atom(CoordinateType, value)
+
+
 ADD = Atom(OpType, "add")
 MUL = Atom(OpType, "mul")
 POW = Atom(OpType, "pow")
@@ -178,6 +186,7 @@ MAX = Atom(ReductionOpType, "max")
 PROD = Atom(ReductionOpType, "prod")
 
 ISEL = Atom(IndexOpType, "isel")
+SEL = Atom(IndexOpType, "sel")
 
 EQUALS = Atom(RelationOpType, "==")
 NOT_EQUALS = Atom(RelationOpType, "!=")

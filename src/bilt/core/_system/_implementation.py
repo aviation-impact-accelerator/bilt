@@ -30,6 +30,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis import StructuralAnalyser
+    from bilt.symbolic._dimensions import Coordinate, Dim
 
 
 @dataclasses.dataclass(frozen=True)
@@ -42,6 +43,10 @@ class _CompilationRequest:
 @dataclasses.dataclass(frozen=True)
 class _CompilationContext:
     canonical_order: Domain
+    coordinate_signature: tuple[
+        tuple[Dim, tuple[Coordinate, ...]],
+        ...,
+    ]
 
 
 class Implementation:
@@ -124,13 +129,16 @@ class Implementation:
         request: EvaluationRequest,
         backend: Backend,
     ) -> BackendCallable:
+        evaluation = current_evaluation()
+
         compilation_request = _CompilationRequest(
             output=request.output,
             input_domains=frozenset(request.input_domains.items()),
             backend=backend,
         )
         compilation_context = _CompilationContext(
-            canonical_order=current_evaluation().canonical_order,
+            canonical_order=evaluation.canonical_order,
+            coordinate_signature=evaluation.domains.coordinate_signature(),
         )
 
         cached_evaluations = self._evaluation_cache.get(compilation_request)

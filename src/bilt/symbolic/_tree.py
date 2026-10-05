@@ -8,12 +8,14 @@ from bilt.symbolic._atoms import (
     MEAN,
     MIN,
     PROD,
+    SEL,
     SUM,
     Atom,
     IndexOpType,
     ReductionOpType,
     RelationOpType,
     axis,
+    coordinate,
     dimension,
     floating,
     integer,
@@ -23,7 +25,7 @@ from bilt.symbolic._atoms import (
 from bilt.symbolic._errors import BiltTreeMutationError
 
 if typing.TYPE_CHECKING:
-    from bilt.symbolic._dimensions import Dim
+    from bilt.symbolic._dimensions import Coordinate, Dim
 
 _tree_cache: weakref.WeakValueDictionary[
     tuple[Atom, tuple[Tree, ...]],
@@ -33,6 +35,7 @@ _tree_cache: weakref.WeakValueDictionary[
 __all__ = [
     "Tree",
     "axis_tree",
+    "coordinate_tree",
     "dimension_tree",
     "equality_tree",
     "float_tree",
@@ -45,6 +48,7 @@ __all__ = [
     "prod_tree",
     "reduction_tree",
     "relation_tree",
+    "sel_tree",
     "sum_tree",
     "symbol_tree",
 ]
@@ -175,6 +179,10 @@ def dimension_tree(dim: Dim) -> Tree:
     return Tree(dimension(dim))
 
 
+def coordinate_tree(value: Coordinate) -> Tree:
+    return Tree(coordinate(value))
+
+
 def axis_tree(value: int) -> Tree:
     return Tree(axis(value))
 
@@ -251,6 +259,11 @@ def index_tree(
 def isel_tree(value: Tree, dim: Dim, index: Tree) -> Tree:
     """Construct a symbolic positional selection tree."""
     return index_tree(ISEL, value, dim, index)
+
+
+def sel_tree(value: Tree, dim: Dim, coordinate: Tree) -> Tree:
+    """Construct a symbolic coordinate selection tree."""
+    return index_tree(SEL, value, dim, coordinate)
 
 
 def relation_tree(operator: Atom | str, left: Tree, right: Tree) -> Tree:

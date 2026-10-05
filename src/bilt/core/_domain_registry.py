@@ -12,7 +12,7 @@ from bilt.symbolic._dimensions import CoordinateAxis
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt.symbolic._dimensions import Dim
+    from bilt.symbolic._dimensions import Coordinate, Dim
     from bilt.symbolic._domains import Domain
 
 
@@ -125,6 +125,16 @@ class DomainRegistry:
 
         message = f"Coordinate {coordinate!r} is not present on dimension {dim!r}."
         raise BiltDomainBindingError(message)
+
+    def coordinate_signature(
+        self,
+    ) -> tuple[tuple[Dim, tuple[Coordinate, ...]], ...]:
+        """Return the coordinate bindings that affect compiled evaluation."""
+        return tuple(
+            (dimension, binding.coordinates)
+            for dimension, binding in self._bindings.items()
+            if isinstance(binding, CoordinateAxis)
+        )
 
     def lock_against_new_dimensions(self) -> None:
         self._locked_against_new_dimensions = True

@@ -10,7 +10,7 @@ import dataclasses
 import numpy as np
 
 from bilt.core._tensors._errors import BiltTensorDomainError
-from bilt.symbolic._dimensions import Dim
+from bilt.symbolic._dimensions import Coordinate, Dim
 from bilt.symbolic._domains import Domain
 
 OverArg = Dim | collections.abc.Iterable[Dim]
@@ -99,6 +99,10 @@ class Tensor:
 
     def isel(self, dim: Dim, index: int) -> Tensor:  # noqa: ARG002
         """Select a position along a named dimension in a Bilt model."""
+        raise _symbolic_operation_only()
+
+    def sel(self, dim: Dim, coordinate: Coordinate) -> Tensor:  # noqa: ARG002
+        """Select a coordinate along a named dimension in a Bilt model."""
         raise _symbolic_operation_only()
 
 

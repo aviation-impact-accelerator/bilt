@@ -8,14 +8,18 @@ import dataclasses
 import typing
 
 from bilt.core._canonical_ordering import canonicalized
+from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors._errors import BiltSymbolicLoweringError, BiltTensorDomainError
 from bilt.symbolic._atoms import (
     ADD,
     INV,
+    ISEL,
     MUL,
     NEG,
     POW,
+    SEL,
     AxisType,
+    CoordinateType,
     DimensionType,
     FloatType,
     IndexOpType,
@@ -24,7 +28,7 @@ from bilt.symbolic._atoms import (
     SymbolType,
 )
 from bilt.symbolic._domains import Domain, union
-from bilt.symbolic._tree import Tree, axis_tree
+from bilt.symbolic._tree import Tree, axis_tree, int_tree
 
 if typing.TYPE_CHECKING:
     from collections.abc import Mapping
@@ -179,7 +183,7 @@ def _lower_leaf(
             domain=value_domain,
         )
 
-    if tree.head.atom_type in (IntType, FloatType):
+    if tree.head.atom_type in (IntType, FloatType, CoordinateType):
         return LoweredExpression(
             tree=tree,
             domain=Domain.scalar(),
@@ -266,13 +270,28 @@ def _lower_index(
         canonical_order=canonical_order,
     )
 
+    operator = tree.head
+    lowered_selector = selector.tree
+
+    if operator is SEL:
+        if not selector_tree.is_leaf or selector_tree.head.atom_type is not CoordinateType:
+            message = "sel requires a literal coordinate selector."
+            raise BiltSymbolicLoweringError(message)
+
+        position = current_evaluation().domains.position(
+            dim,
+            selector_tree.head.value,
+        )
+        operator = ISEL
+        lowered_selector = int_tree(position)
+
     return LoweredExpression(
         tree=Tree(
-            tree.head,
+            operator,
             (
                 value.tree,
                 axis_tree(axis),
-                selector.tree,
+                lowered_selector,
             ),
         ),
         domain=output_domain,
