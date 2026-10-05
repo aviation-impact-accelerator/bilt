@@ -77,7 +77,7 @@ def test_consistent_constituents_pass() -> None:
 
 def test_an_equation_infers_an_unannotated_port_from_its_neighbours() -> None:
     message = _inconsistency(Rig, [ohms_law, doubling, weighing])
-    assert "makes equation 'weighing' dimensionally inconsistent" in message
+    assert "makes 'weighing' dimensionally inconsistent" in message
     assert f"'scaled': {VOLTAGE}: inferred by doubling from 'v'" in message
     assert f"'m': {MASS}: declared by Rig" in message
 
@@ -92,7 +92,7 @@ def test_inference_chains_across_constituents() -> None:
         halved: Mass = field()
 
     message = _inconsistency(Declared, [halving, doubling, ohms_law])
-    assert "makes equation 'halving' dimensionally inconsistent" in message
+    assert "makes 'halving' dimensionally inconsistent" in message
     assert f"'scaled': {VOLTAGE}: inferred by doubling from 'v'" in message
     assert f"'halved': {MASS}: declared by Declared" in message
 
@@ -115,7 +115,7 @@ def test_a_power_no_dimensionality_can_meet_is_inconsistent() -> None:
         scaled: Quantity = field()
 
     message = _inconsistency(Declared, [squared])
-    assert "makes equation 'squared' dimensionally inconsistent" in message
+    assert "makes 'squared' dimensionally inconsistent" in message
     assert f"'a': {LENGTH}: declared by Declared" in message
 
 
@@ -143,7 +143,7 @@ def test_an_inference_from_no_port_names_only_its_equation() -> None:
         return scaled == 1
 
     message = _inconsistency(Rig, [ohms_law, unity, weighing])
-    assert "makes equation 'weighing' dimensionally inconsistent" in message
+    assert "makes 'weighing' dimensionally inconsistent" in message
     assert "inferred by unity\n" in message
 
 
@@ -153,7 +153,7 @@ def test_a_transform_output_takes_its_return_annotation() -> None:
         return v * i
 
     message = _inconsistency(Rig, [ohms_law, power, metering])
-    assert "makes equation 'metering' dimensionally inconsistent" in message
+    assert "makes 'metering' dimensionally inconsistent" in message
     assert f"'power': {POWER}: declared by power" in message
 
 
@@ -178,7 +178,7 @@ def test_the_interface_declares_ports() -> None:
         r: Quantity = field()
 
     message = _inconsistency(Declared, [ohms_law, doubling])
-    assert "makes equation 'doubling' dimensionally inconsistent" in message
+    assert "makes 'doubling' dimensionally inconsistent" in message
     assert f"'scaled': {FORCE}: declared by Declared" in message
 
 
@@ -250,7 +250,7 @@ def test_a_sub_system_declares_its_ports_under_their_dotted_names() -> None:
         return out == resistor.v
 
     message = _inconsistency(Parent, [resistor, wiring])
-    assert "makes equation 'wiring' dimensionally inconsistent" in message
+    assert "makes 'wiring' dimensionally inconsistent" in message
     assert f"'resistor.v': {VOLTAGE}: declared by resistor" in message
 
 

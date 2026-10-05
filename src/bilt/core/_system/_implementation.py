@@ -67,15 +67,20 @@ class Implementation:
 
         sub_systems = _build_sub_system_constituents(named_components, internal)
         _validate_sub_systems(named_components, internal, sub_systems)
-        self._constituents: tuple[BiltModelConstituent, ...] = tuple(named_components.values())
-        self._dimensionalities: dict[str, ResolvedDimensionality] = check_dimensional_consistency(
-            system, self._constituents
-        )
-        self._resolutions_by_given: dict[frozenset[tuple[str, Dimension]], dict[str, ResolvedDimensionality]] = {}
-
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             named_components | sub_systems
         )
+        self._port_declarations: dict[str, PortDeclaration] = system.__bilt_port_declarations__ | {
+            port: declaration
+            for sub_system in sub_systems.values()
+            for port, declaration in sub_system.__bilt_port_declarations__.items()
+        }
+        self._dimensionalities: dict[str, ResolvedDimensionality] = check_dimensional_consistency(
+            system, self._components.values()
+        )
+        self._resolutions_by_given: dict[frozenset[tuple[str, Dimension]], dict[str, ResolvedDimensionality]] = {
+            frozenset(): self._dimensionalities
+        }
         self._evaluation_cache: dict[
             _CompilationRequest,
             dict[_CompilationContext, BackendCallable],
@@ -86,6 +91,24 @@ class Implementation:
     @property
     def system(self) -> Interface:
         return self._system
+
+    def resolve_dimensionalities(
+        self, given: collections.abc.Iterable[tuple[str, Dimension]]
+    ) -> dict[str, ResolvedDimensionality]:
+        """Return the dimensionality each port resolves to once each pair in `given` seeds a port from outside.
+
+        Raise `BiltImplementationDimensionalityError` when `given` contradicts the implementation.
+        """
+        seeds = frozenset(
+            (port, dimensionality)
+            for port, dimensionality in given
+            if port not in self._dimensionalities or self._dimensionalities[port].dimensionality is not dimensionality
+        )
+        if seeds not in self._resolutions_by_given:
+            self._resolutions_by_given[seeds] = check_dimensional_consistency(
+                self._system, self._components.values(), seeds
+            )
+        return self._resolutions_by_given[seeds]
 
     def analyser_for(self, backend: Backend) -> StructuralAnalyser:
         """The structural analyser for this implementation's components under ``backend``."""
@@ -173,15 +196,10 @@ class Implementation:
     def _output_dimensionality(self, output: str, inputs: collections.abc.Mapping[str, object]) -> Dimension | None:
 
         supplied = [(port, value.unit.dimension) for port, value in inputs.items() if isinstance(value, Quantity)]
-        declaration = self._system.__bilt_port_declarations__.get(output, PortDeclaration())
+        declaration = self._port_declarations.get(output, PortDeclaration())
         if not supplied and not declaration.carries_quantity:
             return None
-        given = frozenset(
-            (port, dimensionality) for port, dimensionality in supplied if port not in self._dimensionalities
-        )
-        if given not in self._resolutions_by_given:
-            self._resolutions_by_given[given] = check_dimensional_consistency(self._system, self._constituents, given)
-        resolved = self._resolutions_by_given[given].get(output)
+        resolved = self.resolve_dimensionalities(supplied).get(output)
         if resolved is not None:
             return resolved.dimensionality
         return DIMENSIONLESS if declaration.carries_quantity else None

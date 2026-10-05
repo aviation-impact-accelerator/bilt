@@ -96,6 +96,10 @@ class BasicEquation[R, **P]:
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self._function(*args, **kwargs)
 
+    def implied_dimensionalities(self, known: collections.abc.Mapping[str, Dimension]) -> dict[str, Dimension]:
+        """Return the dimensionality this equation implies for each port it determines, given those in `known`."""
+        return check_homogeneity(self, known)
+
     def __str__(self) -> str:
         return f"{self.__bilt_name__}: {self.__bilt_equation_tree__}"
 

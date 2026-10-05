@@ -5,9 +5,10 @@ __all__ = ["ResolvedDimensionality", "check_dimensional_consistency"]
 import dataclasses
 import typing
 
-from bilt.core._equation import BasicEquation, check_homogeneity
+from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltEquationDimensionalityError, BiltImplementationDimensionalityError
 from bilt.core._port_declaration import declared_dimensionalities
+from bilt.core._sub_system import SubSystemConstituent
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -30,7 +31,7 @@ def check_dimensional_consistency(
     constituents: collections.abc.Iterable[BiltModelConstituent],
     given: collections.abc.Iterable[tuple[str, Dimension]] = (),
 ) -> dict[str, ResolvedDimensionality]:
-    """Demand that each port of an implementation can take one dimensionality that every equation agrees with.
+    """Demand that each port of an implementation can take one dimensionality that every relation agrees with.
 
     Return the dimensionality each port resolves to and where it came from, leaving out ports that resolve to none.
 
@@ -49,13 +50,15 @@ def check_dimensional_consistency(
     for port, dimensionality in given:
         resolution.declare(port, dimensionality, "the caller")
 
-    equations = [constituent for constituent in ordered if isinstance(constituent, BasicEquation)]
-    pending = dict.fromkeys(equations)
+    relations = [
+        constituent for constituent in ordered if isinstance(constituent, (BasicEquation, SubSystemConstituent))
+    ]
+    pending = dict.fromkeys(relations)
     while pending:
-        equation = next(iter(pending))
-        del pending[equation]
-        for port in resolution.infer_from(equation):
-            pending.update(dict.fromkeys(other for other in equations if port in other.__bilt_relation_ports__))
+        relation = next(iter(pending))
+        del pending[relation]
+        for port in resolution.infer_from(relation):
+            pending.update(dict.fromkeys(other for other in relations if port in other.__bilt_relation_ports__))
 
     return resolution.resolved
 
@@ -88,24 +91,24 @@ class _Resolution:
             )
             raise BiltImplementationDimensionalityError(self._system.__bilt_name__, msg)
 
-    def infer_from(self, equation: BasicEquation[object, ...]) -> list[str]:
-        """Demand that an equation is homogeneous given its resolved ports; record and return the ports it implies."""
+    def infer_from(self, relation: BasicEquation[object, ...] | SubSystemConstituent) -> list[str]:
+        """Demand that a relation is consistent given its resolved ports; record and return the ports it implies."""
         known = {
             port: self._dimensionalities[port]
-            for port in equation.__bilt_parameters__
+            for port in relation.__bilt_parameters__
             if port in self._dimensionalities
         }
         try:
-            implied = check_homogeneity(equation, known)
-        except BiltEquationDimensionalityError as error:
+            implied = relation.implied_dimensionalities(known)
+        except (BiltEquationDimensionalityError, BiltImplementationDimensionalityError) as error:
             given = "\n".join(
                 f"  {port!r}: {dimensionality}: {self._sources[port]}" for port, dimensionality in sorted(known.items())
             )
-            msg = f"makes equation {equation.__bilt_name__!r} dimensionally inconsistent, given\n{given}\n{error}"
+            msg = f"makes {relation.__bilt_name__!r} dimensionally inconsistent, given\n{given}\n{error}"
             raise BiltImplementationDimensionalityError(self._system.__bilt_name__, msg) from error
 
-        inputs = [repr(port) for port in sorted(equation.__bilt_relation_ports__) if port in known]
-        source = f"inferred by {equation.__bilt_name__}"
+        inputs = [repr(port) for port in sorted(relation.__bilt_relation_ports__) if port in known]
+        source = f"inferred by {relation.__bilt_name__}"
         if inputs:
             source += f" from {', '.join(inputs)}"
 

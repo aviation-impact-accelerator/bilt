@@ -11,6 +11,7 @@ if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
     from bilt.core._port_declaration import PortDeclaration
     from bilt.core._system._implementation import Implementation
+    from bilt.units import Dimension
 
 
 class SubSystemConstituent:
@@ -22,6 +23,7 @@ class SubSystemConstituent:
         self.implementation = implementation
         self.interface = implementation.system
         self.__bilt_parameters__ = tuple(self.qualify(port) for port in self.interface.__bilt_parameters__)
+        self.__bilt_relation_ports__ = self.__bilt_parameters__
         self.__bilt_port_declarations__: dict[str, PortDeclaration] = {
             self.qualify(port): declaration for port, declaration in self.interface.__bilt_port_declarations__.items()
         }
@@ -42,6 +44,17 @@ class SubSystemConstituent:
             raise BiltAnalysisError(msg)
 
         return port
+
+    def implied_dimensionalities(self, known: collections.abc.Mapping[str, Dimension]) -> dict[str, Dimension]:
+        """Return the dimensionality the child implies for each of its other ports, given those in `known`."""
+        resolved = self.implementation.resolve_dimensionalities(
+            (self.child_port(port), dimensionality) for port, dimensionality in known.items()
+        )
+        return {
+            qualified: resolved[port].dimensionality
+            for port, qualified in zip(self.interface.__bilt_parameters__, self.__bilt_parameters__, strict=True)
+            if port in resolved and qualified not in known
+        }
 
     def required_inputs_for(
         self,
