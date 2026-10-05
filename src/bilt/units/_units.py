@@ -692,6 +692,12 @@ class UnitSystem:
     def __getitem__(self, dimension: Dimension) -> Unit:
         return self.dimension_to_base_unit_mapping[dimension]
 
+    @functools.cache  # noqa: B019
+    def coherent_unit(self, dimensionality: Dimension) -> Unit:
+        """The unit of `dimensionality` composed from this system's base units with no scale factor."""
+        orders = zip(self.dimension_to_base_unit_mapping.values(), dimensionality.dimensions, strict=True)
+        return Unit(UnitComposition(*(UnitOrder(base_unit, order) for base_unit, order in orders)))
+
 
 BASE_UNIT_SYSTEM = UnitSystem(
     mass=kilogram,

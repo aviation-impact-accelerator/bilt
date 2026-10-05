@@ -28,6 +28,7 @@ class ResolvedDimensionality:
 def check_dimensional_consistency(
     system: Interface,
     constituents: collections.abc.Iterable[BiltModelConstituent],
+    given: collections.abc.Iterable[tuple[str, Dimension]] = (),
 ) -> dict[str, ResolvedDimensionality]:
     """Demand that each port of an implementation can take one dimensionality that every equation agrees with.
 
@@ -35,12 +36,18 @@ def check_dimensional_consistency(
 
     Ports are inferred one at a time, so a contradiction carried only by a combination of unresolved ports goes
     unreported: `x * y == length` and `x * y == mass` pass until something resolves `x` or `y`.
+
+    Each pair in `given` seeds a port with a dimensionality known from outside the implementation, such as that of a
+    quantity a caller supplies.
     """
     ordered = sorted(constituents, key=lambda constituent: constituent.__bilt_name__)
     resolution = _Resolution(system)
     for owner in (system, *ordered):
         for port, dimensionality in declared_dimensionalities(owner.__bilt_port_declarations__).items():
             resolution.declare(port, dimensionality, owner.__bilt_name__)
+
+    for port, dimensionality in given:
+        resolution.declare(port, dimensionality, "the caller")
 
     equations = [constituent for constituent in ordered if isinstance(constituent, BasicEquation)]
     pending = dict.fromkeys(equations)
