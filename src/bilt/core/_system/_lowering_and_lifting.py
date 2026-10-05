@@ -1,20 +1,24 @@
 import dataclasses
 import functools
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from bilt.core._canonical_ordering import canonicalized
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors._tensors import Tensor, tensor
+from bilt.units import Quantity
+from bilt.units._units import BASE_UNIT_SYSTEM
 
 if TYPE_CHECKING:
     from bilt.core._canonical_ordering import CanonicalizedDomain
     from bilt.symbolic._domains import Domain
+    from bilt.units import Dimension, Unit
 
 
 @dataclasses.dataclass(frozen=True)
 class LiftingPlan:
     output_domain: CanonicalizedDomain
     squeezed_axes: tuple[int, ...]
+    output_unit: Unit | None
 
     @functools.cached_property
     def should_lift_into_tensor(self) -> bool:
@@ -27,18 +31,23 @@ def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
     for input_name, input_value in inputs.items():
         if isinstance(input_value, Tensor):
             lowered_inputs[input_name] = input_value.values
+        elif isinstance(input_value, Quantity):
+            lowered_inputs[input_name] = input_value.convert_to(
+                BASE_UNIT_SYSTEM.coherent_unit(input_value.unit.dimension)
+            ).value
         else:
             lowered_inputs[input_name] = input_value
 
     return lowered_inputs
 
 
-def generate_lifting_plan(output_domain: Domain) -> LiftingPlan:
+def generate_lifting_plan(output_domain: Domain, output_dimensionality: Dimension | None = None) -> LiftingPlan:
     canonical_order = current_evaluation().canonical_order
 
     return LiftingPlan(
         output_domain=canonicalized(output_domain, canonical_order),
         squeezed_axes=tuple(axis for axis, dim in enumerate(canonical_order.dims) if dim not in output_domain.dims),
+        output_unit=None if output_dimensionality is None else BASE_UNIT_SYSTEM.coherent_unit(output_dimensionality),
     )
 
 
@@ -57,6 +66,8 @@ def lift_output(
             output_value,
             over=lifting_plan.output_domain.domain.dims,
         )
+    elif lifting_plan.output_unit is not None:
+        output_value = Quantity(cast("float", output_value), lifting_plan.output_unit)
 
     return output_value
 

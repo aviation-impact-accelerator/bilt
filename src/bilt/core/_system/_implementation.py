@@ -12,6 +12,7 @@ from bilt.core._errors import BiltInputDimensionalityError
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
+from bilt.core._port_declaration import PortDeclaration
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._system._dimensional_unification import ResolvedDimensionality, check_dimensional_consistency
@@ -25,6 +26,7 @@ from bilt.core._system._errors import (
 from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic._domains import Domain
 from bilt.units import Quantity
+from bilt.units.dimensions import DIMENSIONLESS
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -33,6 +35,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis import StructuralAnalyser
+    from bilt.units import Dimension
 
 
 @dataclasses.dataclass(frozen=True)
@@ -64,9 +67,11 @@ class Implementation:
 
         sub_systems = _build_sub_system_constituents(named_components, internal)
         _validate_sub_systems(named_components, internal, sub_systems)
+        self._constituents: tuple[BiltModelConstituent, ...] = tuple(named_components.values())
         self._dimensionalities: dict[str, ResolvedDimensionality] = check_dimensional_consistency(
-            system, named_components.values()
+            system, self._constituents
         )
+        self._resolutions_by_given: dict[frozenset[tuple[str, Dimension]], dict[str, ResolvedDimensionality]] = {}
 
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             named_components | sub_systems
@@ -113,13 +118,15 @@ class Implementation:
 
                 backend_callable = self.get_evaluation(request, backend)
 
+                output_dimensionality = self._output_dimensionality(output, inputs)
+
                 lowered_inputs = lower_inputs(inputs)
                 alignment_plan = generate_alignment_plan(inputs)
                 aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
                 raw_output_value = backend_callable.evaluate(mangle_inputs(aligned_inputs))
 
                 output_domain = typing.cast("Domain", backend_callable.output_domain)
-                lifting_plan = generate_lifting_plan(output_domain)
+                lifting_plan = generate_lifting_plan(output_domain, output_dimensionality)
                 output_value = lift_output(raw_output_value, lifting_plan)
 
             evaluation.domains.bind(output_value)
@@ -162,6 +169,22 @@ class Implementation:
         )[compilation_context] = backend_callable
 
         return backend_callable
+
+    def _output_dimensionality(self, output: str, inputs: collections.abc.Mapping[str, object]) -> Dimension | None:
+
+        supplied = [(port, value.unit.dimension) for port, value in inputs.items() if isinstance(value, Quantity)]
+        declaration = self._system.__bilt_port_declarations__.get(output, PortDeclaration())
+        if not supplied and not declaration.carries_quantity:
+            return None
+        given = frozenset(
+            (port, dimensionality) for port, dimensionality in supplied if port not in self._dimensionalities
+        )
+        if given not in self._resolutions_by_given:
+            self._resolutions_by_given[given] = check_dimensional_consistency(self._system, self._constituents, given)
+        resolved = self._resolutions_by_given[given].get(output)
+        if resolved is not None:
+            return resolved.dimensionality
+        return DIMENSIONLESS if declaration.carries_quantity else None
 
     def __enter__(self) -> typing.Self:
         self._system.__bilt_system_implementation_default__.append(self)
