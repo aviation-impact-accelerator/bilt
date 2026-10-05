@@ -441,6 +441,45 @@ def test_sel_over_only_dimension_returns_scalar(
 
     assert result == pytest.approx(20.0)
 
+@pytest.mark.parametrize(
+    "backend",
+    (PYTHON_BACKEND, JAX_BACKEND),
+)
+def test_sel_cache_respects_coordinate_order(
+    backend: Backend,
+) -> None:
+    time = Dim("time")
+
+    @system
+    class Demo(metaclass=Interface):
+        values: Tensor = field()
+        selected: float = field()
+
+    @equation
+    def select(values: Tensor, selected: float) -> bool:
+        return selected == values.sel(time, 2025)
+
+    implementation = Implementation(Demo, [select])
+    inputs: dict[str, object] = {
+        "values": tensor([10.0, 20.0, 30.0], over=time),
+    }
+
+    # Reuse one implementation so both evaluations share its compilation cache.
+    for coordinates, expected in (
+        ((2024, 2025, 2026), 20.0),
+        ((2025, 2024, 2026), 10.0),
+    ):
+        with EvaluationContext() as evaluation:
+            evaluation.domains.bind(coordinate_axis(time, coordinates))
+
+            result = implementation.evaluate(
+                inputs,
+                "selected",
+                backend,
+            )
+
+        assert result == pytest.approx(expected)
+
 
 @pytest.mark.parametrize(
     "backend",
