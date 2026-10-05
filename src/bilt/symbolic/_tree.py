@@ -16,7 +16,6 @@ from bilt.symbolic._atoms import (
     RelationOpType,
     axis,
     coordinate,
-    coordinate_axis_ref,
     dimension,
     floating,
     integer,
@@ -36,7 +35,6 @@ _tree_cache: weakref.WeakValueDictionary[
 __all__ = [
     "Tree",
     "axis_tree",
-    "coordinate_axis_tree",
     "coordinate_tree",
     "dimension_tree",
     "equality_tree",
@@ -179,10 +177,6 @@ def symbol_tree(name: str) -> Tree:
 
 def dimension_tree(dim: Dim) -> Tree:
     return Tree(dimension(dim))
-
-
-def coordinate_axis_tree(dim: Dim) -> Tree:
-    return Tree(coordinate_axis_ref(dim))
 
 
 def coordinate_tree(value: Coordinate) -> Tree:

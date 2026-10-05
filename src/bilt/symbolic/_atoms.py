@@ -30,7 +30,6 @@ __all__ = [
     "Atom",
     "AtomType",
     "AxisType",
-    "CoordinateAxisType",
     "CoordinateType",
     "DimensionType",
     "FloatType",
@@ -44,7 +43,6 @@ __all__ = [
     "axis",
     "clear_atom_cache",
     "coordinate",
-    "coordinate_axis_ref",
     "dimension",
     "floating",
     "integer",
@@ -91,7 +89,6 @@ RelationOpType = AtomType("RelationOp")
 ReductionOpType = AtomType("ReductionOp")
 IndexOpType = AtomType("IndexOp")
 CoordinateType = AtomType("Coordinate")
-CoordinateAxisType = AtomType("CoordinateAxis")
 DimensionType = AtomType("Dimension")
 AxisType = AtomType("Axis")
 IntType = AtomType("Integer")
@@ -174,10 +171,6 @@ def axis(value: int) -> Atom:
 
 def coordinate(value: Coordinate) -> Atom:
     return Atom(CoordinateType, value)
-
-
-def coordinate_axis_ref(value: Dim) -> Atom:
-    return Atom(CoordinateAxisType, value)
 
 
 ADD = Atom(OpType, "add")

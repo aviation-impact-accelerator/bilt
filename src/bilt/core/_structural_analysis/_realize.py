@@ -16,7 +16,6 @@ from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_name
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._tensors._expression_lowering import lower_expression
-from bilt.core._tensors._selection_lowering import resolve_static_selections
 from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
@@ -156,10 +155,8 @@ def _equation_to_callable(
         canonical_order=current_evaluation().canonical_order,
     )
 
-    resolved_tree = resolve_static_selections(lowered.tree)
-
     function_ast = tree_to_functiondef(
-        resolved_tree,
+        lowered.tree,
         name=plan_step.output,
         parameter_order=equation.__bilt_parameters__,
     )
