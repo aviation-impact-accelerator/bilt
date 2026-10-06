@@ -1,6 +1,6 @@
 """What a port's annotation declares about the quantity it carries."""
 
-__all__ = ["check_not_mixed", "port_declarations"]
+__all__ = ["port_declarations"]
 
 import typing
 
@@ -23,23 +23,6 @@ def port_declarations(
         if dimensionality is not None:
             declarations[port] = dimensionality
     return declarations
-
-
-def check_not_mixed(
-    owner_name: str,
-    ports: collections.abc.Iterable[str],
-    declarations: collections.abc.Mapping[str, Dimension],
-) -> None:
-    """Demand that `ports` are all declared in `declarations` or all plain, as a constituent must be wholly one or the other."""
-    ports = list(ports)
-    declared = sorted(port for port in ports if port in declarations)
-    plain = sorted(port for port in ports if port not in declarations)
-    if declared and plain:
-        msg = (
-            "mixes declared and plain ports. A constituent must be wholly unit-aware or wholly unit-blind.\n"
-            f"  declared: {', '.join(map(repr, declared))}\n  plain: {', '.join(map(repr, plain))}"
-        )
-        raise BiltPortDeclarationError(owner_name, None, msg)
 
 
 def _dimensionality(owner_name: str, port: str, annotation: object) -> Dimension | None:

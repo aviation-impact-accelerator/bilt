@@ -5,7 +5,11 @@ import typing
 import pytest
 
 from bilt import Implementation, Interface, Tensor, equation, field, system, transform
-from bilt.errors import BiltImplementationDimensionalityError, BiltInputDimensionalityError, BiltPortDeclarationError
+from bilt.errors import (
+    BiltEquationDimensionalityError,
+    BiltImplementationDimensionalityError,
+    BiltInputDimensionalityError,
+)
 from bilt.units import UNITLESS, Quantity
 from bilt.units.dimensions import DIMENSIONLESS, LENGTH, MASS, VOLTAGE
 from bilt.units.units import kilometer, meter, volt
@@ -142,16 +146,73 @@ def test_a_plain_port_answers_with_a_bare_number_however_many_declared_ports_exi
     assert not isinstance(result, Quantity)
 
 
-def test_a_tensor_port_beside_declared_ports_in_one_constituent_raises() -> None:
+def test_a_tensor_port_meeting_a_declared_port_in_one_equation_raises() -> None:
     def scaling(m: Mass, scales: Tensor) -> bool:
         return m == m * scales
 
-    with pytest.raises(BiltPortDeclarationError, match="mixes declared and plain ports") as raised:
+    with pytest.raises(BiltEquationDimensionalityError, match=r"plain 'scales' with declared 'm'"):
         equation(scaling)
 
-    message = str(raised.value)
-    assert "declared: 'm'" in message
-    assert "plain: 'scales'" in message
+
+def test_a_transform_may_take_a_tensor_port_beside_declared_ports() -> None:
+    @transform
+    def scaled(m: Mass, scales: Tensor) -> Mass:  # noqa: ARG001
+        return m
+
+    assert scaled.__bilt_port_declarations__ == {"m": MASS, "scaled": MASS}
+
+
+def test_a_transform_with_a_plain_flag_beside_declared_ports_evaluates_by_the_flag() -> None:
+    @system
+    class Combiner(metaclass=Interface):
+        a: Dimensionless = field()
+        b: Dimensionless = field()
+        add: bool = field()
+        combined: Dimensionless = field()
+
+    @transform
+    def combined(a: Dimensionless, b: Dimensionless, add: bool) -> Dimensionless:
+        return a + b if add else a * b
+
+    two, three = Quantity(2.0, UNITLESS), Quantity(3.0, UNITLESS)
+    with Implementation(Combiner, [combined]):
+        added = Combiner(a=two, b=three, add=True).combined
+        multiplied = Combiner(a=two, b=three, add=False).combined
+
+    assert added == Quantity(5.0, UNITLESS)
+    assert multiplied == Quantity(6.0, UNITLESS)
+
+
+def test_an_equation_with_a_plain_exponent_beside_declared_ports_evaluates() -> None:
+    @system
+    class Power(metaclass=Interface):
+        x: Dimensionless = field()
+        n: float = field()
+        y: Dimensionless = field()
+
+    @equation
+    def powered(y: Dimensionless, x: Dimensionless, n: float) -> bool:
+        return y == x**n
+
+    with Implementation(Power, [powered]):
+        result = Power(x=Quantity(3.0, UNITLESS), n=2.0).y
+
+    assert result == Quantity(9.0, UNITLESS)
+
+
+def test_a_plain_transform_port_that_another_owner_declares_raises() -> None:
+    @system
+    class Rig(metaclass=Interface):
+        a: Dimensionless = field()
+        scale: Dimensionless = field()
+        scaled: Dimensionless = field()
+
+    @transform
+    def scaled(a: Dimensionless, scale: float) -> Dimensionless:
+        return a * scale
+
+    with pytest.raises(BiltImplementationDimensionalityError, match="'scale' a dimensionality in only some places"):
+        Implementation(Rig, [scaled])
 
 
 @system

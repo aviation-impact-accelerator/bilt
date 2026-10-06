@@ -4,15 +4,16 @@ import pytest
 
 from bilt import Interface, equation, field, system, transform
 from bilt.core._tensors._tensors import Tensor
-from bilt.errors import BiltPortDeclarationError
+from bilt.errors import BiltEquationDimensionalityError, BiltPortDeclarationError
 from bilt.units import Quantity, kilogram
-from bilt.units.dimensions import AREA, LENGTH, MASS
+from bilt.units.dimensions import AREA, DIMENSIONLESS, LENGTH, MASS
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
 Mass = typing.Annotated[Quantity, MASS]
 Length = typing.Annotated[Quantity, LENGTH]
+Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
 Kilograms = typing.Annotated[Quantity, kilogram]
 MassAsFloat = typing.Annotated[float, MASS]
 MassAsTensor = typing.Annotated[Tensor, MASS]
@@ -101,17 +102,12 @@ def test_transform_without_a_return_annotation_does_not_declare_its_output() -> 
     assert doubled.__bilt_port_declarations__ == {}
 
 
-def test_transform_with_declared_parameters_and_no_return_annotation_raises() -> None:
+def test_transform_with_declared_parameters_and_no_return_annotation_leaves_its_output_plain() -> None:
+    @transform
     def doubled(m: Mass):  # noqa: ANN202
         return m * 2.0
 
-    with pytest.raises(BiltPortDeclarationError, match="mixes declared and plain ports") as raised:
-        transform(doubled)
-
-    message = str(raised.value)
-    assert "Ports of 'doubled'" in message
-    assert "declared: 'm'" in message
-    assert "plain: 'doubled'" in message
+    assert doubled.__bilt_port_declarations__ == {"m": MASS}
 
 
 def test_quoted_annotations_are_resolved() -> None:
@@ -161,33 +157,67 @@ def test_foreign_metadata_is_ignored() -> None:
     assert Rig.__bilt_port_declarations__ == {"noted_mass": MASS}
 
 
-def test_equation_mixing_declared_and_plain_ports_raises() -> None:
-    def balance(m: Mass, k: float) -> bool:
-        return m == m * k
-
-    with pytest.raises(BiltPortDeclarationError, match="mixes declared and plain ports") as raised:
-        equation(balance)
-
-    message = str(raised.value)
-    assert "Ports of 'balance'" in message
-    assert "declared: 'm'" in message
-    assert "plain: 'k'" in message
-
-
-def test_transform_mixing_declared_and_plain_ports_raises() -> None:
-    def doubled(m: Mass, k: float) -> Mass:
+def test_transform_may_mix_declared_and_plain_ports() -> None:
+    @transform
+    def doubled(m: Mass, k: float, flag: bool) -> Mass:  # noqa: ARG001
         return m * k
 
-    with pytest.raises(BiltPortDeclarationError, match="mixes declared and plain ports") as raised:
-        transform(doubled)
-
-    message = str(raised.value)
-    assert "Ports of 'doubled'" in message
-    assert "declared: 'doubled', 'm'" in message
-    assert "plain: 'k'" in message
+    assert doubled.__bilt_port_declarations__ == {"m": MASS, "doubled": MASS}
 
 
-def test_equation_whose_sub_system_declares_ports_must_declare_its_own() -> None:
+def test_equation_mixing_declared_and_plain_ports_in_a_product_raises() -> None:
+    def balance(m: Mass, k: float, n: Mass) -> bool:
+        return m == k * n
+
+    with pytest.raises(
+        BiltEquationDimensionalityError,
+        match=r"Equation 'balance' mixes declared and plain ports in one operation: plain 'k' with declared 'n'",
+    ):
+        equation(balance)
+
+
+def test_equation_mixing_declared_and_plain_ports_in_a_sum_raises() -> None:
+    def balance(m: Mass, k: float, n: Mass) -> bool:
+        return m == n + k  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
+
+    with pytest.raises(
+        BiltEquationDimensionalityError,
+        match=r"Equation 'balance' mixes declared and plain ports in one operation: plain 'k' with declared 'n'",
+    ):
+        equation(balance)
+
+
+def test_equation_relating_a_plain_port_to_a_declared_one_raises() -> None:
+    def balance(m: Mass, k: float) -> bool:
+        return k == m
+
+    with pytest.raises(
+        BiltEquationDimensionalityError,
+        match=r"Equation 'balance' mixes declared and plain ports in one operation: plain 'k' with declared 'm'",
+    ):
+        equation(balance)
+
+
+def test_equation_relating_a_plain_sum_to_a_declared_port_raises() -> None:
+    def balance(total: float, a: Mass, b: Mass) -> bool:
+        return total == a + b
+
+    with pytest.raises(
+        BiltEquationDimensionalityError,
+        match=r"plain 'total' with declared 'a', 'b'",
+    ):
+        equation(balance)
+
+
+def test_equation_using_a_plain_port_only_as_an_exponent_decorates() -> None:
+    @equation
+    def powered(y: Dimensionless, x: Dimensionless, n: float) -> bool:
+        return y == x**n
+
+    assert powered.__bilt_port_declarations__ == {"y": DIMENSIONLESS, "x": DIMENSIONLESS}
+
+
+def test_equation_whose_sub_system_declares_ports_cannot_relate_them_to_a_plain_port() -> None:
     @system
     class Child(metaclass=Interface):
         v: Mass = field()
@@ -195,12 +225,8 @@ def test_equation_whose_sub_system_declares_ports_must_declare_its_own() -> None
     def link(child: Child, x: float) -> bool:
         return child.v == x
 
-    with pytest.raises(BiltPortDeclarationError, match="mixes declared and plain ports") as raised:
+    with pytest.raises(BiltEquationDimensionalityError, match=r"plain 'x' with declared 'child\.v'"):
         equation(link)
-
-    message = str(raised.value)
-    assert "declared: 'child.v'" in message
-    assert "plain: 'x'" in message
 
 
 def test_equation_whose_sub_system_leaves_ports_plain_may_leave_its_own_plain() -> None:

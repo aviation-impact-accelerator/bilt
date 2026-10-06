@@ -5,7 +5,7 @@ import typing
 import pytest
 
 from bilt import Implementation, Interface, equation, field, system
-from bilt.errors import BiltImplementationDimensionalityError, BiltPortDeclarationError, BiltUnitsError
+from bilt.errors import BiltEquationDimensionalityError, BiltImplementationDimensionalityError, BiltUnitsError
 from bilt.units import Quantity
 from bilt.units.dimensions import CURRENT, LENGTH, RESISTANCE, VOLTAGE
 from bilt.units.units import ampere, ohm, volt
@@ -81,16 +81,12 @@ def test_a_dimensionality_a_grandchild_declares_reaches_the_grandparent() -> Non
             return total == component.resistance
 
 
-def test_a_parent_constituent_naming_a_childs_declared_port_must_declare_its_own_ports() -> None:
-    with pytest.raises(BiltPortDeclarationError, match="mixes declared and plain ports") as raised:
+def test_a_parent_constituent_relating_a_childs_declared_port_to_its_own_plain_port_raises() -> None:
+    with pytest.raises(BiltEquationDimensionalityError, match=r"plain 'voltage' with declared 'resistor\.v'"):
 
         @equation
         def link(voltage: float, resistor: Resistor) -> bool:
             return voltage == resistor.v
-
-    message = str(raised.value)
-    assert "declared: 'resistor.v'" in message
-    assert "plain: 'voltage'" in message
 
 
 def test_a_child_leaving_a_port_plain_where_the_parent_declares_it_raises_at_construction() -> None:

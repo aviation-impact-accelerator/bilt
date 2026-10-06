@@ -45,11 +45,10 @@ class BiltEquationSignatureError(BiltDefinitionError, TypeError):
 
 
 class BiltPortDeclarationError(BiltDefinitionError, TypeError):
-    """Raised when a port's annotation is not a readable declaration, or a constituent mixes declared and plain ports."""
+    """Raised when a port's annotation is not a readable declaration."""
 
-    def __init__(self, owner_name: str, port: str | None, problem: str) -> None:
-        subject = f"Port {port!r} of {owner_name!r}" if port is not None else f"Ports of {owner_name!r}"
-        super().__init__(f"{subject} {problem}")
+    def __init__(self, owner_name: str, port: str, problem: str) -> None:
+        super().__init__(f"Port {port!r} of {owner_name!r} {problem}")
 
 
 class BiltUnresolvedAnnotationError(BiltDefinitionError, NameError):

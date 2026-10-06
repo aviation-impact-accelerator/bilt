@@ -18,9 +18,11 @@ from bilt.core._errors import (
 )
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
-from bilt.core._port_declaration import check_not_mixed, port_declarations
+from bilt.core._port_declaration import port_declarations
 from bilt.core._sub_system import validate_name
 from bilt.core._tensors._tensors import Tensor
+from bilt.symbolic import _atoms as ops
+from bilt.symbolic._atoms import SymbolType
 from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr, tensor_symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
 from bilt.symbolic._walk import subtrees
@@ -86,8 +88,8 @@ class BasicEquation[R, **P]:
         self.__bilt_equation_tree__ = tree
         self.__bilt_sub_systems__ = types.MappingProxyType(referenced_sub_systems)
         self._function = function
-        check_not_mixed(name, self.__bilt_parameters__, self.__bilt_port_declarations__)
         check_homogeneity(self, self.__bilt_port_declarations__)
+        _ports_under(name, tree, self.__bilt_port_declarations__)
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self._function(*args, **kwargs)
@@ -258,3 +260,29 @@ def check_homogeneity(
     if left is not None and right is not None and left is not right:
         msg = f"relates {left} to {right}"
         raise BiltEquationDimensionalityError(equation.__bilt_name__, msg)
+
+
+def _ports_under(
+    equation_name: str,
+    tree: Tree,
+    dimensionalities: collections.abc.Mapping[str, Dimension],
+) -> frozenset[str]:
+    """Return the ports `tree` carries, raising where a plain port meets a declared one in an operation.
+
+    A power's exponent and an index operation's arguments do not carry their ports up.
+    """
+    if tree.is_leaf:
+        return frozenset({typing.cast("str", tree.head.value)}) if tree.head.atom_type is SymbolType else frozenset()
+
+    operands = tree.args[:1] if tree.head in (ops.POW, ops.ISEL) else tree.args
+    ports = frozenset().union(*(_ports_under(equation_name, operand, dimensionalities) for operand in operands))
+    plain = ports - dimensionalities.keys()
+    declared = ports & dimensionalities.keys()
+    if plain and declared:
+        msg = (
+            "mixes declared and plain ports in one operation: plain "
+            f"{', '.join(map(repr, sorted(plain)))} with declared {', '.join(map(repr, sorted(declared)))}. "
+            "Declare the plain ports, or keep them out of the declared ports' arithmetic."
+        )
+        raise BiltEquationDimensionalityError(equation_name, msg)
+    return ports
