@@ -4,18 +4,18 @@ import inspect
 import typing
 
 from bilt.core._errors import BiltUnresolvedAnnotationError
-from bilt.core._port_declaration import port_declarations
+from bilt.core._port_declaration import check_not_mixed, port_declarations
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt.core._port_declaration import PortDeclaration
+    from bilt.units import Dimension
 
 
 class Transform[R, **P](typing.Protocol):
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
-    __bilt_port_declarations__: dict[str, PortDeclaration]
+    __bilt_port_declarations__: dict[str, Dimension]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
@@ -32,6 +32,11 @@ class BasicTransform[R, **P]:
             self.__bilt_name__,
             {port: parameter.annotation for port, parameter in signature.parameters.items()}
             | {self.__bilt_name__: signature.return_annotation},
+        )
+        check_not_mixed(
+            self.__bilt_name__,
+            (*self.__bilt_parameters__, self.__bilt_name__),
+            self.__bilt_port_declarations__,
         )
         self._function = function
 

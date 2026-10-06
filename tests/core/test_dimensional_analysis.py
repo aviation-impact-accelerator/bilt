@@ -3,10 +3,11 @@ import typing
 
 import pytest
 
-from bilt.core._dimensional_analysis import dimensionality_of, implied_dimensionality
+from bilt.core._dimensional_analysis import dimensionality_of
 from bilt.errors import BiltDimensionalityError
 from bilt.symbolic import dim
-from bilt.symbolic._atoms import Atom, OpType
+from bilt.symbolic._atoms import Atom, DimensionType, FloatType, IntType, OpType
+from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._expressions import symbol_expr, tensor_symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
 from bilt.units.dimensions import AREA, DIMENSIONLESS, FORCE, LENGTH, MASS, TIME
@@ -119,99 +120,48 @@ def test_dimensional_base_with_an_unknown_exponent_raises() -> None:
         dimensionality_of((x**y).tree, {"x": LENGTH})
 
 
-def test_an_addend_takes_the_dimensionality_of_the_other_side() -> None:
-    assert implied_dimensionality(x == y + z, "y", {"x": LENGTH}) is LENGTH
+def test_negation_keeps_the_dimensionality() -> None:
+    assert dimensionality_of((-x).tree, {"x": MASS}) is MASS
 
 
-def test_an_addend_takes_the_dimensionality_of_the_addends_beside_it() -> None:
-    assert implied_dimensionality(x == y + z, "y", {"z": LENGTH}) is LENGTH
+def test_an_inverse_inverts_the_dimensionality() -> None:
+    assert dimensionality_of((1 / x).tree, {"x": TIME}) is TIME**-1
 
 
-def test_a_factor_takes_the_other_side_divided_by_the_other_factors() -> None:
-    assert implied_dimensionality(x == y * z, "y", {"x": FORCE, "z": MASS}) is LENGTH / TIME**2
-
-
-def test_a_quotient_implies_its_dividend_and_divisor() -> None:
-    assert implied_dimensionality(x == y / z, "y", {"x": LENGTH / TIME, "z": TIME}) is LENGTH
-    assert implied_dimensionality(x == y / z, "z", {"x": LENGTH / TIME, "y": LENGTH}) is TIME
-
-
-def test_an_inverse_implies_the_inverse_dimensionality() -> None:
-    assert implied_dimensionality(x == 1 / y, "y", {"x": TIME}) is TIME**-1
-
-
-def test_negation_and_mean_pass_the_dimensionality_through() -> None:
-    assert implied_dimensionality(x == -y, "y", {"x": MASS}) is MASS
-    assert implied_dimensionality(x == tensor_y.mean(dim("t")), "y", {"x": MASS}) is MASS
-
-
-def test_an_integer_power_implies_its_root() -> None:
-    assert implied_dimensionality(x == y**2, "y", {"x": AREA}) is LENGTH
-    assert implied_dimensionality(x == y**-1, "y", {"x": LENGTH}) is LENGTH**-1
-
-
-def test_a_power_with_no_exact_root_raises() -> None:
-    with pytest.raises(BiltDimensionalityError):
-        implied_dimensionality(x == y**2, "y", {"x": LENGTH})
-
-
-def test_a_zeroth_power_implies_nothing_but_demands_dimensionless() -> None:
-    assert implied_dimensionality(x == y**0, "y", {"x": DIMENSIONLESS}) is None
-    with pytest.raises(BiltDimensionalityError):
-        implied_dimensionality(x == y**0, "y", {"x": LENGTH})
-
-
-def test_a_non_literal_exponent_implies_a_dimensionless_base_and_exponent() -> None:
-    assert implied_dimensionality(x == y**z, "y", {"x": DIMENSIONLESS}) is DIMENSIONLESS
-    assert implied_dimensionality(x == y**z, "z", {"x": DIMENSIONLESS}) is DIMENSIONLESS
-    assert implied_dimensionality(x == y**0.5, "y", {}) is DIMENSIONLESS
-
-
-def test_a_symbol_on_both_sides_is_implied_when_they_agree() -> None:
-    assert implied_dimensionality(x + y == 2 * x, "x", {"y": LENGTH}) is LENGTH
-
-
-def test_a_symbol_on_both_sides_raises_when_they_disagree() -> None:
-    with pytest.raises(BiltDimensionalityError):
-        implied_dimensionality(x + y == z * x, "x", {"y": MASS, "z": LENGTH})
-
-
-def test_an_absent_symbol_implies_nothing() -> None:
-    assert implied_dimensionality(x == y, "w", {"x": LENGTH}) is None
-
-
-def test_an_undetermined_symbol_implies_nothing() -> None:
-    assert implied_dimensionality(x == y * z, "y", {"x": LENGTH}) is None
-    assert implied_dimensionality(x * x == z, "x", {"z": AREA}) is None
-
-
-def test_an_impossible_demand_elsewhere_does_not_block_the_symbol() -> None:
-    assert implied_dimensionality(x + y**2 == z, "x", {"z": LENGTH}) is LENGTH
+def test_an_unknown_factor_makes_an_inverse_unknown() -> None:
+    assert dimensionality_of((1 / x).tree, {}) is None
 
 
 @pytest.mark.parametrize(
     "relation",
-    (operator.lt, operator.le, operator.gt, operator.ge, operator.ne),
-    ids=("<", "<=", ">", ">=", "!="),
+    (operator.eq, operator.lt, operator.le, operator.gt, operator.ge, operator.ne),
+    ids=("==", "<", "<=", ">", ">=", "!="),
 )
-def test_inequalities_imply_like_equality(relation: collections.abc.Callable[[Expr, Expr], Tree]) -> None:
-    assert implied_dimensionality(relation(x, y), "y", {"x": LENGTH}) is LENGTH
+def test_a_relation_of_like_dimensionalities_is_dimensionless(
+    relation: collections.abc.Callable[[Expr, Expr], Tree],
+) -> None:
+    assert dimensionality_of(relation(x, y), {"x": LENGTH, "y": LENGTH}) is DIMENSIONLESS
 
 
-def test_a_literal_zero_implies_nothing() -> None:
-    assert implied_dimensionality(x - y == 0, "x", {}) is None
-    assert implied_dimensionality(x == 0, "x", {}) is None
-
-
-def test_a_nonzero_literal_implies_dimensionless() -> None:
-    assert implied_dimensionality(x == 1, "x", {}) is DIMENSIONLESS
-
-
-def test_inhomogeneous_known_parts_raise() -> None:
+def test_a_relation_between_unlike_dimensionalities_raises() -> None:
     with pytest.raises(BiltDimensionalityError):
-        implied_dimensionality(x == y + z, "y", {"x": LENGTH, "z": MASS})
+        dimensionality_of(x == y, {"x": LENGTH, "y": MASS})
+
+
+def test_a_relation_with_an_unknown_side_is_dimensionless() -> None:
+    assert dimensionality_of(x == y, {"x": LENGTH}) is DIMENSIONLESS
+
+
+def test_a_bare_literal_zero_is_unknown_and_a_nonzero_literal_is_dimensionless() -> None:
+    assert dimensionality_of(Tree(Atom(IntType, 0)), {}) is None
+    assert dimensionality_of(Tree(Atom(FloatType, 0.0)), {}) is None
+    assert dimensionality_of(Tree(Atom(IntType, 2)), {}) is DIMENSIONLESS
+
+
+def test_an_axis_is_unknown() -> None:
+    assert dimensionality_of(Tree(Atom(DimensionType, Dim("t"))), {}) is None
 
 
 def test_an_unknown_operation_raises() -> None:
     with pytest.raises(NotImplementedError):
-        implied_dimensionality(Tree(Atom(OpType, "unknown"), (symbol_tree("y"),)), "y", {})
+        dimensionality_of(Tree(Atom(OpType, "unknown"), (symbol_tree("y"),)), {"y": LENGTH})

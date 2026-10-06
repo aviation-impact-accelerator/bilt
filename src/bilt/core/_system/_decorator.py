@@ -84,14 +84,16 @@ def _create_initialize_method(cls: Interface) -> None:
 
 
 def _check_inputs(cls: Interface, values: collections.abc.Mapping[str, object]) -> None:
-    """Ensure the values an instance is given satisfy the quantities their ports declare."""
+    """Ensure the values an instance is given satisfy the quantities their ports declare and no quantity at a plain port."""
     for port, value in values.items():
-        declaration = cls.__bilt_port_declarations__[port]
-        if value is MISSING or not declaration.carries_quantity or isinstance(value, Tensor):
+        if value is MISSING or isinstance(value, Tensor):
             continue
 
-        expected = declaration.dimensionality
-        if not isinstance(value, Quantity) or (expected is not None and value.unit.dimension != expected):
+        expected = cls.__bilt_port_declarations__.get(port)
+        if expected is None:
+            if isinstance(value, Quantity):
+                raise BiltInputDimensionalityError(cls.__bilt_name__, port, expected, value)
+        elif not isinstance(value, Quantity) or value.unit.dimension != expected:
             raise BiltInputDimensionalityError(cls.__bilt_name__, port, expected, value)
 
 

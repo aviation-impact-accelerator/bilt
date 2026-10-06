@@ -45,10 +45,11 @@ class BiltEquationSignatureError(BiltDefinitionError, TypeError):
 
 
 class BiltPortDeclarationError(BiltDefinitionError, TypeError):
-    """Raised when a port's annotation declares a dimensionality in a form bilt cannot read, or declares a unit."""
+    """Raised when a port's annotation is not a readable declaration, or a constituent mixes declared and plain ports."""
 
-    def __init__(self, owner_name: str, port: str, problem: str) -> None:
-        super().__init__(f"Port {port!r} of {owner_name!r} {problem}")
+    def __init__(self, owner_name: str, port: str | None, problem: str) -> None:
+        subject = f"Port {port!r} of {owner_name!r}" if port is not None else f"Ports of {owner_name!r}"
+        super().__init__(f"{subject} {problem}")
 
 
 class BiltUnresolvedAnnotationError(BiltDefinitionError, NameError):
@@ -81,18 +82,19 @@ class BiltImplementationDimensionalityError(BiltDimensionalityError):
 
 
 class BiltInputDimensionalityError(BiltDimensionalityError):
-    """Raised when a value given for a port is not the quantity the port declares."""
+    """Raised when a value given for a port is not the quantity the port declares, or is a quantity for a plain port."""
 
-    def __init__(
-        self, system_name: str, port: str, expected: Dimension | None, value: object, *, source: str | None = None
-    ) -> None:
-        wanted = "a Quantity" if expected is None else f"a Quantity of {expected}"
+    def __init__(self, system_name: str, port: str, expected: Dimension | None, value: object) -> None:
         received = (
             f"{value} of {value.unit.dimension}" if isinstance(value, Quantity) else f"{type(value).__name__} {value!r}"
         )
-        msg = f"Input {port!r} of {system_name!r} must be {wanted}, not {received}."
-        if source is not None:
-            msg += f" Its dimensionality was {source}."
+        if expected is None:
+            msg = (
+                f"Input {port!r} of {system_name!r} is a plain port, outside the unit system, "
+                f"so it rejects a Quantity: got {received}."
+            )
+        else:
+            msg = f"Input {port!r} of {system_name!r} must be a Quantity of {expected}, not {received}."
         super().__init__(msg)
 
 

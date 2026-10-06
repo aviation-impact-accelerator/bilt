@@ -1,46 +1,49 @@
 """What a port's annotation declares about the quantity it carries."""
 
-__all__ = ["PortDeclaration", "declared_dimensionalities", "port_declarations"]
+__all__ = ["check_not_mixed", "port_declarations"]
 
-import dataclasses
 import typing
 
 from bilt.core._errors import BiltPortDeclarationError
+from bilt.core._tensors._tensors import Tensor
 from bilt.units import Dimension, Quantity, Unit
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
 
-@dataclasses.dataclass(frozen=True)
-class PortDeclaration:
-    """What a port's annotation declares: whether it carries a quantity, and of what dimensionality."""
-
-    carries_quantity: bool = False
-    dimensionality: Dimension | None = None
-
-
 def port_declarations(
     owner_name: str,
     port_annotations: collections.abc.Mapping[str, object],
-) -> dict[str, PortDeclaration]:
-    """Read the value off each port's annotation to keep information about the port."""
-    return {port: _declaration(owner_name, port, annotation) for port, annotation in port_annotations.items()}
-
-
-def declared_dimensionalities(
-    declarations: collections.abc.Mapping[str, PortDeclaration],
 ) -> dict[str, Dimension]:
-    """Return the dimensionality each port in `declarations` declares, leaving out ports that declare none."""
-    return {
-        port: declaration.dimensionality
-        for port, declaration in declarations.items()
-        if declaration.dimensionality is not None
-    }
+    """Read the dimensionality each port's annotation declares, leaving out plain ports that declare none."""
+    declarations: dict[str, Dimension] = {}
+    for port, annotation in port_annotations.items():
+        dimensionality = _dimensionality(owner_name, port, annotation)
+        if dimensionality is not None:
+            declarations[port] = dimensionality
+    return declarations
 
 
-def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclaration:
-    """Classify one annotation, ignoring `Annotated` metadata that is not a dimensionality."""
+def check_not_mixed(
+    owner_name: str,
+    ports: collections.abc.Iterable[str],
+    declarations: collections.abc.Mapping[str, Dimension],
+) -> None:
+    """Demand that `ports` are all declared in `declarations` or all plain, as a constituent must be wholly one or the other."""
+    ports = list(ports)
+    declared = sorted(port for port in ports if port in declarations)
+    plain = sorted(port for port in ports if port not in declarations)
+    if declared and plain:
+        msg = (
+            "mixes declared and plain ports. A constituent must be wholly unit-aware or wholly unit-blind.\n"
+            f"  declared: {', '.join(map(repr, declared))}\n  plain: {', '.join(map(repr, plain))}"
+        )
+        raise BiltPortDeclarationError(owner_name, None, msg)
+
+
+def _dimensionality(owner_name: str, port: str, annotation: object) -> Dimension | None:
+    """Read one annotation's dimensionality, ignoring `Annotated` metadata that is not one; plain ports give `None`."""
     while isinstance(annotation, typing.TypeAliasType):
         annotation = annotation.__value__
     base_type, *metadata = (
@@ -59,13 +62,27 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
         msg = f"declares more than one dimensionality ({', '.join(map(str, dimensionalities))}). Declare exactly one."
         raise BiltPortDeclarationError(owner_name, port, msg)
 
-    dimensionality = dimensionalities[0] if dimensionalities else None
-    carries_quantity = base_type is Quantity
-    if dimensionality is not None and not carries_quantity:
-        msg = (
-            f"declares {dimensionality} on {getattr(base_type, '__name__', repr(base_type))}, "
-            "but a dimensionality can only annotate Quantity. Use `typing.Annotated[Quantity, ...]`."
-        )
+    if not dimensionalities:
+        if base_type is Quantity:
+            msg = (
+                "is a Quantity without a dimensionality. Declare one with `typing.Annotated[Quantity, DIM]`, "
+                "or write `float` if the port is outside the unit system."
+            )
+            raise BiltPortDeclarationError(owner_name, port, msg)
+        return None
+
+    dimensionality = dimensionalities[0]
+    if base_type is not Quantity:
+        if base_type is Tensor:
+            msg = (
+                f"declares {dimensionality} on Tensor, but tensors are outside the unit system. "
+                "Remove the dimensionality."
+            )
+        else:
+            msg = (
+                f"declares {dimensionality} on {getattr(base_type, '__name__', repr(base_type))}, "
+                "but a dimensionality can only annotate Quantity. Use `typing.Annotated[Quantity, ...]`."
+            )
         raise BiltPortDeclarationError(owner_name, port, msg)
 
-    return PortDeclaration(carries_quantity=carries_quantity, dimensionality=dimensionality)
+    return dimensionality
