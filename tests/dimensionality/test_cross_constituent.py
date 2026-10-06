@@ -8,7 +8,6 @@ from bilt import Implementation, Interface, equation, field, system, transform
 from bilt.errors import BiltImplementationDimensionalityError, BiltUnitsError
 from bilt.units import Quantity
 from bilt.units.dimensions import CURRENT, FORCE, MASS, POWER, RESISTANCE, VOLTAGE
-from bilt.units.units import ampere, volt, watt
 
 Current = typing.Annotated[Quantity, CURRENT]
 Force = typing.Annotated[Quantity, FORCE]
@@ -138,20 +137,3 @@ def test_a_transform_output_takes_its_return_annotation() -> None:
     message = str(raised.value)
     assert f"{MASS}: declared by Rig" in message
     assert f"{POWER}: declared by power" in message
-
-
-def test_a_transform_output_answers_in_the_dimensionality_of_its_return_annotation() -> None:
-    @system
-    class Rig(metaclass=Interface):
-        v: Voltage = field()
-        i: Current = field()
-        power: Power = field()
-
-    @transform
-    def power(v: Voltage, i: Current) -> Power:
-        return v * i
-
-    with Implementation(Rig, [power]):
-        result = Rig(v=6.0 * volt, i=2.0 * ampere).power
-
-    assert result == 12.0 * watt

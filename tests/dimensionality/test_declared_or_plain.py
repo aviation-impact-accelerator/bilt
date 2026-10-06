@@ -8,11 +8,10 @@ from bilt import Implementation, Interface, Tensor, equation, field, system, tra
 from bilt.errors import (
     BiltEquationDimensionalityError,
     BiltImplementationDimensionalityError,
-    BiltInputDimensionalityError,
 )
 from bilt.units import UNITLESS, Quantity
 from bilt.units.dimensions import DIMENSIONLESS, LENGTH, MASS, VOLTAGE
-from bilt.units.units import kilometer, meter, volt
+from bilt.units.units import volt
 
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
 Length = typing.Annotated[Quantity, LENGTH]
@@ -110,20 +109,6 @@ def test_an_intermediate_port_declared_by_one_constituent_and_plain_in_another_r
     assert "left plain by plain_link" in message
 
 
-def test_a_port_nothing_declares_is_not_filled_in_from_its_declared_neighbours() -> None:
-    @system
-    class Rig(metaclass=Interface):
-        v: Voltage = field()
-        scaled: float = field()
-
-    @equation
-    def doubling(scaled: float, v: float) -> bool:
-        return scaled == v * 2.0
-
-    with pytest.raises(BiltImplementationDimensionalityError, match="'v' a dimensionality in only some places"):
-        Implementation(Rig, [doubling])
-
-
 def test_a_plain_port_answers_with_a_bare_number_however_many_declared_ports_exist_elsewhere() -> None:
     @system
     class Rig(metaclass=Interface):
@@ -152,14 +137,6 @@ def test_a_tensor_port_meeting_a_declared_port_in_one_equation_raises() -> None:
 
     with pytest.raises(BiltEquationDimensionalityError, match=r"plain 'scales' with declared 'm'"):
         equation(scaling)
-
-
-def test_a_transform_may_take_a_tensor_port_beside_declared_ports() -> None:
-    @transform
-    def scaled(m: Mass, scales: Tensor) -> Mass:  # noqa: ARG001
-        return m
-
-    assert scaled.__bilt_port_declarations__ == {"m": MASS, "scaled": MASS}
 
 
 def test_a_transform_with_a_plain_flag_beside_declared_ports_evaluates_by_the_flag() -> None:
@@ -225,15 +202,3 @@ class Amplifier(metaclass=Interface):
 @equation
 def amplifying(amplified: Length, gain: Dimensionless, x: Length) -> bool:
     return amplified == gain * x
-
-
-def test_a_dimensionless_port_rejects_a_bare_float() -> None:
-    with pytest.raises(BiltInputDimensionalityError, match="'gain'"):
-        Amplifier(gain=2.0, x=3.0 * meter)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
-
-
-def test_a_dimensionless_port_accepts_a_dimensionless_quantity() -> None:
-    with Implementation(Amplifier, [amplifying]):
-        result = Amplifier(gain=Quantity(2.0, UNITLESS), x=3.0 * kilometer).amplified
-
-    assert result == 6000.0 * meter

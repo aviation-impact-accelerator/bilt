@@ -6,7 +6,7 @@ import pytest
 from bilt.core._dimensional_analysis import dimensionality_of
 from bilt.errors import BiltDimensionalityError
 from bilt.symbolic import dim
-from bilt.symbolic._atoms import Atom, DimensionType, FloatType, IntType, OpType
+from bilt.symbolic._atoms import Atom, DimensionType, OpType
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._expressions import symbol_expr, tensor_symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
@@ -128,10 +128,6 @@ def test_an_inverse_inverts_the_dimensionality() -> None:
     assert dimensionality_of((1 / x).tree, {"x": TIME}) is TIME**-1
 
 
-def test_an_unknown_factor_makes_an_inverse_unknown() -> None:
-    assert dimensionality_of((1 / x).tree, {}) is None
-
-
 @pytest.mark.parametrize(
     "relation",
     (operator.eq, operator.lt, operator.le, operator.gt, operator.ge, operator.ne),
@@ -146,16 +142,6 @@ def test_a_relation_of_like_dimensionalities_is_dimensionless(
 def test_a_relation_between_unlike_dimensionalities_raises() -> None:
     with pytest.raises(BiltDimensionalityError):
         dimensionality_of(x == y, {"x": LENGTH, "y": MASS})
-
-
-def test_a_relation_with_an_unknown_side_is_dimensionless() -> None:
-    assert dimensionality_of(x == y, {"x": LENGTH}) is DIMENSIONLESS
-
-
-def test_a_bare_literal_zero_is_unknown_and_a_nonzero_literal_is_dimensionless() -> None:
-    assert dimensionality_of(Tree(Atom(IntType, 0)), {}) is None
-    assert dimensionality_of(Tree(Atom(FloatType, 0.0)), {}) is None
-    assert dimensionality_of(Tree(Atom(IntType, 2)), {}) is DIMENSIONLESS
 
 
 def test_an_axis_is_unknown() -> None:

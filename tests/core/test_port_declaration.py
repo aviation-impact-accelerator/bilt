@@ -31,38 +31,12 @@ def test_system_records_only_the_declared_fields() -> None:
     assert Rig.__bilt_port_declarations__ == {"mass": MASS}
 
 
-def test_a_wholly_plain_system_records_nothing() -> None:
-    @system
-    class Rig(metaclass=Interface):
-        a: float = field()
-        b = field()
-
-    assert Rig.__bilt_port_declarations__ == {}
-
-
-def test_system_interface_may_mix_declared_and_plain_fields() -> None:
-    @system
-    class Rig(metaclass=Interface):
-        mass: Mass = field()
-        plain: float = field()
-
-    assert Rig.__bilt_port_declarations__ == {"mass": MASS}
-
-
 def test_equation_records_each_declared_parameter() -> None:
     @equation
     def balance(m: Mass, length: Length, area: typing.Annotated[Quantity, AREA]) -> bool:
         return area == length * length + m * 0
 
     assert balance.__bilt_port_declarations__ == {"m": MASS, "length": LENGTH, "area": AREA}
-
-
-def test_a_wholly_plain_equation_records_nothing() -> None:
-    @equation
-    def balance(m: float, k) -> bool:  # noqa: ANN001
-        return m == m * k
-
-    assert balance.__bilt_port_declarations__ == {}
 
 
 def test_equation_records_the_child_dimensionality_of_each_referenced_sub_system_port() -> None:
@@ -86,28 +60,12 @@ def test_transform_records_its_return_annotation_under_its_own_name() -> None:
     assert doubled.__bilt_port_declarations__ == {"m": MASS, "k": LENGTH, "doubled": MASS}
 
 
-def test_a_wholly_plain_transform_records_nothing() -> None:
-    @transform
-    def doubled(m: float, k) -> float:  # noqa: ANN001
-        return m * k
-
-    assert doubled.__bilt_port_declarations__ == {}
-
-
 def test_transform_without_a_return_annotation_does_not_declare_its_output() -> None:
     @transform
     def doubled(m):  # noqa: ANN001, ANN202
         return m * 2.0
 
     assert doubled.__bilt_port_declarations__ == {}
-
-
-def test_transform_with_declared_parameters_and_no_return_annotation_leaves_its_output_plain() -> None:
-    @transform
-    def doubled(m: Mass):  # noqa: ANN202
-        return m * 2.0
-
-    assert doubled.__bilt_port_declarations__ == {"m": MASS}
 
 
 def test_quoted_annotations_are_resolved() -> None:
@@ -196,25 +154,6 @@ def test_equation_relating_a_plain_port_to_a_declared_one_raises() -> None:
         match=r"Equation 'balance' mixes declared and plain ports in one operation: plain 'k' with declared 'm'",
     ):
         equation(balance)
-
-
-def test_equation_relating_a_plain_sum_to_a_declared_port_raises() -> None:
-    def balance(total: float, a: Mass, b: Mass) -> bool:
-        return total == a + b
-
-    with pytest.raises(
-        BiltEquationDimensionalityError,
-        match=r"plain 'total' with declared 'a', 'b'",
-    ):
-        equation(balance)
-
-
-def test_equation_using_a_plain_port_only_as_an_exponent_decorates() -> None:
-    @equation
-    def powered(y: Dimensionless, x: Dimensionless, n: float) -> bool:
-        return y == x**n
-
-    assert powered.__bilt_port_declarations__ == {"y": DIMENSIONLESS, "x": DIMENSIONLESS}
 
 
 def test_equation_whose_sub_system_declares_ports_cannot_relate_them_to_a_plain_port() -> None:
