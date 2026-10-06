@@ -84,7 +84,7 @@ def _create_initialize_method(cls: Interface) -> None:
 
 
 def _check_inputs(cls: Interface, values: collections.abc.Mapping[str, object]) -> None:
-    """Ensure the values an instance is given satisfy the quantities their ports declare and no quantity at a plain port."""
+    """Ensure the values an instance is given satisfy the quantities their ports declare."""
     for port, value in values.items():
         if value is MISSING or isinstance(value, Tensor):
             continue

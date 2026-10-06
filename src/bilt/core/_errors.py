@@ -45,7 +45,7 @@ class BiltEquationSignatureError(BiltDefinitionError, TypeError):
 
 
 class BiltPortDeclarationError(BiltDefinitionError, TypeError):
-    """Raised when a port's annotation is not a readable declaration."""
+    """Raised when a port's annotation declares a dimensionality in a form bilt cannot read, or declares a unit."""
 
     def __init__(self, owner_name: str, port: str, problem: str) -> None:
         super().__init__(f"Port {port!r} of {owner_name!r} {problem}")
@@ -81,7 +81,7 @@ class BiltImplementationDimensionalityError(BiltDimensionalityError):
 
 
 class BiltInputDimensionalityError(BiltDimensionalityError):
-    """Raised when a value given for a port is not the quantity the port declares, or is a quantity for a plain port."""
+    """Raised when a value given for a port is not the quantity the port declares."""
 
     def __init__(self, system_name: str, port: str, expected: Dimension | None, value: object) -> None:
         received = (

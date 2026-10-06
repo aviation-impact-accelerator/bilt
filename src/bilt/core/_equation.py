@@ -164,7 +164,7 @@ def _expand_sub_system_parameters(
 
     Keys keep signature order, so the parameter tuple reads straight off the result. A port the
     equation never mentions is not a parameter of it, so a sub-system contributes only what it uses.
-    Each dotted port declared by its sub-system's interface carries that dimensionality.
+    Each dotted port carries the declaration its sub-system's interface gives it.
     """
     equation_symbols: dict[str, Expr] = {}
     referenced_sub_systems: dict[str, Interface] = {}
@@ -243,11 +243,7 @@ def check_homogeneity(
     equation: BasicEquation[object, ...],
     dimensionalities: collections.abc.Mapping[str, Dimension],
 ) -> None:
-    """Demand that an equation's relation is dimensionally homogeneous, given its ports' `dimensionalities`.
-
-    Raises:
-        BiltEquationDimensionalityError: The relation is inhomogeneous or relates two dimensionalities.
-    """
+    """Demand that an equation's relation can be dimensionally homogeneous, given its ports' `dimensionalities`."""
     tree = equation.__bilt_equation_tree__
     try:
         left = dimensionality_of(tree.left, dimensionalities)
