@@ -6,7 +6,7 @@ import functools
 import typing
 
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._atoms import DimensionType, FloatType, IntType, SymbolType
+from bilt.symbolic._atoms import CoordinateType, DimensionType, FloatType, IntType, SymbolType
 from bilt.units._errors import BiltDimensionalityError
 from bilt.units.dimensions import DIMENSIONLESS
 
@@ -38,12 +38,12 @@ def dimensionality_of(
 
 
 def _leaf(tree: Tree, dimensionalities: collections.abc.Mapping[str, Dimension]) -> Dimension | None:
-    """Look a symbol's dimensionality up, read a nonzero numeric literal as dimensionless, and ignore an axis."""
+    """Look a symbol's dimensionality up, read a nonzero literal as dimensionless, and ignore an axis or coordinate."""
     if tree.head.atom_type is SymbolType:
         return dimensionalities.get(typing.cast("str", tree.head.value))
     if tree.head.atom_type in (IntType, FloatType):
         return DIMENSIONLESS if tree.head.value != 0 else None
-    if tree.head.atom_type is DimensionType:
+    if tree.head.atom_type in (DimensionType, CoordinateType):
         return None
     msg = f"Cannot work out the dimensionality of symbolic leaf {tree.head!r}."
     raise NotImplementedError(msg)
@@ -57,7 +57,7 @@ def _dimensionality_at(tree: Tree, operands: list[Dimension | None]) -> Dimensio
     match tree.head:
         case ops.ADD | ops.NEG | ops.MEAN | ops.SUM | ops.MIN | ops.MAX:
             return _shared(operands)
-        case ops.PROD | ops.ISEL:
+        case ops.PROD | ops.ISEL | ops.SEL:
             return None
         case ops.MUL:
             return _product(operands, [1] * len(tree.args))
