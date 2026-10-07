@@ -22,7 +22,7 @@ from bilt.core._port_declaration import port_declarations
 from bilt.core._sub_system import validate_name
 from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._atoms import SymbolType
+from bilt.symbolic._atoms import QuantityType, SymbolType
 from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr, tensor_symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
 from bilt.symbolic._walk import subtrees
@@ -89,7 +89,7 @@ class BasicEquation[R, **P]:
         self.__bilt_sub_systems__ = types.MappingProxyType(referenced_sub_systems)
         self._function = function
         check_homogeneity(self, self.__bilt_port_declarations__)
-        _ports_under(name, tree, self.__bilt_port_declarations__)
+        _carried_under(name, tree, self.__bilt_port_declarations__)
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self._function(*args, **kwargs)
@@ -258,20 +258,26 @@ def check_homogeneity(
         raise BiltEquationDimensionalityError(equation.__bilt_name__, msg)
 
 
-def _ports_under(
+def _carried_under(
     equation_name: str,
     tree: Tree,
     dimensionalities: collections.abc.Mapping[str, Dimension],
-) -> frozenset[str]:
-    """Return the ports `tree` carries, raising where a plain port meets a declared one in an operation.
+) -> tuple[frozenset[str], frozenset[Dimension]]:
+    """Return the ports and the quantity constants' dimensionalities that `tree` carries.
 
-    A power's exponent and an index operation's arguments do not carry their ports up.
+    A power's exponent and an index operation's arguments do not carry what is under them up.
     """
     if tree.is_leaf:
-        return frozenset({typing.cast("str", tree.head.value)}) if tree.head.atom_type is SymbolType else frozenset()
+        if tree.head.atom_type is SymbolType:
+            return frozenset({typing.cast("str", tree.head.value)}), frozenset()
+        if tree.head.atom_type is QuantityType:
+            return frozenset(), frozenset({typing.cast("tuple[float, Dimension]", tree.head.value)[1]})
+        return frozenset(), frozenset()
 
-    under = [_ports_under(equation_name, operand, dimensionalities) for operand in tree.args]
-    ports = frozenset().union(*(under[:1] if tree.head in (ops.POW, ops.ISEL) else under))
+    under = [_carried_under(equation_name, operand, dimensionalities) for operand in tree.args]
+    carried = under[:1] if tree.head in (ops.POW, ops.ISEL) else under
+    ports = frozenset().union(*(ports for ports, _ in carried))
+    constants = frozenset().union(*(constants for _, constants in carried))
     plain = ports - dimensionalities.keys()
     declared = ports & dimensionalities.keys()
     if plain and declared:
@@ -281,4 +287,11 @@ def _ports_under(
             "Declare the plain ports, or keep them out of the declared ports' arithmetic."
         )
         raise BiltEquationDimensionalityError(equation_name, msg)
-    return ports
+    if plain and constants:
+        msg = (
+            "mixes a plain port with a quantity constant in one operation: plain "
+            f"{', '.join(map(repr, sorted(plain)))} with a constant of {', '.join(sorted(map(str, constants)))}. "
+            "Declare the port, or write the constant as a bare number."
+        )
+        raise BiltEquationDimensionalityError(equation_name, msg)
+    return ports, constants

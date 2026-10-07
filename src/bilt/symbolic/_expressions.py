@@ -21,11 +21,15 @@ from bilt.symbolic._tree import (
     mean_tree,
     min_tree,
     prod_tree,
+    quantity_tree,
     relation_tree,
     sel_tree,
     sum_tree,
     symbol_tree,
 )
+from bilt.units import Quantity, Unit
+from bilt.units._category import UnitCategory
+from bilt.units._units import BASE_UNIT_SYSTEM
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -257,6 +261,18 @@ def as_tree(value: object) -> Tree:
 
     if isinstance(value, float):
         return float_tree(value)
+
+    if isinstance(value, Quantity):
+        return quantity_tree(BASE_UNIT_SYSTEM.coherent_value(value), value.unit.dimension)
+
+    if isinstance(value, Unit):
+        if value.category is UnitCategory.ABSOLUTE:
+            msg = (
+                f"Cannot use absolute unit '{value.name}' in an equation. "
+                f"Use its relative unit '{value.relation}' instead."
+            )
+            raise BiltSymbolicConversionError(msg)
+        return as_tree(Quantity(1.0, value))
 
     msg = f"Cannot convert {type(value).__name__!r} to symbolic Tree."
     raise BiltSymbolicConversionError(msg)

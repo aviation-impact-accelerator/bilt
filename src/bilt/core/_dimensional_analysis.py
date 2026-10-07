@@ -6,7 +6,7 @@ import functools
 import typing
 
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._atoms import CoordinateType, DimensionType, FloatType, IntType, SymbolType
+from bilt.symbolic._atoms import CoordinateType, DimensionType, FloatType, IntType, QuantityType, SymbolType
 from bilt.units._errors import BiltDimensionalityError
 from bilt.units.dimensions import DIMENSIONLESS
 
@@ -43,6 +43,8 @@ def _leaf(tree: Tree, dimensionalities: collections.abc.Mapping[str, Dimension])
         return dimensionalities.get(typing.cast("str", tree.head.value))
     if tree.head.atom_type in (IntType, FloatType):
         return DIMENSIONLESS if tree.head.value != 0 else None
+    if tree.head.atom_type is QuantityType:
+        return typing.cast("tuple[float, Dimension]", tree.head.value)[1]
     if tree.head.atom_type in (DimensionType, CoordinateType):
         return None
     msg = f"Cannot work out the dimensionality of symbolic leaf {tree.head!r}."

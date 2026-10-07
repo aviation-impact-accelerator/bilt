@@ -698,6 +698,10 @@ class UnitSystem:
         orders = zip(self.dimension_to_base_unit_mapping.values(), dimensionality.dimensions, strict=True)
         return Unit(UnitComposition(*(UnitOrder(base_unit, order) for base_unit, order in orders)))
 
+    def coherent_value(self, quantity: Quantity) -> float:
+        """The value of `quantity` in the coherent unit of its dimensionality."""
+        return quantity.convert_to(self.coherent_unit(quantity.unit.dimension)).value
+
 
 BASE_UNIT_SYSTEM = UnitSystem(
     mass=kilogram,

@@ -32,9 +32,7 @@ def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
         if isinstance(input_value, Tensor):
             lowered_inputs[input_name] = input_value.values
         elif isinstance(input_value, Quantity):
-            lowered_inputs[input_name] = input_value.convert_to(
-                BASE_UNIT_SYSTEM.coherent_unit(input_value.unit.dimension)
-            ).value
+            lowered_inputs[input_name] = BASE_UNIT_SYSTEM.coherent_value(input_value)
         else:
             lowered_inputs[input_name] = input_value
 
