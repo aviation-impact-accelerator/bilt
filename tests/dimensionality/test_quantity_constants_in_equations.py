@@ -57,6 +57,20 @@ def test_a_quantity_constant_written_before_its_operand_means_the_same() -> None
     assert result.unit == newton
 
 
+def test_a_quantity_constant_referred_to_by_name_means_the_same() -> None:
+    gravity = 9.81 * meter / second**2
+
+    @equation
+    def weight_by_name(force: Force, mass: Mass) -> bool:
+        return force == mass * gravity
+
+    with Implementation(Body, [weight_by_name]):
+        result = Body(mass=2.0 * kilogram).force
+
+    assert result.value == pytest.approx(19.62)
+    assert result.unit == newton
+
+
 def test_a_constant_in_another_unit_means_what_it_says() -> None:
     @system
     class Journey(metaclass=Interface):
