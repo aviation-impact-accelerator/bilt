@@ -83,16 +83,17 @@ class BiltImplementationDimensionalityError(BiltDimensionalityError):
 class BiltInputDimensionalityError(BiltDimensionalityError):
     """Raised when a value given for a port is not the quantity the port declares."""
 
-    def __init__(
-        self, system_name: str, port: str, expected: Dimension | None, value: object, *, source: str | None = None
-    ) -> None:
-        wanted = "a Quantity" if expected is None else f"a Quantity of {expected}"
+    def __init__(self, system_name: str, port: str, expected: Dimension | None, value: object) -> None:
         received = (
             f"{value} of {value.unit.dimension}" if isinstance(value, Quantity) else f"{type(value).__name__} {value!r}"
         )
-        msg = f"Input {port!r} of {system_name!r} must be {wanted}, not {received}."
-        if source is not None:
-            msg += f" Its dimensionality was {source}."
+        if expected is None:
+            msg = (
+                f"Input {port!r} of {system_name!r} is a plain port, outside the unit system, "
+                f"so it rejects a Quantity: got {received}."
+            )
+        else:
+            msg = f"Input {port!r} of {system_name!r} must be a Quantity of {expected}, not {received}."
         super().__init__(msg)
 
 

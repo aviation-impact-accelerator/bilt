@@ -65,34 +65,12 @@ def test_inhomogeneous_addition_raises() -> None:
     assert isinstance(raised.value.__cause__, BiltDimensionalityError)
 
 
-def test_unannotated_addend_does_not_hide_inhomogeneity() -> None:
-    with pytest.raises(BiltEquationDimensionalityError):
-
-        @equation
-        def summation(total: float, a: Mass, b: Quantity, c: Length) -> bool:
-            return total == a + b + c
-
-
-def test_unannotated_factor_leaves_its_product_unconstrained() -> None:
-    @equation
-    def scaled(total: Force, m: Mass, k: float) -> bool:
-        return total == m * k
-
-
 def test_dimensional_exponent_raises() -> None:
     with pytest.raises(BiltEquationDimensionalityError, match="dimensional_exponent"):
 
         @equation
         def dimensional_exponent(y: Length, x: Length, n: Dimensionless) -> bool:
             return y == x**n
-
-
-def test_a_power_no_unannotated_port_can_meet_raises() -> None:
-    with pytest.raises(BiltEquationDimensionalityError, match="admits no dimensionality for 'b'"):
-
-        @equation
-        def squared(a: Length, b: Quantity) -> bool:
-            return a == b**2
 
 
 def test_fully_unannotated_equation_decorates() -> None:
