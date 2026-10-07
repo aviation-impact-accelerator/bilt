@@ -5,7 +5,7 @@ import typing
 import pytest
 
 from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, equation, field, system
-from bilt.errors import BiltImplementationDimensionalityError
+from bilt.errors import BiltInputDimensionalityError
 from bilt.units import Quantity
 from bilt.units.dimensions import AREA, FORCE, LENGTH, MASS, TIME
 from bilt.units.units import gram, hour, kilogram, kilometer, meter, newton, second
@@ -44,17 +44,6 @@ def newtons_second_law(f: Force, m: Mass, a: Acceleration) -> bool:
     return f == m * a
 
 
-@system
-class Stretch(metaclass=Interface):
-    length: Quantity = field()
-    doubled: Quantity = field()
-
-
-@equation
-def doubling(doubled: Quantity, length: Quantity) -> bool:
-    return doubled == length * 2.0
-
-
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
 def test_kilometres_and_metres_add_in_metres(backend: Backend) -> None:
     with backend, Implementation(Route, [journey]):
@@ -81,26 +70,12 @@ def test_a_rearranged_equation_answers_in_coherent_si_units() -> None:
     assert result.unit == kilogram
 
 
-def test_an_output_no_constituent_gives_a_dimensionality_answers_in_coherent_si_units() -> None:
-    with Implementation(Stretch, [doubling]):
-        result = Stretch(length=2.0 * kilometer).doubled
-
-    assert result == 4000.0 * meter
-
-
-def test_quantities_that_contradict_a_resolved_output_raise() -> None:
+def test_quantities_that_contradict_a_declared_port_raise_at_instantiation() -> None:
     @system
     class Plot(metaclass=Interface):
-        width: Quantity = field()
-        depth: Quantity = field()
+        width: Length = field()
+        depth: Length = field()
         area: Area = field()
 
-    @equation
-    def plot_area(area: Area, width: Quantity, depth: Quantity) -> bool:
-        return area == width * depth
-
-    with (
-        Implementation(Plot, [plot_area]),
-        pytest.raises(BiltImplementationDimensionalityError, match="'plot_area'"),
-    ):
-        _ = Plot(width=2.0 * kilogram, depth=3.0 * kilogram).area
+    with pytest.raises(BiltInputDimensionalityError, match="'width'"):
+        Plot(width=2.0 * kilogram, depth=3.0 * meter)

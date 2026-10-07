@@ -8,14 +8,12 @@ import types
 import typing
 
 from bilt.core._equation import BasicEquation
-from bilt.core._errors import BiltInputDimensionalityError
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
-from bilt.core._port_declaration import PortDeclaration
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._sub_system import SubSystemConstituent
-from bilt.core._system._dimensional_unification import ResolvedDimensionality, check_dimensional_consistency
+from bilt.core._system._dimensional_unification import check_dimensional_consistency
 from bilt.core._system._errors import (
     BiltSubSystemConflictError,
     BiltSubSystemMismatchedImplementationError,
@@ -25,8 +23,6 @@ from bilt.core._system._errors import (
 )
 from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic._domains import Domain
-from bilt.units import Quantity
-from bilt.units.dimensions import DIMENSIONLESS
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -72,15 +68,15 @@ class Implementation:
 
         sub_systems = _build_sub_system_constituents(named_components, internal)
         _validate_sub_systems(named_components, internal, sub_systems)
-        self._constituents: tuple[BiltModelConstituent, ...] = tuple(named_components.values())
-        self._dimensionalities: dict[str, ResolvedDimensionality] = check_dimensional_consistency(
-            system, self._constituents
-        )
-        self._resolutions_by_given: dict[frozenset[tuple[str, Dimension]], dict[str, ResolvedDimensionality]] = {}
-
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             named_components | sub_systems
         )
+        self._port_declarations: dict[str, Dimension] = system.__bilt_port_declarations__ | {
+            port: dimensionality
+            for sub_system in sub_systems.values()
+            for port, dimensionality in sub_system.__bilt_port_declarations__.items()
+        }
+        check_dimensional_consistency(system, self._components.values())
         self._evaluation_cache: dict[
             _CompilationRequest,
             dict[_CompilationContext, BackendCallable],
@@ -106,7 +102,6 @@ class Implementation:
         output: str,
         backend: Backend,
     ) -> object:
-        _check_input_dimensionalities(self._system, self._dimensionalities, inputs)
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
 
@@ -123,7 +118,7 @@ class Implementation:
 
                 backend_callable = self.get_evaluation(request, backend)
 
-                output_dimensionality = self._output_dimensionality(output, inputs)
+                output_dimensionality = self._port_declarations.get(output)
 
                 lowered_inputs = lower_inputs(inputs)
                 alignment_plan = generate_alignment_plan(inputs)
@@ -177,22 +172,6 @@ class Implementation:
         )[compilation_context] = backend_callable
 
         return backend_callable
-
-    def _output_dimensionality(self, output: str, inputs: collections.abc.Mapping[str, object]) -> Dimension | None:
-
-        supplied = [(port, value.unit.dimension) for port, value in inputs.items() if isinstance(value, Quantity)]
-        declaration = self._system.__bilt_port_declarations__.get(output, PortDeclaration())
-        if not supplied and not declaration.carries_quantity:
-            return None
-        given = frozenset(
-            (port, dimensionality) for port, dimensionality in supplied if port not in self._dimensionalities
-        )
-        if given not in self._resolutions_by_given:
-            self._resolutions_by_given[given] = check_dimensional_consistency(self._system, self._constituents, given)
-        resolved = self._resolutions_by_given[given].get(output)
-        if resolved is not None:
-            return resolved.dimensionality
-        return DIMENSIONLESS if declaration.carries_quantity else None
 
     def __enter__(self) -> typing.Self:
         self._system.__bilt_system_implementation_default__.append(self)
@@ -270,17 +249,3 @@ def _validate_sub_systems(
     for name in internal_implementations:
         if name not in required_interfaces:
             raise BiltSubSystemUnreferencedEntryError(name, sorted(required_interfaces))
-
-
-def _check_input_dimensionalities(
-    system: Interface,
-    dimensionalities: collections.abc.Mapping[str, ResolvedDimensionality],
-    inputs: collections.abc.Mapping[str, object],
-) -> None:
-    """Ensure each quantity input has the dimensionality the implementation resolves for its port."""
-    for port, value in inputs.items():
-        resolved = dimensionalities.get(port)
-        if isinstance(value, Quantity) and resolved is not None and value.unit.dimension != resolved.dimensionality:
-            raise BiltInputDimensionalityError(
-                system.__bilt_name__, port, resolved.dimensionality, value, source=resolved.source
-            )

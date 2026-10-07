@@ -12,7 +12,7 @@ from bilt.core._structural_analysis._realize import RealizationFailure, realize_
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
-    from bilt.core._port_declaration import PortDeclaration
+    from bilt.units import Dimension
 
 SUPPLY_VOLTAGE = 3.0
 SCALAR_DOMAIN = Domain.scalar()
@@ -84,7 +84,7 @@ def test_realize_plan_rejects_an_unsupported_operation() -> None:
     class Unsupported:
         __bilt_name__: str = "unsupported"
         __bilt_parameters__: tuple[str, ...] = ("a",)
-        __bilt_port_declarations__: dict[str, PortDeclaration] = {}  # noqa: RUF012
+        __bilt_port_declarations__: dict[str, Dimension] = {}  # noqa: RUF012
 
     plan = _scalar_plan(
         inputs=frozenset(),
