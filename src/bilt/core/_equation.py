@@ -270,8 +270,8 @@ def _ports_under(
     if tree.is_leaf:
         return frozenset({typing.cast("str", tree.head.value)}) if tree.head.atom_type is SymbolType else frozenset()
 
-    operands = tree.args[:1] if tree.head in (ops.POW, ops.ISEL) else tree.args
-    ports = frozenset().union(*(_ports_under(equation_name, operand, dimensionalities) for operand in operands))
+    under = [_ports_under(equation_name, operand, dimensionalities) for operand in tree.args]
+    ports = frozenset().union(*(under[:1] if tree.head in (ops.POW, ops.ISEL) else under))
     plain = ports - dimensionalities.keys()
     declared = ports & dimensionalities.keys()
     if plain and declared:

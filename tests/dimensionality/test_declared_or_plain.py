@@ -177,6 +177,14 @@ def test_an_equation_with_a_plain_exponent_beside_declared_ports_evaluates() -> 
     assert result == Quantity(9.0, UNITLESS)
 
 
+def test_a_plain_port_meeting_a_declared_port_inside_an_exponent_raises() -> None:
+    def scaled_power(y: Dimensionless, x: Dimensionless, length: Length, scale: float) -> bool:
+        return y == x ** (length * scale)
+
+    with pytest.raises(BiltEquationDimensionalityError, match=r"plain 'scale' with declared 'length'"):
+        equation(scaled_power)
+
+
 def test_a_plain_transform_port_that_another_owner_declares_raises() -> None:
     @system
     class Rig(metaclass=Interface):
