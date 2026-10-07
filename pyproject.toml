@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "networkx>=3.6.1",
+    "numpy",
 ]
 
 [project.optional-dependencies]
