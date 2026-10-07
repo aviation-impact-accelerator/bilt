@@ -23,9 +23,9 @@ def test_homogeneous_equation_decorates() -> None:
         return f == m * a
 
 
-def test_partially_annotated_equation_decorates() -> None:
+def test_wholly_plain_equation_decorates() -> None:
     @equation
-    def newtons_second_law(f: Force, m: Mass, a: float) -> bool:
+    def newtons_second_law(f: float, m: float, a: float) -> bool:
         return f == m * a
 
 
@@ -67,3 +67,15 @@ def test_dimensional_exponent_raises() -> None:
             return result == base**m
 
     assert "mass" in str(raised.value)
+
+
+def test_equation_contradicting_declared_ports_raises() -> None:
+    with pytest.raises(BiltUnitsError, match="squares") as raised:
+
+        @equation
+        def squares(a: Mass, b: Length) -> bool:
+            return a**2 == b**2
+
+    message = str(raised.value)
+    assert "[Mass]^2" in message
+    assert "[Length]^2" in message
