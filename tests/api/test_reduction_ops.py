@@ -354,6 +354,27 @@ def test_transform_mean_reduces_named_dimension(
     )
 
 
+def test_one_transform_mean_reduces_named_dimension_for_two_input_domains() -> None:
+    location = Dim("location")
+    time = Dim("time")
+
+    @system
+    class Demo(metaclass=Interface):
+        values: Tensor = field()
+        averaged: Tensor = field()
+
+    @transform
+    def averaged(values: Tensor) -> Tensor:
+        return values.mean(time)
+
+    with Implementation(Demo, [averaged]):
+        time_last = Demo(values=tensor([[1.0, 3.0, 5.0], [2.0, 4.0, 6.0]], over=(location, time))).averaged
+        time_first = Demo(values=tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], over=(time, location))).averaged
+
+    np.testing.assert_allclose(time_last.values, [3.0, 4.0])
+    np.testing.assert_allclose(time_first.values, [3.0, 4.0])
+
+
 @pytest.mark.parametrize(
     "backend",
     (PYTHON_BACKEND, JAX_BACKEND),
