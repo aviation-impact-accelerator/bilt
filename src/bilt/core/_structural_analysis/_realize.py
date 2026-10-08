@@ -19,6 +19,7 @@ from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
+from bilt.core._unit_erasure import erase_units
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltIsolationError
 from bilt.symbolic._isolation._isolate import isolate
@@ -109,6 +110,14 @@ def _transform_to_callable(
             )
         ).body[0],
     )
+
+    try:
+        function_ast = erase_units(function_ast, transform)
+    except BiltAnalysisError as error:
+        return RealizationFailure(
+            failed_plan_step=plan_step,
+            cause=error,
+        )
 
     function_ast, output_domain = lower_transform(
         function_ast,
