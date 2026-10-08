@@ -19,6 +19,17 @@ _UNIT_TYPES = (Quantity, Unit, Dimension)
 
 _QUANTITY_ATTRIBUTES = frozenset({"value", "unit", "convert_to", "cast_to", "strip_metadata"})
 
+_SCOPES = (
+    ast.FunctionDef,
+    ast.AsyncFunctionDef,
+    ast.ClassDef,
+    ast.Lambda,
+    ast.ListComp,
+    ast.SetComp,
+    ast.DictComp,
+    ast.GeneratorExp,
+)
+
 
 def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast.FunctionDef:
     """Replace the units written in a transform's body with their coherent values.
@@ -26,14 +37,21 @@ def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast
     Raises:
         BiltDefinitionError: If the body holds a construct that cannot be kept faithful without its units.
     """
-    parameters = {node.arg for node in ast.walk(function_ast) if isinstance(node, ast.arg)}
     assigned = {
         node.id for node in ast.walk(function_ast) if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
     }
+    shadowed: set[ast.Name] = set()
+    for scope in ast.walk(function_ast):
+        if isinstance(scope, _SCOPES) and scope is not function_ast:
+            names = [node for node in ast.walk(scope) if isinstance(node, ast.Name)]
+            bound = {node.arg for node in ast.walk(scope) if isinstance(node, ast.arg)} | {
+                name.id for name in names if isinstance(name.ctx, ast.Store)
+            }
+            shadowed.update(name for name in names if name.id in bound)
     closure = inspect.getclosurevars(transform._function)  # noqa: SLF001
-    bindings = {**closure.globals, **closure.nonlocals}
     eraser = _UnitEraser(
-        bindings={name: bindings[name] for name in bindings.keys() - parameters - assigned},
+        bindings={**closure.globals, **closure.nonlocals},
+        shadowed=shadowed,
         plain_parameters=set(transform.__bilt_parameters__) - assigned - transform.__bilt_port_declarations__.keys(),
     )
     for statement in function_ast.body:
@@ -43,8 +61,9 @@ def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast
 
 
 class _UnitEraser(ast.NodeTransformer):
-    def __init__(self, bindings: dict[str, object], plain_parameters: set[str]) -> None:
+    def __init__(self, bindings: dict[str, object], shadowed: set[ast.Name], plain_parameters: set[str]) -> None:
         self.bindings = bindings
+        self.shadowed = shadowed
         self.plain_parameters = plain_parameters
 
     def visit(self, node: ast.AST) -> ast.AST:
@@ -84,7 +103,11 @@ class _UnitEraser(ast.NodeTransformer):
         return typing.cast("ast.expr", self.generic_visit(node))
 
     def _is_constant(self, node: ast.expr) -> bool:
-        return all(name.id in self.bindings for name in ast.walk(node) if isinstance(name, ast.Name))
+        return all(
+            name.id in self.bindings and name not in self.shadowed
+            for name in ast.walk(node)
+            if isinstance(name, ast.Name)
+        )
 
     def _reaches_a_unit(self, node: ast.expr) -> bool:
         """Whether `node` names a quantity, a unit or a dimensionality, or one of their classes."""
@@ -95,7 +118,7 @@ class _UnitEraser(ast.NodeTransformer):
 
     def _resolved(self, node: ast.AST) -> object:
         match node:
-            case ast.Name(id=name):
+            case ast.Name(id=name) if node not in self.shadowed:
                 return self.bindings.get(name)
             case ast.Attribute(value=root, attr=attribute) if isinstance(
                 module := self._resolved(root), types.ModuleType

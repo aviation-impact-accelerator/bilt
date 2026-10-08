@@ -99,6 +99,35 @@ def test_a_local_name_shadowing_a_unit_is_the_local() -> None:
     assert _stretch(stretched) == 2000.0 * meter
 
 
+def test_a_comprehension_variable_shadowing_a_unit_is_the_unit_outside_it() -> None:
+    @transform
+    def stretched(length: Length) -> Length:
+        squares = [meter * meter for meter in [1.0, 2.0]]
+        return length + squares[1] * meter
+
+    assert _stretch(stretched) == 1004.0 * meter
+
+
+def test_a_lambda_parameter_shadowing_a_unit_is_the_unit_outside_it() -> None:
+    @transform
+    def stretched(length: Length) -> Length:
+        longest = max([1.0, 2.0], key=lambda meter: meter * meter)
+        return length + longest * meter
+
+    assert _stretch(stretched) == 1002.0 * meter
+
+
+def test_a_nested_function_parameter_shadowing_a_unit_is_the_unit_outside_it() -> None:
+    @transform
+    def stretched(length: Length) -> Length:
+        def doubled(meter: float) -> float:
+            return meter * 2.0
+
+        return length + doubled(2.0) * meter
+
+    assert _stretch(stretched) == 1004.0 * meter
+
+
 def test_a_conversion_answers_the_same_quantity() -> None:
     @transform
     def stretched(length: Length) -> Length:
