@@ -5,7 +5,7 @@ import typing
 import pytest
 
 from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, field, system, transform
-from bilt.errors import BiltAnalysisError
+from bilt.errors import BiltDefinitionError
 from bilt.units import Quantity, units
 from bilt.units.dimensions import LENGTH
 from bilt.units.units import absolute_celsius, kilometer, meter
@@ -139,56 +139,39 @@ def test_a_conversion_in_one_transform_and_a_reading_in_the_next_agree_with_pyth
 
 
 def test_a_bare_value_is_refused_with_the_spelling_that_names_a_unit() -> None:
-    @transform
-    def stretched(length: Length) -> Length:
-        return length * length.value
-
     with pytest.raises(
-        BiltAnalysisError,
+        BiltDefinitionError,
         match=r"`length\.value` depends on the unit `length` arrived in: write `length\.convert_to\(<unit>\)\.value`",
     ):
-        _stretch(stretched)
+
+        @transform
+        def stretched(length: Length) -> Length:
+            return length * length.value
 
 
 def test_a_bare_value_on_a_local_is_refused() -> None:
-    @transform
-    def stretched(length: Length) -> Length:
-        scaled = length * 2.0
-        return scaled.value * meter
+    with pytest.raises(BiltDefinitionError, match=r"`scaled\.value` depends on the unit `scaled` arrived in"):
 
-    with pytest.raises(BiltAnalysisError, match=r"`scaled\.value` depends on the unit `scaled` arrived in"):
-        _stretch(stretched)
-
-
-def test_a_bare_value_after_a_conversion_in_another_transform_is_refused() -> None:
-    @transform
-    def stretched(length: Length) -> Length:
-        return length.convert_to(kilometer)
-
-    @transform
-    def span_km(stretched: Length) -> float:
-        return stretched.value
-
-    with Implementation(Stretch, [stretched, span_km]), pytest.raises(BiltAnalysisError, match=r"`stretched\.value`"):
-        _ = Stretch(length=1.0 * kilometer).span_km
+        @transform
+        def stretched(length: Length) -> Length:
+            scaled = length * 2.0
+            return scaled.value * meter
 
 
 def test_a_unit_attribute_is_refused() -> None:
-    @transform
-    def stretched(length: Length) -> Length:
-        return length * 2.0 if length.unit is meter else length
+    with pytest.raises(BiltDefinitionError, match=r"`length\.unit` depends on the unit `length` arrived in"):
 
-    with pytest.raises(BiltAnalysisError, match=r"`length\.unit` depends on the unit `length` arrived in"):
-        _stretch(stretched)
+        @transform
+        def stretched(length: Length) -> Length:
+            return length * 2.0 if length.unit is meter else length
 
 
 def test_an_absolute_unit_as_a_scale_is_refused() -> None:
-    @transform
-    def stretched(length: Length) -> Length:
-        return length * absolute_celsius
+    with pytest.raises(BiltDefinitionError, match=r"`absolute_celsius` is an absolute unit.*relative unit `celsius`"):
 
-    with pytest.raises(BiltAnalysisError, match=r"`absolute_celsius` is an absolute unit.*relative unit `celsius`"):
-        _stretch(stretched)
+        @transform
+        def stretched(length: Length) -> Length:
+            return length * absolute_celsius
 
 
 def test_value_on_a_plain_parameter_fails_as_python_fails_it() -> None:

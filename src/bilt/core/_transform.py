@@ -1,10 +1,13 @@
 __all__ = ["transform"]
 
+import ast
 import inspect
+import textwrap
 import typing
 
 from bilt.core._errors import BiltUnresolvedAnnotationError
 from bilt.core._port_declaration import port_declarations
+from bilt.core._unit_erasure import erase_units
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -34,6 +37,10 @@ class BasicTransform[R, **P]:
             | {self.__bilt_name__: signature.return_annotation},
         )
         self._function = function
+        self._function_ast = erase_units(
+            typing.cast("ast.FunctionDef", ast.parse(textwrap.dedent(inspect.getsource(function))).body[0]),
+            self,
+        )
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self._function(*args, **kwargs)

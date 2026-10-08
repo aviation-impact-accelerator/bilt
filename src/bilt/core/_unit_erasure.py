@@ -7,7 +7,7 @@ import inspect
 import types
 import typing
 
-from bilt.core._errors import BiltAnalysisError
+from bilt.core._errors import BiltDefinitionError
 from bilt.units import Dimension, Quantity, Unit
 from bilt.units._category import UnitCategory
 from bilt.units._units import BASE_UNIT_SYSTEM
@@ -24,7 +24,7 @@ def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast
     """Replace the units written in a transform's body with their coherent values.
 
     Raises:
-        BiltAnalysisError: If the body holds a construct that cannot be kept faithful without its units.
+        BiltDefinitionError: If the body holds a construct that cannot be kept faithful without its units.
     """
     parameters = {node.arg for node in ast.walk(function_ast) if isinstance(node, ast.arg)}
     assigned = {
@@ -70,7 +70,7 @@ class _UnitEraser(ast.NodeTransformer):
                     return ast.BinOp(left=self._erased(value), op=ast.Mult(), right=scale)
                 case ast.Attribute(value=quantity, attr=attribute) if attribute in _QUANTITY_ATTRIBUTES:
                     msg = f"`{ast.unparse(node)}` {_attribute_problem(quantity, attribute)}"
-                    raise BiltAnalysisError(msg)
+                    raise BiltDefinitionError(msg)
 
         return typing.cast("ast.expr", self.generic_visit(node))
 
@@ -125,7 +125,7 @@ class _UnitEraser(ast.NodeTransformer):
             case _:
                 problem = "is not a quantity, a unit or a number, so a transform cannot compute with it"
         msg = f"`{ast.unparse(node)}` {problem}"
-        raise BiltAnalysisError(msg)
+        raise BiltDefinitionError(msg)
 
     def _unit_scale(self, unit: ast.expr, construct: ast.expr) -> ast.expr:
         """The coherent value of one of the unit that `construct` names, as a literal."""
@@ -133,7 +133,7 @@ class _UnitEraser(ast.NodeTransformer):
             return self._literal(unit, value)
         problem = f"is not a unit named outside the transform, so `{ast.unparse(construct)}` cannot use it"
         msg = f"`{ast.unparse(unit)}` {problem}: name the unit directly"
-        raise BiltAnalysisError(msg)
+        raise BiltDefinitionError(msg)
 
 
 def _attribute_problem(quantity: ast.expr, attribute: str) -> str:

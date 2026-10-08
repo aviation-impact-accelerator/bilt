@@ -1,9 +1,8 @@
 __all__ = ["RealizationFailure", "realize_plan"]
 
 import ast
+import copy
 import dataclasses
-import inspect
-import textwrap
 import typing
 
 from bilt._backend._callable import BackendCallable
@@ -19,7 +18,6 @@ from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
-from bilt.core._unit_erasure import erase_units
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltIsolationError
 from bilt.symbolic._isolation._isolate import isolate
@@ -102,25 +100,8 @@ def _transform_to_callable(
     *,
     symbol_domains: dict[str, Domain],
 ) -> BackendCallable | RealizationFailure:
-    function_ast = typing.cast(
-        "ast.FunctionDef",
-        ast.parse(
-            textwrap.dedent(
-                inspect.getsource(transform._function),  # noqa: SLF001
-            )
-        ).body[0],
-    )
-
-    try:
-        function_ast = erase_units(function_ast, transform)
-    except BiltAnalysisError as error:
-        return RealizationFailure(
-            failed_plan_step=plan_step,
-            cause=error,
-        )
-
     function_ast, output_domain = lower_transform(
-        function_ast,
+        copy.deepcopy(transform._function_ast),  # noqa: SLF001
         function=transform._function,  # noqa: SLF001
         symbol_domains=symbol_domains,
     )
