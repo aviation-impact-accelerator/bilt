@@ -214,6 +214,15 @@ def test_a_bare_value_on_a_local_is_refused() -> None:
             return scaled.value * meter
 
 
+def test_a_bare_value_on_a_comprehension_variable_named_as_a_plain_parameter_is_refused() -> None:
+    with pytest.raises(BiltDefinitionError, match=r"`span_km\.value` depends on the unit `span_km` arrived in"):
+
+        @transform
+        def stretched(length: Length, span_km: float) -> Length:
+            spans = [span_km.value for span_km in [length, length]]
+            return spans[0] * meter + span_km * kilometer
+
+
 def test_a_unit_attribute_is_refused() -> None:
     with pytest.raises(BiltDefinitionError, match=r"`length\.unit` depends on the unit `length` arrived in"):
 

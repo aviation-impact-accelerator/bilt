@@ -41,9 +41,6 @@ def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast
     Raises:
         BiltDefinitionError: If the body holds a construct that cannot be kept faithful without its units.
     """
-    assigned = {
-        node.id for node in ast.walk(function_ast) if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
-    }
     shadowed: set[ast.Name] = set()
     for scope in ast.walk(function_ast):
         if isinstance(scope, _SCOPES) and scope is not function_ast:
@@ -52,6 +49,11 @@ def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast
                 name.id for name in names if isinstance(name.ctx, ast.Store)
             }
             shadowed.update(name for name in names if name.id in bound)
+    assigned = {
+        node.id
+        for node in ast.walk(function_ast)
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store) and node not in shadowed
+    }
     closure = inspect.getclosurevars(transform._function)  # noqa: SLF001
     parameters = set(transform.__bilt_parameters__) - assigned
     eraser = _UnitEraser(
@@ -171,13 +173,15 @@ class _UnitEraser(ast.NodeTransformer):
         """Whether `node` reads a quantity attribute of a plain parameter, calls one, or reads `.value` off such a call."""
         match node:
             case (
-                ast.Attribute(value=ast.Name(id=name), attr=attribute)
-                | ast.Call(func=ast.Attribute(value=ast.Name(id=name), attr=attribute))
+                ast.Attribute(value=ast.Name() as name, attr=attribute)
+                | ast.Call(func=ast.Attribute(value=ast.Name() as name, attr=attribute))
                 | ast.Attribute(
-                    value=ast.Call(func=ast.Attribute(value=ast.Name(id=name), attr=attribute)), attr="value"
+                    value=ast.Call(func=ast.Attribute(value=ast.Name() as name, attr=attribute)), attr="value"
                 )
             ):
-                return name in self.plain_parameters and attribute in _QUANTITY_ATTRIBUTES
+                return (
+                    name.id in self.plain_parameters and name not in self.shadowed and attribute in _QUANTITY_ATTRIBUTES
+                )
         return False
 
     def _evaluated(self, node: ast.expr) -> object:

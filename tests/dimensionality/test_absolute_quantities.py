@@ -337,6 +337,15 @@ def test_a_conversion_of_a_reassigned_parameter_is_taken_at_its_word() -> None:
         assert Probe(reading=Quantity(10.0, absolute_celsius)).degrees == pytest.approx(18.0)
 
 
+def test_a_comprehension_variable_named_as_a_parameter_does_not_reassign_it() -> None:
+    with pytest.raises(BiltDefinitionError, match=r"`reading\.convert_to\(celsius\)` contradicts the signature"):
+
+        @transform
+        def degrees(reading: AbsoluteTemperature) -> float:
+            doubled = [reading * 2.0 for reading in [1.0, 2.0]]
+            return reading.convert_to(celsius).value + doubled[0]
+
+
 def test_an_absolute_unit_with_no_coherent_counterpart_is_refused_in_a_transform() -> None:
     with pytest.raises(
         BiltDefinitionError,
