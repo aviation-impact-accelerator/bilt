@@ -1,3 +1,4 @@
+import dataclasses
 import typing
 
 from bilt.units._category import UnitCategory
@@ -5,6 +6,15 @@ from bilt.units._errors import BiltDimensionalityError, BiltUnitError
 
 if typing.TYPE_CHECKING:
     from bilt.units._units import Unit
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Conversion:
+    scale: float = 1.0
+    offset: float = 0.0
+
+    def apply(self, value: float) -> float:
+        return value * self.scale + self.offset
 
 
 class QuantityLike(typing.Protocol):
@@ -42,7 +52,7 @@ def _validate_matching_dimensions(source: Unit, target: Unit) -> None:
         return
 
     message = (
-        f"Cannot convert quantity with unit dimensionality {source.dimension!s} "
+        f"Cannot convert unit with dimensionality {source.dimension!s} "
         f"to unit {target!s} with dimensionality {target.dimension!s} as they "
         f"are different"
     )
@@ -66,21 +76,18 @@ def _find_common_unit_index(
     return index
 
 
-def _convert_absolute_quantity_value(
-    quantity: QuantityLike,
-    unit: Unit,
-) -> float | None:
-    if quantity.unit is unit:
-        return None
+def _absolute_conversion(
+    source: Unit,
+    target: Unit,
+) -> Conversion:
+    _validate_matching_dimensions(source, target)
 
-    _validate_matching_dimensions(quantity.unit, unit)
-
-    start_unit_stack = _create_absolute_unit_stack(quantity.unit)
-    end_unit_stack = _create_absolute_unit_stack(unit)
+    start_unit_stack = _create_absolute_unit_stack(source)
+    end_unit_stack = _create_absolute_unit_stack(target)
 
     if start_unit_stack[0] is not end_unit_stack[0]:
         message = (
-            f"Cannot convert quantity with unit {quantity!s} to unit {unit!s} "
+            f"Cannot convert unit {source!s} to unit {target!s} "
             f"as the two do not share a common root unit in their definition"
         )
         raise BiltUnitError(message)
@@ -90,87 +97,85 @@ def _convert_absolute_quantity_value(
         end_unit_stack,
     )
 
-    value = quantity.value
+    scale = 1.0
+    offset = 0.0
 
     for via_unit in reversed(start_unit_stack[index:]):
-        scale = via_unit.relation.composition[0].unit.relation.scale
-        value *= scale
+        via_scale = via_unit.relation.composition[0].unit.relation.scale
+
+        scale *= via_scale
+        offset *= via_scale
 
         if via_unit.offset is not None:
-            value += via_unit.offset.scale
+            offset += via_unit.offset.scale
 
     for via_unit in end_unit_stack[index:]:
         if via_unit.offset is not None:
-            value -= via_unit.offset.scale
+            offset -= via_unit.offset.scale
 
-        scale = via_unit.relation.composition[0].unit.relation.scale
-        value /= scale
+        via_scale = via_unit.relation.composition[0].unit.relation.scale
 
-    return value
+        scale /= via_scale
+        offset /= via_scale
+
+    return Conversion(scale=scale, offset=offset)
 
 
-def _convert_relative_quantity_value(
-    quantity: QuantityLike,
-    unit: Unit,
-) -> float:
-    _validate_matching_dimensions(quantity.unit, unit)
+def _relative_conversion(
+    source: Unit,
+    target: Unit,
+) -> Conversion:
+    _validate_matching_dimensions(source, target)
 
-    if quantity.unit.metadata is not unit.metadata:
+    if source.metadata is not target.metadata:
         message = (
-            f"Cannot convert quantity with unit with metadata "
-            f"{quantity.unit.metadata!s} to unit {unit!s} with metadata "
-            f"{unit.metadata!s} as they are different"
+            f"Cannot convert unit with metadata {source.metadata!s} "
+            f"to unit {target!s} with metadata {target.metadata!s} "
+            f"as they are different"
         )
         raise BiltUnitError(message)
 
-    scale = quantity.unit.to_si_base_units().relation.scale / unit.to_si_base_units().relation.scale
+    scale = source.to_si_base_units().relation.scale / target.to_si_base_units().relation.scale
 
-    return scale * quantity.value
+    return Conversion(scale=scale)
 
 
 def _raise_relative_to_absolute_error(
-    quantity: QuantityLike,
-    unit: Unit,
+    source: Unit,
+    target: Unit,
 ) -> typing.Never:
     message = (
-        f"Cannot convert quantity with unit {quantity!s} to quantity with "
-        f"absolute unit {unit} because relative and absolute units cannot be "
-        f"interconverted"
+        f"Cannot convert relative unit {source!s} to absolute unit {target!s} "
+        f"because relative and absolute units cannot be interconverted"
     )
     raise BiltUnitError(message)
 
 
 def _raise_absolute_to_relative_error(
-    quantity: QuantityLike,
-    unit: Unit,
+    source: Unit,
+    target: Unit,
 ) -> typing.Never:
     message = (
-        f"Cannot convert quantity with absolute unit {quantity!s} to quantity "
-        f"with unit {unit} because relative and absolute units cannot be "
-        f"interconverted"
+        f"Cannot convert absolute unit {source!s} to relative unit {target!s} "
+        f"because relative and absolute units cannot be interconverted"
     )
     raise BiltUnitError(message)
 
 
-def convert_quantity_value(
-    quantity: QuantityLike,
-    unit: Unit,
-) -> float | None:
-    """Return the converted value.
-
-    ``None`` preserves the existing behaviour where converting an absolute
-    quantity to the identical unit returns the original ``Quantity`` object.
-    """
-    source_category = quantity.unit.category
-    target_category = unit.category
+def conversion_between(
+    source: Unit,
+    target: Unit,
+) -> Conversion:
+    source_category = source.category
+    target_category = target.category
 
     if source_category is UnitCategory.ABSOLUTE and target_category is UnitCategory.ABSOLUTE:
-        return _convert_absolute_quantity_value(quantity, unit)
+        return _absolute_conversion(source, target)
 
     if target_category is UnitCategory.ABSOLUTE:
-        _raise_relative_to_absolute_error(quantity, unit)
+        _raise_relative_to_absolute_error(source, target)
 
     if source_category is UnitCategory.ABSOLUTE:
-        _raise_absolute_to_relative_error(quantity, unit)
+        _raise_absolute_to_relative_error(source, target)
 
-    return _convert_relative_quantity_value(quantity, unit)
+    return _relative_conversion(source, target)

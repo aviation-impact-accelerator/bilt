@@ -972,4 +972,7 @@ class TestAbsoluteUnit:
         ),
     )
     def test_convert_to(quantity: Quantity, unit: Unit, expected: Quantity) -> None:
-        assert quantity.convert_to(unit) == expected
+        result = quantity.convert_to(unit)
+
+        assert result.value == pytest.approx(expected.value)
+        assert result.unit == expected.unit
