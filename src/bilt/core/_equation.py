@@ -18,7 +18,7 @@ from bilt.core._errors import (
 )
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
-from bilt.core._port_declaration import port_declarations
+from bilt.core._port_declaration import PortDeclaration, port_declarations
 from bilt.core._sub_system import validate_name
 from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic import _atoms as ops
@@ -37,7 +37,7 @@ if typing.TYPE_CHECKING:
 class Equation[R, **P](typing.Protocol):
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
-    __bilt_port_declarations__: dict[str, Dimension]
+    __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
@@ -48,7 +48,7 @@ class Equation[R, **P](typing.Protocol):
 class BasicEquation[R, **P]:
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
-    __bilt_port_declarations__: dict[str, Dimension]
+    __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
@@ -88,8 +88,11 @@ class BasicEquation[R, **P]:
         self.__bilt_equation_tree__ = tree
         self.__bilt_sub_systems__ = types.MappingProxyType(referenced_sub_systems)
         self._function = function
-        check_homogeneity(self, self.__bilt_port_declarations__)
-        _carried_under(name, tree, self.__bilt_port_declarations__)
+        dimensionalities = {
+            port: declaration.dimensionality for port, declaration in self.__bilt_port_declarations__.items()
+        }
+        check_homogeneity(self, dimensionalities)
+        _carried_under(name, tree, dimensionalities)
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self._function(*args, **kwargs)
@@ -159,7 +162,7 @@ def _expand_sub_system_parameters(
     symbols: dict[str, Expr | SubSystemExpr],
     sub_systems: collections.abc.Mapping[str, Interface],
     occurring: collections.abc.Container[Tree],
-) -> tuple[dict[str, Expr], dict[str, Interface], dict[str, Dimension]]:
+) -> tuple[dict[str, Expr], dict[str, Interface], dict[str, PortDeclaration]]:
     """Replace each sub-system parameter with the dotted ports the equation actually references.
 
     Keys keep signature order, so the parameter tuple reads straight off the result. A port the
@@ -168,7 +171,7 @@ def _expand_sub_system_parameters(
     """
     equation_symbols: dict[str, Expr] = {}
     referenced_sub_systems: dict[str, Interface] = {}
-    sub_system_declarations: dict[str, Dimension] = {}
+    sub_system_declarations: dict[str, PortDeclaration] = {}
 
     for name, symbol in symbols.items():
         if isinstance(symbol, Expr):

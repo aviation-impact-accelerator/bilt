@@ -7,7 +7,7 @@ import pytest
 from bilt import Implementation, Interface, equation, field, system, transform
 from bilt.errors import BiltImplementationDimensionalityError, BiltUnitsError
 from bilt.units import Quantity
-from bilt.units.dimensions import CURRENT, FORCE, MASS, POWER, RESISTANCE, VOLTAGE
+from bilt.units.dimensions import ABSOLUTE, CURRENT, FORCE, MASS, POWER, RESISTANCE, TEMPERATURE, VOLTAGE
 
 Current = typing.Annotated[Quantity, CURRENT]
 Force = typing.Annotated[Quantity, FORCE]
@@ -76,7 +76,7 @@ def test_a_declared_conflict_names_both_sources() -> None:
     def resting(v: Mass) -> bool:
         return v == 0
 
-    with pytest.raises(BiltImplementationDimensionalityError, match="'v' conflicting dimensionalities") as raised:
+    with pytest.raises(BiltImplementationDimensionalityError, match="'v' conflicting declarations") as raised:
         Implementation(Rig, [ohms_law, resting])
 
     message = str(raised.value)
@@ -131,9 +131,26 @@ def test_a_transform_output_takes_its_return_annotation() -> None:
     def power(v: Voltage, i: Current) -> Power:
         return v * i
 
-    with pytest.raises(BiltImplementationDimensionalityError, match="'power' conflicting dimensionalities") as raised:
+    with pytest.raises(BiltImplementationDimensionalityError, match="'power' conflicting declarations") as raised:
         Implementation(Rig, [power])
 
     message = str(raised.value)
     assert f"{MASS}: declared by Rig" in message
     assert f"{POWER}: declared by power" in message
+
+
+def test_a_port_one_owner_marks_absolute_and_another_leaves_relative_raises() -> None:
+    @system
+    class Engine(metaclass=Interface):
+        hot: typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE] = field()
+
+    @equation
+    def resting(hot: typing.Annotated[Quantity, TEMPERATURE]) -> bool:
+        return hot == 0
+
+    with pytest.raises(BiltImplementationDimensionalityError, match="'hot' conflicting declarations") as raised:
+        Implementation(Engine, [resting])
+
+    message = str(raised.value)
+    assert f"  absolute {TEMPERATURE}: declared by Engine" in message
+    assert f"  {TEMPERATURE}: declared by resting" in message

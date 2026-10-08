@@ -18,7 +18,7 @@ def check_dimensional_consistency(
     system: Interface,
     constituents: collections.abc.Iterable[BiltModelConstituent],
 ) -> None:
-    """Demand that every owner of a port agrees on its dimensionality, declaring it or leaving it plain together.
+    """Demand that every owner of a port agrees on its declaration, declaring it or leaving it plain together.
 
     The owners are the system interface and each constituent, and a port is named by an owner when it is one of
     its parameters, one it declares, or, for a transform, its output.
@@ -38,13 +38,13 @@ def check_dimensional_consistency(
             continue
 
         first = declaring[0]
-        dimensionality = first.__bilt_port_declarations__[port]
+        declaration = first.__bilt_port_declarations__[port]
         for owner in declaring[1:]:
             other = owner.__bilt_port_declarations__[port]
-            if other is not dimensionality:
+            if other != declaration:
                 msg = (
-                    f"gives port {port!r} conflicting dimensionalities:\n"
-                    f"  {dimensionality}: declared by {first.__bilt_name__}\n"
+                    f"gives port {port!r} conflicting declarations:\n"
+                    f"  {declaration}: declared by {first.__bilt_name__}\n"
                     f"  {other}: declared by {owner.__bilt_name__}"
                 )
                 raise BiltImplementationDimensionalityError(system.__bilt_name__, msg)
@@ -53,7 +53,7 @@ def check_dimensional_consistency(
         if plain:
             msg = (
                 f"gives port {port!r} a dimensionality in only some places:\n"
-                f"  {dimensionality}: declared by {first.__bilt_name__}\n"
+                f"  {declaration}: declared by {first.__bilt_name__}\n"
                 f"  left plain by {', '.join(sorted(plain))}"
             )
             raise BiltImplementationDimensionalityError(system.__bilt_name__, msg)

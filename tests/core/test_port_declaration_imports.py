@@ -3,6 +3,7 @@ import typing
 import pytest
 
 from bilt import Interface, Quantity, equation, field, system, transform
+from bilt.core._port_declaration import PortDeclaration
 from bilt.errors import BiltUnresolvedAnnotationError
 from bilt.units.dimensions import MASS
 
@@ -15,7 +16,7 @@ def test_equation_reads_a_quantity_imported_beside_the_decorator() -> None:
     def balance(m: typing.Annotated[Quantity, MASS], k: typing.Annotated[Quantity, MASS]) -> bool:
         return m == k
 
-    assert balance.__bilt_port_declarations__ == {"m": MASS, "k": MASS}
+    assert balance.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "k": PortDeclaration(MASS)}
 
 
 def test_equation_rejects_an_annotation_imported_only_for_type_checking() -> None:

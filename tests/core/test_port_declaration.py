@@ -3,10 +3,11 @@ import typing
 import pytest
 
 from bilt import Interface, equation, field, system, transform
+from bilt.core._port_declaration import PortDeclaration
 from bilt.core._tensors._tensors import Tensor
 from bilt.errors import BiltEquationDimensionalityError, BiltPortDeclarationError
 from bilt.units import Quantity, kilogram
-from bilt.units.dimensions import AREA, DIMENSIONLESS, LENGTH, MASS
+from bilt.units.dimensions import ABSOLUTE, AREA, DIMENSIONLESS, LENGTH, MASS, TEMPERATURE, TIME
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -20,6 +21,11 @@ MassAsTensor = typing.Annotated[Tensor, MASS]
 MassAndLength = typing.Annotated[Quantity, MASS, LENGTH]
 type MassAlias = typing.Annotated[Quantity, MASS]
 type MassAliasAlias = MassAlias
+Temperature = typing.Annotated[Quantity, TEMPERATURE]
+AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
+AbsoluteTime = typing.Annotated[Quantity, TIME, ABSOLUTE]
+AbsoluteTemperatureRate = typing.Annotated[Quantity, TEMPERATURE / TIME, ABSOLUTE]
+AbsoluteFloat = typing.Annotated[float, ABSOLUTE]
 
 
 def test_system_records_only_the_declared_fields() -> None:
@@ -28,7 +34,7 @@ def test_system_records_only_the_declared_fields() -> None:
         plain: float = field()
         mass: Mass = field()
 
-    assert Rig.__bilt_port_declarations__ == {"mass": MASS}
+    assert Rig.__bilt_port_declarations__ == {"mass": PortDeclaration(MASS)}
 
 
 def test_equation_records_each_declared_parameter() -> None:
@@ -36,7 +42,11 @@ def test_equation_records_each_declared_parameter() -> None:
     def balance(m: Mass, length: Length, area: typing.Annotated[Quantity, AREA]) -> bool:
         return area == length * length + m * 0
 
-    assert balance.__bilt_port_declarations__ == {"m": MASS, "length": LENGTH, "area": AREA}
+    assert balance.__bilt_port_declarations__ == {
+        "m": PortDeclaration(MASS),
+        "length": PortDeclaration(LENGTH),
+        "area": PortDeclaration(AREA),
+    }
 
 
 def test_equation_records_the_child_dimensionality_of_each_referenced_sub_system_port() -> None:
@@ -49,7 +59,7 @@ def test_equation_records_the_child_dimensionality_of_each_referenced_sub_system
     def link(child: Child, x: Mass) -> bool:
         return child.v == x
 
-    assert link.__bilt_port_declarations__ == {"child.v": MASS, "x": MASS}
+    assert link.__bilt_port_declarations__ == {"child.v": PortDeclaration(MASS), "x": PortDeclaration(MASS)}
 
 
 def test_transform_records_its_return_annotation_under_its_own_name() -> None:
@@ -57,7 +67,11 @@ def test_transform_records_its_return_annotation_under_its_own_name() -> None:
     def doubled(m: Mass, k: Length) -> Mass:
         return m * k
 
-    assert doubled.__bilt_port_declarations__ == {"m": MASS, "k": LENGTH, "doubled": MASS}
+    assert doubled.__bilt_port_declarations__ == {
+        "m": PortDeclaration(MASS),
+        "k": PortDeclaration(LENGTH),
+        "doubled": PortDeclaration(MASS),
+    }
 
 
 def test_transform_without_a_return_annotation_does_not_declare_its_output() -> None:
@@ -82,9 +96,9 @@ def test_quoted_annotations_are_resolved() -> None:
     def doubled(m: Mass) -> "Mass":  # noqa: UP037
         return m * 2.0
 
-    assert Rig.__bilt_port_declarations__ == {"mass": MASS}
-    assert balance.__bilt_port_declarations__ == {"m": MASS, "n": MASS}
-    assert doubled.__bilt_port_declarations__ == {"m": MASS, "doubled": MASS}
+    assert Rig.__bilt_port_declarations__ == {"mass": PortDeclaration(MASS)}
+    assert balance.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "n": PortDeclaration(MASS)}
+    assert doubled.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "doubled": PortDeclaration(MASS)}
 
 
 def test_type_statement_aliases_are_resolved() -> None:
@@ -101,9 +115,9 @@ def test_type_statement_aliases_are_resolved() -> None:
     def doubled(m: Mass) -> MassAlias:
         return m * 2.0
 
-    assert Rig.__bilt_port_declarations__ == {"mass": MASS, "nested": MASS}
-    assert balance.__bilt_port_declarations__ == {"m": MASS, "n": MASS}
-    assert doubled.__bilt_port_declarations__ == {"m": MASS, "doubled": MASS}
+    assert Rig.__bilt_port_declarations__ == {"mass": PortDeclaration(MASS), "nested": PortDeclaration(MASS)}
+    assert balance.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "n": PortDeclaration(MASS)}
+    assert doubled.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "doubled": PortDeclaration(MASS)}
 
 
 def test_foreign_metadata_is_ignored() -> None:
@@ -112,7 +126,27 @@ def test_foreign_metadata_is_ignored() -> None:
         noted_mass: typing.Annotated[Quantity, "note", MASS] = field()
         noted_float: typing.Annotated[float, "note"] = field()
 
-    assert Rig.__bilt_port_declarations__ == {"noted_mass": MASS}
+    assert Rig.__bilt_port_declarations__ == {"noted_mass": PortDeclaration(MASS)}
+
+
+def test_an_absolute_marker_is_recorded_beside_the_dimensionality() -> None:
+    @system
+    class Engine(metaclass=Interface):
+        hot: AbsoluteTemperature = field()
+        drop: Temperature = field()
+
+    @equation
+    def cooling(hot: AbsoluteTemperature, cold: AbsoluteTemperature, drop: Temperature) -> bool:
+        return drop == hot - cold
+
+    @transform
+    def cold(hot: AbsoluteTemperature, drop: Temperature) -> AbsoluteTemperature:
+        return hot - drop
+
+    absolute, relative = PortDeclaration(TEMPERATURE, absolute=True), PortDeclaration(TEMPERATURE)
+    assert Engine.__bilt_port_declarations__ == {"hot": absolute, "drop": relative}
+    assert cooling.__bilt_port_declarations__ == {"hot": absolute, "cold": absolute, "drop": relative}
+    assert cold.__bilt_port_declarations__ == {"hot": absolute, "drop": relative, "cold": absolute}
 
 
 def test_transform_may_mix_declared_and_plain_ports() -> None:
@@ -120,7 +154,7 @@ def test_transform_may_mix_declared_and_plain_ports() -> None:
     def doubled(m: Mass, k: float, flag: bool) -> Mass:  # noqa: ARG001
         return m * k
 
-    assert doubled.__bilt_port_declarations__ == {"m": MASS, "doubled": MASS}
+    assert doubled.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "doubled": PortDeclaration(MASS)}
 
 
 def test_equation_mixing_declared_and_plain_ports_in_a_product_raises() -> None:
@@ -320,3 +354,27 @@ def test_unit_raises(
     message = str(raised.value)
     assert "kilogram" in message
     assert "mass" in message
+
+
+@pytest.mark.parametrize(("declare", "owner", "port"), SITES)
+@pytest.mark.parametrize("annotation", (AbsoluteTime, AbsoluteTemperatureRate))
+def test_an_absolute_marker_where_the_coherent_unit_has_no_absolute_counterpart_raises(
+    declare: collections.abc.Callable[[object], None],
+    owner: str,
+    port: str,
+    annotation: object,
+) -> None:
+    with pytest.raises(BiltPortDeclarationError, match=f"Port '{port}' of '{owner}' is marked ABSOLUTE") as raised:
+        declare(annotation)
+
+    assert "cannot be absolute" in str(raised.value)
+
+
+@pytest.mark.parametrize(("declare", "owner", "port"), SITES)
+def test_an_absolute_marker_without_a_dimensionality_raises(
+    declare: collections.abc.Callable[[object], None],
+    owner: str,
+    port: str,
+) -> None:
+    with pytest.raises(BiltPortDeclarationError, match=f"Port '{port}' of '{owner}' is marked ABSOLUTE without"):
+        declare(AbsoluteFloat)

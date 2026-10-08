@@ -544,6 +544,22 @@ class TestQuantity:
             _ = 1.0 * meter < 1.0 * kilometer
 
     @staticmethod
+    def test_comparison_unit_error_if_absolute_units_differ() -> None:
+        with pytest.raises(BiltUnitError, match="Cannot compare quantity"):
+            _ = 30.0 * abs(celsius) < 40.0 * abs(kelvin)
+
+    @staticmethod
+    def test_absolute_quantities_are_equal_only_in_the_same_unit() -> None:
+        assert 30.0 * abs(celsius) == 30.0 * abs(celsius)
+        assert 30.0 * abs(celsius) != 30.0 * abs(kelvin)
+        assert 30.0 * abs(kelvin) != 30.0 * kelvin
+
+    @staticmethod
+    def test_subtraction_unit_error_if_absolute_subtracted_from_relative() -> None:
+        with pytest.raises(BiltUnitError, match="Cannot subtract quantity"):
+            _ = 10.0 * kelvin - 100.0 * abs(kelvin)
+
+    @staticmethod
     @pytest.mark.parametrize(
         ("quantity", "unit", "expected"),
         (

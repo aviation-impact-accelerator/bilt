@@ -25,7 +25,7 @@ from bilt.units import Quantity
 from bilt.units._errors import BiltDimensionalityError
 
 if typing.TYPE_CHECKING:
-    from bilt.units import Dimension
+    from bilt.core._port_declaration import PortDeclaration
 
 
 class BiltDefinitionError(BiltError):
@@ -74,7 +74,7 @@ class BiltEquationDimensionalityError(BiltDimensionalityError):
 
 
 class BiltImplementationDimensionalityError(BiltDimensionalityError):
-    """Raised when an implementation gives a port conflicting dimensionalities, or makes an equation inconsistent."""
+    """Raised when an implementation gives a port conflicting declarations, or makes an equation inconsistent."""
 
     def __init__(self, system_name: str, problem: str) -> None:
         super().__init__(f"Implementation of {system_name!r} {problem}")
@@ -83,7 +83,7 @@ class BiltImplementationDimensionalityError(BiltDimensionalityError):
 class BiltInputDimensionalityError(BiltDimensionalityError):
     """Raised when a value given for a port is not the quantity the port declares."""
 
-    def __init__(self, system_name: str, port: str, expected: Dimension | None, value: object) -> None:
+    def __init__(self, system_name: str, port: str, expected: PortDeclaration | None, value: object) -> None:
         received = (
             f"{value} of {value.unit.dimension}" if isinstance(value, Quantity) else f"{type(value).__name__} {value!r}"
         )
@@ -91,6 +91,12 @@ class BiltInputDimensionalityError(BiltDimensionalityError):
             msg = (
                 f"Input {port!r} of {system_name!r} is a plain port, outside the unit system, "
                 f"so it rejects a Quantity: got {received}."
+            )
+        elif isinstance(value, Quantity) and value.unit.dimension == expected.dimensionality:
+            msg = (
+                f"Input {port!r} of {system_name!r} must be a Quantity of {expected} in "
+                f"{'an absolute' if expected.absolute else 'a relative'} unit such as {expected.coherent_unit}, "
+                f"not {value}."
             )
         else:
             msg = f"Input {port!r} of {system_name!r} must be a Quantity of {expected}, not {received}."
