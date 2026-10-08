@@ -24,6 +24,7 @@ from bilt.symbolic._atoms import (
     FloatType,
     IndexOpType,
     IntType,
+    QuantityType,
     ReductionOpType,
     SymbolType,
 )
@@ -183,7 +184,7 @@ def _lower_leaf(
             domain=value_domain,
         )
 
-    if tree.head.atom_type in (IntType, FloatType, CoordinateType):
+    if tree.head.atom_type in (IntType, FloatType, QuantityType, CoordinateType):
         return LoweredExpression(
             tree=tree,
             domain=Domain.scalar(),
