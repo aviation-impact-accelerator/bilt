@@ -288,7 +288,7 @@ class Unit:
         instance._relation = relation  # noqa: SLF001
         instance._offset = None  # noqa: SLF001
         instance._metadata = metadata  # noqa: SLF001
-        instance._dimension = instance._relation.dimension  # noqa: SLF001
+        instance._dimension = relation.dimension if metadata is None else relation.dimension * metadata  # noqa: SLF001
         instance._category = UnitCategory.DERIVED  # noqa: SLF001
 
         cls._cache[key] = instance
@@ -551,7 +551,7 @@ class Unit:
         if isinstance(other, int):
             base = (
                 UnitComposition(UnitOrder(self, 1))
-                if (len(self.relation) == 1 and self.relation.composition[0].order == 1)
+                if self.metadata is not None or (len(self.relation) == 1 and self.relation.composition[0].order == 1)
                 else self.relation
             )
             return self.__class__(base**other)
@@ -585,11 +585,7 @@ class Unit:
         if self.dimension != other.dimension:
             return False
         if self.relation.composition == other.relation.composition:
-            return (
-                (self.relation.scale == other.relation.scale)
-                and (self.prefix == other.prefix)
-                and (self.metadata == other.metadata)
-            )
+            return (self.relation.scale == other.relation.scale) and (self.prefix == other.prefix)
         return self.to_si_base_units() == other.to_si_base_units()
 
     def __hash__(self) -> int:
@@ -704,7 +700,11 @@ class UnitSystem:
     def coherent_unit(self, dimensionality: Dimension) -> Unit:
         """The unit of `dimensionality` composed from this system's base units with no scale factor."""
         orders = zip(self.dimension_to_base_unit_mapping.values(), dimensionality.dimensions, strict=True)
-        return Unit(UnitComposition(*(UnitOrder(base_unit, order) for base_unit, order in orders)))
+        tagged = (
+            UnitOrder(self.coherent_unit(dimension) * tag, order)
+            for (dimension, tag), order in dimensionality.tagged.items()
+        )
+        return Unit(UnitComposition(*(UnitOrder(base_unit, order) for base_unit, order in orders), *tagged))
 
     def coherent_value(self, quantity: Quantity) -> float:
         """The value of `quantity` in the coherent unit of its dimensionality, or in that unit's absolute counterpart."""

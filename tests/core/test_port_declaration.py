@@ -6,7 +6,7 @@ from bilt import Interface, equation, field, system, transform
 from bilt.core._port_declaration import PortDeclaration
 from bilt.core._tensors._tensors import Tensor
 from bilt.errors import BiltEquationDimensionalityError, BiltPortDeclarationError
-from bilt.units import Quantity, kilogram
+from bilt.units import Metadata, Quantity, kilogram
 from bilt.units.dimensions import ABSOLUTE, AREA, DIMENSIONLESS, LENGTH, MASS, TEMPERATURE, TIME
 
 if typing.TYPE_CHECKING:
@@ -26,6 +26,8 @@ AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
 AbsoluteTime = typing.Annotated[Quantity, TIME, ABSOLUTE]
 AbsoluteTemperatureRate = typing.Annotated[Quantity, TEMPERATURE / TIME, ABSOLUTE]
 AbsoluteFloat = typing.Annotated[float, ABSOLUTE]
+TaggedMass = typing.Annotated[Quantity, MASS * Metadata("co2")]
+MassBesideTag = typing.Annotated[Quantity, MASS, Metadata("co2")]
 
 
 def test_system_records_only_the_declared_fields() -> None:
@@ -127,6 +129,14 @@ def test_foreign_metadata_is_ignored() -> None:
         noted_float: typing.Annotated[float, "note"] = field()
 
     assert Rig.__bilt_port_declarations__ == {"noted_mass": PortDeclaration(MASS)}
+
+
+def test_a_tagged_dimensionality_is_recorded() -> None:
+    @system
+    class Rig(metaclass=Interface):
+        emitted: TaggedMass = field()
+
+    assert Rig.__bilt_port_declarations__ == {"emitted": PortDeclaration(MASS * Metadata("co2"))}
 
 
 def test_an_absolute_marker_is_recorded_beside_the_dimensionality() -> None:
@@ -354,6 +364,18 @@ def test_unit_raises(
     message = str(raised.value)
     assert "kilogram" in message
     assert "mass" in message
+
+
+@pytest.mark.parametrize(("declare", "owner", "port"), SITES)
+def test_a_tag_beside_the_dimensionality_raises(
+    declare: collections.abc.Callable[[object], None],
+    owner: str,
+    port: str,
+) -> None:
+    with pytest.raises(BiltPortDeclarationError, match=f"Port '{port}' of '{owner}' declares tag co2") as raised:
+        declare(MassBesideTag)
+
+    assert "DIM * tag" in str(raised.value)
 
 
 @pytest.mark.parametrize(("declare", "owner", "port"), SITES)

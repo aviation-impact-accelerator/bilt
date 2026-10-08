@@ -185,13 +185,13 @@ class TestQuantity:
             ),
         ),
     )
-    def test_addition_unit_error_if_unit_metadata_not_equal(
+    def test_addition_dimensionality_error_if_unit_metadata_not_equal(
         left: Quantity,
         right: Quantity,
     ) -> None:
         with pytest.raises(
-            BiltUnitError,
-            match="because the units do not have consistent metadata",
+            BiltDimensionalityError,
+            match="as they are dimensionally inconsistent",
         ):
             _ = left + right
 
@@ -739,9 +739,33 @@ class TestQuantity:
             quantity.convert_to(unit)
 
     @staticmethod
-    def test_quantity_convert_to_unit_error_if_units_have_different_metadata() -> None:
-        with pytest.raises(BiltUnitError, match="Cannot convert"):
-            (1.0 * kilogram * co2).convert_to(kilogram * nox)
+    @pytest.mark.parametrize(
+        ("quantity", "unit"),
+        (
+            (1.0 * kilogram * co2, kilogram),
+            (1.0 * kilogram, kilogram * co2),
+            (1.0 * kilogram * co2, kilogram * nox),
+            (1.0 * (fraction * co2) * kilogram, kilogram),
+            (1.0 * (kilogram * co2) / (kilogram * nox), UNITLESS),
+        ),
+    )
+    def test_quantity_convert_to_dimensionality_error_if_tags_differ(quantity: Quantity, unit: Unit) -> None:
+        with pytest.raises(BiltDimensionalityError, match="Cannot convert"):
+            quantity.convert_to(unit)
+
+    @staticmethod
+    def test_quantity_convert_to_once_a_nested_tag_cancels() -> None:
+        quantity = 2.0 * (kilogram * co2) / (kilogram * nox) * (1000.0 * gram * nox)
+
+        result = quantity.convert_to(kilogram * co2)
+
+        assert result.value == pytest.approx(2.0)
+        assert result.unit is kilogram * co2
+
+    @staticmethod
+    def test_fractional_power_type_error_if_fraction_is_tagged() -> None:
+        with pytest.raises(TypeError):
+            _ = (0.25 * fraction * co2) ** 0.5
 
     @staticmethod
     def test_quantity_convert_to_unit_error_if_converting_absolute_to_relative() -> None:

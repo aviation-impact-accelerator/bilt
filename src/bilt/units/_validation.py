@@ -33,15 +33,6 @@ def validate_addition(
             )
             raise BiltDimensionalityError(message)
 
-        if left.unit.metadata != right.unit.metadata:
-            message = (
-                f"Cannot add quantity {left!s} with unit {left.unit!s} and "
-                f"metadata {left.unit.metadata!s} to quantity {right!s} with "
-                f"unit {right.unit!s} and metadata {right.unit.metadata!s} "
-                f"because the units do not have consistent metadata"
-            )
-            raise BiltUnitError(message)
-
         absolute_unit = left.unit if left.unit.category is UnitCategory.ABSOLUTE else right.unit
         relative_unit = right.unit if left.unit.category is UnitCategory.ABSOLUTE else left.unit
 
@@ -68,15 +59,6 @@ def validate_addition(
                 f"inconsistent"
             )
             raise BiltDimensionalityError(message)
-
-        if left.unit != right.unit and left.unit.metadata != right.unit.metadata:
-            message = (
-                f"Cannot add quantity {left!s} with unit {left.unit!s} and "
-                f"metadata {left.unit.metadata!s} to quantity {right!s} with "
-                f"unit {right.unit!s} and metadata {right.unit.metadata!s} "
-                f"because the units do not have consistent metadata"
-            )
-            raise BiltUnitError(message)
 
         if left.unit != right.unit:
             message = (

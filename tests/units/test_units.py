@@ -48,7 +48,7 @@ from bilt.units import (
 from bilt.units._metadata import Metadata
 from bilt.units._prefix import Prefix
 from bilt.units._units import BASE_UNIT_SYSTEM, Unit, UnitComposition, UnitOrder
-from bilt.units.dimensions._dimensions import LENGTH, TEMPERATURE, Dimension
+from bilt.units.dimensions._dimensions import DIMENSIONLESS, LENGTH, MASS, TEMPERATURE, TIME, Dimension
 
 if typing.TYPE_CHECKING:
     from bilt.units._quantities import Quantity
@@ -853,7 +853,7 @@ class TestDimensionless:
         (
             (fraction, UNITLESS, True),
             (fraction * kilogram / second, kilogram / second, True),
-            ((fraction * Metadata("mass")) * kilogram / second, kilogram / second, True),
+            ((fraction * Metadata("mass")) * kilogram / second, kilogram / second, False),
             (fraction, percent, False),
         ),
     )
@@ -1030,3 +1030,61 @@ class TestAbsoluteUnit:
     def test_coherent_value_unit_error_if_coherent_unit_has_no_absolute_counterpart() -> None:
         with pytest.raises(BiltUnitError, match="No absolute unit corresponding to second exists"):
             BASE_UNIT_SYSTEM.coherent_value(2020.0 * absolute_year)
+
+
+class TestTaggedUnit:
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("unit", "expected"),
+        (
+            (kilogram * co2, MASS * co2),
+            (gram * co2, MASS * co2),
+            ((kilogram * co2) / (kilogram * nox), (MASS * co2) / (MASS * nox)),
+            ((kilogram * co2) / (kilogram * nox) * (gram * nox), MASS * co2),
+            ((kilogram * co2) / second, MASS * co2 / TIME),
+            ((kilogram / second) * co2, MASS / TIME * co2),
+            (fraction * co2, DIMENSIONLESS * co2),
+            ((fraction * co2) * kilogram, (DIMENSIONLESS * co2) * MASS),
+            ((UNITLESS * co2) ** 2, (DIMENSIONLESS * co2) ** 2),
+            (1 / (UNITLESS * co2), (DIMENSIONLESS * co2) ** -1),
+        ),
+    )
+    def test_dimension_carries_each_tag(unit: Unit, expected: Dimension) -> None:
+        assert unit.dimension is expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("left", "right"),
+        (
+            ((kilogram * co2) / (kilogram * nox), UNITLESS),
+            ((kilogram * co2) / (kilogram * nox), (kilogram * nox) / (kilogram * co2)),
+        ),
+    )
+    def test_units_differing_in_a_nested_tag_are_not_equal(left: Unit, right: Unit) -> None:
+        assert left != right
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("dimension", "expected"),
+        (
+            (MASS * co2, kilogram * co2),
+            ((MASS * co2) / (MASS * nox), (kilogram * co2) / (kilogram * nox)),
+            (MASS * co2 / TIME, (kilogram * co2) / second),
+            (MASS / TIME * co2, (kilogram / second) * co2),
+            (DIMENSIONLESS * co2, UNITLESS * co2),
+        ),
+    )
+    def test_coherent_unit_keeps_each_tag(dimension: Dimension, expected: Unit) -> None:
+        assert BASE_UNIT_SYSTEM.coherent_unit(dimension) is expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("quantity", "expected"),
+        (
+            (2000.0 * gram * co2, 2.0),
+            (3160.0 * (gram * co2) / (kilogram * nox), 3.16),
+            (50.0 * percent * co2, 0.5),
+        ),
+    )
+    def test_coherent_value_converts_within_the_tagged_dimension(quantity: Quantity, expected: float) -> None:
+        assert BASE_UNIT_SYSTEM.coherent_value(quantity) == pytest.approx(expected)
