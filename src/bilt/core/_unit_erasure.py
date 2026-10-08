@@ -65,7 +65,16 @@ class _UnitEraser(ast.NodeTransformer):
                 case ast.Call(func=ast.Attribute(value=quantity, attr="convert_to"), args=[unit], keywords=[]):
                     self._unit_scale(unit, node)
                     return self._erased(quantity)
-                case ast.Call(func=function, args=[value, unit], keywords=[]) if self._resolved(function) is Quantity:
+                case (
+                    ast.Call(func=function, args=[value, unit], keywords=[])
+                    | ast.Call(func=function, args=[value], keywords=[ast.keyword(arg="unit", value=unit)])
+                    | ast.Call(
+                        func=function,
+                        args=[],
+                        keywords=[ast.keyword(arg="value", value=value), ast.keyword(arg="unit", value=unit)]
+                        | [ast.keyword(arg="unit", value=unit), ast.keyword(arg="value", value=value)],
+                    )
+                ) if self._resolved(function) is Quantity:
                     scale = self._unit_scale(unit, node)
                     return ast.BinOp(left=self._erased(value), op=ast.Mult(), right=scale)
                 case ast.Attribute(value=quantity, attr=attribute) if attribute in _QUANTITY_ATTRIBUTES:

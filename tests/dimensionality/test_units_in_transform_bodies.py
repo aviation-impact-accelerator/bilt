@@ -125,6 +125,33 @@ def test_a_constructed_quantity_brings_a_plain_port_into_the_unit_system() -> No
         assert Stretch(span_km=2.0).stretched == 2000.0 * meter
 
 
+def test_a_constructed_quantity_takes_its_unit_by_keyword() -> None:
+    @transform
+    def stretched(span_km: float) -> Length:
+        return Quantity(span_km, unit=kilometer)
+
+    with Implementation(Stretch, [stretched]):
+        assert Stretch(span_km=2.0).stretched == 2000.0 * meter
+
+
+def test_a_constructed_quantity_takes_both_arguments_by_keyword() -> None:
+    @transform
+    def stretched(span_km: float) -> Length:
+        return Quantity(value=span_km, unit=kilometer)
+
+    with Implementation(Stretch, [stretched]):
+        assert Stretch(span_km=2.0).stretched == 2000.0 * meter
+
+
+def test_a_constructed_quantity_takes_its_keywords_in_either_order() -> None:
+    @transform
+    def stretched(span_km: float) -> Length:
+        return Quantity(unit=kilometer, value=span_km)
+
+    with Implementation(Stretch, [stretched]):
+        assert Stretch(span_km=2.0).stretched == 2000.0 * meter
+
+
 def test_a_conversion_in_one_transform_and_a_reading_in_the_next_agree_with_python() -> None:
     @transform
     def stretched(length: Length) -> Length:
