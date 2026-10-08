@@ -10,8 +10,9 @@ from bilt.units._units import BASE_UNIT_SYSTEM
 
 if TYPE_CHECKING:
     from bilt.core._canonical_ordering import CanonicalizedDomain
+    from bilt.core._port_declaration import PortDeclaration
     from bilt.symbolic._domains import Domain
-    from bilt.units import Dimension, Unit
+    from bilt.units import Unit
 
 
 @dataclasses.dataclass(frozen=True)
@@ -39,13 +40,13 @@ def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
     return lowered_inputs
 
 
-def generate_lifting_plan(output_domain: Domain, output_dimensionality: Dimension | None = None) -> LiftingPlan:
+def generate_lifting_plan(output_domain: Domain, output_declaration: PortDeclaration | None = None) -> LiftingPlan:
     canonical_order = current_evaluation().canonical_order
 
     return LiftingPlan(
         output_domain=canonicalized(output_domain, canonical_order),
         squeezed_axes=tuple(axis for axis, dim in enumerate(canonical_order.dims) if dim not in output_domain.dims),
-        output_unit=None if output_dimensionality is None else BASE_UNIT_SYSTEM.coherent_unit(output_dimensionality),
+        output_unit=None if output_declaration is None else output_declaration.coherent_unit,
     )
 
 

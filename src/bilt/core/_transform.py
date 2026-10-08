@@ -6,19 +6,17 @@ import textwrap
 import typing
 
 from bilt.core._errors import BiltUnresolvedAnnotationError
-from bilt.core._port_declaration import port_declarations
+from bilt.core._port_declaration import PortDeclaration, port_declarations
 from bilt.core._unit_erasure import erase_units
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt.units import Dimension
-
 
 class Transform[R, **P](typing.Protocol):
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
-    __bilt_port_declarations__: dict[str, Dimension]
+    __bilt_port_declarations__: dict[str, PortDeclaration]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 

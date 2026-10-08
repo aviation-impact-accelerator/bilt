@@ -11,6 +11,7 @@ from bilt.core._port_declaration import port_declarations
 from bilt.core._system._errors import BiltSystemDefinitionError
 from bilt.core._tensors._tensors import Tensor
 from bilt.units import Quantity
+from bilt.units._category import UnitCategory
 
 from ._dispatch import _dispatch_evaluation
 from ._sentinel import MISSING
@@ -93,7 +94,11 @@ def _check_inputs(cls: Interface, values: collections.abc.Mapping[str, object]) 
         if expected is None:
             if isinstance(value, Quantity):
                 raise BiltInputDimensionalityError(cls.__bilt_name__, port, expected, value)
-        elif not isinstance(value, Quantity) or value.unit.dimension != expected:
+        elif (
+            not isinstance(value, Quantity)
+            or value.unit.dimension != expected.dimensionality
+            or not (value.unit.category is UnitCategory.ABSOLUTE if expected.absolute else value.unit.is_relative)
+        ):
             raise BiltInputDimensionalityError(cls.__bilt_name__, port, expected, value)
 
 

@@ -456,6 +456,12 @@ class Unit:
     def is_si_derived_unit(self) -> bool:
         return not self.is_si_base_unit and self.is_coherent
 
+    @property
+    def is_relative(self) -> bool:
+        return self.category is not UnitCategory.ABSOLUTE and all(
+            term.unit is self or term.unit.is_relative for term in self.relation.composition
+        )
+
     def strip_metadata(self) -> typing.Self:
         if self.metadata is not None:
             return self.__class__(self.relation)
@@ -572,6 +578,8 @@ class Unit:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return False
+        if UnitCategory.ABSOLUTE in (self.category, other.category):
+            return self is other
         if self.name == other.name:
             return True
         if self.dimension != other.dimension:
@@ -699,8 +707,17 @@ class UnitSystem:
         return Unit(UnitComposition(*(UnitOrder(base_unit, order) for base_unit, order in orders)))
 
     def coherent_value(self, quantity: Quantity) -> float:
-        """The value of `quantity` in the coherent unit of its dimensionality."""
-        return quantity.convert_to(self.coherent_unit(quantity.unit.dimension)).value
+        """The value of `quantity` in the coherent unit of its dimensionality, or in that unit's absolute counterpart."""
+        coherent_unit = self.coherent_unit(quantity.unit.dimension)
+        if quantity.unit.category is UnitCategory.ABSOLUTE:
+            coherent_unit = abs(coherent_unit)
+        elif not quantity.unit.is_relative:
+            message = (
+                f"Cannot convert quantity {quantity!s} to a coherent unit because {quantity.unit!s} is a compound "
+                f"unit containing an absolute unit"
+            )
+            raise BiltUnitError(message)
+        return quantity.convert_to(coherent_unit).value
 
 
 BASE_UNIT_SYSTEM = UnitSystem(

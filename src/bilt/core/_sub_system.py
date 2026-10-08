@@ -9,8 +9,8 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt._backend._base_backend import Backend
+    from bilt.core._port_declaration import PortDeclaration
     from bilt.core._system._implementation import Implementation
-    from bilt.units import Dimension
 
 
 class SubSystemConstituent:
@@ -22,9 +22,8 @@ class SubSystemConstituent:
         self.implementation = implementation
         self.interface = implementation.system
         self.__bilt_parameters__ = tuple(self.qualify(port) for port in self.interface.__bilt_parameters__)
-        self.__bilt_port_declarations__: dict[str, Dimension] = {
-            self.qualify(port): dimensionality
-            for port, dimensionality in self.interface.__bilt_port_declarations__.items()
+        self.__bilt_port_declarations__: dict[str, PortDeclaration] = {
+            self.qualify(port): declaration for port, declaration in self.interface.__bilt_port_declarations__.items()
         }
 
     def qualify(self, port: str) -> str:

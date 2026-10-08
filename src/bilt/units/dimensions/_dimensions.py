@@ -257,3 +257,11 @@ _NAMES: dict[Dimension, str] = {
     RESISTANCE: "resistance",
     CONDUCTANCE: "conductance",
 }
+
+
+class _Absolute:
+    def __repr__(self) -> str:
+        return "ABSOLUTE"
+
+
+ABSOLUTE = _Absolute()

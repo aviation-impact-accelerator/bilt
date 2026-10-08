@@ -3,6 +3,7 @@ from __future__ import annotations
 import typing
 
 from bilt import Interface, equation, field, system, transform
+from bilt.core._port_declaration import PortDeclaration
 from bilt.units import Quantity
 from bilt.units.dimensions import MASS
 
@@ -20,7 +21,7 @@ def test_system_resolves_annotated_fields() -> None:
         mass: Mass = field()
         limit: typing.ClassVar[float] = 1.0
 
-    assert Rig.__bilt_port_declarations__ == {"mass": MASS}
+    assert Rig.__bilt_port_declarations__ == {"mass": PortDeclaration(MASS)}
 
 
 def test_equation_resolves_annotated_and_sub_system_parameters() -> None:
@@ -28,7 +29,7 @@ def test_equation_resolves_annotated_and_sub_system_parameters() -> None:
     def link(child: Child, m: Mass) -> bool:
         return child.v == m
 
-    assert link.__bilt_port_declarations__ == {"child.v": MASS, "m": MASS}
+    assert link.__bilt_port_declarations__ == {"child.v": PortDeclaration(MASS), "m": PortDeclaration(MASS)}
 
 
 def test_transform_resolves_annotated_parameters_and_return() -> None:
@@ -36,4 +37,4 @@ def test_transform_resolves_annotated_parameters_and_return() -> None:
     def doubled(m: Mass) -> Mass:
         return m * 2.0
 
-    assert doubled.__bilt_port_declarations__ == {"m": MASS, "doubled": MASS}
+    assert doubled.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "doubled": PortDeclaration(MASS)}

@@ -30,9 +30,9 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
+    from bilt.core._port_declaration import PortDeclaration
     from bilt.core._structural_analysis import StructuralAnalyser
     from bilt.symbolic._dimensions import Coordinate, Dim
-    from bilt.units import Dimension
 
 
 @dataclasses.dataclass(frozen=True)
@@ -71,10 +71,10 @@ class Implementation:
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             named_components | sub_systems
         )
-        self._port_declarations: dict[str, Dimension] = system.__bilt_port_declarations__ | {
-            port: dimensionality
+        self._port_declarations: dict[str, PortDeclaration] = system.__bilt_port_declarations__ | {
+            port: declaration
             for sub_system in sub_systems.values()
-            for port, dimensionality in sub_system.__bilt_port_declarations__.items()
+            for port, declaration in sub_system.__bilt_port_declarations__.items()
         }
         check_dimensional_consistency(system, self._components.values())
         self._evaluation_cache: dict[
@@ -118,7 +118,7 @@ class Implementation:
 
                 backend_callable = self.get_evaluation(request, backend)
 
-                output_dimensionality = self._port_declarations.get(output)
+                output_declaration = self._port_declarations.get(output)
 
                 lowered_inputs = lower_inputs(inputs)
                 alignment_plan = generate_alignment_plan(inputs)
@@ -126,7 +126,7 @@ class Implementation:
                 raw_output_value = backend_callable.evaluate(mangle_inputs(aligned_inputs))
 
                 output_domain = typing.cast("Domain", backend_callable.output_domain)
-                lifting_plan = generate_lifting_plan(output_domain, output_dimensionality)
+                lifting_plan = generate_lifting_plan(output_domain, output_declaration)
                 output_value = lift_output(raw_output_value, lifting_plan)
 
             evaluation.domains.bind(output_value)

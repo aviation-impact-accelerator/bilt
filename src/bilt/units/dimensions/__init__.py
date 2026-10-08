@@ -1,6 +1,7 @@
-"""Public dimensionality constants for quantity annotations."""
+"""Public dimensionality constants and the absolute marker for quantity annotations."""
 
 __all__ = [
+    "ABSOLUTE",
     "AMOUNT",
     "AREA",
     "CHARGE",
@@ -24,6 +25,7 @@ __all__ = [
 ]
 
 from ._dimensions import (
+    ABSOLUTE,
     AMOUNT,
     AREA,
     CHARGE,

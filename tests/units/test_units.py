@@ -11,6 +11,7 @@ from bilt.units import (
     absolute_celsius,
     absolute_fahrenheit,
     absolute_kelvin,
+    absolute_year,
     acre,
     ampere,
     candela,
@@ -46,7 +47,7 @@ from bilt.units import (
 )
 from bilt.units._metadata import Metadata
 from bilt.units._prefix import Prefix
-from bilt.units._units import Unit, UnitComposition, UnitOrder
+from bilt.units._units import BASE_UNIT_SYSTEM, Unit, UnitComposition, UnitOrder
 from bilt.units.dimensions._dimensions import LENGTH, TEMPERATURE, Dimension
 
 if typing.TYPE_CHECKING:
@@ -976,3 +977,56 @@ class TestAbsoluteUnit:
 
         assert result.value == pytest.approx(expected.value)
         assert result.unit == expected.unit
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("left", "right", "expected"),
+        (
+            (absolute_kelvin, absolute_kelvin, True),
+            (absolute_kelvin, kelvin, False),
+            (kelvin, absolute_kelvin, False),
+            (absolute_celsius, celsius, False),
+            (absolute_celsius, absolute_kelvin, False),
+            (absolute_kelvin, absolute_celsius, False),
+        ),
+    )
+    def test_absolute_unit_equals_only_itself(left: Unit, right: Unit, expected: bool) -> None:
+        assert (left == right) is expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("unit", "expected"),
+        (
+            (kelvin, True),
+            (kilogram * meter / second**2, True),
+            (absolute_celsius, False),
+            (kilogram * absolute_celsius, False),
+            (absolute_celsius**2, False),
+            (meter * ((kilogram * absolute_celsius) * Metadata("x")), False),
+        ),
+    )
+    def test_is_relative(unit: Unit, expected: bool) -> None:
+        assert unit.is_relative is expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("quantity", "expected"),
+        (
+            (20.0 * absolute_kelvin, 20.0),
+            (20.0 * absolute_celsius, 293.15),
+            (32.0 * absolute_fahrenheit, 273.15),
+            (20.0 * celsius, 20.0),
+        ),
+    )
+    def test_coherent_value_counts_an_absolute_quantity_from_absolute_zero(quantity: Quantity, expected: float) -> None:
+        assert BASE_UNIT_SYSTEM.coherent_value(quantity) == pytest.approx(expected)
+
+    @staticmethod
+    def test_coherent_value_unit_error_if_unit_compounds_an_absolute_unit() -> None:
+        with pytest.raises(BiltUnitError, match="compound unit containing an absolute unit"):
+            BASE_UNIT_SYSTEM.coherent_value(60.0 * kilogram * absolute_celsius)
+
+    @staticmethod
+    def test_coherent_value_unit_error_if_coherent_unit_has_no_absolute_counterpart() -> None:
+        with pytest.raises(BiltUnitError, match="No absolute unit corresponding to second exists"):
+            BASE_UNIT_SYSTEM.coherent_value(2020.0 * absolute_year)
