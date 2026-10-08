@@ -8,7 +8,7 @@ from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, field, 
 from bilt.errors import BiltDefinitionError
 from bilt.units import Quantity, units
 from bilt.units.dimensions import LENGTH
-from bilt.units.units import absolute_celsius, kilometer, meter
+from bilt.units.units import absolute_celsius, kilometer, meter, second
 
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -223,11 +223,26 @@ def test_a_unit_attribute_is_refused() -> None:
 
 
 def test_an_absolute_unit_as_a_scale_is_refused() -> None:
-    with pytest.raises(BiltDefinitionError, match=r"`absolute_celsius` is an absolute unit.*relative unit `celsius`"):
+    with pytest.raises(
+        BiltDefinitionError,
+        match=r"`absolute_celsius` is an absolute unit.*write `Quantity\(<value>, absolute_celsius\)`",
+    ):
 
         @transform
         def stretched(length: Length) -> Length:
             return length * absolute_celsius
+
+
+def test_converting_a_parameter_to_a_unit_of_another_dimensionality_is_refused() -> None:
+    with pytest.raises(
+        BiltDefinitionError,
+        match=r"`length\.convert_to\(second\)` contradicts the signature: `length` is a Quantity of length.*"
+        r"converts only to a relative unit such as meter",
+    ):
+
+        @transform
+        def span_km(length: Length) -> float:
+            return length.convert_to(second).value
 
 
 def test_value_on_a_plain_parameter_fails_as_python_fails_it() -> None:

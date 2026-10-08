@@ -263,7 +263,11 @@ def as_tree(value: object) -> Tree:
         return float_tree(value)
 
     if isinstance(value, Quantity):
-        return quantity_tree(BASE_UNIT_SYSTEM.coherent_value(value), value.unit.dimension)
+        return quantity_tree(
+            BASE_UNIT_SYSTEM.coherent_value(value),
+            value.unit.dimension,
+            absolute=value.unit.category is UnitCategory.ABSOLUTE,
+        )
 
     if isinstance(value, Unit):
         if value.category is UnitCategory.ABSOLUTE:
