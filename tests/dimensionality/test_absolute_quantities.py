@@ -346,6 +346,65 @@ def test_a_comprehension_variable_named_as_a_parameter_does_not_reassign_it() ->
             return reading.convert_to(celsius).value + doubled[0]
 
 
+def test_a_conversion_in_the_iterable_of_a_comprehension_reads_the_parameter() -> None:
+    with pytest.raises(BiltDefinitionError, match=r"`reading\.convert_to\(celsius\)` contradicts the signature"):
+
+        @transform
+        def degrees(reading: AbsoluteTemperature) -> float:
+            values = [reading for reading in [reading.convert_to(celsius).value] if reading > 0.0]
+            return values[0]
+
+
+def test_a_conversion_in_a_parameter_default_reads_the_parameter() -> None:
+    with pytest.raises(BiltDefinitionError, match=r"`reading\.convert_to\(celsius\)` contradicts the signature"):
+
+        @transform
+        def degrees(reading: AbsoluteTemperature) -> float:
+            def scaled(reading: float = reading.convert_to(celsius).value) -> float:
+                return reading
+
+            return scaled()
+
+
+def test_a_conversion_in_the_iterable_of_a_nested_comprehension_reads_the_parameter() -> None:
+    with pytest.raises(BiltDefinitionError, match=r"`reading\.convert_to\(celsius\)` contradicts the signature"):
+
+        @transform
+        def degrees(reading: AbsoluteTemperature) -> float:
+            rows = [[reading for reading in [reading.convert_to(celsius).value] if reading > 0.0] for _ in [1.0]]
+            return rows[0][0]
+
+
+def test_a_binding_deeper_in_a_comprehension_does_not_shadow_the_parameter() -> None:
+    with pytest.raises(BiltDefinitionError, match=r"`reading\.convert_to\(celsius\)` contradicts the signature"):
+
+        @transform
+        def degrees(reading: AbsoluteTemperature) -> float:
+            values = [reading.convert_to(celsius).value + sum(reading for reading in [1.0]) for _ in [1.0]]
+            return values[0]
+
+
+def test_a_conversion_in_a_parameter_annotation_reads_the_parameter() -> None:
+    with pytest.raises(BiltDefinitionError, match=r"`reading\.convert_to\(celsius\)` contradicts the signature"):
+
+        @transform
+        def degrees(reading: AbsoluteTemperature) -> float:
+            def scaled(reading: reading.convert_to(celsius).value = 1.0) -> float:
+                return reading
+
+            return scaled() + Quantity(0.0, celsius).value
+
+
+def test_a_coherent_conversion_in_the_iterable_of_a_comprehension_is_still_erased() -> None:
+    @transform
+    def degrees(reading: AbsoluteTemperature) -> float:
+        values = [reading for reading in [reading.convert_to(absolute_fahrenheit).value] if reading > 0.0]
+        return values[0]
+
+    with Implementation(Probe, [degrees]):
+        assert Probe(reading=Quantity(10.0, absolute_celsius)).degrees == pytest.approx(50.0)
+
+
 def test_an_absolute_unit_with_no_coherent_counterpart_is_refused_in_a_transform() -> None:
     with pytest.raises(
         BiltDefinitionError,

@@ -15,6 +15,8 @@ from bilt.units._errors import BiltUnitError
 from bilt.units._units import BASE_UNIT_SYSTEM
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from bilt.core._port_declaration import PortDeclaration
     from bilt.core._transform import BasicTransform
     from bilt.units._conversion import Conversion
@@ -41,14 +43,7 @@ def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast
     Raises:
         BiltDefinitionError: If the body holds a construct that cannot be kept faithful without its units.
     """
-    shadowed: set[ast.Name] = set()
-    for scope in ast.walk(function_ast):
-        if isinstance(scope, _SCOPES) and scope is not function_ast:
-            names = [node for node in ast.walk(scope) if isinstance(node, ast.Name)]
-            bound = {node.arg for node in ast.walk(scope) if isinstance(node, ast.arg)} | {
-                name.id for name in names if isinstance(name.ctx, ast.Store)
-            }
-            shadowed.update(name for name in names if name.id in bound)
+    shadowed = _shadowed_names(function_ast)
     assigned = {
         node.id
         for node in ast.walk(function_ast)
@@ -70,6 +65,58 @@ def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast
         eraser.visit(statement)
 
     return function_ast
+
+
+def _shadowed_names(function_ast: ast.FunctionDef) -> set[ast.Name]:
+    """The names in `function_ast` that a scope nested inside it binds, so they do not read its parameters."""
+    scope_of = dict(_scoped(function_ast, function_ast, frozenset()))
+    bound: dict[ast.AST, set[str]] = {scope: set() for scope in scope_of.values()}
+    for node, scope in scope_of.items():
+        match node:
+            case ast.arg(arg=name) | ast.Name(id=name, ctx=ast.Store()):
+                bound[scope].add(name)
+    visible: dict[ast.AST, frozenset[str]] = {function_ast: frozenset()}
+    for node in scope_of:
+        if isinstance(node, _SCOPES) and node is not function_ast:
+            visible[node] = visible[scope_of[node]] | bound[node]
+    return {node for node, scope in scope_of.items() if isinstance(node, ast.Name) and node.id in visible[scope]}
+
+
+def _scoped(node: ast.AST, scope: ast.AST, outer: frozenset[ast.AST]) -> Iterator[tuple[ast.AST, ast.AST]]:
+    """Each of `node` and its descendants with the scope that evaluates it, given `scope` evaluates `node` itself."""
+    if node in outer:
+        return
+    yield node, scope
+    outside = _evaluated_outside(node)
+    for expression in outside:
+        yield from _scoped(expression, scope, outer)
+    inner = node if isinstance(node, _SCOPES) else scope
+    nested = outer | frozenset(outside) if outside else outer
+    for child in ast.iter_child_nodes(node):
+        yield from _scoped(child, inner, nested)
+
+
+def _evaluated_outside(scope: ast.AST) -> list[ast.expr]:
+    """The sub-expressions of `scope` that its enclosing scope evaluates, so `scope` does not bind a name there."""
+    match scope:
+        case ast.ListComp() | ast.SetComp() | ast.GeneratorExp() | ast.DictComp():
+            return [scope.generators[0].iter]
+        case ast.Lambda(args=arguments):
+            return _signature(arguments)
+        case ast.FunctionDef(args=arguments, returns=returns) | ast.AsyncFunctionDef(args=arguments, returns=returns):
+            return [*scope.decorator_list, *_signature(arguments), *([returns] if returns else [])]
+        case ast.ClassDef():
+            return [*scope.decorator_list, *scope.bases, *(keyword.value for keyword in scope.keywords)]
+    return []
+
+
+def _signature(arguments: ast.arguments) -> list[ast.expr]:
+    """The defaults and annotations of `arguments`, which the scope enclosing their function resolves."""
+    return [
+        *arguments.defaults,
+        *(default for default in arguments.kw_defaults if default is not None),
+        *(node.annotation for node in ast.walk(arguments) if isinstance(node, ast.arg) and node.annotation),
+    ]
 
 
 class _UnitEraser(ast.NodeTransformer):
