@@ -18,10 +18,16 @@ if typing.TYPE_CHECKING:
 
 @dataclasses.dataclass
 class PortDeclaration:
-    """What a declared port holds: a quantity of its dimensionality, absolute if marked and relative otherwise."""
+    """What a declared port holds: a quantity of its dimensionality, absolute if marked and relative otherwise.
+
+    `over_a_domain` records that the port was annotated `Tensor` rather than `Quantity`. It says what a caller may
+    pass at this port, not what the port measures, so it takes no part in a declaration's identity: a constituent
+    written over scalars is reusable in a tensor system under the same port name.
+    """
 
     dimensionality: Dimension
     absolute: bool = False
+    over_a_domain: bool = dataclasses.field(default=False, compare=False)
 
     @property
     def coherent_unit(self) -> Unit:
@@ -42,7 +48,7 @@ def port_declarations(
     return {port: declaration for port, declaration in declarations.items() if declaration is not None}
 
 
-def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclaration | None:  # noqa: C901
+def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclaration | None:
     """Classify one annotation, ignoring `Annotated` metadata that is neither a dimensionality nor the absolute marker."""
     while isinstance(annotation, typing.TypeAliasType):
         annotation = annotation.__value__
@@ -72,6 +78,7 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
 
     dimensionality = dimensionalities[0] if dimensionalities else None
     carries_quantity = base_type is Quantity
+    over_a_domain = base_type is Tensor
     absolute = any(item is ABSOLUTE for item in metadata)
     if dimensionality is None and (carries_quantity or absolute):
         msg = (
@@ -79,19 +86,19 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
             "with `typing.Annotated[Quantity, DIM]`, or write `float` if the port is outside the unit system."
         )
         raise BiltPortDeclarationError(owner_name, port, msg)
-    if dimensionality is not None and not carries_quantity:
+    if dimensionality is not None and not (carries_quantity or over_a_domain):
         msg = (
             f"declares {dimensionality} on {getattr(base_type, '__name__', repr(base_type))}, "
-            "but a dimensionality can only annotate Quantity. Use `typing.Annotated[Quantity, ...]`."
+            "but a dimensionality can only annotate Quantity or Tensor. "
+            "Use `typing.Annotated[Quantity, ...]`, or `typing.Annotated[Tensor, ...]` if the port varies "
+            "over a domain."
         )
-        if base_type is Tensor:
-            msg = f"declares {dimensionality} on Tensor, but tensors are outside the unit system."
         raise BiltPortDeclarationError(owner_name, port, msg)
 
     if dimensionality is None:
         return None
 
-    declaration = PortDeclaration(dimensionality, absolute=absolute)
+    declaration = PortDeclaration(dimensionality, absolute=absolute, over_a_domain=over_a_domain)
     if absolute:
         try:
             _ = declaration.coherent_unit

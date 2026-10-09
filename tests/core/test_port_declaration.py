@@ -17,7 +17,6 @@ Length = typing.Annotated[Quantity, LENGTH]
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
 Kilograms = typing.Annotated[Quantity, kilogram]
 MassAsFloat = typing.Annotated[float, MASS]
-MassAsTensor = typing.Annotated[Tensor, MASS]
 MassAndLength = typing.Annotated[Quantity, MASS, LENGTH]
 type MassAlias = typing.Annotated[Quantity, MASS]
 type MassAliasAlias = MassAlias
@@ -28,6 +27,11 @@ AbsoluteTemperatureRate = typing.Annotated[Quantity, TEMPERATURE / TIME, ABSOLUT
 AbsoluteFloat = typing.Annotated[float, ABSOLUTE]
 TaggedMass = typing.Annotated[Quantity, MASS * Metadata("co2")]
 MassBesideTag = typing.Annotated[Quantity, MASS, Metadata("co2")]
+MassOverADomain = typing.Annotated[Tensor, MASS]
+AbsoluteTemperatureOverADomain = typing.Annotated[Tensor, TEMPERATURE, ABSOLUTE]
+TaggedMassOverADomain = typing.Annotated[Tensor, MASS * Metadata("co2")]
+KilogramsOverADomain = typing.Annotated[Tensor, kilogram]
+MassAndLengthOverADomain = typing.Annotated[Tensor, MASS, LENGTH]
 
 
 def test_system_records_only_the_declared_fields() -> None:
@@ -327,15 +331,29 @@ def test_dimensionality_on_a_non_quantity_base_raises(
 
 
 @pytest.mark.parametrize(("declare", "owner", "port"), SITES)
-def test_dimensionality_on_a_tensor_raises_with_the_scope_message(
+def test_a_unit_on_a_tensor_raises_as_it_does_on_a_quantity(
     declare: collections.abc.Callable[[object], None],
     owner: str,
     port: str,
 ) -> None:
     with pytest.raises(BiltPortDeclarationError, match=f"Port '{port}' of '{owner}'") as raised:
-        declare(MassAsTensor)
+        declare(KilogramsOverADomain)
 
-    assert "outside the unit system" in str(raised.value)
+    message = str(raised.value)
+    assert "kilogram" in message
+    assert "mass" in message
+
+
+@pytest.mark.parametrize(("declare", "owner", "port"), SITES)
+def test_several_dimensionalities_on_a_tensor_raise_as_they_do_on_a_quantity(
+    declare: collections.abc.Callable[[object], None],
+    owner: str,
+    port: str,
+) -> None:
+    with pytest.raises(BiltPortDeclarationError, match=f"Port '{port}' of '{owner}'") as raised:
+        declare(MassAndLengthOverADomain)
+
+    assert "more than one dimensionality" in str(raised.value)
 
 
 @pytest.mark.parametrize(("declare", "owner", "port"), SITES)
@@ -400,3 +418,66 @@ def test_an_absolute_marker_without_a_dimensionality_raises(
 ) -> None:
     with pytest.raises(BiltPortDeclarationError, match=f"Port '{port}' of '{owner}' is marked ABSOLUTE without"):
         declare(AbsoluteFloat)
+
+
+def test_a_dimensionality_on_a_tensor_is_the_same_declaration_as_on_a_quantity() -> None:
+    @system
+    class Rig(metaclass=Interface):
+        over_a_domain: MassOverADomain = field()
+        scalar: Mass = field()
+
+    assert Rig.__bilt_port_declarations__ == {
+        "over_a_domain": PortDeclaration(MASS),
+        "scalar": PortDeclaration(MASS),
+    }
+
+
+def test_a_tensor_port_records_that_it_varies_over_a_domain() -> None:
+    @system
+    class Rig(metaclass=Interface):
+        over_a_domain: MassOverADomain = field()
+        scalar: Mass = field()
+
+    assert Rig.__bilt_port_declarations__["over_a_domain"].over_a_domain
+    assert not Rig.__bilt_port_declarations__["scalar"].over_a_domain
+
+
+def test_varying_over_a_domain_is_not_part_of_a_declaration_s_identity() -> None:
+    assert PortDeclaration(MASS, over_a_domain=True) == PortDeclaration(MASS, over_a_domain=False)
+
+
+def test_a_bare_tensor_is_still_a_plain_port() -> None:
+    @system
+    class Rig(metaclass=Interface):
+        m: Tensor = field()
+
+    assert Rig.__bilt_port_declarations__ == {}
+
+
+def test_the_absolute_marker_reads_on_a_tensor() -> None:
+    @system
+    class Rig(metaclass=Interface):
+        t: AbsoluteTemperatureOverADomain = field()
+
+    assert Rig.__bilt_port_declarations__ == {"t": PortDeclaration(TEMPERATURE, absolute=True)}
+
+
+def test_a_tag_reads_on_a_tensor() -> None:
+    @system
+    class Rig(metaclass=Interface):
+        m: TaggedMassOverADomain = field()
+
+    assert Rig.__bilt_port_declarations__ == {"m": PortDeclaration(MASS * Metadata("co2"))}
+
+
+def test_a_tensor_annotation_reads_at_an_equation_and_a_transform() -> None:
+    @equation
+    def balance(m: MassOverADomain, n: Mass) -> bool:
+        return m == n
+
+    @transform
+    def doubled(m: MassOverADomain) -> MassOverADomain:
+        return m * 2.0
+
+    assert balance.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "n": PortDeclaration(MASS)}
+    assert doubled.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "doubled": PortDeclaration(MASS)}
