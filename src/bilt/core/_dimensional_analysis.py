@@ -64,8 +64,10 @@ def _dimensionality_at(tree: Tree, operands: list[Dimension | None]) -> Dimensio
     match tree.head:
         case ops.ADD | ops.NEG | ops.MEAN | ops.SUM | ops.MIN | ops.MAX:
             return _shared(operands)
-        case ops.PROD | ops.ISEL | ops.SEL:
-            return None
+        case ops.ISEL | ops.SEL:
+            return operands[0]
+        case ops.PROD:
+            return _reduced_product(operands[0])
         case ops.MUL:
             return _product(operands, [1] * len(tree.args))
         case ops.INV:
@@ -77,6 +79,14 @@ def _dimensionality_at(tree: Tree, operands: list[Dimension | None]) -> Dimensio
         case _:
             msg = f"Cannot work out the dimensionality of symbolic operation {tree.head!r}."
             raise NotImplementedError(msg)
+
+
+def _reduced_product(operand: Dimension | None) -> Dimension | None:
+    """Return the dimensionality of a product along an axis, which only a dimensionless tensor has."""
+    if operand is not None and not operand.is_dimensionless:
+        msg = f"Cannot multiply {operand} along an axis: the result's dimensionality would depend on the axis's length."
+        raise BiltDimensionalityError(msg)
+    return operand
 
 
 def _shared(slots: list[Dimension | None]) -> Dimension | None:
@@ -148,10 +158,21 @@ def absoluteness_of(  # noqa: PLR0911
             return frozenset(-zeros for zeros in operands[0])
         case ops.ADD:
             return functools.reduce(functools.partial(_sum_readings, equation_name), operands)
-        case ops.MEAN | ops.SUM | ops.MIN | ops.MAX:
+        case ops.MEAN | ops.MIN | ops.MAX | ops.ISEL | ops.SEL:
             return operands[0]
+        case ops.SUM:
+            return _summed_along_an_axis(equation_name, operands[0])
         case _:
             return _EITHER
+
+
+def _summed_along_an_axis(equation_name: str, operand: frozenset[int]) -> frozenset[int]:
+    """Read a sum along an axis, which adds the operand's own values and so is never absolute."""
+    readings = operand - {1}
+    if not readings:
+        msg = "adds absolute quantities along an axis: they subtract to a relative one and never add."
+        raise BiltEquationDimensionalityError(equation_name, msg)
+    return readings
 
 
 def _sum_readings(equation_name: str, left: frozenset[int], right: frozenset[int]) -> frozenset[int]:
