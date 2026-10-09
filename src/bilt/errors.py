@@ -72,13 +72,13 @@ from bilt.core._errors import (
     BiltEquationSignatureError,
     BiltEvaluationError,
     BiltImplementationDimensionalityError,
-    BiltInputDimensionalityError,
     BiltNameError,
     BiltNoActiveEvaluationError,
     BiltPortDeclarationError,
     BiltUnresolvedAnnotationError,
 )
 from bilt.core._system._errors import (
+    BiltInputDimensionalityError,
     BiltSubSystemConflictError,
     BiltSubSystemError,
     BiltSubSystemMismatchedImplementationError,

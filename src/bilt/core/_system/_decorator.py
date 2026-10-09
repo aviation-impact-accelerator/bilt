@@ -5,10 +5,10 @@ import enum
 import inspect
 import typing
 
-from bilt.core._errors import BiltInputDimensionalityError, BiltUnresolvedAnnotationError
+from bilt.core._errors import BiltUnresolvedAnnotationError
 from bilt.core._interface import Interface
 from bilt.core._port_declaration import port_declarations
-from bilt.core._system._errors import BiltSystemDefinitionError
+from bilt.core._system._errors import BiltInputDimensionalityError, BiltSystemDefinitionError
 from bilt.core._tensors._tensors import Tensor
 from bilt.units import Quantity
 from bilt.units._category import UnitCategory
@@ -85,19 +85,26 @@ def _create_initialize_method(cls: Interface) -> None:
 
 
 def _check_inputs(cls: Interface, values: collections.abc.Mapping[str, object]) -> None:
-    """Ensure the values an instance is given satisfy the quantities their ports declare."""
+    """Ensure the values an instance is given satisfy the quantities their ports declare.
+
+    A quantity and a tensor answer to the same rule: a declared port wants a unit of its dimensionality, absolute
+    if the port is and relative otherwise, and a plain port wants no unit at all. A port that declares itself over
+    a domain wants that unit on a tensor, so a reduction in an equation never meets a scalar.
+    """
     for port, value in values.items():
-        if value is MISSING or isinstance(value, Tensor):
+        if value is MISSING:
             continue
 
+        unit = value.unit if isinstance(value, Quantity | Tensor) else None
         expected = cls.__bilt_port_declarations__.get(port)
         if expected is None:
-            if isinstance(value, Quantity):
+            if unit is not None:
                 raise BiltInputDimensionalityError(cls.__bilt_name__, port, expected, value)
         elif (
-            not isinstance(value, Quantity)
-            or value.unit.dimension != expected.dimensionality
-            or not (value.unit.category is UnitCategory.ABSOLUTE if expected.absolute else value.unit.is_relative)
+            unit is None
+            or unit.dimension != expected.dimensionality
+            or not (unit.category is UnitCategory.ABSOLUTE if expected.absolute else unit.is_relative)
+            or (expected.over_a_domain and not isinstance(value, Tensor))
         ):
             raise BiltInputDimensionalityError(cls.__bilt_name__, port, expected, value)
 

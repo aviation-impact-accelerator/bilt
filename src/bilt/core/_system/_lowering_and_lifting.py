@@ -1,6 +1,6 @@
 import dataclasses
 import functools
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, SupportsFloat, cast
 
 from bilt.core._canonical_ordering import canonicalized
 from bilt.core._evaluation_context import current_evaluation
@@ -31,7 +31,12 @@ def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
 
     for input_name, input_value in inputs.items():
         if isinstance(input_value, Tensor):
-            lowered_inputs[input_name] = input_value.values
+            if input_value.unit is None:
+                lowered_inputs[input_name] = input_value.values
+            else:
+                lowered_inputs[input_name] = BASE_UNIT_SYSTEM.coherent_value(
+                    Quantity(cast("float", input_value.values), input_value.unit)
+                )
         elif isinstance(input_value, Quantity):
             lowered_inputs[input_name] = BASE_UNIT_SYSTEM.coherent_value(input_value)
         else:
@@ -64,9 +69,10 @@ def lift_output(
         output_value = tensor(
             output_value,
             over=lifting_plan.output_domain.domain.dims,
+            unit=lifting_plan.output_unit,
         )
     elif lifting_plan.output_unit is not None:
-        output_value = Quantity(cast("float", output_value), lifting_plan.output_unit)
+        output_value = Quantity(float(cast("SupportsFloat", output_value)), lifting_plan.output_unit)
 
     return output_value
 
