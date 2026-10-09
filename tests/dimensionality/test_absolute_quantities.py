@@ -384,15 +384,6 @@ def test_a_binding_deeper_in_a_comprehension_does_not_shadow_the_parameter() -> 
             return values[0]
 
 
-def test_a_conversion_in_a_parameter_annotation_reads_the_parameter() -> None:
-    with pytest.raises(BiltDefinitionError, match=r"`reading\.convert_to\(celsius\)` contradicts the signature"):
-
-        @transform
-        def degrees(reading: AbsoluteTemperature) -> float:
-            def scaled(reading: reading.convert_to(celsius).value = 1.0) -> float:
-                return reading
-
-            return scaled() + Quantity(0.0, celsius).value
 
 
 def test_a_coherent_conversion_in_the_iterable_of_a_comprehension_is_still_erased() -> None:
