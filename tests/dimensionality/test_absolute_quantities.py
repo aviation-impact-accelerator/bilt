@@ -384,8 +384,6 @@ def test_a_binding_deeper_in_a_comprehension_does_not_shadow_the_parameter() -> 
             return values[0]
 
 
-
-
 def test_a_coherent_conversion_in_the_iterable_of_a_comprehension_is_still_erased() -> None:
     @transform
     def degrees(reading: AbsoluteTemperature) -> float:
