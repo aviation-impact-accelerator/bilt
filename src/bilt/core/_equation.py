@@ -18,7 +18,7 @@ from bilt.core._errors import (
 )
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
-from bilt.core._port_declaration import PortDeclaration, port_declarations
+from bilt.core._port_declaration import PortDeclaration, annotated_parts, port_declarations
 from bilt.core._sub_system import validate_name
 from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic import _atoms as ops
@@ -142,16 +142,21 @@ def _build_symbols(
     signature: inspect.Signature,
     sub_systems: collections.abc.Mapping[str, Interface],
 ) -> dict[str, Expr | SubSystemExpr]:
-    """Bind each parameter to what the equation function sees when called symbolically."""
+    """Bind each parameter to what the equation function sees when called symbolically.
+
+    A parameter over a domain gets the tensor symbol, so a declared `Annotated[Tensor, DIM]` port reduces and
+    indexes as a plain `Tensor` one does.
+    """
     symbols: dict[str, Expr | SubSystemExpr] = {}
 
     for name, parameter in signature.parameters.items():
+        base_type, _ = annotated_parts(parameter.annotation)
         if name in sub_systems:
             symbols[name] = SubSystemExpr(
                 name,
                 {port: QualifiedPort(name, port).dotted for port in sub_systems[name].__bilt_parameters__},
             )
-        elif parameter.annotation is Tensor:
+        elif base_type is Tensor:
             symbols[name] = tensor_symbol_expr(name)
         else:
             symbols[name] = symbol_expr(name)

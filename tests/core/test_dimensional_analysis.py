@@ -72,9 +72,24 @@ def test_reductions_but_a_product_preserve_the_dimensionality(reduction: str) ->
     assert dimensionality_of(getattr(tensor_x, reduction)(dim("t")).tree, {"x": MASS}) is MASS
 
 
-def test_a_product_along_an_axis_and_a_selection_are_unknown() -> None:
-    assert dimensionality_of(tensor_x.prod(dim("t")).tree, {"x": LENGTH}) is None
-    assert dimensionality_of(tensor_x.isel(dim("t"), y).tree, {"x": MASS, "y": TIME}) is None
+def test_a_selection_keeps_the_dimensionality_of_what_it_selects_from() -> None:
+    assert dimensionality_of(tensor_x.isel(dim("t"), y).tree, {"x": MASS, "y": TIME}) is MASS
+    assert dimensionality_of(tensor_x.sel(dim("t"), "a").tree, {"x": MASS}) is MASS
+
+
+def test_a_product_along_an_axis_of_a_dimensional_tensor_raises() -> None:
+    with pytest.raises(BiltDimensionalityError, match="along an axis") as raised:
+        dimensionality_of(tensor_x.prod(dim("t")).tree, {"x": LENGTH})
+
+    assert str(LENGTH) in str(raised.value)
+
+
+def test_a_product_along_an_axis_of_a_dimensionless_tensor_is_dimensionless() -> None:
+    assert dimensionality_of(tensor_x.prod(dim("t")).tree, {"x": DIMENSIONLESS}) is DIMENSIONLESS
+
+
+def test_a_product_along_an_axis_of_an_unknown_tensor_is_unknown() -> None:
+    assert dimensionality_of(tensor_x.prod(dim("t")).tree, {}) is None
 
 
 def test_adding_unlike_dimensionalities_raises() -> None:
@@ -233,11 +248,25 @@ def test_a_relation_between_an_absolute_and_a_relative_quantity_raises() -> None
         absoluteness_of("balance", x == y, DECLARATIONS)
 
 
-@pytest.mark.parametrize("reduction", ("mean", "sum", "min", "max"))
-def test_reductions_but_a_product_preserve_the_absoluteness(reduction: str) -> None:
+@pytest.mark.parametrize("reduction", ("mean", "min", "max"))
+def test_reductions_but_a_sum_and_a_product_preserve_the_absoluteness(reduction: str) -> None:
     assert absoluteness_of("balance", getattr(tensor_x, reduction)(dim("t")).tree, DECLARATIONS) == {1}
 
 
-def test_a_product_along_an_axis_and_a_selection_are_read_either_way() -> None:
+def test_a_selection_keeps_the_absoluteness_of_what_it_selects_from() -> None:
+    assert absoluteness_of("balance", tensor_x.isel(dim("t"), y).tree, DECLARATIONS) == {1}
+    assert absoluteness_of("balance", tensor_x.sel(dim("t"), "a").tree, DECLARATIONS) == {1}
+
+
+def test_a_sum_along_an_axis_of_an_absolute_tensor_raises() -> None:
+    with pytest.raises(BiltEquationDimensionalityError, match="'balance' adds absolute quantities along an axis"):
+        absoluteness_of("balance", tensor_x.sum(dim("t")).tree, DECLARATIONS)
+
+
+def test_a_sum_along_an_axis_is_relative_whatever_it_sums() -> None:
+    assert absoluteness_of("balance", tensor_y.sum(dim("t")).tree, DECLARATIONS) == {0}
+    assert absoluteness_of("balance", tensor_symbol_expr("w").sum(dim("t")).tree, DECLARATIONS) == {0}
+
+
+def test_a_product_along_an_axis_is_read_either_way() -> None:
     assert absoluteness_of("balance", tensor_x.prod(dim("t")).tree, DECLARATIONS) == {0, 1}
-    assert absoluteness_of("balance", tensor_x.isel(dim("t"), y).tree, DECLARATIONS) == {0, 1}

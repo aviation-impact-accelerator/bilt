@@ -1,6 +1,6 @@
 """What a port's annotation declares about the quantity it carries."""
 
-__all__ = ["PortDeclaration", "port_declarations"]
+__all__ = ["PortDeclaration", "annotated_parts", "port_declarations"]
 
 import dataclasses
 import typing
@@ -39,6 +39,16 @@ class PortDeclaration:
         return f"absolute {self.dimensionality}" if self.absolute else str(self.dimensionality)
 
 
+def annotated_parts(annotation: object) -> tuple[object, list[object]]:
+    """Split an annotation into the type it is written over and its `Annotated` metadata, through any type alias."""
+    while isinstance(annotation, typing.TypeAliasType):
+        annotation = annotation.__value__
+    if typing.get_origin(annotation) is typing.Annotated:
+        base_type, *metadata = typing.get_args(annotation)
+        return base_type, metadata
+    return annotation, []
+
+
 def port_declarations(
     owner_name: str,
     port_annotations: collections.abc.Mapping[str, object],
@@ -50,11 +60,7 @@ def port_declarations(
 
 def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclaration | None:
     """Classify one annotation, ignoring `Annotated` metadata that is neither a dimensionality nor the absolute marker."""
-    while isinstance(annotation, typing.TypeAliasType):
-        annotation = annotation.__value__
-    base_type, *metadata = (
-        typing.get_args(annotation) if typing.get_origin(annotation) is typing.Annotated else (annotation,)
-    )
+    base_type, metadata = annotated_parts(annotation)
     unit = next((item for item in metadata if isinstance(item, Unit)), None)
     if unit is not None:
         msg = (
