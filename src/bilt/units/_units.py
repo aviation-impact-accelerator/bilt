@@ -304,13 +304,18 @@ class Unit:
             raise BiltUnitError(message)
 
         match relation:
+            case Unit() if relation.metadata is not None:
+                relation = UnitComposition(UnitOrder(relation, 1))
             case Unit():
                 relation = relation.relation
             case UnitComposition():
                 pass
             case Quantity():
                 quantity = relation
-                if quantity.unit.category in (UnitCategory.BASE, UnitCategory.NAMED):
+                if quantity.unit.metadata is not None or quantity.unit.category in (
+                    UnitCategory.BASE,
+                    UnitCategory.NAMED,
+                ):
                     relation = UnitComposition(
                         UnitOrder(quantity.unit, 1),
                         scale=quantity.value,
@@ -464,16 +469,19 @@ class Unit:
 
     def strip_metadata(self) -> typing.Self:
         if self.metadata is not None:
-            return self.__class__(self.relation)
-        return self.__class__(
-            UnitComposition(
-                *[
-                    UnitOrder(self.__class__(unit_order.unit.relation), unit_order.order)
-                    for unit_order in self.relation.composition
-                ],
-                scale=self.relation.scale,
-            )
+            return self.__class__(self.relation).strip_metadata()
+        if self.category in (UnitCategory.BASE, UnitCategory.ABSOLUTE):
+            return self
+        stripped = UnitComposition(
+            *[
+                UnitOrder(unit_order.unit.strip_metadata(), unit_order.order)
+                for unit_order in self.relation.composition
+            ],
+            scale=self.relation.scale,
         )
+        if stripped is self.relation:
+            return self
+        return self.__class__(stripped)
 
     def __abs__(self) -> Unit:
         if self not in self.__class__._absolute_cache:  # noqa: SLF001

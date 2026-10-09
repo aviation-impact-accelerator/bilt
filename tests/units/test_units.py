@@ -58,6 +58,7 @@ thermal = Metadata("thermal")
 
 co2 = Metadata("co2")
 nox = Metadata("nox")
+biogenic = Metadata("biogenic")
 
 
 class TestUnitOrder:
@@ -769,6 +770,11 @@ class TestUnit:
             ((kilogram * Metadata("co2")) / (kilogram * Metadata("nox")), UNITLESS),
             (kilogram * meter / second**2 * Metadata("vertical"), kilogram * meter / second**2),
             (kilowatthour * Metadata("thermal"), kilowatthour),
+            ((kilogram * co2) * biogenic, kilogram),
+            (((kilogram * co2) * biogenic) / second, kilogram / second),
+            (kilowatthour / (second * co2), kilowatthour / second),
+            (kilowatthour, kilowatthour),
+            (kilogram * meter / second**2, kilogram * meter / second**2),
         ),
     )
     def test_strip_metadata(unit: Unit, expected: Unit) -> None:
@@ -1088,3 +1094,38 @@ class TestTaggedUnit:
     )
     def test_coherent_value_converts_within_the_tagged_dimension(quantity: Quantity, expected: float) -> None:
         assert BASE_UNIT_SYSTEM.coherent_value(quantity) == pytest.approx(expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("name", "relation", "expected"),
+        (
+            ("kilogram_co2", kilogram * co2, MASS * co2),
+            ("tonne_co2", 1_000.0 * (kilogram * co2), MASS * co2),
+            ("emission_index", (kilogram * co2) / (kilogram * nox), (MASS * co2) / (MASS * nox)),
+            ("co2_rate", (kilogram * co2) / second, MASS * co2 / TIME),
+        ),
+    )
+    def test_named_unit_keeps_each_tag_of_its_relation(
+        name: str, relation: Unit | Quantity, expected: Dimension
+    ) -> None:
+        assert Unit.new_named(name, relation).dimension is expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("name", "relation", "expected"),
+        (
+            ("kilogram_of_co2", kilogram * co2, 1.0),
+            ("tonne_of_co2", 1_000.0 * (kilogram * co2), 1_000.0),
+            ("gram_of_co2", gram * co2, 0.001),
+        ),
+    )
+    def test_named_unit_converts_back_to_its_tagged_relation(
+        name: str, relation: Unit | Quantity, expected: float
+    ) -> None:
+        converted = (1.0 * Unit.new_named(name, relation)).convert_to(kilogram * co2)
+        assert converted.unit is kilogram * co2
+        assert converted.value == pytest.approx(expected)
+
+    @staticmethod
+    def test_named_unit_sheds_the_tags_of_its_relation() -> None:
+        assert Unit.new_named("kilogram_carbon", kilogram * co2).strip_metadata() is kilogram
