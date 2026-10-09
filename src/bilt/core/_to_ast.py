@@ -117,7 +117,7 @@ def _leaf_to_ast(tree: Tree) -> ast.expr:
         )
 
     if tree.head.atom_type is QuantityType:
-        return ast.Constant(value=typing.cast("tuple[float, Dimension]", tree.head.value)[0])
+        return ast.Constant(value=typing.cast("tuple[float, Dimension, bool]", tree.head.value)[0])
 
     message = f"Unsupported symbolic leaf {tree.head!r} in AST conversion."
     raise BiltUnsupportedIsolationError(message)

@@ -1,10 +1,11 @@
-"""Work out the dimensionality of a symbolic tree from the dimensionalities of its symbols."""
+"""Work out the dimensionality and the absoluteness of a symbolic tree from what is known of its symbols."""
 
-__all__ = ["dimensionality_of"]
+__all__ = ["absoluteness_of", "dimensionality_of"]
 
 import functools
 import typing
 
+from bilt.core._errors import BiltEquationDimensionalityError
 from bilt.symbolic import _atoms as ops
 from bilt.symbolic._atoms import CoordinateType, DimensionType, FloatType, IntType, QuantityType, SymbolType
 from bilt.units._errors import BiltDimensionalityError
@@ -13,8 +14,12 @@ from bilt.units.dimensions import DIMENSIONLESS
 if typing.TYPE_CHECKING:
     import collections.abc
 
+    from bilt.core._port_declaration import PortDeclaration
     from bilt.symbolic._tree import Tree
     from bilt.units import Dimension
+
+
+_EITHER = frozenset({0, 1})
 
 
 def dimensionality_of(
@@ -44,7 +49,7 @@ def _leaf(tree: Tree, dimensionalities: collections.abc.Mapping[str, Dimension])
     if tree.head.atom_type in (IntType, FloatType):
         return DIMENSIONLESS if tree.head.value != 0 else None
     if tree.head.atom_type is QuantityType:
-        return typing.cast("tuple[float, Dimension]", tree.head.value)[1]
+        return typing.cast("tuple[float, Dimension, bool]", tree.head.value)[1]
     if tree.head.atom_type in (DimensionType, CoordinateType):
         return None
     msg = f"Cannot work out the dimensionality of symbolic leaf {tree.head!r}."
@@ -112,3 +117,52 @@ def _power(base: Dimension | None, exponent: Dimension | None) -> Dimension:
         )
         raise BiltDimensionalityError(msg)
     return DIMENSIONLESS
+
+
+def absoluteness_of(  # noqa: PLR0911
+    equation_name: str,
+    tree: Tree,
+    declarations: collections.abc.Mapping[str, PortDeclaration],
+) -> frozenset[int]:
+    """Return every legal reading of `tree`, each the number of fixed zeros it is measured from.
+
+    An absolute quantity is measured from one fixed zero and a relative quantity from none, so a sum adds its
+    addends' and a negation negates its operand's. A port absent from `declarations`, a literal, and a product,
+    quotient or power are neither absolute nor relative, and are read either way.
+    """
+    if tree.is_leaf:
+        if tree.head.atom_type is SymbolType:
+            declaration = declarations.get(typing.cast("str", tree.head.value))
+            return _EITHER if declaration is None else frozenset({int(declaration.absolute)})
+        if tree.head.atom_type is QuantityType:
+            return frozenset({int(typing.cast("tuple[float, Dimension, bool]", tree.head.value)[2])})
+        return _EITHER
+    operands = [absoluteness_of(equation_name, operand, declarations) for operand in tree.args]
+    if tree.is_relation:
+        if not operands[0] & operands[1]:
+            msg = "relates an absolute quantity to a relative one: both sides must be absolute, or both relative."
+            raise BiltEquationDimensionalityError(equation_name, msg)
+        return frozenset({0})
+    match tree.head:
+        case ops.NEG:
+            return frozenset(-zeros for zeros in operands[0])
+        case ops.ADD:
+            return functools.reduce(functools.partial(_sum_readings, equation_name), operands)
+        case ops.MEAN | ops.SUM | ops.MIN | ops.MAX:
+            return operands[0]
+        case _:
+            return _EITHER
+
+
+def _sum_readings(equation_name: str, left: frozenset[int], right: frozenset[int]) -> frozenset[int]:
+    """Read the sum of two addends every way that leaves it absolute or relative."""
+    totals = {ours + theirs for ours in left for theirs in right}
+    readings = _EITHER & totals
+    if not readings:
+        msg = (
+            "adds two absolute quantities: they subtract to a relative one and never add."
+            if min(totals) > 1
+            else "subtracts an absolute quantity from a relative one: it subtracts only from another absolute one."
+        )
+        raise BiltEquationDimensionalityError(equation_name, msg)
+    return readings
