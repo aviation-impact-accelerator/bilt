@@ -2,6 +2,7 @@ __all__ = [
     "LoweredExpression",
     "lower_expression",
     "reduce_dimension",
+    "selection_domain",
 ]
 
 import dataclasses
@@ -18,6 +19,7 @@ from bilt.symbolic._atoms import (
     NEG,
     POW,
     SEL,
+    Atom,
     AxisType,
     CoordinateType,
     DimensionType,
@@ -256,17 +258,11 @@ def _lower_index(
         canonical_order=canonical_order,
     )
 
-    if not selector.domain.is_scalar:
-        message = f"{tree.head} currently requires a scalar selector."
-        raise BiltTensorDomainError(message)
-
-    if dim not in value.domain.dims:
-        message = f"Cannot index dimension {dim!s}; it is not present in domain {value.domain!s}."
-        raise BiltTensorDomainError(message)
-
-    output_domain, axis = _remove_dimension(
+    output_domain, axis = selection_domain(
         value.domain,
         dim,
+        selector.domain,
+        operator=tree.head,
         canonical_order=canonical_order,
     )
 
@@ -296,6 +292,24 @@ def _lower_index(
         ),
         domain=output_domain,
     )
+
+
+def selection_domain(
+    value_domain: Domain,
+    dim: Dim,
+    selector_domain: Domain,
+    *,
+    operator: Atom,
+    canonical_order: Domain,
+) -> tuple[Domain, int]:
+    """Validate scalar selection and resolve its output domain and positional axis."""
+    if not selector_domain.is_scalar:
+        message = f"{operator} currently requires a scalar selector."
+        raise BiltTensorDomainError(message)
+    if dim not in value_domain.dims:
+        message = f"Cannot index dimension {dim!s}; it is not present in domain {value_domain!s}."
+        raise BiltTensorDomainError(message)
+    return _remove_dimension(value_domain, dim, canonical_order=canonical_order)
 
 
 def _contains_atom_type(tree: Tree, atom_type: object) -> bool:

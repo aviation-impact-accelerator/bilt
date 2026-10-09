@@ -11,6 +11,7 @@ if typing.TYPE_CHECKING:
 __all__ = [
     "isel_intrinsic_ast",
     "reduction_intrinsic_ast",
+    "tree_to_expression_ast",
     "tree_to_functiondef",
 ]
 
@@ -21,6 +22,12 @@ MAX_INTRINSIC_NAME = "__bilt_max__"
 PROD_INTRINSIC_NAME = "__bilt_prod__"
 
 ISEL_INTRINSIC_NAME = "__bilt_isel__"
+
+
+def tree_to_expression_ast(tree: Tree) -> ast.expr:
+    """Convert a lowered symbolic tree to a backend expression."""
+    return _tree_to_ast_expr(tree)
+
 
 _REDUCTION_INTRINSICS = {
     ops.MEAN: MEAN_INTRINSIC_NAME,

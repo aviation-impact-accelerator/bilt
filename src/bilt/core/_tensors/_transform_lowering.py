@@ -5,15 +5,17 @@ import typing
 from bilt.core._canonical_ordering import canonicalized
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors._errors import BiltTensorDomainError
-from bilt.core._tensors._expression_lowering import reduce_dimension
+from bilt.core._tensors._expression_lowering import reduce_dimension, selection_domain
 from bilt.core._to_ast import (
     MAX_INTRINSIC_NAME,
     MEAN_INTRINSIC_NAME,
     MIN_INTRINSIC_NAME,
     PROD_INTRINSIC_NAME,
     SUM_INTRINSIC_NAME,
+    isel_intrinsic_ast,
     reduction_intrinsic_ast,
 )
+from bilt.symbolic._atoms import ISEL, SEL
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain, union
 
@@ -41,52 +43,88 @@ def lower_transform(
     function_ast.decorator_list = []
     _strip_annotations(function_ast)
 
-    parameter_names = (argument.arg for argument in _arguments(function_ast))
-    fallback_domain = canonicalized(
-        union(*(symbol_domains[name] for name in parameter_names)),
-        canonical_order,
-    ).domain
-
     closure = inspect.getclosurevars(function)
     bindings = {
         **closure.globals,
         **closure.nonlocals,
     }
 
-    if len(function_ast.body) != 1 or not isinstance(function_ast.body[0], ast.Return):
-        ast.fix_missing_locations(function_ast)
-        return function_ast, fallback_domain
-
-    return_statement = function_ast.body[0]
-
-    if return_statement.value is None:
-        ast.fix_missing_locations(function_ast)
-        return function_ast, fallback_domain
-
-    lowered = _lower_expression(
-        return_statement.value,
-        bindings=bindings,
-        symbol_domains=symbol_domains,
-        canonical_order=canonical_order,
+    contains_selection = any(
+        isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in {"sel", "isel"}
+        for node in ast.walk(function_ast)
     )
+    if contains_selection:
+        return _lower_selection_body(
+            function_ast,
+            bindings=bindings,
+            symbol_domains=symbol_domains,
+            canonical_order=canonical_order,
+        )
 
-    if lowered is None:
-        ast.fix_missing_locations(function_ast)
-        return function_ast, fallback_domain
-
-    expression, output_domain = lowered
-
-    return_statement.value = ast.copy_location(
-        expression,
-        return_statement.value,
-    )
+    parameter_names = (argument.arg for argument in _arguments(function_ast))
+    output_domain = canonicalized(
+        union(*(symbol_domains[name] for name in parameter_names)),
+        canonical_order,
+    ).domain
+    match function_ast.body:
+        case [ast.Return(value=ast.expr() as expression) as return_statement]:
+            lowered = _lower_expression(
+                expression,
+                bindings=bindings,
+                symbol_domains=symbol_domains,
+                canonical_order=canonical_order,
+            )
+            if lowered is not None:
+                lowered_expression, output_domain = lowered
+                return_statement.value = ast.copy_location(lowered_expression, expression)
 
     ast.fix_missing_locations(function_ast)
 
     return function_ast, output_domain
 
 
-def _lower_expression(
+def _lower_selection_body(
+    function_ast: ast.FunctionDef,
+    *,
+    bindings: collections.abc.Mapping[str, object],
+    symbol_domains: collections.abc.Mapping[str, Domain],
+    canonical_order: Domain,
+) -> tuple[ast.FunctionDef, Domain]:
+    """Track domains through straight-line selections, rejecting unsupported flow."""
+    statements = function_ast.body
+    if ast.get_docstring(function_ast) is not None:
+        statements = statements[1:]
+    if not statements or not isinstance(statements[-1], ast.Return):
+        message = "A transform containing sel/isel must end with a return."
+        raise BiltTensorDomainError(message)
+    working_domains = dict(symbol_domains)
+    output_domain = Domain.scalar()
+    for statement in statements:
+        match statement:
+            case ast.Assign(targets=[ast.Name(id=target)], value=expression):
+                pass
+            case ast.Return(value=ast.expr() as expression) if statement is statements[-1]:
+                target = None
+            case _:
+                message = "Transforms containing sel/isel require straight-line assignments and a final return."
+                raise BiltTensorDomainError(message)
+        lowered = _lower_expression(
+            expression,
+            bindings=bindings,
+            symbol_domains=working_domains,
+            canonical_order=canonical_order,
+        )
+        if lowered is None:
+            message = "Cannot infer the domain of an expression in a transform containing sel/isel."
+            raise BiltTensorDomainError(message)
+        statement.value, output_domain = lowered
+        if target is not None:
+            working_domains[target] = output_domain
+    ast.fix_missing_locations(function_ast)
+    return function_ast, output_domain
+
+
+def _lower_expression(  # noqa: PLR0911
     node: ast.expr,
     *,
     bindings: collections.abc.Mapping[str, object],
@@ -98,6 +136,9 @@ def _lower_expression(
             try:
                 value_domain = symbol_domains[name]
             except KeyError:
+                bound_value = bindings.get(name)
+                if isinstance(bound_value, (int, float)):
+                    return ast.Constant(value=bound_value), Domain.scalar()
                 return None
 
             return node, value_domain
@@ -113,7 +154,26 @@ def _lower_expression(
                 canonical_order=canonical_order,
             )
 
+        case ast.UnaryOp(op=ast.USub() | ast.UAdd()):
+            operand = _lower_expression(
+                node.operand,
+                bindings=bindings,
+                symbol_domains=symbol_domains,
+                canonical_order=canonical_order,
+            )
+            if operand is None:
+                return None
+            operand_ast, operand_domain = operand
+            return ast.UnaryOp(op=node.op, operand=operand_ast), operand_domain
+
         case ast.Call():
+            if isinstance(node.func, ast.Attribute) and node.func.attr in {"sel", "isel"}:
+                return _lower_selection(
+                    node,
+                    bindings=bindings,
+                    symbol_domains=symbol_domains,
+                    canonical_order=canonical_order,
+                )
             return _lower_reduction(
                 node,
                 bindings=bindings,
@@ -166,6 +226,65 @@ def _lower_binop(
     )
 
 
+def _lower_selection(
+    node: ast.Call,
+    *,
+    bindings: collections.abc.Mapping[str, object],
+    symbol_domains: collections.abc.Mapping[str, Domain],
+    canonical_order: Domain,
+) -> tuple[ast.expr, Domain]:
+    attribute = typing.cast("ast.Attribute", node.func)
+    expected_arguments = 2
+    if len(node.args) != expected_arguments or node.keywords:
+        message = f"Tensor.{attribute.attr}() requires a dimension and a scalar selector as positional arguments."
+        raise BiltTensorDomainError(message)
+    dim = _resolve_dimension(node.args[0], bindings=bindings)
+    value = _lower_expression(
+        attribute.value,
+        bindings=bindings,
+        symbol_domains=symbol_domains,
+        canonical_order=canonical_order,
+    )
+    if value is None:
+        message = "Cannot infer the domain of the value being selected."
+        raise BiltTensorDomainError(message)
+    value_ast, value_domain = value
+    if attribute.attr == "sel":
+        selector = node.args[1]
+        try:
+            coordinate = bindings[selector.id] if isinstance(selector, ast.Name) else ast.literal_eval(selector)
+        except (KeyError, ValueError, TypeError) as error:
+            message = "sel requires a literal coordinate or a bound coordinate constant."
+            raise BiltTensorDomainError(message) from error
+        output_domain, axis = selection_domain(
+            value_domain,
+            dim,
+            Domain.scalar(),
+            operator=SEL,
+            canonical_order=canonical_order,
+        )
+        selector_ast = ast.Constant(value=current_evaluation().domains.position(dim, coordinate))
+    else:
+        index = _lower_expression(
+            node.args[1],
+            bindings=bindings,
+            symbol_domains=symbol_domains,
+            canonical_order=canonical_order,
+        )
+        if index is None:
+            message = "Cannot infer the domain of the positional selector."
+            raise BiltTensorDomainError(message)
+        selector_ast, selector_domain = index
+        output_domain, axis = selection_domain(
+            value_domain,
+            dim,
+            selector_domain,
+            operator=ISEL,
+            canonical_order=canonical_order,
+        )
+    return isel_intrinsic_ast(value_ast, selector_ast, axis), output_domain
+
+
 def _lower_reduction(
     node: ast.Call,
     *,
@@ -173,7 +292,7 @@ def _lower_reduction(
     symbol_domains: collections.abc.Mapping[str, Domain],
     canonical_order: Domain,
 ) -> tuple[ast.expr, Domain] | None:
-    if not (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)):
+    if not isinstance(node.func, ast.Attribute):
         return None
 
     try:
@@ -185,13 +304,19 @@ def _lower_reduction(
         message = f"Tensor.{node.func.attr}() requires exactly one named dimension."
         raise NotImplementedError(message)
 
-    value_name = node.func.value.id
-
-    try:
-        value_domain = symbol_domains[value_name]
-    except KeyError:
-        message = f"No domain is known for transform parameter {value_name!r}."
-        raise BiltTensorDomainError(message) from None
+    value = _lower_expression(
+        node.func.value,
+        bindings=bindings,
+        symbol_domains=symbol_domains,
+        canonical_order=canonical_order,
+    )
+    if value is None:
+        if isinstance(node.func.value, ast.Name):
+            message = f"No domain is known for transform parameter {node.func.value.id!r}."
+            raise BiltTensorDomainError(message)
+        message = "No domain is known for the transform reduction operand."
+        raise BiltTensorDomainError(message)
+    value_node, value_domain = value
 
     dim = _resolve_dimension(
         node.args[0],
@@ -206,10 +331,7 @@ def _lower_reduction(
 
     lowered = reduction_intrinsic_ast(
         intrinsic_name,
-        ast.Name(
-            id=value_name,
-            ctx=ast.Load(),
-        ),
+        value_node,
         axis,
     )
 
