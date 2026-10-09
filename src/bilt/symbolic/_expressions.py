@@ -27,7 +27,7 @@ from bilt.symbolic._tree import (
     sum_tree,
     symbol_tree,
 )
-from bilt.units import Quantity, Unit
+from bilt.units import Metadata, Quantity, Unit
 from bilt.units._category import UnitCategory
 from bilt.units._units import BASE_UNIT_SYSTEM
 
@@ -157,6 +157,13 @@ class Expr:
         )
         raise TypeError(msg)
 
+    def strip_metadata(self) -> typing.NoReturn:
+        msg = (
+            "Cannot shed a tag with `strip_metadata()` in an equation. Divide it out with a tagged unit instead, "
+            "as in `x / mass_fraction` or `m * kilogram / (kilogram * co2)`."
+        )
+        raise BiltSymbolicConversionError(msg)
+
     def structurally_equal(self, other: object) -> bool:
         if not isinstance(other, Expr):
             return False
@@ -277,6 +284,13 @@ def as_tree(value: object) -> Tree:
             )
             raise BiltSymbolicConversionError(msg)
         return as_tree(Quantity(1.0, value))
+
+    if isinstance(value, Metadata):
+        msg = (
+            f"Cannot use tag '{value}' as a factor in an equation. Multiply by its tagged unit over the untagged "
+            f"one instead, as in `m * (kilogram * {value}) / kilogram`."
+        )
+        raise BiltSymbolicConversionError(msg)
 
     msg = f"Cannot convert {type(value).__name__!r} to symbolic Tree."
     raise BiltSymbolicConversionError(msg)

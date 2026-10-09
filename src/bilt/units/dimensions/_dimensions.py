@@ -1,5 +1,10 @@
 import typing
 
+if typing.TYPE_CHECKING:
+    import collections.abc
+
+    from bilt.units._metadata import Metadata
+
 
 @typing.final
 class Dimension:
@@ -10,11 +15,17 @@ class Dimension:
         "_length",
         "_luminosity",
         "_mass",
+        "_tagged",
         "_temperature",
         "_time",
     )
 
-    _cache: typing.ClassVar[dict[tuple[int, int, int, int, int, int, int, int], typing.Self]] = {}
+    _cache: typing.ClassVar[
+        dict[
+            tuple[int, int, int, int, int, int, int, int, frozenset[tuple[tuple[Dimension, Metadata], int]]],
+            typing.Self,
+        ]
+    ] = {}
 
     def __new__(  # noqa: PLR0913, PLR0917
         cls,
@@ -26,8 +37,20 @@ class Dimension:
         amount: int = 0,
         luminosity: int = 0,
         currency: int = 0,
+        *,
+        tagged: collections.abc.Mapping[tuple[Dimension, Metadata], int] | None = None,
     ) -> typing.Self:
-        key = (mass, length, time, temperature, current, amount, luminosity, currency)
+        key = (
+            mass,
+            length,
+            time,
+            temperature,
+            current,
+            amount,
+            luminosity,
+            currency,
+            frozenset((factor, order) for factor, order in tagged.items() if order != 0) if tagged else frozenset(),
+        )
         if key in cls._cache:
             return cls._cache[key]
         instance = object.__new__(cls)
@@ -44,6 +67,8 @@ class Dimension:
         amount: int = 0,
         luminosity: int = 0,
         currency: int = 0,
+        *,
+        tagged: collections.abc.Mapping[tuple[Dimension, Metadata], int] | None = None,
     ) -> None:
         self._mass = mass
         self._length = length
@@ -53,6 +78,7 @@ class Dimension:
         self._amount = amount
         self._luminosity = luminosity
         self._currency = currency
+        self._tagged = {factor: order for factor, order in tagged.items() if order != 0} if tagged else {}
 
     @property
     def mass(self) -> int:
@@ -87,8 +113,12 @@ class Dimension:
         return self._currency
 
     @property
+    def tagged(self) -> collections.abc.Mapping[tuple[Dimension, Metadata], int]:
+        return self._tagged
+
+    @property
     def is_dimensionless(self) -> bool:
-        return sum(abs(dimension) for dimension in self.dimensions) == 0
+        return sum(abs(dimension) for dimension in self.dimensions) == 0 and not self.tagged
 
     @property
     def is_primary(self) -> bool:
@@ -123,6 +153,12 @@ class Dimension:
             amount=self.amount + other.amount,
             luminosity=self.luminosity + other.luminosity,
             currency=self.currency + other.currency,
+            tagged={
+                factor: self.tagged.get(factor, 0) + other.tagged.get(factor, 0)
+                for factor in (*self.tagged, *other.tagged)
+            }
+            if self.tagged or other.tagged
+            else None,
         )
 
     def __truediv__(self, other: Dimension) -> typing.Self:
@@ -137,6 +173,12 @@ class Dimension:
             amount=self.amount - other.amount,
             luminosity=self.luminosity - other.luminosity,
             currency=self.currency - other.currency,
+            tagged={
+                factor: self.tagged.get(factor, 0) - other.tagged.get(factor, 0)
+                for factor in (*self.tagged, *other.tagged)
+            }
+            if self.tagged or other.tagged
+            else None,
         )
 
     def __pow__(self, other: int) -> typing.Self:
@@ -151,12 +193,11 @@ class Dimension:
             amount=self.amount * other,
             luminosity=self.luminosity * other,
             currency=self.currency * other,
+            tagged={factor: order * other for factor, order in self.tagged.items()} if self.tagged else None,
         )
 
     def __repr__(self) -> str:
-        if self.is_dimensionless:
-            return f"{self.__class__.__name__}()"
-        dimensions: dict[str, int] = {}
+        dimensions: dict[str, object] = {}
         if self.mass != 0:
             dimensions["mass"] = self.mass
         if self.length != 0:
@@ -173,6 +214,8 @@ class Dimension:
             dimensions["luminosity"] = self.luminosity
         if self.currency != 0:
             dimensions["currency"] = self.currency
+        if self.tagged:
+            dimensions["tagged"] = dict(self.tagged)
         kwargs = ", ".join(f"{key}={value}" for key, value in dimensions.items())
         return f"{self.__class__.__name__}({kwargs})"
 
@@ -205,6 +248,12 @@ class Dimension:
             "[Amount]": self.amount,
             "[Luminosity]": self.luminosity,
             "[Currency]": self.currency,
+        } | {
+            f"({form})|{tag}" if " " in form else f"{form}|{tag}": order
+            for form, tag, order in sorted(
+                (dimension._exponent_form(), str(tag), order)  # noqa: SLF001
+                for (dimension, tag), order in self.tagged.items()
+            )
         }
         return " ".join(format_term(dimension, index) for dimension, index in dimensions.items() if index != 0)
 

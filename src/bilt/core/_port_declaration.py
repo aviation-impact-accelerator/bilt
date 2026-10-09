@@ -7,7 +7,7 @@ import typing
 
 from bilt.core._errors import BiltPortDeclarationError
 from bilt.core._tensors._tensors import Tensor
-from bilt.units import Dimension, Quantity, Unit
+from bilt.units import Dimension, Metadata, Quantity, Unit
 from bilt.units._errors import BiltUnitError
 from bilt.units._units import BASE_UNIT_SYSTEM
 from bilt.units.dimensions import ABSOLUTE
@@ -42,7 +42,7 @@ def port_declarations(
     return {port: declaration for port, declaration in declarations.items() if declaration is not None}
 
 
-def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclaration | None:
+def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclaration | None:  # noqa: C901
     """Classify one annotation, ignoring `Annotated` metadata that is neither a dimensionality nor the absolute marker."""
     while isinstance(annotation, typing.TypeAliasType):
         annotation = annotation.__value__
@@ -54,6 +54,14 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
         msg = (
             f"declares unit {unit.name}, but a port declares a dimensionality, not a unit. "
             f"Declare its dimensionality ({unit.dimension}) instead."
+        )
+        raise BiltPortDeclarationError(owner_name, port, msg)
+
+    tag = next((item for item in metadata if isinstance(item, Metadata)), None)
+    if tag is not None:
+        msg = (
+            f"declares tag {tag} on its own, but a tag is a factor of a dimensionality. "
+            "Multiply the dimensionality by it, as in `typing.Annotated[Quantity, DIM * tag]`."
         )
         raise BiltPortDeclarationError(owner_name, port, msg)
 

@@ -8,7 +8,7 @@ import types
 import typing
 
 from bilt.core._errors import BiltDefinitionError
-from bilt.units import Dimension, Quantity, Unit
+from bilt.units import Dimension, Metadata, Quantity, Unit
 from bilt.units._category import UnitCategory
 from bilt.units._conversion import conversion_between
 from bilt.units._errors import BiltUnitError
@@ -135,7 +135,7 @@ class _UnitEraser(ast.NodeTransformer):
     def visit(self, node: ast.AST) -> ast.AST:
         return self._erased(node) if isinstance(node, ast.expr) else self.generic_visit(node)
 
-    def _erased(self, node: ast.expr) -> ast.expr:
+    def _erased(self, node: ast.expr) -> ast.expr:  # noqa: C901, PLR0911
         if self._is_constant(node):
             return self._literal(node, self._evaluated(node)) if self._reaches_a_unit(node) else node
 
@@ -186,6 +186,10 @@ class _UnitEraser(ast.NodeTransformer):
                     if conversion.offset:
                         coherent = ast.BinOp(left=coherent, op=ast.Add(), right=ast.Constant(conversion.offset))
                     return coherent
+                case ast.Call(func=ast.Attribute(value=quantity, attr="strip_metadata"), args=[], keywords=[]):
+                    return self._erased(quantity)
+                case ast.BinOp(left=quantity, op=ast.Mult(), right=tag) if isinstance(self._resolved(tag), Metadata):
+                    return self._erased(quantity)
                 case ast.Attribute(value=quantity, attr=attribute) if attribute in _QUANTITY_ATTRIBUTES:
                     msg = f"`{ast.unparse(node)}` {_attribute_problem(quantity, attribute)}"
                     raise BiltDefinitionError(msg)
@@ -217,7 +221,7 @@ class _UnitEraser(ast.NodeTransformer):
         return None
 
     def _is_left_to_python(self, node: ast.expr) -> bool:
-        """Whether `node` reads a quantity attribute of a plain parameter, calls one, or reads `.value` off such a call."""
+        """Whether `node` reads a quantity attribute of a plain parameter, calls one, reads `.value` off such a call, or multiplies one by a tag."""
         match node:
             case (
                 ast.Attribute(value=ast.Name() as name, attr=attribute)
@@ -228,6 +232,12 @@ class _UnitEraser(ast.NodeTransformer):
             ):
                 return (
                     name.id in self.plain_parameters and name not in self.shadowed and attribute in _QUANTITY_ATTRIBUTES
+                )
+            case ast.BinOp(left=ast.Name() as name, op=ast.Mult(), right=tag):
+                return (
+                    name.id in self.plain_parameters
+                    and name not in self.shadowed
+                    and isinstance(self._resolved(tag), Metadata)
                 )
         return False
 
@@ -276,6 +286,7 @@ def _attribute_problem(quantity: ast.expr, attribute: str) -> str:
     conversion = ast.unparse(
         ast.Call(func=ast.Attribute(value=quantity, attr="convert_to"), args=[ast.Name(id="<unit>")])
     )
+    shed = ast.unparse(ast.Call(func=ast.Attribute(value=quantity, attr="strip_metadata"), args=[]))
     match attribute:
         case "value":
             return f"depends on the unit `{ast.unparse(quantity)}` arrived in: write `{conversion}.value`"
@@ -283,5 +294,11 @@ def _attribute_problem(quantity: ast.expr, attribute: str) -> str:
             return f"depends on the unit `{ast.unparse(quantity)}` arrived in: name the unit you mean instead"
         case "convert_to":
             return f"must be called with one unit: write `{conversion}`"
+        case "cast_to":
+            attach = ast.unparse(ast.BinOp(left=quantity, op=ast.Mult(), right=ast.Name(id="<tag>")))
+            return (
+                f"depends on the unit `{ast.unparse(quantity)}` arrived in: "
+                f"shed its tags with `{shed}` or attach one with `{attach}`"
+            )
         case _:
-            return "relabels a quantity, which a transform cannot do: drop the call"
+            return f"must be called with no arguments: write `{shed}`"

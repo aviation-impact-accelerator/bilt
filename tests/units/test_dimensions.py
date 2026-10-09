@@ -1,6 +1,7 @@
 import pytest
 
-from bilt.units import Dimension
+from bilt.units import Dimension, Metadata
+from bilt.units.dimensions import AMOUNT, DIMENSIONLESS, MASS, TIME
 
 
 @pytest.mark.parametrize(
@@ -152,3 +153,69 @@ def test_dimension_repr(dimension: Dimension, expected: str) -> None:
 )
 def test_dimension_str(dimension: Dimension, expected: str) -> None:
     assert str(dimension) == expected
+
+
+co2 = Metadata("co2")
+fuel = Metadata("fuel")
+biogenic = Metadata("biogenic")
+
+
+def test_a_tagged_dimension_is_cached() -> None:
+    assert MASS * co2 is MASS * co2
+    assert (MASS * co2) / (MASS * fuel) is (MASS * co2) / (MASS * fuel)
+
+
+@pytest.mark.parametrize(
+    "other",
+    (MASS, MASS * fuel, AMOUNT * co2, (MASS * co2) * biogenic, MASS * co2 / TIME, MASS / TIME * co2),
+)
+def test_a_tagged_dimension_is_only_itself(other: Dimension) -> None:
+    assert MASS * co2 is not other
+
+
+def test_a_tag_wraps_the_dimension_it_multiplies() -> None:
+    assert MASS / TIME * co2 is not MASS * co2 / TIME
+
+
+def test_tagged_dimension_arithmetic() -> None:
+    assert (MASS * co2) / (MASS * fuel) * (MASS * fuel) is MASS * co2
+    assert (MASS * co2) / (MASS * co2) is DIMENSIONLESS
+    assert (MASS * co2) ** 2 / (MASS * co2) is MASS * co2
+    assert (MASS * co2) ** 0 is DIMENSIONLESS
+    assert (MASS * co2) * TIME is TIME * (MASS * co2)
+
+
+def test_a_tagged_dimension_is_not_dimensionless() -> None:
+    assert (DIMENSIONLESS * co2).is_dimensionless is False
+
+
+def test_a_tag_does_not_multiply_a_dimension_from_the_left() -> None:
+    with pytest.raises(TypeError):
+        _ = co2 * MASS  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
+
+
+@pytest.mark.parametrize(
+    ("dimension", "expected_str", "expected_repr"),
+    (
+        (MASS * co2, "[Mass]|co2", "Dimension(tagged={(Dimension(mass=1), Metadata(value='co2')): 1})"),
+        (DIMENSIONLESS * co2, "[Dimensionless]|co2", "Dimension(tagged={(Dimension(), Metadata(value='co2')): 1})"),
+        (
+            MASS * co2 / TIME,
+            "[Time]^(-1) [Mass]|co2",
+            "Dimension(time=-1, tagged={(Dimension(mass=1), Metadata(value='co2')): 1})",
+        ),
+        (
+            MASS / TIME * co2,
+            "([Mass] [Time]^(-1))|co2",
+            "Dimension(tagged={(Dimension(mass=1, time=-1), Metadata(value='co2')): 1})",
+        ),
+    ),
+)
+def test_tagged_dimension_representation(dimension: Dimension, expected_str: str, expected_repr: str) -> None:
+    assert str(dimension) == expected_str
+    assert repr(dimension) == expected_repr
+
+
+def test_tagged_dimension_str_orders_its_tagged_factors() -> None:
+    assert str((MASS * fuel) ** -1 * (MASS * co2)) == "[Mass]|co2 [Mass]|fuel^(-1)"
+    assert str((MASS * co2) * biogenic) == "[Mass]|co2|biogenic"

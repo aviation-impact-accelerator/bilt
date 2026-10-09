@@ -67,8 +67,8 @@ def test_validate_addition_rejects_incompatible_dimensions() -> None:
 
 def test_validate_addition_rejects_inconsistent_metadata() -> None:
     with pytest.raises(
-        BiltUnitError,
-        match="consistent metadata",
+        BiltDimensionalityError,
+        match="dimensionally inconsistent",
     ):
         validate_addition(
             1.0 * kilogram * Metadata("co2"),

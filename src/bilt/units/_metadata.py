@@ -4,6 +4,7 @@ from bilt.units._errors import BiltMetadataError
 
 from ._quantities import Quantity
 from ._units import Unit, UnitComposition, UnitOrder
+from .dimensions._dimensions import Dimension
 
 
 @typing.final
@@ -32,12 +33,17 @@ class Metadata:
         return self._value
 
     @typing.overload
+    def __rmul__(self, other: Dimension) -> Dimension: ...
+
+    @typing.overload
     def __rmul__(self, other: Unit) -> Unit: ...
 
     @typing.overload
     def __rmul__(self, other: Quantity) -> Quantity: ...
 
-    def __rmul__(self, other: Unit | Quantity) -> Unit | Quantity:
+    def __rmul__(self, other: Dimension | Unit | Quantity) -> Dimension | Unit | Quantity:
+        if isinstance(other, Dimension):
+            return Dimension(tagged={(other, self): 1})
         if isinstance(other, Unit):
             return Unit(UnitComposition(UnitOrder(other, 1)), metadata=self)
         if isinstance(other, Quantity):
