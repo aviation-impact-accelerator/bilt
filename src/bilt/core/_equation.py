@@ -9,7 +9,7 @@ import inspect
 import types
 import typing
 
-from bilt.core._dimensional_analysis import dimensionality_of
+from bilt.core._dimensional_analysis import absoluteness_of, dimensionality_of
 from bilt.core._errors import (
     BiltEquationDimensionalityError,
     BiltEquationReturnError,
@@ -93,6 +93,7 @@ class BasicEquation[R, **P]:
         }
         check_homogeneity(self, dimensionalities)
         _carried_under(name, tree, dimensionalities)
+        absoluteness_of(name, tree, self.__bilt_port_declarations__)
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self._function(*args, **kwargs)
@@ -274,7 +275,7 @@ def _carried_under(
         if tree.head.atom_type is SymbolType:
             return frozenset({typing.cast("str", tree.head.value)}), frozenset()
         if tree.head.atom_type is QuantityType:
-            return frozenset(), frozenset({typing.cast("tuple[float, Dimension]", tree.head.value)[1]})
+            return frozenset(), frozenset({typing.cast("tuple[float, Dimension, bool]", tree.head.value)[1]})
         return frozenset(), frozenset()
 
     under = [_carried_under(equation_name, operand, dimensionalities) for operand in tree.args]

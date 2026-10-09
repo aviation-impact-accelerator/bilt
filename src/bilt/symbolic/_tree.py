@@ -198,8 +198,8 @@ def float_tree(x: float) -> Tree:
     return Tree(floating(x))
 
 
-def quantity_tree(coherent_value: float, dimensionality: Dimension) -> Tree:
-    return Tree(quantity(coherent_value, dimensionality))
+def quantity_tree(coherent_value: float, dimensionality: Dimension, *, absolute: bool) -> Tree:
+    return Tree(quantity(coherent_value, dimensionality, absolute=absolute))
 
 
 def reduction_tree(operator: Atom, value: Tree, dim: Dim) -> Tree:

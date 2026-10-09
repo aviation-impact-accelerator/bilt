@@ -177,8 +177,8 @@ def coordinate(value: Coordinate) -> Atom:
     return Atom(CoordinateType, value)
 
 
-def quantity(coherent_value: float, dimensionality: Dimension) -> Atom:
-    return Atom(QuantityType, (coherent_value, dimensionality))
+def quantity(coherent_value: float, dimensionality: Dimension, *, absolute: bool) -> Atom:
+    return Atom(QuantityType, (coherent_value, dimensionality, absolute))
 
 
 ADD = Atom(OpType, "add")
