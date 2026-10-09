@@ -34,7 +34,6 @@ def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
             if input_value.unit is None:
                 lowered_inputs[input_name] = input_value.values
             else:
-                # One rule for both carriers: `coherent_value` is arithmetic, so it converts every value at once.
                 lowered_inputs[input_name] = BASE_UNIT_SYSTEM.coherent_value(
                     Quantity(cast("float", input_value.values), input_value.unit)
                 )
@@ -73,7 +72,6 @@ def lift_output(
             unit=lifting_plan.output_unit,
         )
     elif lifting_plan.output_unit is not None:
-        # A fully reduced output arrives as a rank-0 array, which a declared port answers as a plain float.
         output_value = Quantity(float(cast("SupportsFloat", output_value)), lifting_plan.output_unit)
 
     return output_value

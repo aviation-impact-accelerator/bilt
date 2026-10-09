@@ -133,7 +133,6 @@ class Tensor:
                 f"Label it with `tensor(..., unit=...)` or by multiplying it by a unit."
             )
             raise BiltUnitError(message)
-        # One rule for both carriers: `Quantity.convert_to` is arithmetic, so it converts every value at once.
         converted = Quantity(typing.cast("float", self.values), self.unit).convert_to(unit)
 
         return dataclasses.replace(self, values=typing.cast("np.ndarray", converted.value), unit=unit)

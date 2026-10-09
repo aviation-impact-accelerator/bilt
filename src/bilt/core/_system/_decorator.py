@@ -5,10 +5,10 @@ import enum
 import inspect
 import typing
 
-from bilt.core._errors import BiltInputDimensionalityError, BiltUnresolvedAnnotationError
+from bilt.core._errors import BiltUnresolvedAnnotationError
 from bilt.core._interface import Interface
 from bilt.core._port_declaration import port_declarations
-from bilt.core._system._errors import BiltSystemDefinitionError
+from bilt.core._system._errors import BiltInputDimensionalityError, BiltSystemDefinitionError
 from bilt.core._tensors._tensors import Tensor
 from bilt.units import Quantity
 from bilt.units._category import UnitCategory
