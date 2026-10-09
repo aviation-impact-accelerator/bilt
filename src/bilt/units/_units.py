@@ -274,12 +274,7 @@ class Unit:
         if key in cls._cache:
             return cls._cache[key]
 
-        if (
-            len(relation) == 1
-            and relation.composition[0].order == 1
-            and metadata is None
-            and (relation.composition[0].unit.relation.scale == relation.scale or relation.scale == 1.0)
-        ):
+        if len(relation) == 1 and relation.composition[0].order == 1 and metadata is None and relation.scale == 1.0:
             return typing.cast("typing.Self", relation.composition[0].unit)
 
         instance = object.__new__(cls)

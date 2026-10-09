@@ -487,6 +487,21 @@ class TestUnit:
 
     @staticmethod
     @pytest.mark.parametrize(
+        ("relation", "expected"),
+        (
+            (UnitComposition(UnitOrder(minute, 1), scale=60.0), hour),
+            (UnitComposition(UnitOrder(gram, 1), scale=1_000.0), kilogram),
+            (UnitComposition(UnitOrder(kilowatthour, 1), scale=0.001), watthour),
+        ),
+    )
+    def test_a_scaled_single_term_relation_keeps_its_scale(relation: UnitComposition, expected: Unit) -> None:
+        unit = Unit(relation)
+
+        assert unit is not relation.composition[0].unit
+        assert unit == expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
         ("unit", "expected"),
         (
             (meter, "meter"),
