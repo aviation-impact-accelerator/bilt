@@ -84,22 +84,41 @@ class BiltInputDimensionalityError(BiltDimensionalityError):
     """Raised when a value given for a port is not the quantity the port declares."""
 
     def __init__(self, system_name: str, port: str, expected: PortDeclaration | None, value: object) -> None:
-        received = (
-            f"{value} of {value.unit.dimension}" if isinstance(value, Quantity) else f"{type(value).__name__} {value!r}"
-        )
+        # Deferred: `core._tensors` reaches this module for its own error's base class, so it cannot be imported here.
+        from bilt.core._tensors._tensors import Tensor  # noqa: PLC0415
+
+        label = ""
+        match value:
+            case Quantity(unit=unit):
+                received = f"{value} of {unit.dimension}"
+            case Tensor(unit=unit) if unit is None:
+                received = f"a Tensor with no unit over {value.domain}"
+                label = " Label it with `tensor(..., unit=...)`."
+            case Tensor(unit=unit):
+                received = f"a Tensor in {unit} over {value.domain}"
+            case _:
+                unit = None
+                received = f"{type(value).__name__} {value!r}"
+
+        carrier = "a Tensor" if expected is not None and expected.over_a_domain else "a Quantity"
         if expected is None:
             msg = (
-                f"Input {port!r} of {system_name!r} is a plain port, outside the unit system, "
-                f"so it rejects a Quantity: got {received}."
+                f"Input {port!r} of {system_name!r} is a plain port, outside the unit system, so it rejects a "
+                f"{'unit-carrying Tensor' if isinstance(value, Tensor) else 'Quantity'}: got {received}."
             )
-        elif isinstance(value, Quantity) and value.unit.dimension == expected.dimensionality:
+        elif expected.over_a_domain and not isinstance(value, Tensor):
             msg = (
-                f"Input {port!r} of {system_name!r} must be a Quantity of {expected} in "
+                f"Input {port!r} of {system_name!r} varies over a domain, so it must be a Tensor of {expected}, "
+                f"not {received}. Annotate it `Quantity` instead if it does not vary over a domain."
+            )
+        elif unit is not None and unit.dimension == expected.dimensionality:
+            msg = (
+                f"Input {port!r} of {system_name!r} must be {carrier} of {expected} in "
                 f"{'an absolute' if expected.absolute else 'a relative'} unit such as {expected.coherent_unit}, "
-                f"not {value}."
+                f"not {received}."
             )
         else:
-            msg = f"Input {port!r} of {system_name!r} must be a Quantity of {expected}, not {received}."
+            msg = f"Input {port!r} of {system_name!r} must be {carrier} of {expected}, not {received}.{label}"
         super().__init__(msg)
 
 
