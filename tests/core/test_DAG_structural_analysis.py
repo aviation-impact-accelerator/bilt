@@ -9,12 +9,7 @@ from bilt.core._equation import equation
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis import StructuralAnalyser
-from bilt.core._structural_analysis._causalization_block_solver._backend import (
-    CausalizationStructuralAnalyzer,
-)
-from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._sub_system import SubSystemConstituent
-from bilt.core._system import _implementation as implementation_module
 from bilt.errors import BiltAnalysisError, BiltIsolationError, BiltUnsupportedNodeError
 from bilt.symbolic._domains import Domain
 
@@ -26,11 +21,16 @@ if typing.TYPE_CHECKING:
     from bilt._backend._case import BackendCase
     from bilt.core._model_constituent import BiltModelConstituent
 
-
 type AnalyserFactory = typing.Callable[
     [typing.Collection[BiltModelConstituent], Backend],
     StructuralAnalyser,
 ]
+
+
+@pytest.fixture(autouse=True)
+def _select_structural_analyser(analyser_factory: object) -> None:
+    """Select the analyser before constructing test implementations."""
+    _ = analyser_factory
 
 
 @typing.runtime_checkable
@@ -39,27 +39,6 @@ class _RuntimeStructuralAnalyser(StructuralAnalyser, typing.Protocol):
 
 
 SCALAR_DOMAIN = Domain.scalar()
-
-
-@pytest.fixture(
-    params=(ExhaustiveStructuralAnalyser, CausalizationStructuralAnalyzer),
-    ids=("exhaustive", "causalization"),
-)
-def analyser_factory(
-    request: pytest.FixtureRequest,
-    monkeypatch: pytest.MonkeyPatch,
-) -> AnalyserFactory:
-    factory = typing.cast("AnalyserFactory", request.param)
-
-    # Implementation resolves this constructor when creating an analyser.
-    # Patch it before constructing implementations so children use the
-    # selected analyser too, while retaining normal per-backend caching.
-    monkeypatch.setattr(
-        implementation_module,
-        "ExhaustiveStructuralAnalyser",
-        factory,
-    )
-    return factory
 
 
 def _analyse_scalar(
@@ -203,7 +182,6 @@ def test_a_refused_step_is_only_attempted_once_across_queries(
     assert attempts == ["b"]
 
 
-@pytest.mark.usefixtures("analyser_factory")
 def test_a_step_refused_by_one_backend_remains_available_to_another(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -438,7 +416,6 @@ def _rig_over_sensor() -> Implementation:
     )
 
 
-@pytest.mark.usefixtures("analyser_factory")
 def test_parent_evaluation_succeeds_when_one_child_route_is_refused(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -456,7 +433,6 @@ def test_parent_evaluation_succeeds_when_one_child_route_is_refused(
     assert result.callable(raw=1.0, calibration=3.0) == expected_answer
 
 
-@pytest.mark.usefixtures("analyser_factory")
 def test_subsystem_retry_terminates_when_the_backend_refuses_everything(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
