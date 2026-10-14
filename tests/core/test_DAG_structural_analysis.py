@@ -9,6 +9,12 @@ from bilt.core._equation import equation
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis import StructuralAnalyser
+from bilt.core._structural_analysis._causalization_block_solver._backend import (
+    CausalizationStructuralAnalyzer,
+)
+from bilt.core._structural_analysis._causalization_block_solver._errors import (
+    BiltOverconstrainedError,
+)
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.errors import BiltAnalysisError, BiltIsolationError, BiltUnsupportedNodeError
 from bilt.symbolic._domains import Domain
@@ -124,6 +130,12 @@ def test_analyser_finds_a_realisable_route_across_repeated_queries(
 
     expected_x = 5.0
     analyser = analyser_factory([square, linear], PYTHON_BACKEND)
+
+    if isinstance(analyser, CausalizationStructuralAnalyzer):
+        for _ in range(2):
+            with pytest.raises(BiltOverconstrainedError):
+                _analyse_scalar(analyser, {"z", "w"}, "x")
+        return
 
     for _ in range(2):
         case = PYTHON_BACKEND.chain_case(

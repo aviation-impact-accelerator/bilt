@@ -11,6 +11,10 @@ from bilt.core._structural_analysis._causalization_block_solver._blocks import (
 from bilt.core._structural_analysis._causalization_block_solver._dependency_graph import (
     build_dependency_graph,
 )
+from bilt.core._structural_analysis._causalization_block_solver._errors import (
+    BiltOverconstrainedError,
+    BiltUnderconstrainedError,
+)
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import (
     FullIncidenceGraph,
 )
@@ -20,6 +24,9 @@ from bilt.core._structural_analysis._causalization_block_solver._matching import
 )
 from bilt.core._structural_analysis._causalization_block_solver._settle_assignments import (
     settle_assignments,
+)
+from bilt.core._structural_analysis._causalization_block_solver._structural_validation import (
+    validate_request_structure,
 )
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 from bilt.core._structural_analysis._realize import (
@@ -51,6 +58,12 @@ class CausalizationStructuralAnalyzer:
     def analyse(self, request: EvaluationRequest) -> BackendCase:
         """Find and realise a plan, retrying unsuccessful assignments."""
         available = set(request.input_domains)
+        validate_request_structure(
+            self.full_incidence_graph,
+            available,
+            request.output,
+            self.backend,
+        )
         graph = build_matching_graph(self.full_incidence_graph, available)
         last_error: Exception | None = None
 
@@ -95,11 +108,13 @@ class CausalizationStructuralAnalyzer:
                 break
 
         msg = f"Cannot compute {request.output} from available inputs {available}."
+        if isinstance(last_error, (BiltUnderconstrainedError, BiltOverconstrainedError)):
+            raise last_error
         if last_error is not None:
             msg = f"{msg} The last route tried was rejected with: {type(last_error).__name__}: {last_error}"
             raise BiltAnalysisError(msg) from last_error
 
-        raise BiltAnalysisError(msg)
+        raise BiltUnderconstrainedError(msg)
 
     def required_inputs_for_target(
         self,
