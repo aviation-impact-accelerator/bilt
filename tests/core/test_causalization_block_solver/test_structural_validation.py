@@ -1,13 +1,12 @@
 import pytest
-import typing
+import rustworkx as rx
 
-from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_structure
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltOverconstrainedError,
     BiltUnderconstrainedError,
 )
+from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_structure
 
-import rustworkx as rx
 
 def test_well_constrained_problem_preserves_graph() -> None:
     graph = rx.PyGraph(multigraph=False)
@@ -55,7 +54,7 @@ def test_underconstrained_problem_reports_attributes() -> None:
     assert "y" in str(raised.value)
 
 
-@pytest.mark.parametrize("include_underconstrained_region", [False, True])
+@pytest.mark.parametrize("include_underconstrained_region", (False, True))
 def test_competing_constraints_are_rejected(
     include_underconstrained_region: bool,
 ) -> None:
