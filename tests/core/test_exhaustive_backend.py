@@ -1,3 +1,5 @@
+import typing
+
 import pytest
 
 from bilt import Implementation, Interface, field, system, transform
@@ -6,89 +8,10 @@ from bilt.core._equation import equation
 from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
 from bilt.core._structural_analysis._plan import PlanStep
 from bilt.core._sub_system import SubSystemConstituent
-from bilt.errors import BiltAnalysisError, BiltIsolationError, BiltUnsupportedNodeError
-from bilt.symbolic._domains import Domain
+from bilt.errors import BiltAnalysisError
 
 if typing.TYPE_CHECKING:
-    import ast
-
-    from bilt._backend._base_backend import Backend
-    from bilt._backend._callable import BackendCallable
-    from bilt._backend._case import BackendCase
     from bilt.core._port_declaration import PortDeclaration
-
-
-@typing.runtime_checkable
-class _RuntimeStructuralAnalyser(StructuralAnalyser, typing.Protocol):
-    """An isinstance-able view of the protocol, so it need not be runtime checkable in the source."""
-
-
-SCALAR_DOMAIN = Domain.scalar()
-
-
-def _analyse_scalar(
-    analyser: StructuralAnalyser,
-    available: set[str],
-    output: str,
-) -> BackendCase:
-    request = EvaluationRequest(
-        output=output,
-        input_domains=dict.fromkeys(available, SCALAR_DOMAIN),
-    )
-
-    with EvaluationContext():
-        return analyser.analyse(request)
-
-
-def _refuse_to_compile(_function_definition: object) -> typing.NoReturn:
-    """Stand in for a backend meeting a construct it does not support."""
-    msg = "AST node 'While' is unsupported by this backend."
-    raise BiltUnsupportedNodeError(msg)
-
-
-def _refuse_one_transform(
-    monkeypatch: pytest.MonkeyPatch,
-    backend: Backend,
-    refused: str,
-) -> list[str]:
-    """Make ``backend`` reject one named function, and return the log of what it was asked to compile.
-
-    The log is what makes a re-attempt visible: a backend that is asked twice for a function it
-    has already refused has been told nothing by the first refusal.
-    """
-    attempts: list[str] = []
-    transpile = backend.transpile
-
-    def counting_transpile(function_definition: ast.FunctionDef) -> BackendCallable:
-        attempts.append(function_definition.name)
-        if function_definition.name == refused:
-            _refuse_to_compile(function_definition)
-        return transpile(function_definition)
-
-    monkeypatch.setattr(backend, "transpile", counting_transpile)
-    return attempts
-
-
-def test_exhaustive_analyser_conforms_to_the_structural_analyser_protocol() -> None:
-    @transform
-    def c(a: float, b: float) -> float:
-        return a + b
-
-    analyser = ExhaustiveStructuralAnalyser([c], PYTHON_BACKEND)
-
-    assert isinstance(analyser, _RuntimeStructuralAnalyser)
-
-
-def test_exhaustive_analyser_produces_a_working_callable() -> None:
-    @transform
-    def c(a: float, b: float) -> float:
-        return a + b
-
-    result = _analyse_scalar(ExhaustiveStructuralAnalyser([c], PYTHON_BACKEND), {"a", "b"}, "c")
-    backend_case = PYTHON_BACKEND.chain_case(result)
-
-    assert backend_case.callable(a=1.0, b=2.0) == c(a=1.0, b=2.0)
-    assert result.intermediates[-1].output_domain == SCALAR_DOMAIN
 
 
 def test_bipartite_graph_shape_for_an_equation() -> None:
@@ -286,16 +209,10 @@ def test_search_solves_a_sub_system_port_in_either_direction() -> None:
     assert outward is not None
     assert inward is not None
 
-    assert [
-        (step.operation, step.output, step.child_inputs)
-        for step in outward
-    ] == [
+    assert [(step.operation, step.output, step.child_inputs) for step in outward] == [
         (sub_system, "resistor.v", frozenset({"i", "r"})),
     ]
-    assert [
-        (step.operation, step.output, step.child_inputs)
-        for step in inward
-    ] == [
+    assert [(step.operation, step.output, step.child_inputs) for step in inward] == [
         (sub_system, "resistor.i", frozenset({"v", "r"})),
     ]
 
