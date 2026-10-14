@@ -16,6 +16,12 @@ if TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
 
 
+@pytest.fixture(autouse=True)
+def _select_structural_analyser(analyser_factory: object) -> None:
+    """Select the analyser before constructing test implementations."""
+    _ = analyser_factory
+
+
 @pytest.mark.parametrize(
     ("method_name", "expected"),
     (
