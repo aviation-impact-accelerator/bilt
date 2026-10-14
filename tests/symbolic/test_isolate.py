@@ -7,15 +7,15 @@ from bilt.errors import (
     BiltTargetOnBothSidesError,
     BiltUnsupportedIsolationError,
 )
-from bilt.symbolic._dimensions import Dim
-from bilt.symbolic._expressions import Expr, tensor_symbol_expr
-from bilt.symbolic._isolation._expr_ops import (
+from bilt.symbolic._algebra._expr_ops import (
     make_add,
     make_inv,
     make_mul,
     make_neg,
     same_tree,
 )
+from bilt.symbolic._dimensions import Dim
+from bilt.symbolic._expressions import Expr, tensor_symbol_expr
 from bilt.symbolic._isolation._isolate import isolate
 
 if typing.TYPE_CHECKING:
