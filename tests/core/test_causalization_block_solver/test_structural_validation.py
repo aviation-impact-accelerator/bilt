@@ -7,8 +7,7 @@ from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltUnderconstrainedError,
 )
 
-if typing.TYPE_CHECKING:
-    import rustworkx as rx
+import rustworkx as rx
 
 def test_well_constrained_problem_preserves_graph() -> None:
     graph = rx.PyGraph(multigraph=False)
