@@ -120,6 +120,7 @@ def test_analyser_produces_a_working_callable(
     def c(a: float, b: float) -> float:
         return a + b
 
+    expected_c = 3.0
     result = _analyse_scalar(
         analyser_factory([c], PYTHON_BACKEND),
         {"a", "b"},
@@ -127,7 +128,7 @@ def test_analyser_produces_a_working_callable(
     )
     backend_case = PYTHON_BACKEND.chain_case(result)
 
-    assert backend_case.callable(a=1.0, b=2.0) == 3.0
+    assert backend_case.callable(a=1.0, b=2.0) == expected_c
     assert result.intermediates[-1].output_domain == SCALAR_DOMAIN
 
 
@@ -142,13 +143,14 @@ def test_analyser_finds_a_realisable_route_across_repeated_queries(
     def linear(x: float, w: float) -> bool:
         return x == w + 1.0
 
+    expected_x = 5.0
     analyser = analyser_factory([square, linear], PYTHON_BACKEND)
 
     for _ in range(2):
         case = PYTHON_BACKEND.chain_case(
             _analyse_scalar(analyser, {"z", "w"}, "x"),
         )
-        assert case.callable(w=4.0, z=25.0) == 5.0
+        assert case.callable(w=4.0, z=25.0) == expected_x
 
 
 def test_analyser_failure_leaves_other_equation_directions_usable(
@@ -162,6 +164,7 @@ def test_analyser_failure_leaves_other_equation_directions_usable(
     def offset(z: float, y: float) -> bool:
         return z == y + 1.0
 
+    expected_z = 5.0
     analyser = analyser_factory([square, offset], PYTHON_BACKEND)
 
     with pytest.raises(BiltAnalysisError, match="Cannot compute x"):
@@ -171,7 +174,7 @@ def test_analyser_failure_leaves_other_equation_directions_usable(
         _analyse_scalar(analyser, {"y"}, "z"),
     )
 
-    assert case.callable(y=4.0) == 5.0
+    assert case.callable(y=4.0) == expected_z
 
 
 def test_a_refused_step_is_only_attempted_once_across_queries(
@@ -213,6 +216,7 @@ def test_a_step_refused_by_one_backend_remains_available_to_another(
     def c(a: float) -> float:
         return a * 2.0
 
+    expected_c = 4.0
     implementation = Implementation(Doubler, [c])
     request = EvaluationRequest(
         output="c",
@@ -226,7 +230,7 @@ def test_a_step_refused_by_one_backend_remains_available_to_another(
 
         surviving = implementation.get_evaluation(request, JAX_BACKEND)
 
-    assert surviving.callable(a=2.0) == 4.0
+    assert surviving.callable(a=2.0) == expected_c
 
 
 def test_exhausted_search_reports_the_backend_failure(
@@ -281,6 +285,8 @@ def _resistor_sub_system() -> SubSystemConstituent:
 def test_analyser_solves_a_subsystem_in_either_direction(
     analyser_factory: AnalyserFactory,
 ) -> None:
+    expected_voltage = 6.0
+    expected_current = 2.0
     analyser = analyser_factory(
         [_resistor_sub_system()],
         PYTHON_BACKEND,
@@ -301,8 +307,8 @@ def test_analyser_solves_a_subsystem_in_either_direction(
         ),
     )
 
-    assert outward.callable(resistor__i=2.0, resistor__r=3.0) == 6.0
-    assert inward.callable(resistor__v=6.0, resistor__r=3.0) == 2.0
+    assert outward.callable(resistor__i=2.0, resistor__r=3.0) == expected_voltage
+    assert inward.callable(resistor__v=6.0, resistor__r=3.0) == expected_current
 
 
 def test_required_inputs_reports_consumed_inputs(
@@ -319,7 +325,8 @@ def test_required_inputs_reports_consumed_inputs(
     analyser = analyser_factory([b, c], PYTHON_BACKEND)
 
     assert analyser.required_inputs_for_target(
-        {"a"}, "c",
+        {"a"},
+        "c",
     ) == frozenset({"a"})
 
 
@@ -344,9 +351,13 @@ def test_required_inputs_is_none_for_an_unknown_output(
 
     analyser = analyser_factory([c], PYTHON_BACKEND)
 
-    assert analyser.required_inputs_for_target(
-        {"a", "b"}, "absent",
-    ) is None
+    assert (
+        analyser.required_inputs_for_target(
+            {"a", "b"},
+            "absent",
+        )
+        is None
+    )
 
 
 def test_required_inputs_ignores_unused_inputs(
@@ -359,7 +370,8 @@ def test_required_inputs_ignores_unused_inputs(
     analyser = analyser_factory([c], PYTHON_BACKEND)
 
     assert analyser.required_inputs_for_target(
-        {"a", "unused", "spare"}, "c",
+        {"a", "unused", "spare"},
+        "c",
     ) == frozenset({"a"})
 
 
@@ -430,6 +442,7 @@ def _rig_over_sensor() -> Implementation:
 def test_parent_evaluation_succeeds_when_one_child_route_is_refused(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    expected_answer = 4.0
     rig = _rig_over_sensor()
     _refuse_one_transform(monkeypatch, PYTHON_BACKEND, "scaled")
 
@@ -438,10 +451,9 @@ def test_parent_evaluation_succeeds_when_one_child_route_is_refused(
         {"raw", "calibration"},
         "answer",
     )
-
     result = PYTHON_BACKEND.chain_case(case)
 
-    assert result.callable(raw=1.0, calibration=3.0) == 4.0
+    assert result.callable(raw=1.0, calibration=3.0) == expected_answer
 
 
 @pytest.mark.usefixtures("analyser_factory")

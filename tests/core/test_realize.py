@@ -221,12 +221,17 @@ def test_realize_plan_mangles_subsystem_parameters() -> None:
 
     case = _realize_scalar_plan(plan)
 
+    result = 6.0
+
     assert not isinstance(case, RealizationFailure)
     assert case.name == "resistor__v"
     assert case.parameters == ("resistor__i", "resistor__r")
     assert case.intermediates[0].name == "resistor__v"
     assert case.intermediates[0].parameters == ("resistor__i", "resistor__r")
     assert case.intermediates[0].output_domain == SCALAR_DOMAIN
-    assert case.intermediates[0].evaluate(
-        {"resistor__i": 2.0, "resistor__r": 3.0},
-    ) == 6.0
+    assert (
+        case.intermediates[0].evaluate(
+            {"resistor__i": 2.0, "resistor__r": 3.0},
+        )
+        == result
+    )

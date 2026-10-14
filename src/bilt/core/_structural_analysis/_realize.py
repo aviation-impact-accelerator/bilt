@@ -222,6 +222,32 @@ def _sub_system_to_callable(
             cause=error,
         )
 
+    parent_to_child = {mangle_name(sub_system.qualify(port)): mangle_name(port) for port in child_input_domains}
+
+    def evaluate_child(*args: object, **kwargs: object) -> object:
+        return child_callable.callable(
+            *args,
+            **{parent_to_child[name]: value for name, value in kwargs.items()},
+        )
+
+    return BackendCallable(
+        name=mangle_name(plan_step.output),
+        parameters=tuple(mangle_name(port) for port in plan_step.consumed),
+        callable=evaluate_child,
+        output_domain=child_callable.output_domain,
+    )
+
+    try:
+        child_callable = sub_system.implementation.get_evaluation(
+            child_request,
+            backend,
+        )
+    except BiltAnalysisError as error:
+        return RealizationFailure(
+            failed_plan_step=plan_step,
+            cause=error,
+        )
+
     return BackendCallable(
         name=mangle_name(plan_step.output),
         parameters=tuple(mangle_name(port) for port in plan_step.consumed),

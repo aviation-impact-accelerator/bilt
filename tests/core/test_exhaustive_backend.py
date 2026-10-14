@@ -203,16 +203,10 @@ def test_search_solves_a_sub_system_port_in_either_direction() -> None:
     assert outward is not None
     assert inward is not None
 
-    assert [
-        (step.operation, step.output, step.child_inputs)
-        for step in outward
-    ] == [
+    assert [(step.operation, step.output, step.child_inputs) for step in outward] == [
         (sub_system, "resistor.v", frozenset({"i", "r"})),
     ]
-    assert [
-        (step.operation, step.output, step.child_inputs)
-        for step in inward
-    ] == [
+    assert [(step.operation, step.output, step.child_inputs) for step in inward] == [
         (sub_system, "resistor.i", frozenset({"v", "r"})),
     ]
 
