@@ -1,12 +1,13 @@
 import pytest
 
-from bilt import Interface, field, system
+from bilt import Implementation, Interface, field, system
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan
+from bilt.core._sub_system import SubSystemConstituent
 from bilt.symbolic._domains import Domain
 
 SUPPLY_VOLTAGE = 3.0
@@ -189,3 +190,43 @@ def test_realize_plan_accepts_a_transform_decorated_through_an_alias() -> None:
     assert not isinstance(case, RealizationFailure)
     assert case.intermediates[0].evaluate({"a": SUPPLY_VOLTAGE}) == 2 * SUPPLY_VOLTAGE
     assert case.intermediates[0].output_domain == SCALAR_DOMAIN
+
+
+def test_realize_plan_mangles_subsystem_parameters() -> None:
+    @system
+    class ChildResistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+
+    @equation
+    def ohms_law(v: float, i: float, r: float) -> bool:
+        return v == i * r
+
+    sub_system = SubSystemConstituent(
+        name="resistor",
+        implementation=Implementation(ChildResistor, [ohms_law]),
+    )
+    plan = _scalar_plan(
+        inputs=frozenset({"resistor.i", "resistor.r"}),
+        output="resistor.v",
+        steps=(
+            PlanStep(
+                operation=sub_system,
+                output="resistor.v",
+                child_inputs=frozenset({"i", "r"}),
+            ),
+        ),
+    )
+
+    case = _realize_scalar_plan(plan)
+
+    assert not isinstance(case, RealizationFailure)
+    assert case.name == "resistor__v"
+    assert case.parameters == ("resistor__i", "resistor__r")
+    assert case.intermediates[0].name == "resistor__v"
+    assert case.intermediates[0].parameters == ("resistor__i", "resistor__r")
+    assert case.intermediates[0].output_domain == SCALAR_DOMAIN
+    assert case.intermediates[0].evaluate(
+        {"resistor__i": 2.0, "resistor__r": 3.0},
+    ) == 6.0
