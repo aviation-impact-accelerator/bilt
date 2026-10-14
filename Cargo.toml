@@ -3,3 +3,9 @@ members = [
     "rust/bilt_native",
 ]
 resolver = "2"
+
+[profile.dev]
+strip = "none"
+
+[profile.release]
+strip = "none"

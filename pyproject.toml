@@ -102,3 +102,4 @@ manifest-path = "rust/bilt_native/Cargo.toml"
 module-name = "bilt._native"
 python-source = "src"
 bindings = "pyo3"
+strip = false
