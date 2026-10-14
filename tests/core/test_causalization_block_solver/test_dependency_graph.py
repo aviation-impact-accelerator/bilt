@@ -36,24 +36,27 @@ def y(x: float) -> float:
 
 
 def test_dependency_graph_connects_producer_to_consumer() -> None:
-    graph, unresolved = build_dependency_graph(
-        {"c": addition, "d": d},
-        {"a", "b"},
-    )
-
-    assert set(graph.nodes()) == {
+    steps = (
         PlanStep(operation=addition, output="c"),
         PlanStep(operation=d, output="d"),
-    }
+    )
+
+    graph, unresolved = build_dependency_graph(steps, {"a", "b"})
+
+    assert set(graph.nodes()) == set(steps)
     assert {(graph[source].output, graph[target].output) for source, target in graph.edge_list()} == {("c", "d")}
     assert unresolved == {}
 
 
 def test_dependency_graph_handles_branching_and_joining() -> None:
-    graph, unresolved = build_dependency_graph(
-        {"c": addition, "d": d, "e": e, "f": f},
-        {"a", "b"},
+    steps = (
+        PlanStep(operation=addition, output="c"),
+        PlanStep(operation=d, output="d"),
+        PlanStep(operation=e, output="e"),
+        PlanStep(operation=f, output="f"),
     )
+
+    graph, unresolved = build_dependency_graph(steps, {"a", "b"})
 
     assert {(graph[source].output, graph[target].output) for source, target in graph.edge_list()} == {
         ("c", "d"),
@@ -65,34 +68,35 @@ def test_dependency_graph_handles_branching_and_joining() -> None:
 
 
 def test_dependency_graph_keeps_independent_computations() -> None:
-    graph, unresolved = build_dependency_graph(
-        {"d": d, "e": e},
-        {"c"},
+    steps = (
+        PlanStep(operation=d, output="d"),
+        PlanStep(operation=e, output="e"),
     )
 
-    assert {step.output for step in graph.nodes()} == {"d", "e"}
+    graph, unresolved = build_dependency_graph(steps, {"c"})
+
+    assert set(graph.nodes()) == set(steps)
     assert graph.num_edges() == 0
     assert unresolved == {}
 
 
 def test_dependency_graph_uses_selected_equation_output() -> None:
-    graph, unresolved = build_dependency_graph(
-        {"b": addition},
-        {"a", "c"},
-    )
+    step = PlanStep(operation=addition, output="b")
 
-    assert list(graph.nodes()) == [
-        PlanStep(operation=addition, output="b"),
-    ]
+    graph, unresolved = build_dependency_graph((step,), {"a", "c"})
+
+    assert list(graph.nodes()) == [step]
     assert graph.num_edges() == 0
     assert unresolved == {}
 
 
 def test_dependency_graph_preserves_cycles() -> None:
-    graph, unresolved = build_dependency_graph(
-        {"x": x, "y": y},
-        set(),
+    steps = (
+        PlanStep(operation=x, output="x"),
+        PlanStep(operation=y, output="y"),
     )
+
+    graph, unresolved = build_dependency_graph(steps, set())
 
     assert {(graph[source].output, graph[target].output) for source, target in graph.edge_list()} == {
         ("x", "y"),
@@ -102,17 +106,19 @@ def test_dependency_graph_preserves_cycles() -> None:
 
 
 def test_dependency_graph_reports_unresolved_inputs() -> None:
-    graph, unresolved = build_dependency_graph(
-        {"c": addition, "d": d},
-        {"a"},
+    steps = (
+        PlanStep(operation=addition, output="c"),
+        PlanStep(operation=d, output="d"),
     )
+
+    graph, unresolved = build_dependency_graph(steps, {"a"})
 
     assert {(graph[source].output, graph[target].output) for source, target in graph.edge_list()} == {("c", "d")}
     assert unresolved == {"c": {"b"}}
 
 
 def test_empty_assignment_has_no_dependencies() -> None:
-    graph, unresolved = build_dependency_graph({}, set())
+    graph, unresolved = build_dependency_graph((), set())
 
     assert graph.num_nodes() == 0
     assert graph.num_edges() == 0
