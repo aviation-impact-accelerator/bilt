@@ -1,17 +1,40 @@
-__all__ = ["build_matching_graph"]
+__all__ = ["build_matching_graph", "find_matching"]
 
 import typing
+
+import rustworkx as rx
 
 from bilt.core._transform import BasicTransform
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    import rustworkx as rx
-
+    from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import (
         FullIncidenceGraph,
     )
+
+
+def find_matching(graph: rx.PyGraph) -> dict[str, BiltModelConstituent]:
+    """Assign as many unknown attributes as possible to distinct constituents.
+
+    Returns a candidate assignment, which may be incomplete and still
+    requires dependency and realisation checks.
+    """
+    matching = rx.max_weight_matching(graph, max_cardinality=True)
+
+    assignments: dict[str, BiltModelConstituent] = {}
+    for first, second in matching:
+        if isinstance(graph[first], str):
+            attribute_node, constituent_node = first, second
+        else:
+            constituent_node, attribute_node = first, second
+
+        attribute = typing.cast("str", graph[attribute_node])
+        constituent = typing.cast("BiltModelConstituent", graph[constituent_node])
+        assignments[attribute] = constituent
+
+    return assignments
 
 
 def build_matching_graph(
