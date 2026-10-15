@@ -428,15 +428,21 @@ def _rig_over_sensor() -> Implementation:
     )
 
 
-def test_parent_evaluation_succeeds_when_one_child_route_is_refused(
+def test_parent_child_alternatives_follow_the_structural_constraint_policy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     expected_answer = 4.0
     rig = _rig_over_sensor()
-    _refuse_one_transform(monkeypatch, PYTHON_BACKEND, "scaled")
+    attempts = _refuse_one_transform(monkeypatch, PYTHON_BACKEND, "scaled")
+    analyser = rig.analyser_for(PYTHON_BACKEND)
+    if isinstance(analyser, CausalizationStructuralAnalyzer):
+        with pytest.raises(BiltOverconstrainedError, match=r"sensor\.calibrated"):
+            _analyse_scalar(analyser, {"raw", "calibration"}, "answer")
+        assert attempts == []
+        return
 
     case = _analyse_scalar(
-        rig.analyser_for(PYTHON_BACKEND),
+        analyser,
         {"raw", "calibration"},
         "answer",
     )
@@ -448,12 +454,10 @@ def test_parent_evaluation_succeeds_when_one_child_route_is_refused(
 def test_subsystem_retry_terminates_when_the_backend_refuses_everything(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Supply only raw: calibration is now another unknown constrained by the
+    # child, rather than a competing independently prescribed boundary value.
     rig = _rig_over_sensor()
     monkeypatch.setattr(PYTHON_BACKEND, "transpile", _refuse_to_compile)
 
     with pytest.raises(BiltAnalysisError, match="Cannot compute answer"):
-        _analyse_scalar(
-            rig.analyser_for(PYTHON_BACKEND),
-            {"raw", "calibration"},
-            "answer",
-        )
+        _analyse_scalar(rig.analyser_for(PYTHON_BACKEND), {"raw"}, "answer")

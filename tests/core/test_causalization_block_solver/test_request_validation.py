@@ -29,16 +29,16 @@ def test_scope_stops_at_supplied_inputs() -> None:
     def unrelated(a: float, missing: float) -> float:
         return a + missing
 
-    validate_request_structure(FullIncidenceGraph([x, unrelated]), {"a"}, "x", PYTHON_BACKEND)
+    validate_request_structure(FullIncidenceGraph([x, unrelated]), {"a"}, "x")
 
 
 def test_supplied_output_needs_no_validation() -> None:
-    validate_request_structure(FullIncidenceGraph([]), {"x"}, "x", PYTHON_BACKEND)
+    validate_request_structure(FullIncidenceGraph([]), {"x"}, "x")
 
 
 def test_unknown_output_is_underconstrained() -> None:
     with pytest.raises(BiltUnderconstrainedError, match="x"):
-        validate_request_structure(FullIncidenceGraph([]), set(), "x", PYTHON_BACKEND)
+        validate_request_structure(FullIncidenceGraph([]), set(), "x")
 
 
 def test_missing_transform_input_is_underconstrained() -> None:
@@ -47,7 +47,7 @@ def test_missing_transform_input_is_underconstrained() -> None:
         return 2 * y
 
     with pytest.raises(BiltUnderconstrainedError, match="x"):
-        validate_request_structure(FullIncidenceGraph([x]), set(), "x", PYTHON_BACKEND)
+        validate_request_structure(FullIncidenceGraph([x]), set(), "x")
 
 
 def test_transform_cannot_be_used_backwards_to_supply_an_input() -> None:
@@ -56,7 +56,7 @@ def test_transform_cannot_be_used_backwards_to_supply_an_input() -> None:
         return 2 * x
 
     with pytest.raises(BiltUnderconstrainedError, match="x"):
-        validate_request_structure(FullIncidenceGraph([y]), {"y"}, "x", PYTHON_BACKEND)
+        validate_request_structure(FullIncidenceGraph([y]), {"y"}, "x")
 
 
 def test_equivalent_competing_equations_are_rejected() -> None:
@@ -69,7 +69,7 @@ def test_equivalent_competing_equations_are_rejected() -> None:
         return x == a + a
 
     with pytest.raises(BiltOverconstrainedError):
-        validate_request_structure(FullIncidenceGraph([first, second]), {"a"}, "x", PYTHON_BACKEND)
+        validate_request_structure(FullIncidenceGraph([first, second]), {"a"}, "x")
 
 
 def test_equation_and_transform_competing_for_output_are_rejected() -> None:
@@ -82,7 +82,7 @@ def test_equation_and_transform_competing_for_output_are_rejected() -> None:
         return x == a + 1
 
     with pytest.raises(BiltOverconstrainedError):
-        validate_request_structure(FullIncidenceGraph([x, other]), {"a"}, "x", PYTHON_BACKEND)
+        validate_request_structure(FullIncidenceGraph([x, other]), {"a"}, "x")
 
 
 def test_determined_target_is_allowed_with_an_underdetermined_branch() -> None:
@@ -94,7 +94,7 @@ def test_determined_target_is_allowed_with_an_underdetermined_branch() -> None:
     def branch(y: float, x: float, z: float) -> bool:
         return y == x + z
 
-    validate_request_structure(FullIncidenceGraph([target, branch]), {"a"}, "x", PYTHON_BACKEND)
+    validate_request_structure(FullIncidenceGraph([target, branch]), {"a"}, "x")
 
 
 def test_analyser_rejects_overconstraint_before_trying_isolation() -> None:
