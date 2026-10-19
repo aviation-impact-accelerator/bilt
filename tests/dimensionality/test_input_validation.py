@@ -188,6 +188,7 @@ def test_a_quantity_of_the_wrong_dimensionality_at_a_port_only_a_constituent_rea
     assert str(VOLTAGE) in message
     assert str(LENGTH) in message
 
+
 def test_direct_evaluate_rejects_wrong_input_dimension() -> None:
     model = Implementation(Resistor, [ohms_law])
 
