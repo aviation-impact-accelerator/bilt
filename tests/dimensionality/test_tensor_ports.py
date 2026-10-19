@@ -312,3 +312,40 @@ def test_a_dimensionality_differing_under_one_port_name_is_still_a_conflict() ->
 
     with pytest.raises(BiltImplementationDimensionalityError, match="'doubled'"):
         Implementation(Rig, [doubling])
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
+def test_rank_zero_tensor_outputs_can_be_reused(backend: Backend) -> None:
+    @system
+    class Chain(metaclass=Interface):
+        x: MassOverADomain = field()
+        y: MassOverADomain = field()
+        z: MassOverADomain = field()
+
+    @equation
+    def twice(y: Mass, x: Mass) -> bool:
+        return y == x * 2.0
+
+    @equation
+    def thrice(z: Mass, y: Mass) -> bool:
+        return z == y * 3.0
+
+    with backend, Implementation(Chain, [twice, thrice]):
+        direct = Chain(x=tensor(1.0, unit=kilogram)).z
+
+        staged = Chain(x=tensor(1.0, unit=kilogram))
+        intermediate = staged.y
+        sequential = staged.z
+
+    assert isinstance(intermediate, Tensor)
+    assert isinstance(direct, Tensor)
+    assert isinstance(sequential, Tensor)
+    assert intermediate.domain.is_scalar
+    assert direct.domain.is_scalar
+    assert sequential.domain.is_scalar
+    assert intermediate.unit is kilogram
+    assert sequential.unit is kilogram
+
+    np.testing.assert_allclose(intermediate.values, 2.0)
+    np.testing.assert_allclose(direct.values, 6.0)
+    np.testing.assert_allclose(sequential.values, direct.values)
