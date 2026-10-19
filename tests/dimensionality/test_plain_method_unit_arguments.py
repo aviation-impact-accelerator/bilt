@@ -1,11 +1,15 @@
 """Plain Python methods receive their original unit arguments after compilation."""
 
+import typing
 from types import SimpleNamespace
 
 import pytest
 
 from bilt import PYTHON_BACKEND, Implementation, Interface, field, system, transform
 from bilt.units import Unit, kilometer, meter
+
+if typing.TYPE_CHECKING:
+    import pytest
 
 
 @system
@@ -66,7 +70,9 @@ def test_captured_units_are_local_to_each_compiled_transform() -> None:
     second_result = second.evaluate(inputs, "extracted", PYTHON_BACKEND)
     repeated_result = first.evaluate(inputs, "extracted", PYTHON_BACKEND)
 
-    assert len(received) == 3
+    expected_length = 3
+
+    assert len(received) == expected_length
     assert received[0] is meter
     assert received[1] is kilometer
     assert received[2] is meter
