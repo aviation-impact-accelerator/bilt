@@ -15,6 +15,7 @@ The user guide introduces the main Bilt concepts:
 - [Dimensions, domains and tensors](guide/dimensions-domains-and-tensors.md)
 - [Systems of systems](guide/systems-of-systems.md)
 - [Backends](guide/backends.md)
+- [Units](guide/units.md)
 
 ## Worked examples
 
