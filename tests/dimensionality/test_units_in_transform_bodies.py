@@ -1,6 +1,7 @@
 """A transform's body means in Bilt what it means in Python on quantities, whatever unit each quantity arrived in."""
 
 import typing
+from types import SimpleNamespace
 
 import pytest
 
@@ -311,3 +312,17 @@ def test_compiled_transform_executes_runtime_calls_on_each_evaluation(
     assert readings == [1.0, 2.0]
     assert first == 1001.0 * meter
     assert second == 1002.0 * meter
+
+
+def test_unit_erasure_preserves_value_on_a_plain_local_alias() -> None:
+    @transform
+    def extracted(record: SimpleNamespace) -> float:
+        local = record
+        return local.value
+
+    result = extracted(SimpleNamespace(value=3.0))
+
+    expected = 3.0
+    result = extracted(SimpleNamespace(value=expected))
+
+    assert result == expected
