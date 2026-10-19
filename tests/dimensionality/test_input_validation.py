@@ -4,6 +4,8 @@ import typing
 
 import pytest
 
+from bilt import PYTHON_BACKEND
+
 from bilt import Implementation, Interface, Tensor, dim, equation, field, system, tensor
 from bilt.errors import BiltInputDimensionalityError
 from bilt.units import UNITLESS, Quantity
@@ -187,3 +189,13 @@ def test_a_quantity_of_the_wrong_dimensionality_at_a_port_only_a_constituent_rea
     message = str(raised.value)
     assert str(VOLTAGE) in message
     assert str(LENGTH) in message
+
+def test_direct_evaluate_rejects_wrong_input_dimension() -> None:
+    model = Implementation(Resistor, [ohms_law])
+
+    with pytest.raises(BiltInputDimensionalityError, match="'i'"):
+        model.evaluate(
+            {"i": 2.0 * meter, "r": 3.0 * ohm},
+            "v",
+            PYTHON_BACKEND,
+        )
