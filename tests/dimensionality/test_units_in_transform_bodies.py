@@ -356,3 +356,14 @@ def test_unit_erasure_preserves_unit_arguments_to_plain_methods() -> None:
     assert len(received) == 1
     assert received[0] is meter
     assert result == expected
+
+
+def test_unit_erasure_preserves_value_on_a_constructed_plain_object() -> None:
+    @transform
+    def extracted(value: float) -> float:
+        record = SimpleNamespace(value=value)
+        return record.value
+
+    expected = 3.0
+
+    assert extracted(expected) == expected

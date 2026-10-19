@@ -58,6 +58,7 @@ def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast
         plain_parameters=_plain_aliases(
             function_ast,
             parameters - transform.__bilt_port_declarations__.keys(),
+            {**closure.globals, **closure.nonlocals},
         ),
         declared_parameters={
             name: declaration
@@ -71,8 +72,12 @@ def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast
     return function_ast
 
 
-def _plain_aliases(function_ast: ast.FunctionDef, plain: set[str]) -> set[str]:  # noqa: C901
-    """Include simple aliases of plain parameters, provided each is bound only once."""
+def _plain_aliases(  # noqa: C901, PLR0912
+    function_ast: ast.FunctionDef,
+    plain: set[str],
+    external_bindings: dict[str, object],
+) -> set[str]:
+    """Include aliases and known plain constructions, provided each is bound only once."""
     nodes = [node for node, scope in _scoped(function_ast, function_ast, frozenset()) if scope is function_ast]
 
     bindings: Counter[str] = Counter()
@@ -104,15 +109,21 @@ def _plain_aliases(function_ast: ast.FunctionDef, plain: set[str]) -> set[str]: 
             case (
                 ast.Assign(
                     targets=[ast.Name(id=target)],
-                    value=ast.Name(id=source),
+                    value=value,
                 )
                 | ast.AnnAssign(
                     target=ast.Name(id=target),
-                    value=ast.Name(id=source),
+                    value=value,
                 )
             ):
                 if bindings[target] == 1:
-                    candidates[target] = source
+                    match value:
+                        case ast.Name(id=source):
+                            candidates[target] = source
+                        case ast.Call(func=ast.Name(id=constructor)) if (
+                            bindings[constructor] == 0 and external_bindings.get(constructor) is types.SimpleNamespace
+                        ):
+                            plain.add(target)
 
     while True:
         expanded = plain | {target for target, source in candidates.items() if source in plain}
