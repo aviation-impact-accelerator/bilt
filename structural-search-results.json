@@ -1,0 +1,4425 @@
+{
+  "layout": "all",
+  "scope": "both",
+  "policy": "target-scoped evaluation",
+  "required_policy_failures": 0,
+  "hash_seed": 0,
+  "timing_scope": "cold analyser construction, analysis and realisation; excludes imports, model build and execution",
+  "source_path": "/Users/je484/Code/bilt/src/bilt/__init__.py",
+  "python": "3.14.4 (main, Apr 14 2026, 14:46:33) [Clang 22.1.3 ]",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "repeats": 3,
+  "timeout_seconds": 100,
+  "rows": [
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.00023249996593222022,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00023179198615252972,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00021187495440244675,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00023179198615252972,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.00021191703854128718,
+        "value": 6.0,
+        "counts": {
+          "recursive_search_calls": 4,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.00031174998730421066,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0003031250089406967,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.000309124996419996,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.000309124996419996,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0003095419961027801,
+        "value": 6.0,
+        "counts": {
+          "structural_validation_calls": 1,
+          "execution_matching_calls": 1,
+          "candidate_checks": 1,
+          "settlement_calls": 1,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0004006249946542084,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0003993330174125731,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0003986250376328826,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0003993330174125731,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.00039962498703971505,
+        "value": 6.0,
+        "counts": {
+          "recursive_search_calls": 20,
+          "child_route_queries": 1,
+          "distinct_child_route_queries": 1,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0006743749836459756,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0006754170171916485,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0006730419700033963,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0006743749836459756,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.000704707985278219,
+        "value": 6.0,
+        "counts": {
+          "structural_validation_calls": 2,
+          "execution_matching_calls": 3,
+          "candidate_checks": 3,
+          "settlement_calls": 3,
+          "child_route_queries": 1,
+          "distinct_child_route_queries": 1,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0005417499924078584,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0005430830060504377,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0005377920460887253,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0005417499924078584,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0005597090348601341,
+        "value": 6.0,
+        "counts": {
+          "recursive_search_calls": 48,
+          "child_route_queries": 3,
+          "distinct_child_route_queries": 2,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0010443750070407987,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.001036665984429419,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0010297499829903245,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.001036665984429419,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0010534999892115593,
+        "value": 6.0,
+        "counts": {
+          "structural_validation_calls": 3,
+          "execution_matching_calls": 5,
+          "candidate_checks": 5,
+          "settlement_calls": 5,
+          "child_route_queries": 3,
+          "distinct_child_route_queries": 2,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00011345901293680072,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00012145901564508677,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00011312501737847924,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00011345901293680072,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00011679198360070586,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "counts": {
+          "recursive_search_calls": 19
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00015579198952764273,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00015120801981538534,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00015637499745935202,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00015579198952764273,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00015854195225983858,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00021995900897309184,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00020341697381809354,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00020812504226341844,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00020812504226341844,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00022924999939277768,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "counts": {
+          "recursive_search_calls": 104,
+          "child_route_queries": 6,
+          "distinct_child_route_queries": 4
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0002357920166105032,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00023745803628116846,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00023737497394904494,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00023737497394904494,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00023862498346716166,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0002393340109847486,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00023983296705409884,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00024920899886637926,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00023983296705409884,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0002543749869801104,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "counts": {
+          "recursive_search_calls": 110,
+          "child_route_queries": 7,
+          "distinct_child_route_queries": 5
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0003038329887203872,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0003118750173598528,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00030108296778053045,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0003038329887203872,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0003042920143343508,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.00021537498105317354,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00021425000159069896,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00021508400095626712,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00021508400095626712,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.000225083960685879,
+        "value": 6.0,
+        "counts": {
+          "recursive_search_calls": 4,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0003089999663643539,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00030833296477794647,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0003344999859109521,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0003089999663643539,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0003143749781884253,
+        "value": 6.0,
+        "counts": {
+          "structural_validation_calls": 1,
+          "execution_matching_calls": 1,
+          "candidate_checks": 1,
+          "settlement_calls": 1,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.00046816596295684576,
+          "value": 16.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0004646670422516763,
+          "value": 16.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0004707499756477773,
+          "value": 16.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00046816596295684576,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.00047437503235414624,
+        "value": 16.0,
+        "counts": {
+          "recursive_search_calls": 27,
+          "child_route_queries": 1,
+          "distinct_child_route_queries": 1,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0007624999852851033,
+          "value": 16.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0007578330114483833,
+          "value": 16.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0007465000380761921,
+          "value": 16.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0007578330114483833,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0007617500377818942,
+        "value": 16.0,
+        "counts": {
+          "structural_validation_calls": 2,
+          "execution_matching_calls": 3,
+          "candidate_checks": 3,
+          "settlement_calls": 3,
+          "child_route_queries": 1,
+          "distinct_child_route_queries": 1,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0006817500106990337,
+          "value": 34.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0006911249947734177,
+          "value": 34.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0006910000229254365,
+          "value": 34.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0006910000229254365,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0007029169937595725,
+        "value": 34.0,
+        "counts": {
+          "recursive_search_calls": 69,
+          "child_route_queries": 3,
+          "distinct_child_route_queries": 2,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0011987920152023435,
+          "value": 34.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0012352080084383488,
+          "value": 34.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0011874589836224914,
+          "value": 34.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0011987920152023435,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0012381249689497054,
+        "value": 34.0,
+        "counts": {
+          "structural_validation_calls": 3,
+          "execution_matching_calls": 5,
+          "candidate_checks": 5,
+          "settlement_calls": 5,
+          "child_route_queries": 3,
+          "distinct_child_route_queries": 2,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00011245801579207182,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00011516700033098459,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00011337496107444167,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00011337496107444167,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00011837499914690852,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "counts": {
+          "recursive_search_calls": 19
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0001528330030851066,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0001539579825475812,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00015354098286479712,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00015354098286479712,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00015320803504437208,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00022129103308543563,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0002156250411644578,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00021654099691659212,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00021654099691659212,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00023883400717750192,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "counts": {
+          "recursive_search_calls": 113,
+          "child_route_queries": 6,
+          "distinct_child_route_queries": 4
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00024874997325241566,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00024337501963600516,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0002544999588280916,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00024874997325241566,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0002470000181347132,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00027016596868634224,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0002657080185599625,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0002592910313978791,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0002657080185599625,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0002802500384859741,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "counts": {
+          "recursive_search_calls": 125,
+          "child_route_queries": 7,
+          "distinct_child_route_queries": 5
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0003345839795656502,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00033487501787021756,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0003486250061541796,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00033487501787021756,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00036054104566574097,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0002155840047635138,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00021524995099753141,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00021341699175536633,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00021524995099753141,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0002198750153183937,
+        "value": 6.0,
+        "counts": {
+          "recursive_search_calls": 4,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.00030637497548013926,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0003096669679507613,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00031100003980100155,
+          "value": 6.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0003096669679507613,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0003107089432887733,
+        "value": 6.0,
+        "counts": {
+          "structural_validation_calls": 1,
+          "execution_matching_calls": 1,
+          "candidate_checks": 1,
+          "settlement_calls": 1,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0008065410074777901,
+          "value": 38.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0007987499702721834,
+          "value": 38.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0008030420285649598,
+          "value": 38.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0008030420285649598,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0008600000292062759,
+        "value": 38.0,
+        "counts": {
+          "recursive_search_calls": 491,
+          "child_route_queries": 38,
+          "distinct_child_route_queries": 6,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0009375839726999402,
+          "value": 38.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0009369170293211937,
+          "value": 38.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0009458750137127936,
+          "value": 38.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0009375839726999402,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0009369170293211937,
+        "value": 38.0,
+        "counts": {
+          "structural_validation_calls": 2,
+          "execution_matching_calls": 3,
+          "candidate_checks": 3,
+          "settlement_calls": 3,
+          "child_route_queries": 2,
+          "distinct_child_route_queries": 1,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.009857708006165922,
+          "value": 620.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.010625458031427115,
+          "value": 620.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.009867708024103194,
+          "value": 620.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.009867708024103194,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.012429707974661142,
+        "value": 620.0,
+        "counts": {
+          "recursive_search_calls": 20540,
+          "child_route_queries": 1647,
+          "distinct_child_route_queries": 10,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.001945875003002584,
+          "value": 620.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0019138340139761567,
+          "value": 620.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0019228330347687006,
+          "value": 620.0,
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0019228330347687006,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0019217499648220837,
+        "value": 620.0,
+        "counts": {
+          "structural_validation_calls": 3,
+          "execution_matching_calls": 5,
+          "candidate_checks": 5,
+          "settlement_calls": 5,
+          "child_route_queries": 6,
+          "distinct_child_route_queries": 2,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0001112080062739551,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0001123749534599483,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00011608301429077983,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0001123749534599483,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0001164170098491013,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "counts": {
+          "recursive_search_calls": 19
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0001609169994480908,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00016350002260878682,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00015129102393984795,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0001609169994480908,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0001560840173624456,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0013126660487614572,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0013033750001341105,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0013172499602660537,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0013126660487614572,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0015873750089667737,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "counts": {
+          "recursive_search_calls": 2992,
+          "child_route_queries": 132,
+          "distinct_child_route_queries": 8
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0003772499621845782,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.x, left.y, right.x, right.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0003295839997008443,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.x, left.y, right.x, right.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0003226660192012787,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.x, left.y, right.x, right.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0003295839997008443,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0003505420172587037,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.x, left.y, right.x, right.y.",
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.01664070802507922,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.016069207980763167,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.015962832956574857,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.016069207980763167,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.020763417007401586,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "counts": {
+          "recursive_search_calls": 43912,
+          "child_route_queries": 1794,
+          "distinct_child_route_queries": 10
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": false,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0007381250034086406,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.left.x, left.left.y, left.right.x, left.right.y, right.left.x, right.left.y, right.right.x, right.right.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.000750333012547344,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.left.x, left.left.y, left.right.x, left.right.y, right.left.x, right.left.y, right.right.x, right.right.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0007548749563284218,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.left.x, left.left.y, left.right.x, left.right.y, right.left.x, right.left.y, right.right.x, right.right.y.",
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.000750333012547344,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.000802458031103015,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.left.x, left.left.y, left.right.x, left.right.y, right.left.x, right.left.y, right.right.x, right.right.y.",
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.00021966698113828897,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00021999998716637492,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00021783396368846297,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00021966698113828897,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.00022595800692215562,
+        "value": 6.0,
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 4,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0007232919451780617,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00035024998942390084,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00034908298403024673,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00035024998942390084,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0003780000261031091,
+        "value": 6.0,
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 1,
+          "execution_matching_calls": 1,
+          "candidate_checks": 1,
+          "settlement_calls": 1,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.00041629100451245904,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0004070409922860563,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0004082919913344085,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0004082919913344085,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0004104999825358391,
+        "value": 6.0,
+        "structural_shape": {
+          "constraints": 6,
+          "unknowns": 7,
+          "well_determined_unknowns": 5,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 20,
+          "child_route_queries": 1,
+          "distinct_child_route_queries": 1,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0007363750482909381,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0007506249821744859,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0007440419867634773,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0007440419867634773,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.000756499997805804,
+        "value": 6.0,
+        "structural_shape": {
+          "constraints": 6,
+          "unknowns": 7,
+          "well_determined_unknowns": 5,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 2,
+          "execution_matching_calls": 3,
+          "candidate_checks": 3,
+          "settlement_calls": 3,
+          "child_route_queries": 1,
+          "distinct_child_route_queries": 1,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0005528330220840871,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0005615419941022992,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.000557416002266109,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.000557416002266109,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0005586660117842257,
+        "value": 6.0,
+        "structural_shape": {
+          "constraints": 9,
+          "unknowns": 10,
+          "well_determined_unknowns": 8,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 48,
+          "child_route_queries": 3,
+          "distinct_child_route_queries": 2,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.001156040991190821,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.001122458023019135,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0011467080330476165,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0011467080330476165,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0011462500551715493,
+        "value": 6.0,
+        "structural_shape": {
+          "constraints": 9,
+          "unknowns": 10,
+          "well_determined_unknowns": 8,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 3,
+          "execution_matching_calls": 5,
+          "candidate_checks": 5,
+          "settlement_calls": 5,
+          "child_route_queries": 3,
+          "distinct_child_route_queries": 2,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0001252920483238995,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00013079197378829122,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00014058401575312018,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00013079197378829122,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00014266703510656953,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 34
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00018812500638887286,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00018504098989069462,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0001864589867182076,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0001864589867182076,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00018862501019611955,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0002411669702269137,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00023987499298527837,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0002494590007700026,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0002411669702269137,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00026787503156811,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "structural_shape": {
+          "constraints": 6,
+          "unknowns": 7,
+          "well_determined_unknowns": 5,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 179,
+          "child_route_queries": 6,
+          "distinct_child_route_queries": 4
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00028145796386525035,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00027779204538092017,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0002750410349108279,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00027779204538092017,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0002795840264298022,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+        "structural_shape": {
+          "constraints": 6,
+          "unknowns": 7,
+          "well_determined_unknowns": 5,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0002673339913599193,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00026641698786988854,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00027295900508761406,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0002673339913599193,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0002918749814853072,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "structural_shape": {
+          "constraints": 9,
+          "unknowns": 10,
+          "well_determined_unknowns": 8,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 185,
+          "child_route_queries": 7,
+          "distinct_child_route_queries": 5
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "links",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0003476669662632048,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.000351083988789469,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0003316249931231141,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0003476669662632048,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00034004199551418424,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+        "structural_shape": {
+          "constraints": 9,
+          "unknowns": 10,
+          "well_determined_unknowns": 8,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0002211660030297935,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00022474996512755752,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00022037496091797948,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0002211660030297935,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.00022908399114385247,
+        "value": 6.0,
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 4,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.00034433300606906414,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.000354000017978251,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0003428750205785036,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00034433300606906414,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.00034845800837501884,
+        "value": 6.0,
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 1,
+          "execution_matching_calls": 1,
+          "candidate_checks": 1,
+          "settlement_calls": 1,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.00048087502364069223,
+          "value": 16.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00047850003466010094,
+          "value": 16.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00047687499318271875,
+          "value": 16.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00047850003466010094,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0004872920108027756,
+        "value": 16.0,
+        "structural_shape": {
+          "constraints": 6,
+          "unknowns": 7,
+          "well_determined_unknowns": 5,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 27,
+          "child_route_queries": 1,
+          "distinct_child_route_queries": 1,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0008261670009233057,
+          "value": 16.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0008217500289902091,
+          "value": 16.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0008208340150304139,
+          "value": 16.0,
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0008217500289902091,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0008189159561879933,
+        "value": 16.0,
+        "structural_shape": {
+          "constraints": 6,
+          "unknowns": 7,
+          "well_determined_unknowns": 5,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 2,
+          "execution_matching_calls": 3,
+          "candidate_checks": 3,
+          "settlement_calls": 3,
+          "child_route_queries": 1,
+          "distinct_child_route_queries": 1,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0006983340135775506,
+          "value": 34.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0007017920142970979,
+          "value": 34.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0007332499953918159,
+          "value": 34.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0007017920142970979,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0008016669889912009,
+        "value": 34.0,
+        "structural_shape": {
+          "constraints": 9,
+          "unknowns": 10,
+          "well_determined_unknowns": 8,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 69,
+          "child_route_queries": 3,
+          "distinct_child_route_queries": 2,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0013909160043112934,
+          "value": 34.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.001317082962486893,
+          "value": 34.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0013130000443197787,
+          "value": 34.0,
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.001317082962486893,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.001395957951899618,
+        "value": 34.0,
+        "structural_shape": {
+          "constraints": 9,
+          "unknowns": 10,
+          "well_determined_unknowns": 8,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 3,
+          "execution_matching_calls": 5,
+          "candidate_checks": 5,
+          "settlement_calls": 5,
+          "child_route_queries": 3,
+          "distinct_child_route_queries": 2,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00012945802882313728,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00012512499233707786,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00012612499995157123,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00012612499995157123,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00012991699622943997,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 34
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00018158304737880826,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0001794169656932354,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0001919580390676856,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00018158304737880826,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00020045897690579295,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00024687498807907104,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0002537499531172216,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00025154202012345195,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00025154202012345195,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00028912501875311136,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "structural_shape": {
+          "constraints": 6,
+          "unknowns": 7,
+          "well_determined_unknowns": 5,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 188,
+          "child_route_queries": 6,
+          "distinct_child_route_queries": 4
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0002858749940060079,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0002924580476246774,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00028508302057161927,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+          "structural_shape": {
+            "constraints": 6,
+            "unknowns": 7,
+            "well_determined_unknowns": 5,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0002858749940060079,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0002834589686244726,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.x, inner.y.",
+        "structural_shape": {
+          "constraints": 6,
+          "unknowns": 7,
+          "well_determined_unknowns": 5,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0002897090162150562,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0002927089808508754,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00029129203176125884,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00029129203176125884,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0003155000158585608,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "structural_shape": {
+          "constraints": 9,
+          "unknowns": 10,
+          "well_determined_unknowns": 8,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 200,
+          "child_route_queries": 7,
+          "distinct_child_route_queries": 5
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "arithmetic",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00037575000897049904,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0003724170383065939,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00038945901906117797,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+          "structural_shape": {
+            "constraints": 9,
+            "unknowns": 10,
+            "well_determined_unknowns": 8,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00037575000897049904,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0003772089839912951,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: inner.inner.x, inner.inner.y.",
+        "structural_shape": {
+          "constraints": 9,
+          "unknowns": 10,
+          "well_determined_unknowns": 8,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.00021829199977219105,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00021958298748359084,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.00021675002062693238,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00021829199977219105,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0002211660030297935,
+        "value": 6.0,
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 4,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0003577499883249402,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0003560000332072377,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0003474170225672424,
+          "value": 6.0,
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0003560000332072377,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.00035316694993525743,
+        "value": 6.0,
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 1,
+          "execution_matching_calls": 1,
+          "candidate_checks": 1,
+          "settlement_calls": 1,
+          "realisation_attempts": 1
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0009024160099215806,
+          "value": 38.0,
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.000936750031542033,
+          "value": 38.0,
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0008997910190373659,
+          "value": 38.0,
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0009024160099215806,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.0009880419820547104,
+        "value": 38.0,
+        "structural_shape": {
+          "constraints": 11,
+          "unknowns": 13,
+          "well_determined_unknowns": 9,
+          "underdetermined_unknowns": 4
+        },
+        "counts": {
+          "recursive_search_calls": 746,
+          "child_route_queries": 38,
+          "distinct_child_route_queries": 6,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.001050708000548184,
+          "value": 38.0,
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0010492079891264439,
+          "value": 38.0,
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0010280419955961406,
+          "value": 38.0,
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0010492079891264439,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.001049041049554944,
+        "value": 38.0,
+        "structural_shape": {
+          "constraints": 11,
+          "unknowns": 13,
+          "well_determined_unknowns": 9,
+          "underdetermined_unknowns": 4
+        },
+        "counts": {
+          "structural_validation_calls": 2,
+          "execution_matching_calls": 3,
+          "candidate_checks": 3,
+          "settlement_calls": 3,
+          "child_route_queries": 2,
+          "distinct_child_route_queries": 1,
+          "realisation_attempts": 2
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.013978415983729064,
+          "value": 620.0,
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0138317079981789,
+          "value": 620.0,
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.013880707963835448,
+          "value": 620.0,
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.013880707963835448,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.017285042034927756,
+        "value": 620.0,
+        "structural_shape": {
+          "constraints": 27,
+          "unknowns": 31,
+          "well_determined_unknowns": 23,
+          "underdetermined_unknowns": 8
+        },
+        "counts": {
+          "recursive_search_calls": 32630,
+          "child_route_queries": 1647,
+          "distinct_child_route_queries": 10,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "acyclic",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "success",
+          "seconds": 0.0021442080033011734,
+          "value": 620.0,
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0021863330039195716,
+          "value": 620.0,
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        },
+        {
+          "status": "success",
+          "seconds": 0.0021339160157367587,
+          "value": 620.0,
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "success",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0021442080033011734,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "success",
+        "seconds": 0.002141290984582156,
+        "value": 620.0,
+        "structural_shape": {
+          "constraints": 27,
+          "unknowns": 31,
+          "well_determined_unknowns": 23,
+          "underdetermined_unknowns": 8
+        },
+        "counts": {
+          "structural_validation_calls": 3,
+          "execution_matching_calls": 5,
+          "candidate_checks": 5,
+          "settlement_calls": 5,
+          "child_route_queries": 6,
+          "distinct_child_route_queries": 2,
+          "realisation_attempts": 3
+        },
+        "expected_outcome": "success",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00012687500566244125,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00012749998131766915,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0001265419996343553,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00012687500566244125,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00012916699051856995,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "recursive_search_calls": 34
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 0,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00018512504175305367,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00019179197261109948,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00019095803145319223,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+          "structural_shape": {
+            "constraints": 3,
+            "unknowns": 4,
+            "well_determined_unknowns": 2,
+            "underdetermined_unknowns": 2
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00019095803145319223,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00020062498515471816,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: x, y.",
+        "structural_shape": {
+          "constraints": 3,
+          "unknowns": 4,
+          "well_determined_unknowns": 2,
+          "underdetermined_unknowns": 2
+        },
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0020650000078603625,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0020225420012138784,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0020319579634815454,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0020319579634815454,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.002556250023189932,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "structural_shape": {
+          "constraints": 11,
+          "unknowns": 13,
+          "well_determined_unknowns": 9,
+          "underdetermined_unknowns": 4
+        },
+        "counts": {
+          "recursive_search_calls": 5242,
+          "child_route_queries": 132,
+          "distinct_child_route_queries": 8
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 1,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.00039658299647271633,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.x, left.y, right.x, right.y.",
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.00042100000428035855,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.x, left.y, right.x, right.y.",
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.000380084034986794,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.x, left.y, right.x, right.y.",
+          "structural_shape": {
+            "constraints": 11,
+            "unknowns": 13,
+            "well_determined_unknowns": 9,
+            "underdetermined_unknowns": 4
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.00039658299647271633,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.00038908299757167697,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.x, left.y, right.x, right.y.",
+        "structural_shape": {
+          "constraints": 11,
+          "unknowns": 13,
+          "well_determined_unknowns": 9,
+          "underdetermined_unknowns": 4
+        },
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "exhaustive",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.02646708401152864,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.026993707986548543,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.027218916977290064,
+          "error_type": "BiltAnalysisError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs {'a', 'b'}.",
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.026993707986548543,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.034824500035028905,
+        "error_type": "BiltAnalysisError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs {'a', 'b'}.",
+        "structural_shape": {
+          "constraints": 27,
+          "unknowns": 31,
+          "well_determined_unknowns": 23,
+          "underdetermined_unknowns": 8
+        },
+        "counts": {
+          "recursive_search_calls": 77062,
+          "child_route_queries": 1794,
+          "distinct_child_route_queries": 10
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    },
+    {
+      "layout": "siblings",
+      "rectangular": true,
+      "case": "coupled",
+      "depth": 2,
+      "solver": "scc",
+      "trials": [
+        {
+          "status": "rejected",
+          "seconds": 0.0008976670214906335,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.left.x, left.left.y, left.right.x, left.right.y, right.left.x, right.left.y, right.right.x, right.right.y.",
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0008889170130714774,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.left.x, left.left.y, left.right.x, left.right.y, right.left.x, right.left.y, right.right.x, right.right.y.",
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        },
+        {
+          "status": "rejected",
+          "seconds": 0.0008792920270934701,
+          "error_type": "BiltExecutionPlanError",
+          "rejection_kind": "other_analysis_error",
+          "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.left.x, left.left.y, left.right.x, left.right.y, right.left.x, right.left.y, right.right.x, right.right.y.",
+          "structural_shape": {
+            "constraints": 27,
+            "unknowns": 31,
+            "well_determined_unknowns": 23,
+            "underdetermined_unknowns": 8
+          },
+          "expected_outcome": "rejected",
+          "policy_match": true
+        }
+      ],
+      "median_seconds": 0.0008889170130714774,
+      "completed_trials": 3,
+      "instrumented": {
+        "status": "rejected",
+        "seconds": 0.0008815830224193633,
+        "error_type": "BiltExecutionPlanError",
+        "rejection_kind": "other_analysis_error",
+        "message": "Cannot compute x from available inputs ['a', 'b']. Execution of coupled blocks is not yet supported by this analyser. Required coupled computations: left.left.x, left.left.y, left.right.x, left.right.y, right.left.x, right.left.y, right.right.x, right.right.y.",
+        "structural_shape": {
+          "constraints": 27,
+          "unknowns": 31,
+          "well_determined_unknowns": 23,
+          "underdetermined_unknowns": 8
+        },
+        "counts": {
+          "structural_validation_calls": 1
+        },
+        "expected_outcome": "rejected",
+        "policy_match": true
+      },
+      "policy_match": true
+    }
+  ]
+}
