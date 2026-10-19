@@ -3,8 +3,6 @@
 import typing
 from types import SimpleNamespace
 
-import pytest
-
 from bilt import PYTHON_BACKEND, Implementation, Interface, field, system, transform
 from bilt.units import Unit, kilometer, meter
 
