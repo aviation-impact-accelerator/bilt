@@ -7,9 +7,9 @@ import pytest
 
 from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, field, system, transform
 from bilt.errors import BiltDefinitionError
-from bilt.units import Quantity, units
+from bilt.units import Quantity, meter, units
 from bilt.units.dimensions import LENGTH
-from bilt.units.units import absolute_celsius, kilometer, meter, second
+from bilt.units.units import absolute_celsius, kilometer, second
 
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -325,4 +325,34 @@ def test_unit_erasure_preserves_value_on_a_plain_local_alias() -> None:
     expected = 3.0
     result = extracted(SimpleNamespace(value=expected))
 
+    assert result == expected
+
+
+def test_unit_erasure_preserves_unit_arguments_to_plain_methods() -> None:
+    expected = 3.0
+    received: list[object] = []
+
+    def convert_to(unit: object) -> SimpleNamespace:
+        received.append(unit)
+        return SimpleNamespace(value=expected)
+
+    @system
+    class Extraction(metaclass=Interface):
+        record: SimpleNamespace = field()
+        extracted: float = field()
+
+    @transform
+    def extracted(record: SimpleNamespace) -> float:
+        local = record
+        return local.convert_to(meter).value
+
+    model = Implementation(Extraction, [extracted])
+    inputs: dict[str, object] = {
+        "record": SimpleNamespace(convert_to=convert_to),
+    }
+
+    result = model.evaluate(inputs, "extracted", PYTHON_BACKEND)
+
+    assert len(received) == 1
+    assert received[0] is meter
     assert result == expected
