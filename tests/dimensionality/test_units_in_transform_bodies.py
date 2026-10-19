@@ -264,3 +264,50 @@ def test_value_on_a_plain_parameter_fails_as_python_fails_it() -> None:
         pytest.raises(AttributeError, match="'float' object has no attribute 'value'"),
     ):
         _ = Stretch(span_km=2.0).stretched
+
+
+def test_unit_erasure_does_not_execute_runtime_calls() -> None:
+    readings: list[float] = []
+
+    def read_sensor() -> float:
+        readings.append(1.0)
+        return 1.0
+
+    @transform
+    def stretched(length: Length) -> Length:
+        return length + read_sensor() * meter
+
+    assert readings == []
+
+
+def test_compiled_transform_executes_runtime_calls_on_each_evaluation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    readings: list[float] = []
+
+    def read_sensor() -> float:
+        reading = float(len(readings) + 1)
+        readings.append(reading)
+        return reading
+
+    monkeypatch.setitem(
+        PYTHON_BACKEND.compilation_namespace,
+        "read_sensor",
+        read_sensor,
+    )
+
+    @transform
+    def stretched(length: Length) -> Length:
+        return length + read_sensor() * meter
+
+    assert readings == []
+
+    model = Implementation(Stretch, [stretched])
+    inputs: dict[str, object] = {"length": 1.0 * kilometer}
+
+    first = model.evaluate(inputs, "stretched", PYTHON_BACKEND)
+    second = model.evaluate(inputs, "stretched", PYTHON_BACKEND)
+
+    assert readings == [1.0, 2.0]
+    assert first == 1001.0 * meter
+    assert second == 1002.0 * meter
