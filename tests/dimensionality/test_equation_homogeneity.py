@@ -1,0 +1,81 @@
+"""Dimensional analysis for `@equation`, performed over the symbolic tree at decoration."""
+
+import typing
+
+import pytest
+
+from bilt import equation
+from bilt.errors import BiltUnitsError
+from bilt.units import Quantity
+from bilt.units.dimensions import AREA, FORCE, LENGTH, MASS, TIME, VOLTAGE
+
+Area = typing.Annotated[Quantity, AREA]
+Force = typing.Annotated[Quantity, FORCE]
+Length = typing.Annotated[Quantity, LENGTH]
+Mass = typing.Annotated[Quantity, MASS]
+Voltage = typing.Annotated[Quantity, VOLTAGE]
+Acceleration = typing.Annotated[Quantity, LENGTH / TIME**2]
+
+
+def test_homogeneous_equation_decorates() -> None:
+    @equation
+    def newtons_second_law(f: Force, m: Mass, a: Acceleration) -> bool:
+        return f == m * a
+
+
+def test_wholly_plain_equation_decorates() -> None:
+    @equation
+    def newtons_second_law(f: float, m: float, a: float) -> bool:
+        return f == m * a
+
+
+def test_integer_exponent_decorates() -> None:
+    @equation
+    def square(area: Area, side: Length) -> bool:
+        return area == side**2
+
+
+def test_inhomogeneous_equation_raises() -> None:
+    with pytest.raises(BiltUnitsError, match="mislabelled") as raised:
+
+        @equation
+        def mislabelled(v: Voltage, m: Mass, a: Acceleration) -> bool:
+            return v == m * a
+
+    message = str(raised.value)
+    assert "voltage" in message
+    assert "force" in message
+
+
+def test_adding_unequal_dimensionalities_raises() -> None:
+    with pytest.raises(BiltUnitsError, match="summation") as raised:
+
+        @equation
+        def summation(total: Mass, a: Mass, b: Length) -> bool:
+            return total == a + b
+
+    message = str(raised.value)
+    assert "mass" in message
+    assert "length" in message
+
+
+def test_dimensional_exponent_raises() -> None:
+    with pytest.raises(BiltUnitsError, match="dimensional_exponent") as raised:
+
+        @equation
+        def dimensional_exponent(result: Length, base: Length, m: Mass) -> bool:
+            return result == base**m
+
+    assert "mass" in str(raised.value)
+
+
+def test_equation_contradicting_declared_ports_raises() -> None:
+    with pytest.raises(BiltUnitsError, match="squares") as raised:
+
+        @equation
+        def squares(a: Mass, b: Length) -> bool:
+            return a**2 == b**2
+
+    message = str(raised.value)
+    assert "[Mass]^2" in message
+    assert "[Length]^2" in message

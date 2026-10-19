@@ -19,6 +19,7 @@ from bilt.symbolic._atoms import (
     dimension,
     floating,
     integer,
+    quantity,
     relation_operator,
     symbol,
 )
@@ -26,6 +27,7 @@ from bilt.symbolic._errors import BiltTreeMutationError
 
 if typing.TYPE_CHECKING:
     from bilt.symbolic._dimensions import Coordinate, Dim
+    from bilt.units import Dimension
 
 _tree_cache: weakref.WeakValueDictionary[
     tuple[Atom, tuple[Tree, ...]],
@@ -46,6 +48,7 @@ __all__ = [
     "mean_tree",
     "min_tree",
     "prod_tree",
+    "quantity_tree",
     "reduction_tree",
     "relation_tree",
     "sel_tree",
@@ -193,6 +196,10 @@ def int_tree(n: int) -> Tree:
 
 def float_tree(x: float) -> Tree:
     return Tree(floating(x))
+
+
+def quantity_tree(coherent_value: float, dimensionality: Dimension, *, absolute: bool) -> Tree:
+    return Tree(quantity(coherent_value, dimensionality, absolute=absolute))
 
 
 def reduction_tree(operator: Atom, value: Tree, dim: Dim) -> Tree:

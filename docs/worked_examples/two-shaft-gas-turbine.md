@@ -12,7 +12,7 @@ At a high level, the engine contains two kinds of component:
 The engine uses two shafts to transfer that work.
 
 ```mermaid
-flowchart LR
+flowchart TD
     inlet["Inlet"] --> lpc["LP compressor"]
     lpc --> hpc["HP compressor"]
     hpc --> heat["Heat addition"]
@@ -25,7 +25,7 @@ flowchart LR
     lpt -. "useful output" .-> output["Output shaft"]
 ```
 
-*Click a diagram to expand, zoom and pan.*
+**Click a diagram to expand, zoom and pan.**
 
 The **HP turbine** drives the HP compressor.
 
@@ -80,7 +80,7 @@ To determine how much work the LP turbine extracts, we therefore specify the **c
 For the baseline example we use:
 
 ```text
-core exit temperature = 1000 K
+core exit temperature = Quantity(1000, absolute_kelvin) K
 ```
 
 A real engine model would usually determine the turbine expansion from pressures and component efficiencies. Here the fixed exit temperature keeps the physics intentionally low-order while giving the shaft-power calculation a well-defined endpoint.
@@ -125,6 +125,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from bilt import Quantity
+from bilt.units import UNITLESS, absolute_kelvin, kelvin, kilogram, kilojoule, kilowatt, megawatt, second
+
 
 def render_plot() -> None:
     buffer = StringIO()
@@ -135,44 +138,66 @@ def render_plot() -> None:
 
 ## 1. Define reusable component systems
 
-We start with a compressor.
+We start with a compressor. The system and its equations use scalar quantity
+declarations, so their physical dimensions are explicit without prescribing
+array shapes. Compatible unit-carrying tensors can also be supplied.
+
+Temperatures are absolute readings; subtracting two readings gives a relative
+temperature change. Specific heat multiplies that change to produce specific
+work. Pressure ratios, efficiencies, and the heat-capacity ratio `gamma` are
+dimensionless quantities, supplied using `UNITLESS`.
+
+Port names describe physical quantities. Units are carried by values rather
+than encoded in names such as `_k` or `_kj_per_kg`.
 
 ```python
-from bilt import Implementation, Interface, equation, field, system
+from typing import Annotated
+
+from bilt import Implementation, Interface, Quantity, equation, field, system
+from bilt.units import UNITLESS, absolute_kelvin, kelvin, kilogram, kilojoule, kilowatt, megawatt, second
+from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, MASS, TEMPERATURE, TIME
+
+
+AbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]
+SpecificHeat = Annotated[Quantity, ENERGY / (MASS * TEMPERATURE)]
+SpecificWork = Annotated[Quantity, ENERGY / MASS]
+MassFlow = Annotated[Quantity, MASS / TIME]
+Power = Annotated[Quantity, ENERGY / TIME]
+Ratio = Annotated[Quantity, DIMENSIONLESS]
 
 
 @system
 class Compressor(metaclass=Interface):
-    inlet_temperature_k: float = field()
-    outlet_temperature_k: float = field()
-    pressure_ratio: float = field()
-    isentropic_efficiency: float = field()
-    gamma: float = field()
-    specific_heat_kj_per_kg_k: float = field()
-    specific_work_kj_per_kg: float = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    pressure_ratio: Ratio = field()
+    isentropic_efficiency: Ratio = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 
 @equation
 def compressor_temperature_relation(
-    inlet_temperature_k: float,
-    outlet_temperature_k: float,
-    pressure_ratio: float,
-    isentropic_efficiency: float,
-    gamma: float,
+    inlet_temperature: AbsoluteTemperature,
+    outlet_temperature: AbsoluteTemperature,
+    pressure_ratio: Ratio,
+    isentropic_efficiency: Ratio,
+    gamma: Ratio,
 ) -> bool:
-    return (outlet_temperature_k - inlet_temperature_k) * isentropic_efficiency == inlet_temperature_k * (
-        pressure_ratio ** ((gamma - 1.0) / gamma) - 1.0
-    )
+    return (outlet_temperature - inlet_temperature) * isentropic_efficiency == (
+        inlet_temperature - Quantity(0.0, absolute_kelvin)
+    ) * (pressure_ratio ** ((gamma - 1.0) / gamma) - 1.0)
 
 
 @equation
 def compressor_work_relation(
-    specific_work_kj_per_kg: float,
-    specific_heat_kj_per_kg_k: float,
-    inlet_temperature_k: float,
-    outlet_temperature_k: float,
+    specific_work: SpecificWork,
+    specific_heat: SpecificHeat,
+    inlet_temperature: AbsoluteTemperature,
+    outlet_temperature: AbsoluteTemperature,
 ) -> bool:
-    return specific_work_kj_per_kg == specific_heat_kj_per_kg_k * (outlet_temperature_k - inlet_temperature_k)
+    return specific_work == specific_heat * (outlet_temperature - inlet_temperature)
 
 
 compressor_model = Implementation(
@@ -183,6 +208,12 @@ compressor_model = Implementation(
     ],
 )
 ```
+
+The compressor temperature relation uses
+`inlet_temperature - Quantity(0.0, absolute_kelvin)` to express the inlet
+temperature relative to absolute zero before multiplying it by a dimensionless
+factor. This preserves the original kelvin-based formula while distinguishing
+absolute readings from relative changes.
 
 These are equations, not transforms.
 
@@ -199,20 +230,20 @@ The turbine is similarly small:
 ```python
 @system
 class Turbine(metaclass=Interface):
-    inlet_temperature_k: float = field()
-    outlet_temperature_k: float = field()
-    specific_heat_kj_per_kg_k: float = field()
-    specific_work_kj_per_kg: float = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 
 @equation
 def turbine_work_relation(
-    specific_work_kj_per_kg: float,
-    specific_heat_kj_per_kg_k: float,
-    inlet_temperature_k: float,
-    outlet_temperature_k: float,
+    specific_work: SpecificWork,
+    specific_heat: SpecificHeat,
+    inlet_temperature: AbsoluteTemperature,
+    outlet_temperature: AbsoluteTemperature,
 ) -> bool:
-    return specific_work_kj_per_kg == specific_heat_kj_per_kg_k * (inlet_temperature_k - outlet_temperature_k)
+    return specific_work == specific_heat * (inlet_temperature - outlet_temperature)
 
 
 turbine_model = Implementation(
@@ -229,37 +260,37 @@ The parent system contains the values needed to connect the four child systems.
 @system
 class TwoShaftCore(metaclass=Interface):
     # Gas-path temperatures.
-    inlet_temperature_k: float = field()
-    low_pressure_compressor_exit_temperature_k: float = field()
-    high_pressure_compressor_exit_temperature_k: float = field()
-    turbine_inlet_temperature_k: float = field()
-    high_pressure_turbine_exit_temperature_k: float = field()
-    exit_temperature_k: float = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    low_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    high_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    turbine_inlet_temperature: AbsoluteTemperature = field()
+    high_pressure_turbine_exit_temperature: AbsoluteTemperature = field()
+    exit_temperature: AbsoluteTemperature = field()
 
     # Compressor design assumptions.
-    low_pressure_compressor_pressure_ratio: float = field()
-    high_pressure_compressor_pressure_ratio: float = field()
-    low_pressure_compressor_efficiency: float = field()
-    high_pressure_compressor_efficiency: float = field()
+    low_pressure_compressor_pressure_ratio: Ratio = field()
+    high_pressure_compressor_pressure_ratio: Ratio = field()
+    low_pressure_compressor_efficiency: Ratio = field()
+    high_pressure_compressor_efficiency: Ratio = field()
 
     # Shared fluid properties.
-    gamma: float = field()
-    specific_heat_kj_per_kg_k: float = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
 
     # Shaft efficiencies.
-    low_pressure_shaft_efficiency: float = field()
-    high_pressure_shaft_efficiency: float = field()
+    low_pressure_shaft_efficiency: Ratio = field()
+    high_pressure_shaft_efficiency: Ratio = field()
 
     # Coupling values used by the two shaft balances.
-    low_pressure_compressor_work_kj_per_kg: float = field()
-    high_pressure_compressor_work_kj_per_kg: float = field()
-    high_pressure_turbine_work_kj_per_kg: float = field()
-    low_pressure_turbine_work_kj_per_kg: float = field()
+    low_pressure_compressor_work: SpecificWork = field()
+    high_pressure_compressor_work: SpecificWork = field()
+    high_pressure_turbine_work: SpecificWork = field()
+    low_pressure_turbine_work: SpecificWork = field()
 
     # Useful LP-shaft output.
-    shaft_output_work_kj_per_kg: float = field()
-    mass_flow_kg_per_s: float = field()
-    shaft_power_kw: float = field()
+    shaft_output_work: SpecificWork = field()
+    mass_flow: MassFlow = field()
+    shaft_power: Power = field()
 ```
 
 Some of these values exist mainly to provide an explicit hand-off between child systems.
@@ -269,7 +300,7 @@ For example:
 ```text
 LP compressor.outlet
         ↕
-low_pressure_compressor_exit_temperature_k
+low_pressure_compressor_exit_temperature
         ↕
 HP compressor.inlet
 ```
@@ -283,10 +314,10 @@ The parent inlet is connected to the LP compressor inlet:
 ```python
 @equation
 def low_pressure_compressor_inlet_connection(
-    inlet_temperature_k: float,
+    inlet_temperature: AbsoluteTemperature,
     low_pressure_compressor: Compressor,
 ) -> bool:
-    return inlet_temperature_k == low_pressure_compressor.inlet_temperature_k
+    return inlet_temperature == low_pressure_compressor.inlet_temperature
 ```
 
 The compressor exit is exposed on the parent:
@@ -294,10 +325,10 @@ The compressor exit is exposed on the parent:
 ```python
 @equation
 def low_pressure_compressor_exit_connection(
-    low_pressure_compressor_exit_temperature_k: float,
+    low_pressure_compressor_exit_temperature: AbsoluteTemperature,
     low_pressure_compressor: Compressor,
 ) -> bool:
-    return low_pressure_compressor_exit_temperature_k == low_pressure_compressor.outlet_temperature_k
+    return low_pressure_compressor_exit_temperature == low_pressure_compressor.outlet_temperature
 ```
 
 and the parent supplies its pressure ratio, efficiency, and fluid properties:
@@ -305,7 +336,7 @@ and the parent supplies its pressure ratio, efficiency, and fluid properties:
 ```python
 @equation
 def low_pressure_compressor_pressure_ratio_connection(
-    low_pressure_compressor_pressure_ratio: float,
+    low_pressure_compressor_pressure_ratio: Ratio,
     low_pressure_compressor: Compressor,
 ) -> bool:
     return low_pressure_compressor_pressure_ratio == low_pressure_compressor.pressure_ratio
@@ -313,7 +344,7 @@ def low_pressure_compressor_pressure_ratio_connection(
 
 @equation
 def low_pressure_compressor_efficiency_connection(
-    low_pressure_compressor_efficiency: float,
+    low_pressure_compressor_efficiency: Ratio,
     low_pressure_compressor: Compressor,
 ) -> bool:
     return low_pressure_compressor_efficiency == low_pressure_compressor.isentropic_efficiency
@@ -321,7 +352,7 @@ def low_pressure_compressor_efficiency_connection(
 
 @equation
 def low_pressure_compressor_gamma_connection(
-    gamma: float,
+    gamma: Ratio,
     low_pressure_compressor: Compressor,
 ) -> bool:
     return gamma == low_pressure_compressor.gamma
@@ -329,10 +360,10 @@ def low_pressure_compressor_gamma_connection(
 
 @equation
 def low_pressure_compressor_specific_heat_connection(
-    specific_heat_kj_per_kg_k: float,
+    specific_heat: SpecificHeat,
     low_pressure_compressor: Compressor,
 ) -> bool:
-    return specific_heat_kj_per_kg_k == low_pressure_compressor.specific_heat_kj_per_kg_k
+    return specific_heat == low_pressure_compressor.specific_heat
 ```
 
 Finally, its specific work is copied onto the parent:
@@ -340,10 +371,10 @@ Finally, its specific work is copied onto the parent:
 ```python
 @equation
 def low_pressure_compressor_work_connection(
-    low_pressure_compressor_work_kj_per_kg: float,
+    low_pressure_compressor_work: SpecificWork,
     low_pressure_compressor: Compressor,
 ) -> bool:
-    return low_pressure_compressor_work_kj_per_kg == low_pressure_compressor.specific_work_kj_per_kg
+    return low_pressure_compressor_work == low_pressure_compressor.specific_work
 ```
 
 ## 4. Connect the HP compressor
@@ -353,10 +384,10 @@ The LP compressor exit temperature now acts as the HP compressor inlet temperatu
 ```python
 @equation
 def high_pressure_compressor_inlet_connection(
-    low_pressure_compressor_exit_temperature_k: float,
+    low_pressure_compressor_exit_temperature: AbsoluteTemperature,
     high_pressure_compressor: Compressor,
 ) -> bool:
-    return low_pressure_compressor_exit_temperature_k == high_pressure_compressor.inlet_temperature_k
+    return low_pressure_compressor_exit_temperature == high_pressure_compressor.inlet_temperature
 ```
 
 The HP compressor is otherwise connected in the same way:
@@ -364,15 +395,15 @@ The HP compressor is otherwise connected in the same way:
 ```python
 @equation
 def high_pressure_compressor_exit_connection(
-    high_pressure_compressor_exit_temperature_k: float,
+    high_pressure_compressor_exit_temperature: AbsoluteTemperature,
     high_pressure_compressor: Compressor,
 ) -> bool:
-    return high_pressure_compressor_exit_temperature_k == high_pressure_compressor.outlet_temperature_k
+    return high_pressure_compressor_exit_temperature == high_pressure_compressor.outlet_temperature
 
 
 @equation
 def high_pressure_compressor_pressure_ratio_connection(
-    high_pressure_compressor_pressure_ratio: float,
+    high_pressure_compressor_pressure_ratio: Ratio,
     high_pressure_compressor: Compressor,
 ) -> bool:
     return high_pressure_compressor_pressure_ratio == high_pressure_compressor.pressure_ratio
@@ -380,7 +411,7 @@ def high_pressure_compressor_pressure_ratio_connection(
 
 @equation
 def high_pressure_compressor_efficiency_connection(
-    high_pressure_compressor_efficiency: float,
+    high_pressure_compressor_efficiency: Ratio,
     high_pressure_compressor: Compressor,
 ) -> bool:
     return high_pressure_compressor_efficiency == high_pressure_compressor.isentropic_efficiency
@@ -388,7 +419,7 @@ def high_pressure_compressor_efficiency_connection(
 
 @equation
 def high_pressure_compressor_gamma_connection(
-    gamma: float,
+    gamma: Ratio,
     high_pressure_compressor: Compressor,
 ) -> bool:
     return gamma == high_pressure_compressor.gamma
@@ -396,18 +427,18 @@ def high_pressure_compressor_gamma_connection(
 
 @equation
 def high_pressure_compressor_specific_heat_connection(
-    specific_heat_kj_per_kg_k: float,
+    specific_heat: SpecificHeat,
     high_pressure_compressor: Compressor,
 ) -> bool:
-    return specific_heat_kj_per_kg_k == high_pressure_compressor.specific_heat_kj_per_kg_k
+    return specific_heat == high_pressure_compressor.specific_heat
 
 
 @equation
 def high_pressure_compressor_work_connection(
-    high_pressure_compressor_work_kj_per_kg: float,
+    high_pressure_compressor_work: SpecificWork,
     high_pressure_compressor: Compressor,
 ) -> bool:
-    return high_pressure_compressor_work_kj_per_kg == high_pressure_compressor.specific_work_kj_per_kg
+    return high_pressure_compressor_work == high_pressure_compressor.specific_work
 ```
 
 Again, no equation directly mentions both compressors.
@@ -421,10 +452,10 @@ The turbine inlet temperature is connected to the HP turbine:
 ```python
 @equation
 def high_pressure_turbine_inlet_connection(
-    turbine_inlet_temperature_k: float,
+    turbine_inlet_temperature: AbsoluteTemperature,
     high_pressure_turbine: Turbine,
 ) -> bool:
-    return turbine_inlet_temperature_k == high_pressure_turbine.inlet_temperature_k
+    return turbine_inlet_temperature == high_pressure_turbine.inlet_temperature
 ```
 
 The HP turbine exit is exposed on the parent:
@@ -432,10 +463,10 @@ The HP turbine exit is exposed on the parent:
 ```python
 @equation
 def high_pressure_turbine_exit_connection(
-    high_pressure_turbine_exit_temperature_k: float,
+    high_pressure_turbine_exit_temperature: AbsoluteTemperature,
     high_pressure_turbine: Turbine,
 ) -> bool:
-    return high_pressure_turbine_exit_temperature_k == high_pressure_turbine.outlet_temperature_k
+    return high_pressure_turbine_exit_temperature == high_pressure_turbine.outlet_temperature
 ```
 
 and the same parent value independently feeds the LP turbine:
@@ -443,10 +474,10 @@ and the same parent value independently feeds the LP turbine:
 ```python
 @equation
 def low_pressure_turbine_inlet_connection(
-    high_pressure_turbine_exit_temperature_k: float,
+    high_pressure_turbine_exit_temperature: AbsoluteTemperature,
     low_pressure_turbine: Turbine,
 ) -> bool:
-    return high_pressure_turbine_exit_temperature_k == low_pressure_turbine.inlet_temperature_k
+    return high_pressure_turbine_exit_temperature == low_pressure_turbine.inlet_temperature
 ```
 
 The remaining turbine connections are:
@@ -454,42 +485,42 @@ The remaining turbine connections are:
 ```python
 @equation
 def core_exit_connection(
-    exit_temperature_k: float,
+    exit_temperature: AbsoluteTemperature,
     low_pressure_turbine: Turbine,
 ) -> bool:
-    return exit_temperature_k == low_pressure_turbine.outlet_temperature_k
+    return exit_temperature == low_pressure_turbine.outlet_temperature
 
 
 @equation
 def high_pressure_turbine_specific_heat_connection(
-    specific_heat_kj_per_kg_k: float,
+    specific_heat: SpecificHeat,
     high_pressure_turbine: Turbine,
 ) -> bool:
-    return specific_heat_kj_per_kg_k == high_pressure_turbine.specific_heat_kj_per_kg_k
+    return specific_heat == high_pressure_turbine.specific_heat
 
 
 @equation
 def low_pressure_turbine_specific_heat_connection(
-    specific_heat_kj_per_kg_k: float,
+    specific_heat: SpecificHeat,
     low_pressure_turbine: Turbine,
 ) -> bool:
-    return specific_heat_kj_per_kg_k == low_pressure_turbine.specific_heat_kj_per_kg_k
+    return specific_heat == low_pressure_turbine.specific_heat
 
 
 @equation
 def high_pressure_turbine_work_connection(
-    high_pressure_turbine_work_kj_per_kg: float,
+    high_pressure_turbine_work: SpecificWork,
     high_pressure_turbine: Turbine,
 ) -> bool:
-    return high_pressure_turbine_work_kj_per_kg == high_pressure_turbine.specific_work_kj_per_kg
+    return high_pressure_turbine_work == high_pressure_turbine.specific_work
 
 
 @equation
 def low_pressure_turbine_work_connection(
-    low_pressure_turbine_work_kj_per_kg: float,
+    low_pressure_turbine_work: SpecificWork,
     low_pressure_turbine: Turbine,
 ) -> bool:
-    return low_pressure_turbine_work_kj_per_kg == low_pressure_turbine.specific_work_kj_per_kg
+    return low_pressure_turbine_work == low_pressure_turbine.specific_work
 ```
 
 ## 6. Balance the shafts and expose useful output work
@@ -513,13 +544,11 @@ In Bilt:
 ```python
 @equation
 def high_pressure_shaft_balance(
-    high_pressure_compressor_work_kj_per_kg: float,
-    high_pressure_turbine_work_kj_per_kg: float,
-    high_pressure_shaft_efficiency: float,
+    high_pressure_compressor_work: SpecificWork,
+    high_pressure_turbine_work: SpecificWork,
+    high_pressure_shaft_efficiency: Ratio,
 ) -> bool:
-    return (
-        high_pressure_compressor_work_kj_per_kg == high_pressure_shaft_efficiency * high_pressure_turbine_work_kj_per_kg
-    )
+    return high_pressure_compressor_work == high_pressure_shaft_efficiency * high_pressure_turbine_work
 ```
 
 ### The LP shaft
@@ -549,15 +578,12 @@ or:
 ```python
 @equation
 def low_pressure_shaft_balance(
-    low_pressure_compressor_work_kj_per_kg: float,
-    low_pressure_turbine_work_kj_per_kg: float,
-    low_pressure_shaft_efficiency: float,
-    shaft_output_work_kj_per_kg: float,
+    low_pressure_compressor_work: SpecificWork,
+    low_pressure_turbine_work: SpecificWork,
+    low_pressure_shaft_efficiency: Ratio,
+    shaft_output_work: SpecificWork,
 ) -> bool:
-    return (
-        low_pressure_shaft_efficiency * low_pressure_turbine_work_kj_per_kg
-        == low_pressure_compressor_work_kj_per_kg + shaft_output_work_kj_per_kg
-    )
+    return low_pressure_shaft_efficiency * low_pressure_turbine_work == low_pressure_compressor_work + shaft_output_work
 ```
 
 Finally, mass flow converts specific output work into shaft power:
@@ -565,11 +591,11 @@ Finally, mass flow converts specific output work into shaft power:
 ```python
 @equation
 def shaft_power_relation(
-    shaft_output_work_kj_per_kg: float,
-    mass_flow_kg_per_s: float,
-    shaft_power_kw: float,
+    shaft_output_work: SpecificWork,
+    mass_flow: MassFlow,
+    shaft_power: Power,
 ) -> bool:
-    return shaft_power_kw == shaft_output_work_kj_per_kg * mass_flow_kg_per_s
+    return shaft_power == shaft_output_work * mass_flow
 ```
 
 These are all acausal equations.
@@ -655,52 +681,60 @@ For the executable documentation below, the same model is loaded from a temporar
 
 ```python exec="on" session="turbomachinery"
 model_source = """
-from bilt import Implementation, Interface, equation, field, system
+from typing import Annotated
 
+from bilt import Implementation, Interface, Quantity, equation, field, system
+from bilt.units import UNITLESS, absolute_kelvin, kelvin, kilogram, kilojoule, kilowatt, megawatt, second
+from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, MASS, TEMPERATURE, TIME
+
+
+AbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]
+SpecificHeat = Annotated[Quantity, ENERGY / (MASS * TEMPERATURE)]
+SpecificWork = Annotated[Quantity, ENERGY / MASS]
+MassFlow = Annotated[Quantity, MASS / TIME]
+Power = Annotated[Quantity, ENERGY / TIME]
+Ratio = Annotated[Quantity, DIMENSIONLESS]
 
 @system
 class Compressor(metaclass=Interface):
-    inlet_temperature_k: float = field()
-    outlet_temperature_k: float = field()
-    pressure_ratio: float = field()
-    isentropic_efficiency: float = field()
-    gamma: float = field()
-    specific_heat_kj_per_kg_k: float = field()
-    specific_work_kj_per_kg: float = field()
-
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    pressure_ratio: Ratio = field()
+    isentropic_efficiency: Ratio = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 @equation
 def compressor_temperature_relation(
-    inlet_temperature_k: float,
-    outlet_temperature_k: float,
-    pressure_ratio: float,
-    isentropic_efficiency: float,
-    gamma: float,
+    inlet_temperature: AbsoluteTemperature,
+    outlet_temperature: AbsoluteTemperature,
+    pressure_ratio: Ratio,
+    isentropic_efficiency: Ratio,
+    gamma: Ratio,
 ) -> bool:
     return (
-        (outlet_temperature_k - inlet_temperature_k)
+        (outlet_temperature - inlet_temperature)
         * isentropic_efficiency
-        == inlet_temperature_k
+        == (inlet_temperature - Quantity(0.0, absolute_kelvin))
         * (
             pressure_ratio ** ((gamma - 1.0) / gamma)
             - 1.0
         )
     )
 
-
 @equation
 def compressor_work_relation(
-    specific_work_kj_per_kg: float,
-    specific_heat_kj_per_kg_k: float,
-    inlet_temperature_k: float,
-    outlet_temperature_k: float,
+    specific_work: SpecificWork,
+    specific_heat: SpecificHeat,
+    inlet_temperature: AbsoluteTemperature,
+    outlet_temperature: AbsoluteTemperature,
 ) -> bool:
     return (
-        specific_work_kj_per_kg
-        == specific_heat_kj_per_kg_k
-        * (outlet_temperature_k - inlet_temperature_k)
+        specific_work
+        == specific_heat
+        * (outlet_temperature - inlet_temperature)
     )
-
 
 compressor_model = Implementation(
     Compressor,
@@ -710,96 +744,88 @@ compressor_model = Implementation(
     ],
 )
 
-
 @system
 class Turbine(metaclass=Interface):
-    inlet_temperature_k: float = field()
-    outlet_temperature_k: float = field()
-    specific_heat_kj_per_kg_k: float = field()
-    specific_work_kj_per_kg: float = field()
-
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 @equation
 def turbine_work_relation(
-    specific_work_kj_per_kg: float,
-    specific_heat_kj_per_kg_k: float,
-    inlet_temperature_k: float,
-    outlet_temperature_k: float,
+    specific_work: SpecificWork,
+    specific_heat: SpecificHeat,
+    inlet_temperature: AbsoluteTemperature,
+    outlet_temperature: AbsoluteTemperature,
 ) -> bool:
     return (
-        specific_work_kj_per_kg
-        == specific_heat_kj_per_kg_k
-        * (inlet_temperature_k - outlet_temperature_k)
+        specific_work
+        == specific_heat
+        * (inlet_temperature - outlet_temperature)
     )
-
 
 turbine_model = Implementation(
     Turbine,
     [turbine_work_relation],
 )
 
-
 @system
 class TwoShaftCore(metaclass=Interface):
-    inlet_temperature_k: float = field()
-    low_pressure_compressor_exit_temperature_k: float = field()
-    high_pressure_compressor_exit_temperature_k: float = field()
-    turbine_inlet_temperature_k: float = field()
-    high_pressure_turbine_exit_temperature_k: float = field()
-    exit_temperature_k: float = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    low_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    high_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    turbine_inlet_temperature: AbsoluteTemperature = field()
+    high_pressure_turbine_exit_temperature: AbsoluteTemperature = field()
+    exit_temperature: AbsoluteTemperature = field()
 
-    low_pressure_compressor_pressure_ratio: float = field()
-    high_pressure_compressor_pressure_ratio: float = field()
-    low_pressure_compressor_efficiency: float = field()
-    high_pressure_compressor_efficiency: float = field()
+    low_pressure_compressor_pressure_ratio: Ratio = field()
+    high_pressure_compressor_pressure_ratio: Ratio = field()
+    low_pressure_compressor_efficiency: Ratio = field()
+    high_pressure_compressor_efficiency: Ratio = field()
 
-    gamma: float = field()
-    specific_heat_kj_per_kg_k: float = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
 
-    low_pressure_shaft_efficiency: float = field()
-    high_pressure_shaft_efficiency: float = field()
+    low_pressure_shaft_efficiency: Ratio = field()
+    high_pressure_shaft_efficiency: Ratio = field()
 
-    low_pressure_compressor_work_kj_per_kg: float = field()
-    high_pressure_compressor_work_kj_per_kg: float = field()
-    high_pressure_turbine_work_kj_per_kg: float = field()
-    low_pressure_turbine_work_kj_per_kg: float = field()
+    low_pressure_compressor_work: SpecificWork = field()
+    high_pressure_compressor_work: SpecificWork = field()
+    high_pressure_turbine_work: SpecificWork = field()
+    low_pressure_turbine_work: SpecificWork = field()
 
     # Useful LP-shaft output.
-    shaft_output_work_kj_per_kg: float = field()
-    mass_flow_kg_per_s: float = field()
-    shaft_power_kw: float = field()
-
+    shaft_output_work: SpecificWork = field()
+    mass_flow: MassFlow = field()
+    shaft_power: Power = field()
 
 @equation
 def low_pressure_compressor_inlet_connection(
-    inlet_temperature_k: float,
+    inlet_temperature: AbsoluteTemperature,
     low_pressure_compressor: Compressor,
 ) -> bool:
-    return inlet_temperature_k == low_pressure_compressor.inlet_temperature_k
-
+    return inlet_temperature == low_pressure_compressor.inlet_temperature
 
 @equation
 def low_pressure_compressor_exit_connection(
-    low_pressure_compressor_exit_temperature_k: float,
+    low_pressure_compressor_exit_temperature: AbsoluteTemperature,
     low_pressure_compressor: Compressor,
 ) -> bool:
     return (
-        low_pressure_compressor_exit_temperature_k
-        == low_pressure_compressor.outlet_temperature_k
+        low_pressure_compressor_exit_temperature
+        == low_pressure_compressor.outlet_temperature
     )
-
 
 @equation
 def low_pressure_compressor_pressure_ratio_connection(
-    low_pressure_compressor_pressure_ratio: float,
+    low_pressure_compressor_pressure_ratio: Ratio,
     low_pressure_compressor: Compressor,
 ) -> bool:
     return low_pressure_compressor_pressure_ratio == low_pressure_compressor.pressure_ratio
 
-
 @equation
 def low_pressure_compressor_efficiency_connection(
-    low_pressure_compressor_efficiency: float,
+    low_pressure_compressor_efficiency: Ratio,
     low_pressure_compressor: Compressor,
 ) -> bool:
     return (
@@ -807,62 +833,56 @@ def low_pressure_compressor_efficiency_connection(
         == low_pressure_compressor.isentropic_efficiency
     )
 
-
 @equation
 def low_pressure_compressor_gamma_connection(
-    gamma: float,
+    gamma: Ratio,
     low_pressure_compressor: Compressor,
 ) -> bool:
     return gamma == low_pressure_compressor.gamma
 
-
 @equation
 def low_pressure_compressor_specific_heat_connection(
-    specific_heat_kj_per_kg_k: float,
+    specific_heat: SpecificHeat,
     low_pressure_compressor: Compressor,
 ) -> bool:
     return (
-        specific_heat_kj_per_kg_k
-        == low_pressure_compressor.specific_heat_kj_per_kg_k
+        specific_heat
+        == low_pressure_compressor.specific_heat
     )
-
 
 @equation
 def low_pressure_compressor_work_connection(
-    low_pressure_compressor_work_kj_per_kg: float,
+    low_pressure_compressor_work: SpecificWork,
     low_pressure_compressor: Compressor,
 ) -> bool:
     return (
-        low_pressure_compressor_work_kj_per_kg
-        == low_pressure_compressor.specific_work_kj_per_kg
+        low_pressure_compressor_work
+        == low_pressure_compressor.specific_work
     )
-
 
 @equation
 def high_pressure_compressor_inlet_connection(
-    low_pressure_compressor_exit_temperature_k: float,
+    low_pressure_compressor_exit_temperature: AbsoluteTemperature,
     high_pressure_compressor: Compressor,
 ) -> bool:
     return (
-        low_pressure_compressor_exit_temperature_k
-        == high_pressure_compressor.inlet_temperature_k
+        low_pressure_compressor_exit_temperature
+        == high_pressure_compressor.inlet_temperature
     )
-
 
 @equation
 def high_pressure_compressor_exit_connection(
-    high_pressure_compressor_exit_temperature_k: float,
+    high_pressure_compressor_exit_temperature: AbsoluteTemperature,
     high_pressure_compressor: Compressor,
 ) -> bool:
     return (
-        high_pressure_compressor_exit_temperature_k
-        == high_pressure_compressor.outlet_temperature_k
+        high_pressure_compressor_exit_temperature
+        == high_pressure_compressor.outlet_temperature
     )
-
 
 @equation
 def high_pressure_compressor_pressure_ratio_connection(
-    high_pressure_compressor_pressure_ratio: float,
+    high_pressure_compressor_pressure_ratio: Ratio,
     high_pressure_compressor: Compressor,
 ) -> bool:
     return (
@@ -870,10 +890,9 @@ def high_pressure_compressor_pressure_ratio_connection(
         == high_pressure_compressor.pressure_ratio
     )
 
-
 @equation
 def high_pressure_compressor_efficiency_connection(
-    high_pressure_compressor_efficiency: float,
+    high_pressure_compressor_efficiency: Ratio,
     high_pressure_compressor: Compressor,
 ) -> bool:
     return (
@@ -881,158 +900,143 @@ def high_pressure_compressor_efficiency_connection(
         == high_pressure_compressor.isentropic_efficiency
     )
 
-
 @equation
 def high_pressure_compressor_gamma_connection(
-    gamma: float,
+    gamma: Ratio,
     high_pressure_compressor: Compressor,
 ) -> bool:
     return gamma == high_pressure_compressor.gamma
 
-
 @equation
 def high_pressure_compressor_specific_heat_connection(
-    specific_heat_kj_per_kg_k: float,
+    specific_heat: SpecificHeat,
     high_pressure_compressor: Compressor,
 ) -> bool:
     return (
-        specific_heat_kj_per_kg_k
-        == high_pressure_compressor.specific_heat_kj_per_kg_k
+        specific_heat
+        == high_pressure_compressor.specific_heat
     )
-
 
 @equation
 def high_pressure_compressor_work_connection(
-    high_pressure_compressor_work_kj_per_kg: float,
+    high_pressure_compressor_work: SpecificWork,
     high_pressure_compressor: Compressor,
 ) -> bool:
     return (
-        high_pressure_compressor_work_kj_per_kg
-        == high_pressure_compressor.specific_work_kj_per_kg
+        high_pressure_compressor_work
+        == high_pressure_compressor.specific_work
     )
-
 
 @equation
 def high_pressure_turbine_inlet_connection(
-    turbine_inlet_temperature_k: float,
+    turbine_inlet_temperature: AbsoluteTemperature,
     high_pressure_turbine: Turbine,
 ) -> bool:
-    return turbine_inlet_temperature_k == high_pressure_turbine.inlet_temperature_k
-
+    return turbine_inlet_temperature == high_pressure_turbine.inlet_temperature
 
 @equation
 def high_pressure_turbine_exit_connection(
-    high_pressure_turbine_exit_temperature_k: float,
+    high_pressure_turbine_exit_temperature: AbsoluteTemperature,
     high_pressure_turbine: Turbine,
 ) -> bool:
     return (
-        high_pressure_turbine_exit_temperature_k
-        == high_pressure_turbine.outlet_temperature_k
+        high_pressure_turbine_exit_temperature
+        == high_pressure_turbine.outlet_temperature
     )
-
 
 @equation
 def high_pressure_turbine_specific_heat_connection(
-    specific_heat_kj_per_kg_k: float,
+    specific_heat: SpecificHeat,
     high_pressure_turbine: Turbine,
 ) -> bool:
     return (
-        specific_heat_kj_per_kg_k
-        == high_pressure_turbine.specific_heat_kj_per_kg_k
+        specific_heat
+        == high_pressure_turbine.specific_heat
     )
-
 
 @equation
 def high_pressure_turbine_work_connection(
-    high_pressure_turbine_work_kj_per_kg: float,
+    high_pressure_turbine_work: SpecificWork,
     high_pressure_turbine: Turbine,
 ) -> bool:
     return (
-        high_pressure_turbine_work_kj_per_kg
-        == high_pressure_turbine.specific_work_kj_per_kg
+        high_pressure_turbine_work
+        == high_pressure_turbine.specific_work
     )
-
 
 @equation
 def low_pressure_turbine_inlet_connection(
-    high_pressure_turbine_exit_temperature_k: float,
+    high_pressure_turbine_exit_temperature: AbsoluteTemperature,
     low_pressure_turbine: Turbine,
 ) -> bool:
     return (
-        high_pressure_turbine_exit_temperature_k
-        == low_pressure_turbine.inlet_temperature_k
+        high_pressure_turbine_exit_temperature
+        == low_pressure_turbine.inlet_temperature
     )
-
 
 @equation
 def core_exit_connection(
-    exit_temperature_k: float,
+    exit_temperature: AbsoluteTemperature,
     low_pressure_turbine: Turbine,
 ) -> bool:
-    return exit_temperature_k == low_pressure_turbine.outlet_temperature_k
-
+    return exit_temperature == low_pressure_turbine.outlet_temperature
 
 @equation
 def low_pressure_turbine_specific_heat_connection(
-    specific_heat_kj_per_kg_k: float,
+    specific_heat: SpecificHeat,
     low_pressure_turbine: Turbine,
 ) -> bool:
     return (
-        specific_heat_kj_per_kg_k
-        == low_pressure_turbine.specific_heat_kj_per_kg_k
+        specific_heat
+        == low_pressure_turbine.specific_heat
     )
-
 
 @equation
 def low_pressure_turbine_work_connection(
-    low_pressure_turbine_work_kj_per_kg: float,
+    low_pressure_turbine_work: SpecificWork,
     low_pressure_turbine: Turbine,
 ) -> bool:
     return (
-        low_pressure_turbine_work_kj_per_kg
-        == low_pressure_turbine.specific_work_kj_per_kg
+        low_pressure_turbine_work
+        == low_pressure_turbine.specific_work
     )
-
 
 @equation
 def high_pressure_shaft_balance(
-    high_pressure_compressor_work_kj_per_kg: float,
-    high_pressure_turbine_work_kj_per_kg: float,
-    high_pressure_shaft_efficiency: float,
+    high_pressure_compressor_work: SpecificWork,
+    high_pressure_turbine_work: SpecificWork,
+    high_pressure_shaft_efficiency: Ratio,
 ) -> bool:
     return (
-        high_pressure_compressor_work_kj_per_kg
+        high_pressure_compressor_work
         == high_pressure_shaft_efficiency
-        * high_pressure_turbine_work_kj_per_kg
+        * high_pressure_turbine_work
     )
-
 
 @equation
 def low_pressure_shaft_balance(
-    low_pressure_compressor_work_kj_per_kg: float,
-    low_pressure_turbine_work_kj_per_kg: float,
-    low_pressure_shaft_efficiency: float,
-    shaft_output_work_kj_per_kg: float,
+    low_pressure_compressor_work: SpecificWork,
+    low_pressure_turbine_work: SpecificWork,
+    low_pressure_shaft_efficiency: Ratio,
+    shaft_output_work: SpecificWork,
 ) -> bool:
     return (
         low_pressure_shaft_efficiency
-        * low_pressure_turbine_work_kj_per_kg
-        == low_pressure_compressor_work_kj_per_kg
-        + shaft_output_work_kj_per_kg
+        * low_pressure_turbine_work
+        == low_pressure_compressor_work
+        + shaft_output_work
     )
-
 
 @equation
 def shaft_power_relation(
-    shaft_output_work_kj_per_kg: float,
-    mass_flow_kg_per_s: float,
-    shaft_power_kw: float,
+    shaft_output_work: SpecificWork,
+    mass_flow: MassFlow,
+    shaft_power: Power,
 ) -> bool:
     return (
-        shaft_power_kw
-        == shaft_output_work_kj_per_kg * mass_flow_kg_per_s
+        shaft_power
+        == shaft_output_work * mass_flow
     )
-
 
 core_model = Implementation(
     TwoShaftCore,
@@ -1102,39 +1106,43 @@ mass flow                      20 kg/s
 
 The compressor pressure ratios and efficiencies are also supplied as design assumptions.
 
+Inputs use convenient engineering units. Bilt computes in coherent SI units,
+so calculated specific work is returned in J/kg and shaft power in W. We
+explicitly convert to kJ/kg and MW for the printed results and plots.
+
 ```python exec="on" source="above" session="turbomachinery"
 baseline = TwoShaftCore(
-    inlet_temperature_k=288.0,
-    low_pressure_compressor_pressure_ratio=2.0,
-    high_pressure_compressor_pressure_ratio=6.0,
-    low_pressure_compressor_efficiency=0.88,
-    high_pressure_compressor_efficiency=0.86,
-    turbine_inlet_temperature_k=1450.0,
-    exit_temperature_k=1000.0,
-    low_pressure_shaft_efficiency=0.99,
-    high_pressure_shaft_efficiency=0.99,
-    gamma=1.4,
-    specific_heat_kj_per_kg_k=1.005,
-    mass_flow_kg_per_s=20.0,
+    inlet_temperature=Quantity(288.0, absolute_kelvin),
+    low_pressure_compressor_pressure_ratio=Quantity(2.0, UNITLESS),
+    high_pressure_compressor_pressure_ratio=Quantity(6.0, UNITLESS),
+    low_pressure_compressor_efficiency=Quantity(0.88, UNITLESS),
+    high_pressure_compressor_efficiency=Quantity(0.86, UNITLESS),
+    turbine_inlet_temperature=Quantity(1450.0, absolute_kelvin),
+    exit_temperature=Quantity(1000.0, absolute_kelvin),
+    low_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
+    high_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
+    gamma=Quantity(1.4, UNITLESS),
+    specific_heat=1.005 * kilojoule / (kilogram * kelvin),
+    mass_flow=20.0 * kilogram / second,
 )
 
 with core_model:
-    low_pressure_compressor_exit = baseline.low_pressure_compressor_exit_temperature_k
-    high_pressure_compressor_exit = baseline.high_pressure_compressor_exit_temperature_k
-    high_pressure_turbine_exit = baseline.high_pressure_turbine_exit_temperature_k
+    low_pressure_compressor_exit = baseline.low_pressure_compressor_exit_temperature
+    high_pressure_compressor_exit = baseline.high_pressure_compressor_exit_temperature
+    high_pressure_turbine_exit = baseline.high_pressure_turbine_exit_temperature
 
-    low_pressure_compressor_work = baseline.low_pressure_compressor_work_kj_per_kg
-    low_pressure_turbine_work = baseline.low_pressure_turbine_work_kj_per_kg
-    shaft_output_work = baseline.shaft_output_work_kj_per_kg
-    shaft_power = baseline.shaft_power_kw
+    low_pressure_compressor_work = baseline.low_pressure_compressor_work
+    low_pressure_turbine_work = baseline.low_pressure_turbine_work
+    shaft_output_work = baseline.shaft_output_work
+    shaft_power = baseline.shaft_power
 
-print(f"LP compressor exit: {low_pressure_compressor_exit:.1f} K")
-print(f"HP compressor exit: {high_pressure_compressor_exit:.1f} K")
-print(f"HP turbine exit:    {high_pressure_turbine_exit:.1f} K")
-print(f"Core exit:          {baseline.exit_temperature_k:.1f} K")
+print(f"LP compressor exit: {low_pressure_compressor_exit.convert_to(absolute_kelvin).value:.1f} K")
+print(f"HP compressor exit: {high_pressure_compressor_exit.convert_to(absolute_kelvin).value:.1f} K")
+print(f"HP turbine exit:    {high_pressure_turbine_exit.convert_to(absolute_kelvin).value:.1f} K")
+print(f"Core exit:          {baseline.exit_temperature.convert_to(absolute_kelvin).value:.1f} K")
 print()
-print(f"Useful shaft work:  {shaft_output_work:.1f} kJ/kg")
-print(f"Useful shaft power: {shaft_power / 1000:.2f} MW")
+print(f"Useful shaft work:  {shaft_output_work.convert_to(kilojoule / kilogram).value:.1f} kJ/kg")
+print(f"Useful shaft power: {shaft_power.convert_to(megawatt).value:.2f} MW")
 ```
 
 For this deliberately simple model, the useful output is approximately:
@@ -1159,14 +1167,16 @@ station_names = [
     "Core exit",
 ]
 
-station_temperatures = [
-    baseline.inlet_temperature_k,
+station_temperature_readings = [
+    baseline.inlet_temperature,
     low_pressure_compressor_exit,
     high_pressure_compressor_exit,
-    baseline.turbine_inlet_temperature_k,
+    baseline.turbine_inlet_temperature,
     high_pressure_turbine_exit,
-    baseline.exit_temperature_k,
+    baseline.exit_temperature,
 ]
+
+station_temperatures = [reading.convert_to(absolute_kelvin).value for reading in station_temperature_readings]
 
 plt.plot(
     np.arange(len(station_names)),
@@ -1197,17 +1207,17 @@ usable_low_pressure_turbine_work = baseline.low_pressure_shaft_efficiency * low_
 
 plt.bar(
     ["LP shaft"],
-    [low_pressure_compressor_work],
+    [low_pressure_compressor_work.convert_to(kilojoule / kilogram).value],
     label="LP compressor",
 )
 plt.bar(
     ["LP shaft"],
-    [shaft_output_work],
-    bottom=[low_pressure_compressor_work],
+    [shaft_output_work.convert_to(kilojoule / kilogram).value],
+    bottom=[low_pressure_compressor_work.convert_to(kilojoule / kilogram).value],
     label="Useful output",
 )
 plt.axhline(
-    usable_low_pressure_turbine_work,
+    usable_low_pressure_turbine_work.convert_to(kilojoule / kilogram).value,
     linestyle="--",
     label="Usable turbine work",
 )
@@ -1301,25 +1311,27 @@ The inverse operating point is:
 
 ```python exec="on" source="above" session="turbomachinery"
 inverse_case = TwoShaftCore(
-    inlet_temperature_k=288.0,
-    low_pressure_compressor_pressure_ratio=2.0,
-    high_pressure_compressor_pressure_ratio=6.0,
-    low_pressure_compressor_efficiency=0.88,
+    inlet_temperature=Quantity(288.0, absolute_kelvin),
+    low_pressure_compressor_pressure_ratio=Quantity(2.0, UNITLESS),
+    high_pressure_compressor_pressure_ratio=Quantity(6.0, UNITLESS),
+    low_pressure_compressor_efficiency=Quantity(0.88, UNITLESS),
     # high_pressure_compressor_efficiency is deliberately omitted
-    turbine_inlet_temperature_k=1450.0,
-    exit_temperature_k=1000.0,
-    low_pressure_shaft_efficiency=0.99,
-    high_pressure_shaft_efficiency=0.99,
-    gamma=1.4,
-    specific_heat_kj_per_kg_k=1.005,
-    mass_flow_kg_per_s=20.0,
-    shaft_power_kw=2000.0,
+    turbine_inlet_temperature=Quantity(1450.0, absolute_kelvin),
+    exit_temperature=Quantity(1000.0, absolute_kelvin),
+    low_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
+    high_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
+    gamma=Quantity(1.4, UNITLESS),
+    specific_heat=1.005 * kilojoule / (kilogram * kelvin),
+    mass_flow=20.0 * kilogram / second,
+    shaft_power=2000.0 * kilowatt,
 )
 
 with core_model:
     required_high_pressure_compressor_efficiency = inverse_case.high_pressure_compressor_efficiency
 
-print(f"Required HP compressor efficiency: {required_high_pressure_compressor_efficiency:.3f}")
+print(
+    f"Required HP compressor efficiency: {required_high_pressure_compressor_efficiency.convert_to(UNITLESS).value:.3f}"
+)
 ```
 
 The result is approximately:
@@ -1368,19 +1380,19 @@ Finally, the HP compressor equations determine the efficiency required to achiev
 
 ```mermaid
 flowchart TB
-    power["Required shaft power<br/>2 MW"] --> output["Required output work"]
-    flow["Mass flow<br/>20 kg/s"] --> output
+    power["Required shaft power (2 MW)"] --> output["Required output work"]
+    flow["Mass flow (20 kg/s)"] --> output
 
     output --> lpbal["LP shaft balance"]
     lpc["LP compressor work"] --> lpbal
 
     lpbal --> lptwork["Required LP turbine work"]
     lptwork --> lpt["LP turbine"]
-    exhaust["Core exit<br/>1000 K"] --> lpt
+    exhaust["Core exit (1000 K)"] --> lpt
 
     lpt --> hptexit["HP turbine exit temperature"]
     hptexit --> hpt["HP turbine"]
-    tit["Turbine inlet<br/>1450 K"] --> hpt
+    tit["Turbine inlet (1450 K)"] --> hpt
 
     hpt --> hpwork["HP turbine work"]
     hpwork --> hpbal["HP shaft balance"]
@@ -1388,7 +1400,7 @@ flowchart TB
 
     hpcwork --> hpcout["Required HP compressor outlet temperature"]
     hpcout --> compressor["HP compressor equation"]
-    pr["Pressure ratio<br/>6"] --> compressor
+    pr["Pressure ratio (6)"] --> compressor
     compressor --> efficiency["Required HP compressor efficiency"]
 ```
 
@@ -1404,22 +1416,24 @@ required_high_pressure_compressor_efficiencies = []
 
 for required_power_mw in required_powers_mw:
     core = TwoShaftCore(
-        inlet_temperature_k=288.0,
-        low_pressure_compressor_pressure_ratio=2.0,
-        high_pressure_compressor_pressure_ratio=6.0,
-        low_pressure_compressor_efficiency=0.88,
-        turbine_inlet_temperature_k=1450.0,
-        exit_temperature_k=1000.0,
-        low_pressure_shaft_efficiency=0.99,
-        high_pressure_shaft_efficiency=0.99,
-        gamma=1.4,
-        specific_heat_kj_per_kg_k=1.005,
-        mass_flow_kg_per_s=20.0,
-        shaft_power_kw=required_power_mw * 1000.0,
+        inlet_temperature=Quantity(288.0, absolute_kelvin),
+        low_pressure_compressor_pressure_ratio=Quantity(2.0, UNITLESS),
+        high_pressure_compressor_pressure_ratio=Quantity(6.0, UNITLESS),
+        low_pressure_compressor_efficiency=Quantity(0.88, UNITLESS),
+        turbine_inlet_temperature=Quantity(1450.0, absolute_kelvin),
+        exit_temperature=Quantity(1000.0, absolute_kelvin),
+        low_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
+        high_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
+        gamma=Quantity(1.4, UNITLESS),
+        specific_heat=1.005 * kilojoule / (kilogram * kelvin),
+        mass_flow=20.0 * kilogram / second,
+        shaft_power=Quantity(float(required_power_mw), megawatt),
     )
 
     with core_model:
-        required_high_pressure_compressor_efficiencies.append(core.high_pressure_compressor_efficiency)
+        required_high_pressure_compressor_efficiencies.append(
+            core.high_pressure_compressor_efficiency.convert_to(UNITLESS).value
+        )
 ```
 
 ```python exec="on" html="on" source="above" session="turbomachinery"
@@ -1469,19 +1483,19 @@ The easiest experiments are changes to the operating assumptions.
 For example, change mass flow:
 
 ```python
-mass_flow_kg_per_s = 25.0
+mass_flow = 25.0 * kilogram / second
 ```
 
 or change the maximum turbine inlet temperature:
 
 ```python
-turbine_inlet_temperature_k = 1500.0
+turbine_inlet_temperature = Quantity(1500.0, absolute_kelvin)
 ```
 
 You can also change the compressor pressure-ratio target:
 
 ```python
-high_pressure_compressor_pressure_ratio = 7.0
+high_pressure_compressor_pressure_ratio = Quantity(7.0, UNITLESS)
 ```
 
 and ask again what compressor efficiency is required for a specified shaft power.
@@ -1489,7 +1503,7 @@ and ask again what compressor efficiency is required for a specified shaft power
 Another useful experiment is to change the core exit boundary:
 
 ```python
-exit_temperature_k = 950.0
+exit_temperature = Quantity(950.0, absolute_kelvin)
 ```
 
 To explore locally, edit these values while `zensical serve` is running and save the Markdown file. Zensical will rebuild the page and rerun the executable blocks.

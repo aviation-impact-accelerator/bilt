@@ -1,9 +1,8 @@
 __all__ = ["RealizationFailure", "realize_plan"]
 
 import ast
+import copy
 import dataclasses
-import inspect
-import textwrap
 import typing
 
 from bilt._backend._callable import BackendCallable
@@ -101,17 +100,8 @@ def _transform_to_callable(
     *,
     symbol_domains: dict[str, Domain],
 ) -> BackendCallable | RealizationFailure:
-    function_ast = typing.cast(
-        "ast.FunctionDef",
-        ast.parse(
-            textwrap.dedent(
-                inspect.getsource(transform._function),  # noqa: SLF001
-            )
-        ).body[0],
-    )
-
     function_ast, output_domain = lower_transform(
-        function_ast,
+        copy.deepcopy(transform._function_ast),  # noqa: SLF001
         function=transform._function,  # noqa: SLF001
         symbol_domains=symbol_domains,
     )

@@ -127,14 +127,6 @@ def _relative_conversion(
 ) -> Conversion:
     _validate_matching_dimensions(source, target)
 
-    if source.metadata is not target.metadata:
-        message = (
-            f"Cannot convert unit with metadata {source.metadata!s} "
-            f"to unit {target!s} with metadata {target.metadata!s} "
-            f"as they are different"
-        )
-        raise BiltUnitError(message)
-
     scale = source.to_si_base_units().relation.scale / target.to_si_base_units().relation.scale
 
     return Conversion(scale=scale)

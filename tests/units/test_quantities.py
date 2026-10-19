@@ -7,7 +7,7 @@ from bilt.errors import BiltDimensionalityError, BiltUnitError
 from bilt.units._metadata import Metadata
 from bilt.units._quantities import Quantity
 from bilt.units._units import (
-    DIMENSIONLESS,
+    UNITLESS,
     Unit,
     ampere,
     kelvin,
@@ -185,13 +185,13 @@ class TestQuantity:
             ),
         ),
     )
-    def test_addition_unit_error_if_unit_metadata_not_equal(
+    def test_addition_dimensionality_error_if_unit_metadata_not_equal(
         left: Quantity,
         right: Quantity,
     ) -> None:
         with pytest.raises(
-            BiltUnitError,
-            match="because the units do not have consistent metadata",
+            BiltDimensionalityError,
+            match="as they are dimensionally inconsistent",
         ):
             _ = left + right
 
@@ -402,38 +402,38 @@ class TestQuantity:
         ("quantity", "exponent", "expected"),
         (
             (
-                4.7 * DIMENSIONLESS,
+                4.7 * UNITLESS,
                 0,
-                1.0 * DIMENSIONLESS,
+                1.0 * UNITLESS,
             ),
             (
-                3.4 * DIMENSIONLESS,
+                3.4 * UNITLESS,
                 1,
-                3.4 * DIMENSIONLESS,
+                3.4 * UNITLESS,
             ),
             (
-                2.0 * DIMENSIONLESS,
+                2.0 * UNITLESS,
                 -3,
-                0.125 * DIMENSIONLESS,
+                0.125 * UNITLESS,
             ),
             (
-                4.7 * DIMENSIONLESS,
+                4.7 * UNITLESS,
                 0.0,
-                1.0 * DIMENSIONLESS,
+                1.0 * UNITLESS,
             ),
             (
-                9.0 * DIMENSIONLESS,
+                9.0 * UNITLESS,
                 1.5,
-                27.0 * DIMENSIONLESS,
+                27.0 * UNITLESS,
             ),
             (
-                16.0 * DIMENSIONLESS,
+                16.0 * UNITLESS,
                 -0.5,
-                0.25 * DIMENSIONLESS,
+                0.25 * UNITLESS,
             ),
         ),
     )
-    def test_exponentiation_dimensionless_unit(
+    def test_exponentiation_unitless_unit(
         quantity: Quantity,
         exponent: float,
         expected: Quantity,
@@ -447,7 +447,7 @@ class TestQuantity:
             (
                 1.5 * kilogram,
                 0,
-                1.0 * DIMENSIONLESS,
+                1.0 * UNITLESS,
             ),
             (
                 2.5 * kilogram * meter / second**2,
@@ -492,23 +492,23 @@ class TestQuantity:
         (
             (
                 2.0,
-                0.0 * DIMENSIONLESS,
-                1.0 * DIMENSIONLESS,
+                0.0 * UNITLESS,
+                1.0 * UNITLESS,
             ),
             (
                 2.0,
-                1.0 * DIMENSIONLESS,
-                2.0 * DIMENSIONLESS,
+                1.0 * UNITLESS,
+                2.0 * UNITLESS,
             ),
             (
                 2.0,
-                2.0 * DIMENSIONLESS,
-                4.0 * DIMENSIONLESS,
+                2.0 * UNITLESS,
+                4.0 * UNITLESS,
             ),
             (
                 4.0,
-                0.5 * DIMENSIONLESS,
-                2.0 * DIMENSIONLESS,
+                0.5 * UNITLESS,
+                2.0 * UNITLESS,
             ),
         ),
     )
@@ -542,6 +542,22 @@ class TestQuantity:
 
         with pytest.raises(BiltUnitError, match="Cannot compare quantity"):
             _ = 1.0 * meter < 1.0 * kilometer
+
+    @staticmethod
+    def test_comparison_unit_error_if_absolute_units_differ() -> None:
+        with pytest.raises(BiltUnitError, match="Cannot compare quantity"):
+            _ = 30.0 * abs(celsius) < 40.0 * abs(kelvin)
+
+    @staticmethod
+    def test_absolute_quantities_are_equal_only_in_the_same_unit() -> None:
+        assert 30.0 * abs(celsius) == 30.0 * abs(celsius)
+        assert 30.0 * abs(celsius) != 30.0 * abs(kelvin)
+        assert 30.0 * abs(kelvin) != 30.0 * kelvin
+
+    @staticmethod
+    def test_subtraction_unit_error_if_absolute_subtracted_from_relative() -> None:
+        with pytest.raises(BiltUnitError, match="Cannot subtract quantity"):
+            _ = 10.0 * kelvin - 100.0 * abs(kelvin)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -723,9 +739,33 @@ class TestQuantity:
             quantity.convert_to(unit)
 
     @staticmethod
-    def test_quantity_convert_to_unit_error_if_units_have_different_metadata() -> None:
-        with pytest.raises(BiltUnitError, match="Cannot convert"):
-            (1.0 * kilogram * co2).convert_to(kilogram * nox)
+    @pytest.mark.parametrize(
+        ("quantity", "unit"),
+        (
+            (1.0 * kilogram * co2, kilogram),
+            (1.0 * kilogram, kilogram * co2),
+            (1.0 * kilogram * co2, kilogram * nox),
+            (1.0 * (fraction * co2) * kilogram, kilogram),
+            (1.0 * (kilogram * co2) / (kilogram * nox), UNITLESS),
+        ),
+    )
+    def test_quantity_convert_to_dimensionality_error_if_tags_differ(quantity: Quantity, unit: Unit) -> None:
+        with pytest.raises(BiltDimensionalityError, match="Cannot convert"):
+            quantity.convert_to(unit)
+
+    @staticmethod
+    def test_quantity_convert_to_once_a_nested_tag_cancels() -> None:
+        quantity = 2.0 * (kilogram * co2) / (kilogram * nox) * (1000.0 * gram * nox)
+
+        result = quantity.convert_to(kilogram * co2)
+
+        assert result.value == pytest.approx(2.0)
+        assert result.unit is kilogram * co2
+
+    @staticmethod
+    def test_fractional_power_type_error_if_fraction_is_tagged() -> None:
+        with pytest.raises(TypeError):
+            _ = (0.25 * fraction * co2) ** 0.5
 
     @staticmethod
     def test_quantity_convert_to_unit_error_if_converting_absolute_to_relative() -> None:

@@ -3,6 +3,7 @@ import typing
 
 from bilt.units._category import UnitCategory
 from bilt.units._conversion import conversion_between
+from bilt.units._errors import BiltUnitError
 from bilt.units._validation import validate_addition, validate_cast, validate_comparison
 
 if typing.TYPE_CHECKING:
@@ -84,6 +85,12 @@ class Quantity:
             return (self.value * self.unit.relation.composition[0].unit) + (
                 -other.value * other.unit.relation.composition[0].unit
             )
+        if isinstance(other, self.__class__) and other.unit.category is UnitCategory.ABSOLUTE:
+            message = (
+                f"Cannot subtract quantity {other!s} with absolute unit {other.unit!s} from quantity {self!s} "
+                f"with relative unit {self.unit!s}"
+            )
+            raise BiltUnitError(message)
         return self + (-other)
 
     def __mul__(self, other: Quantity | float) -> typing.Self:

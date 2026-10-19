@@ -3,6 +3,8 @@ __all__ = ["Interface"]
 import typing
 
 if typing.TYPE_CHECKING:
+    from bilt.core._port_declaration import PortDeclaration
+
     from ._system._decorator import Attribute
     from ._system._implementation import Implementation
     from ._system._sentinel import _Missing
@@ -16,6 +18,7 @@ class Interface(type):
     __bilt_system_implementation_default__: list[Implementation]
 
     __bilt_system_attributes__: typing.ClassVar[dict[str, Attribute[object]]]
+    __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_system_implementation__: Implementation | _Missing
     __bilt_system_instance_variables__: dict[str, object]
 

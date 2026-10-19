@@ -15,6 +15,7 @@ The user guide introduces the main Bilt concepts:
 - [Dimensions, domains and tensors](guide/dimensions-domains-and-tensors.md)
 - [Systems of systems](guide/systems-of-systems.md)
 - [Backends](guide/backends.md)
+- [Units](guide/units.md)
 
 ## Worked examples
 
@@ -32,3 +33,7 @@ Worked examples show how these concepts fit together in complete models.
 ### Choosing computational backends
 
 - [Compiling a Bilt model with JAX](worked_examples/compiling-a-bilt-model-with-JAX.md) - a detailed example of how to compile a Bilt model with JAX.
+
+## Configuration
+
+- [Using Bilt with ruff](config.md#ruff) - keep ruff from moving imports that Bilt needs at runtime into `if TYPE_CHECKING:` blocks.

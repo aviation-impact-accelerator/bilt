@@ -1,6 +1,7 @@
-"""Errors for system definitions and sub-system declarations."""
+"""Errors for system definitions, the values an instance is given, and sub-system declarations."""
 
 __all__ = [
+    "BiltInputDimensionalityError",
     "BiltSubSystemConflictError",
     "BiltSubSystemError",
     "BiltSubSystemMismatchedImplementationError",
@@ -14,8 +15,12 @@ __all__ = [
 import typing
 
 from bilt.core._errors import BiltDefinitionError, BiltEvaluationError
+from bilt.core._tensors._tensors import Tensor
+from bilt.units import Quantity
+from bilt.units._errors import BiltDimensionalityError
 
 if typing.TYPE_CHECKING:
+    from bilt.core._port_declaration import PortDeclaration
     from bilt.core._system._instance import SystemInstance
 
 
@@ -57,6 +62,45 @@ class BiltUnknownSystemAttributeError(BiltEvaluationError, AttributeError):
             name=name,
             obj=instance,
         )
+
+
+class BiltInputDimensionalityError(BiltDimensionalityError):
+    """Raised when a value given for a port is not the quantity the port declares."""
+
+    def __init__(self, system_name: str, port: str, expected: PortDeclaration | None, value: object) -> None:
+        label = ""
+        match value:
+            case Quantity(unit=unit):
+                received = f"{value} of {unit.dimension}"
+            case Tensor(unit=unit) if unit is None:
+                received = f"a Tensor with no unit over {value.domain}"
+                label = " Label it with `tensor(..., unit=...)`."
+            case Tensor(unit=unit):
+                received = f"a Tensor in {unit} over {value.domain}"
+            case _:
+                unit = None
+                received = f"{type(value).__name__} {value!r}"
+
+        carrier = "a Tensor" if expected is not None and expected.over_a_domain else "a Quantity"
+        if expected is None:
+            msg = (
+                f"Input {port!r} of {system_name!r} is a plain port, outside the unit system, so it rejects a "
+                f"{'unit-carrying Tensor' if isinstance(value, Tensor) else 'Quantity'}: got {received}."
+            )
+        elif expected.over_a_domain and not isinstance(value, Tensor):
+            msg = (
+                f"Input {port!r} of {system_name!r} varies over a domain, so it must be a Tensor of {expected}, "
+                f"not {received}. Annotate it `Quantity` instead if it does not vary over a domain."
+            )
+        elif unit is not None and unit.dimension == expected.dimensionality:
+            msg = (
+                f"Input {port!r} of {system_name!r} must be {carrier} of {expected} in "
+                f"{'an absolute' if expected.absolute else 'a relative'} unit such as {expected.coherent_unit}, "
+                f"not {received}."
+            )
+        else:
+            msg = f"Input {port!r} of {system_name!r} must be {carrier} of {expected}, not {received}.{label}"
+        super().__init__(msg)
 
 
 class BiltSubSystemError(BiltDefinitionError):

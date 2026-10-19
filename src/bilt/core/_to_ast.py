@@ -2,11 +2,12 @@ import ast
 import typing
 
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._atoms import AxisType, FloatType, IntType, SymbolType
+from bilt.symbolic._atoms import AxisType, FloatType, IntType, QuantityType, SymbolType
 from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
 
 if typing.TYPE_CHECKING:
     from bilt.symbolic._tree import Tree
+    from bilt.units import Dimension
 
 __all__ = [
     "isel_intrinsic_ast",
@@ -114,6 +115,9 @@ def _leaf_to_ast(tree: Tree) -> ast.expr:
         return ast.Constant(
             value=typing.cast("int | float", tree.head.value),
         )
+
+    if tree.head.atom_type is QuantityType:
+        return ast.Constant(value=typing.cast("tuple[float, Dimension, bool]", tree.head.value)[0])
 
     message = f"Unsupported symbolic leaf {tree.head!r} in AST conversion."
     raise BiltUnsupportedIsolationError(message)

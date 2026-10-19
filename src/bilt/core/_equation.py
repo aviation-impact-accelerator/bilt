@@ -1,6 +1,7 @@
 __all__ = [
     "BasicEquation",
     "Equation",
+    "check_homogeneity",
     "equation",
 ]
 
@@ -8,22 +9,35 @@ import inspect
 import types
 import typing
 
-from bilt.core._errors import BiltEquationReturnError, BiltEquationSignatureError
+from bilt.core._dimensional_analysis import absoluteness_of, dimensionality_of
+from bilt.core._errors import (
+    BiltEquationDimensionalityError,
+    BiltEquationReturnError,
+    BiltEquationSignatureError,
+    BiltUnresolvedAnnotationError,
+)
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
+from bilt.core._port_declaration import PortDeclaration, annotated_parts, port_declarations
 from bilt.core._sub_system import validate_name
 from bilt.core._tensors._tensors import Tensor
+from bilt.symbolic import _atoms as ops
+from bilt.symbolic._atoms import QuantityType, SymbolType
 from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr, tensor_symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
 from bilt.symbolic._walk import subtrees
+from bilt.units._errors import BiltDimensionalityError
 
 if typing.TYPE_CHECKING:
     import collections.abc
+
+    from bilt.units import Dimension
 
 
 class Equation[R, **P](typing.Protocol):
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
+    __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
@@ -34,6 +48,7 @@ class Equation[R, **P](typing.Protocol):
 class BasicEquation[R, **P]:
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
+    __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
@@ -41,21 +56,44 @@ class BasicEquation[R, **P]:
 
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
         name = _function_name(function)
-        signature = inspect.signature(function)
+        try:
+            signature = inspect.signature(function, eval_str=True)
+        except NameError as error:
+            raise BiltUnresolvedAnnotationError(name, error) from error
 
         _validate_equation_signature(name, signature)
 
         sub_systems = _sub_system_parameters(signature)
         symbols = _build_symbols(signature, sub_systems)
         tree = _build_equation_tree(name, function, symbols)
-        equation_symbols, referenced_sub_systems = _expand_sub_system_parameters(symbols, sub_systems, tree)
+        occurring = subtrees(tree)
+        equation_symbols, referenced_sub_systems, sub_system_declarations = _expand_sub_system_parameters(
+            symbols, sub_systems, occurring
+        )
 
         self.__bilt_name__ = name
         self.__bilt_parameters__ = tuple(equation_symbols)
+        self.__bilt_port_declarations__ = (
+            port_declarations(
+                name,
+                {
+                    port: parameter.annotation
+                    for port, parameter in signature.parameters.items()
+                    if port not in sub_systems
+                },
+            )
+            | sub_system_declarations
+        )
         self.__bilt_equation_symbols__ = equation_symbols
         self.__bilt_equation_tree__ = tree
         self.__bilt_sub_systems__ = types.MappingProxyType(referenced_sub_systems)
         self._function = function
+        dimensionalities = {
+            port: declaration.dimensionality for port, declaration in self.__bilt_port_declarations__.items()
+        }
+        check_homogeneity(self, dimensionalities)
+        _carried_under(name, tree, dimensionalities)
+        absoluteness_of(name, tree, self.__bilt_port_declarations__)
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self._function(*args, **kwargs)
@@ -104,16 +142,21 @@ def _build_symbols(
     signature: inspect.Signature,
     sub_systems: collections.abc.Mapping[str, Interface],
 ) -> dict[str, Expr | SubSystemExpr]:
-    """Bind each parameter to what the equation function sees when called symbolically."""
+    """Bind each parameter to what the equation function sees when called symbolically.
+
+    A parameter over a domain gets the tensor symbol, so a declared `Annotated[Tensor, DIM]` port reduces and
+    indexes as a plain `Tensor` one does.
+    """
     symbols: dict[str, Expr | SubSystemExpr] = {}
 
     for name, parameter in signature.parameters.items():
+        base_type, _ = annotated_parts(parameter.annotation)
         if name in sub_systems:
             symbols[name] = SubSystemExpr(
                 name,
                 {port: QualifiedPort(name, port).dotted for port in sub_systems[name].__bilt_parameters__},
             )
-        elif parameter.annotation is Tensor:
+        elif base_type is Tensor:
             symbols[name] = tensor_symbol_expr(name)
         else:
             symbols[name] = symbol_expr(name)
@@ -124,16 +167,17 @@ def _build_symbols(
 def _expand_sub_system_parameters(
     symbols: dict[str, Expr | SubSystemExpr],
     sub_systems: collections.abc.Mapping[str, Interface],
-    tree: Tree,
-) -> tuple[dict[str, Expr], dict[str, Interface]]:
+    occurring: collections.abc.Container[Tree],
+) -> tuple[dict[str, Expr], dict[str, Interface], dict[str, PortDeclaration]]:
     """Replace each sub-system parameter with the dotted ports the equation actually references.
 
     Keys keep signature order, so the parameter tuple reads straight off the result. A port the
     equation never mentions is not a parameter of it, so a sub-system contributes only what it uses.
+    Each dotted port carries the declaration its sub-system's interface gives it.
     """
-    occurring = subtrees(tree)
     equation_symbols: dict[str, Expr] = {}
     referenced_sub_systems: dict[str, Interface] = {}
+    sub_system_declarations: dict[str, PortDeclaration] = {}
 
     for name, symbol in symbols.items():
         if isinstance(symbol, Expr):
@@ -145,8 +189,10 @@ def _expand_sub_system_parameters(
             if symbol_tree(dotted) in occurring:
                 equation_symbols[dotted] = symbol_expr(dotted)
                 referenced_sub_systems[name] = sub_systems[name]
+                if port in sub_systems[name].__bilt_port_declarations__:
+                    sub_system_declarations[dotted] = sub_systems[name].__bilt_port_declarations__[port]
 
-    return equation_symbols, referenced_sub_systems
+    return equation_symbols, referenced_sub_systems, sub_system_declarations
 
 
 def _build_equation_tree[R, **P](
@@ -200,3 +246,61 @@ def equation[R, **P](
 ) -> BasicEquation[R, P]:
     """Decorator to denote a function as an equation."""
     return BasicEquation(function)
+
+
+def check_homogeneity(
+    equation: BasicEquation[object, ...],
+    dimensionalities: collections.abc.Mapping[str, Dimension],
+) -> None:
+    """Demand that an equation's relation can be dimensionally homogeneous, given its ports' `dimensionalities`."""
+    tree = equation.__bilt_equation_tree__
+    try:
+        left = dimensionality_of(tree.left, dimensionalities)
+        right = dimensionality_of(tree.right, dimensionalities)
+    except BiltDimensionalityError as error:
+        raise BiltEquationDimensionalityError(
+            equation.__bilt_name__, f"is dimensionally inconsistent: {error}"
+        ) from error
+
+    if left is not None and right is not None and left is not right:
+        msg = f"relates {left} to {right}"
+        raise BiltEquationDimensionalityError(equation.__bilt_name__, msg)
+
+
+def _carried_under(
+    equation_name: str,
+    tree: Tree,
+    dimensionalities: collections.abc.Mapping[str, Dimension],
+) -> tuple[frozenset[str], frozenset[Dimension]]:
+    """Return the ports and the quantity constants' dimensionalities that `tree` carries.
+
+    A power's exponent and an index operation's arguments do not carry what is under them up.
+    """
+    if tree.is_leaf:
+        if tree.head.atom_type is SymbolType:
+            return frozenset({typing.cast("str", tree.head.value)}), frozenset()
+        if tree.head.atom_type is QuantityType:
+            return frozenset(), frozenset({typing.cast("tuple[float, Dimension, bool]", tree.head.value)[1]})
+        return frozenset(), frozenset()
+
+    under = [_carried_under(equation_name, operand, dimensionalities) for operand in tree.args]
+    carried = under[:1] if tree.head in (ops.POW, ops.ISEL) else under
+    ports = frozenset().union(*(ports for ports, _ in carried))
+    constants = frozenset().union(*(constants for _, constants in carried))
+    plain = ports - dimensionalities.keys()
+    declared = ports & dimensionalities.keys()
+    if plain and declared:
+        msg = (
+            "mixes declared and plain ports in one operation: plain "
+            f"{', '.join(map(repr, sorted(plain)))} with declared {', '.join(map(repr, sorted(declared)))}. "
+            "Declare the plain ports, or keep them out of the declared ports' arithmetic."
+        )
+        raise BiltEquationDimensionalityError(equation_name, msg)
+    if plain and constants:
+        msg = (
+            "mixes a plain port with a quantity constant in one operation: plain "
+            f"{', '.join(map(repr, sorted(plain)))} with a constant of {', '.join(sorted(map(str, constants)))}. "
+            "Declare the port, or write the constant as a bare number."
+        )
+        raise BiltEquationDimensionalityError(equation_name, msg)
+    return ports, constants

@@ -2,15 +2,20 @@ __all__ = ["system"]
 
 import dataclasses
 import enum
+import inspect
 import typing
 
+from bilt.core._errors import BiltUnresolvedAnnotationError
 from bilt.core._interface import Interface
+from bilt.core._port_declaration import port_declarations
 from bilt.core._system._errors import BiltSystemDefinitionError
+from bilt.core._system._input_validation import validate_inputs
 
 from ._dispatch import _dispatch_evaluation
 from ._sentinel import MISSING
 
 if typing.TYPE_CHECKING:
+    import collections.abc
     import types
 
 
@@ -40,13 +45,22 @@ def _validate_cls_is_interface(cls: type) -> None:
 
 
 def _create_bilt_system_class_attribute(cls: Interface) -> None:
+    try:
+        annotations = inspect.get_annotations(cls, eval_str=True)
+    except NameError as error:
+        raise BiltUnresolvedAnnotationError(cls.__name__, error) from error
     attributes = {
         name: Attribute(name, typing.cast("type[object]", annotation))
-        for name, annotation in cls.__annotations__.items()
+        for name, annotation in annotations.items()
         if typing.get_origin(annotation) is not typing.ClassVar  # type: ignore[comparison-overlap]
     }
     setattr(cls, "__bilt_system_attributes__", attributes)  # noqa: B010
     setattr(cls, "__bilt_parameters__", tuple(attributes.keys()))  # noqa: B010
+    setattr(  # noqa: B010
+        cls,
+        "__bilt_port_declarations__",
+        port_declarations(cls.__name__, {name: attribute.annotation for name, attribute in attributes.items()}),
+    )
 
 
 def _create_initialize_method(cls: Interface) -> None:
@@ -55,6 +69,7 @@ def _create_initialize_method(cls: Interface) -> None:
     body = [
         "self.__bilt_system_implementation__ = MISSING",
         f"self.__bilt_system_instance_variables__ = {{{', '.join(f'"{parameter}": {parameter}' for parameter in parameters)}}}",
+        "_check_inputs(type(self), self.__bilt_system_instance_variables__)",
     ]
     _create_method(
         cls,
@@ -63,8 +78,13 @@ def _create_initialize_method(cls: Interface) -> None:
         args=args,
         body=body,
         global_namespace=globals(),
-        local_namespace={"MISSING": MISSING},
+        local_namespace={"MISSING": MISSING, "_check_inputs": _check_inputs},
     )
+
+
+def _check_inputs(cls: Interface, values: collections.abc.Mapping[str, object]) -> None:
+    """Ensure supplied values satisfy the declarations on the system interface."""
+    validate_inputs(cls.__bilt_name__, cls.__bilt_port_declarations__, values)
 
 
 def _create_properties(cls: Interface) -> None:

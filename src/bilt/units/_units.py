@@ -6,7 +6,9 @@ import typing
 from bilt.units._errors import BiltUnitError
 
 from ._category import UnitCategory
-from ._dimensions import (
+from ._prefix import PREFIX_NAMES, Prefix
+from ._quantities import Quantity
+from .dimensions._dimensions import (
     AMOUNT,
     CURRENCY,
     CURRENT,
@@ -17,8 +19,6 @@ from ._dimensions import (
     TIME,
     Dimension,
 )
-from ._prefix import PREFIX_NAMES, Prefix
-from ._quantities import Quantity
 
 if typing.TYPE_CHECKING:
     from ._metadata import Metadata
@@ -92,9 +92,9 @@ class UnitComposition:
     _dimension: Dimension
 
     def __new__(cls, *composition: UnitOrder, scale: float = 1.0) -> typing.Self:
-        unit_to_order_mapping = {term.unit: 0 for term in composition if term.unit is not DIMENSIONLESS}
+        unit_to_order_mapping = {term.unit: 0 for term in composition if term.unit is not UNITLESS}
         for term in composition:
-            if term.unit is not DIMENSIONLESS:
+            if term.unit is not UNITLESS:
                 unit_to_order_mapping[term.unit] += term.order
         composition = tuple(
             sorted(UnitOrder(unit, order) for unit, order in unit_to_order_mapping.items() if order != 0)
@@ -236,7 +236,7 @@ class UnitComposition:
 
         composition = " ".join(format_term(term.unit.name, term.order) for term in self.composition)
         if not composition:
-            composition = "DIMENSIONLESS"
+            composition = "UNITLESS"
         if self.scale == 1.0:
             return composition
         return f"{self.scale} {composition}"
@@ -274,12 +274,7 @@ class Unit:
         if key in cls._cache:
             return cls._cache[key]
 
-        if (
-            len(relation) == 1
-            and relation.composition[0].order == 1
-            and metadata is None
-            and (relation.composition[0].unit.relation.scale == relation.scale or relation.scale == 1.0)
-        ):
+        if len(relation) == 1 and relation.composition[0].order == 1 and metadata is None and relation.scale == 1.0:
             return typing.cast("typing.Self", relation.composition[0].unit)
 
         instance = object.__new__(cls)
@@ -288,7 +283,7 @@ class Unit:
         instance._relation = relation  # noqa: SLF001
         instance._offset = None  # noqa: SLF001
         instance._metadata = metadata  # noqa: SLF001
-        instance._dimension = instance._relation.dimension  # noqa: SLF001
+        instance._dimension = relation.dimension if metadata is None else relation.dimension * metadata  # noqa: SLF001
         instance._category = UnitCategory.DERIVED  # noqa: SLF001
 
         cls._cache[key] = instance
@@ -304,13 +299,18 @@ class Unit:
             raise BiltUnitError(message)
 
         match relation:
+            case Unit() if relation.metadata is not None:
+                relation = UnitComposition(UnitOrder(relation, 1))
             case Unit():
                 relation = relation.relation
             case UnitComposition():
                 pass
             case Quantity():
                 quantity = relation
-                if quantity.unit.category in (UnitCategory.BASE, UnitCategory.NAMED):
+                if quantity.unit.metadata is not None or quantity.unit.category in (
+                    UnitCategory.BASE,
+                    UnitCategory.NAMED,
+                ):
                     relation = UnitComposition(
                         UnitOrder(quantity.unit, 1),
                         scale=quantity.value,
@@ -456,18 +456,27 @@ class Unit:
     def is_si_derived_unit(self) -> bool:
         return not self.is_si_base_unit and self.is_coherent
 
+    @property
+    def is_relative(self) -> bool:
+        return self.category is not UnitCategory.ABSOLUTE and all(
+            term.unit is self or term.unit.is_relative for term in self.relation.composition
+        )
+
     def strip_metadata(self) -> typing.Self:
         if self.metadata is not None:
-            return self.__class__(self.relation)
-        return self.__class__(
-            UnitComposition(
-                *[
-                    UnitOrder(self.__class__(unit_order.unit.relation), unit_order.order)
-                    for unit_order in self.relation.composition
-                ],
-                scale=self.relation.scale,
-            )
+            return self.__class__(self.relation).strip_metadata()
+        if self.category in (UnitCategory.BASE, UnitCategory.ABSOLUTE):
+            return self
+        stripped = UnitComposition(
+            *[
+                UnitOrder(unit_order.unit.strip_metadata(), unit_order.order)
+                for unit_order in self.relation.composition
+            ],
+            scale=self.relation.scale,
         )
+        if stripped is self.relation:
+            return self
+        return self.__class__(stripped)
 
     def __abs__(self) -> Unit:
         if self not in self.__class__._absolute_cache:  # noqa: SLF001
@@ -545,11 +554,11 @@ class Unit:
         if isinstance(other, int):
             base = (
                 UnitComposition(UnitOrder(self, 1))
-                if (len(self.relation) == 1 and self.relation.composition[0].order == 1)
+                if self.metadata is not None or (len(self.relation) == 1 and self.relation.composition[0].order == 1)
                 else self.relation
             )
             return self.__class__(base**other)
-        if isinstance(other, float) and self is DIMENSIONLESS:
+        if isinstance(other, float) and self is UNITLESS:
             return self
         return NotImplemented
 
@@ -572,16 +581,14 @@ class Unit:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return False
+        if UnitCategory.ABSOLUTE in (self.category, other.category):
+            return self is other
         if self.name == other.name:
             return True
         if self.dimension != other.dimension:
             return False
         if self.relation.composition == other.relation.composition:
-            return (
-                (self.relation.scale == other.relation.scale)
-                and (self.prefix == other.prefix)
-                and (self.metadata == other.metadata)
-            )
+            return (self.relation.scale == other.relation.scale) and (self.prefix == other.prefix)
         return self.to_si_base_units() == other.to_si_base_units()
 
     def __hash__(self) -> int:
@@ -614,7 +621,7 @@ def _create_name(relation: UnitComposition, metadata: Metadata | None) -> str:
     denominator = " ".join(format_term(term) for term in relation.composition if term.order <= -1)
     match (numerator, denominator):
         case "", "":
-            name = "DIMENSIONLESS"
+            name = "UNITLESS"
         case n, "" if n != "":
             name = numerator
         case "", d if d != "":
@@ -646,7 +653,7 @@ def _define_base_unit(name: str, dimension: Dimension, prefix: Prefix | None = N
     return base_unit
 
 
-DIMENSIONLESS = Unit(UnitComposition())
+UNITLESS = Unit(UnitComposition())
 
 kilogram = _define_base_unit("kilogram", MASS, prefix=Prefix.KILO)
 meter = _define_base_unit("meter", LENGTH)
@@ -691,6 +698,29 @@ class UnitSystem:
 
     def __getitem__(self, dimension: Dimension) -> Unit:
         return self.dimension_to_base_unit_mapping[dimension]
+
+    @functools.cache  # noqa: B019
+    def coherent_unit(self, dimensionality: Dimension) -> Unit:
+        """The unit of `dimensionality` composed from this system's base units with no scale factor."""
+        orders = zip(self.dimension_to_base_unit_mapping.values(), dimensionality.dimensions, strict=True)
+        tagged = (
+            UnitOrder(self.coherent_unit(dimension) * tag, order)
+            for (dimension, tag), order in dimensionality.tagged.items()
+        )
+        return Unit(UnitComposition(*(UnitOrder(base_unit, order) for base_unit, order in orders), *tagged))
+
+    def coherent_value(self, quantity: Quantity) -> float:
+        """The value of `quantity` in the coherent unit of its dimensionality, or in that unit's absolute counterpart."""
+        coherent_unit = self.coherent_unit(quantity.unit.dimension)
+        if quantity.unit.category is UnitCategory.ABSOLUTE:
+            coherent_unit = abs(coherent_unit)
+        elif not quantity.unit.is_relative:
+            message = (
+                f"Cannot convert quantity {quantity!s} to a coherent unit because {quantity.unit!s} is a compound "
+                f"unit containing an absolute unit"
+            )
+            raise BiltUnitError(message)
+        return quantity.convert_to(coherent_unit).value
 
 
 BASE_UNIT_SYSTEM = UnitSystem(

@@ -6,11 +6,12 @@ import pytest
 
 from bilt.errors import BiltUnitError
 from bilt.units import (
-    DIMENSIONLESS,
+    UNITLESS,
     USD,
     absolute_celsius,
     absolute_fahrenheit,
     absolute_kelvin,
+    absolute_year,
     acre,
     ampere,
     candela,
@@ -44,10 +45,10 @@ from bilt.units import (
     watthour,
     yard,
 )
-from bilt.units._dimensions import LENGTH, TEMPERATURE, Dimension
 from bilt.units._metadata import Metadata
 from bilt.units._prefix import Prefix
-from bilt.units._units import Unit, UnitComposition, UnitOrder
+from bilt.units._units import BASE_UNIT_SYSTEM, Unit, UnitComposition, UnitOrder
+from bilt.units.dimensions._dimensions import DIMENSIONLESS, LENGTH, MASS, TEMPERATURE, TIME, Dimension
 
 if typing.TYPE_CHECKING:
     from bilt.units._quantities import Quantity
@@ -57,6 +58,7 @@ thermal = Metadata("thermal")
 
 co2 = Metadata("co2")
 nox = Metadata("nox")
+biogenic = Metadata("biogenic")
 
 
 class TestUnitOrder:
@@ -147,18 +149,18 @@ class TestUnitComposition:
     @pytest.mark.parametrize(
         ("composition", "expected"),
         (
-            (UnitComposition(UnitOrder(DIMENSIONLESS, 1)), UnitComposition()),
+            (UnitComposition(UnitOrder(UNITLESS, 1)), UnitComposition()),
             (
-                UnitComposition(UnitOrder(DIMENSIONLESS, 1), UnitOrder(fraction, 1)),
+                UnitComposition(UnitOrder(UNITLESS, 1), UnitOrder(fraction, 1)),
                 UnitComposition(UnitOrder(fraction, 1)),
             ),
             (
-                UnitComposition(UnitOrder(DIMENSIONLESS, 1), UnitOrder(fraction * Metadata("mass"), 1)),
+                UnitComposition(UnitOrder(UNITLESS, 1), UnitOrder(fraction * Metadata("mass"), 1)),
                 UnitComposition(UnitOrder(fraction * Metadata("mass"), 1)),
             ),
         ),
     )
-    def test_remove_dimensionless(composition: UnitComposition, expected: UnitComposition) -> None:
+    def test_remove_unitless(composition: UnitComposition, expected: UnitComposition) -> None:
         assert composition is expected
 
     @staticmethod
@@ -444,10 +446,10 @@ class TestUnitComposition:
     @pytest.mark.parametrize(
         ("unit_composition", "expected_str", "expected_repr"),
         (
-            (UnitComposition(), "DIMENSIONLESS", "UnitComposition(scale=1.0)"),
+            (UnitComposition(), "UNITLESS", "UnitComposition(scale=1.0)"),
             (
                 UnitComposition(scale=1_000.0),
-                "1000.0 DIMENSIONLESS",
+                "1000.0 UNITLESS",
                 "UnitComposition(scale=1000.0)",
             ),
             (
@@ -485,6 +487,21 @@ class TestUnit:
 
     @staticmethod
     @pytest.mark.parametrize(
+        ("relation", "expected"),
+        (
+            (UnitComposition(UnitOrder(minute, 1), scale=60.0), hour),
+            (UnitComposition(UnitOrder(gram, 1), scale=1_000.0), kilogram),
+            (UnitComposition(UnitOrder(kilowatthour, 1), scale=0.001), watthour),
+        ),
+    )
+    def test_a_scaled_single_term_relation_keeps_its_scale(relation: UnitComposition, expected: Unit) -> None:
+        unit = Unit(relation)
+
+        assert unit is not relation.composition[0].unit
+        assert unit == expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
         ("unit", "expected"),
         (
             (meter, "meter"),
@@ -492,7 +509,7 @@ class TestUnit:
             (USD[2024], "USD2024"),
             (meter / second, "meter / second"),
             (kilowatt, "kilowatt"),
-            (meter / meter, "DIMENSIONLESS"),
+            (meter / meter, "UNITLESS"),
             (kilogram / gram, "kilogram / gram"),
             (kilogram / gram * meter / millimeter, "kilogram meter / gram millimeter"),
             (kilogram * meter / second**2, "kilogram meter / second^2"),
@@ -694,7 +711,7 @@ class TestUnit:
     @pytest.mark.parametrize(
         ("left", "right", "expected_name", "expected_composition"),
         (
-            (kilogram, kilogram, "DIMENSIONLESS", UnitComposition()),
+            (kilogram, kilogram, "UNITLESS", UnitComposition()),
             (
                 kilogram * co2,
                 kilogram * nox,
@@ -735,15 +752,15 @@ class TestUnit:
                     UnitComposition(UnitOrder(kilogram, -2), UnitOrder(meter, -2), UnitOrder(second, 4)),
                 ),
             ),
-            (DIMENSIONLESS, -2, Unit(UnitComposition())),
+            (UNITLESS, -2, Unit(UnitComposition())),
         ),
     )
     def test_exponentiation_with_int_exponent(unit: Unit, exponent: int, expected: Unit) -> None:
         assert unit**exponent == expected
 
     @staticmethod
-    def test_exponentiation_of_dimensionless_with_float_exponent() -> None:
-        assert DIMENSIONLESS**1.5 == DIMENSIONLESS
+    def test_exponentiation_of_unitless_with_float_exponent() -> None:
+        assert UNITLESS**1.5 == UNITLESS
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -765,9 +782,14 @@ class TestUnit:
         ("unit", "expected"),
         (
             (kilogram * Metadata("carbon dioxide"), kilogram),
-            ((kilogram * Metadata("co2")) / (kilogram * Metadata("nox")), DIMENSIONLESS),
+            ((kilogram * Metadata("co2")) / (kilogram * Metadata("nox")), UNITLESS),
             (kilogram * meter / second**2 * Metadata("vertical"), kilogram * meter / second**2),
             (kilowatthour * Metadata("thermal"), kilowatthour),
+            ((kilogram * co2) * biogenic, kilogram),
+            (((kilogram * co2) * biogenic) / second, kilogram / second),
+            (kilowatthour / (second * co2), kilowatthour / second),
+            (kilowatthour, kilowatthour),
+            (kilogram * meter / second**2, kilogram * meter / second**2),
         ),
     )
     def test_strip_metadata(unit: Unit, expected: Unit) -> None:
@@ -796,13 +818,13 @@ class TestDimensionless:
     @pytest.mark.parametrize(
         ("name", "relation", "expected_relation"),
         (
-            ("radian", DIMENSIONLESS, UnitComposition()),
+            ("radian", UNITLESS, UnitComposition()),
             (
                 "degree",
                 (math.pi / 180.0) * radian,
                 UnitComposition(UnitOrder(radian, 1), scale=math.pi / 180.0),
             ),
-            ("count", DIMENSIONLESS, UnitComposition()),
+            ("count", UNITLESS, UnitComposition()),
         ),
     )
     def test_new_named(name: str, relation: Unit | Quantity, expected_relation: UnitComposition) -> None:
@@ -814,12 +836,12 @@ class TestDimensionless:
     @pytest.mark.parametrize(
         ("left", "right", "expected"),
         (
-            (DIMENSIONLESS, meter, meter),
-            (meter, DIMENSIONLESS, meter),
-            (DIMENSIONLESS, kilogram * meter / second**2, kilogram * meter / second**2),
-            (kilogram * meter / second**2, DIMENSIONLESS, kilogram * meter / second**2),
-            (DIMENSIONLESS, fraction * Metadata("mass"), fraction * Metadata("mass")),
-            (fraction * Metadata("mass"), DIMENSIONLESS, fraction * Metadata("mass")),
+            (UNITLESS, meter, meter),
+            (meter, UNITLESS, meter),
+            (UNITLESS, kilogram * meter / second**2, kilogram * meter / second**2),
+            (kilogram * meter / second**2, UNITLESS, kilogram * meter / second**2),
+            (UNITLESS, fraction * Metadata("mass"), fraction * Metadata("mass")),
+            (fraction * Metadata("mass"), UNITLESS, fraction * Metadata("mass")),
         ),
     )
     def test_multiplication(left: Unit, right: Unit, expected: Unit) -> None:
@@ -829,10 +851,10 @@ class TestDimensionless:
     @pytest.mark.parametrize(
         ("numerator", "denominator", "expected"),
         (
-            (DIMENSIONLESS, meter, 1 / meter),
-            (meter, DIMENSIONLESS, meter),
-            (DIMENSIONLESS, kilogram * meter / second**2, second**2 / (kilogram * meter)),
-            (kilogram * meter / second**2, DIMENSIONLESS, kilogram * meter / second**2),
+            (UNITLESS, meter, 1 / meter),
+            (meter, UNITLESS, meter),
+            (UNITLESS, kilogram * meter / second**2, second**2 / (kilogram * meter)),
+            (kilogram * meter / second**2, UNITLESS, kilogram * meter / second**2),
         ),
     )
     def test_division(numerator: Unit, denominator: Unit, expected: Unit) -> None:
@@ -844,15 +866,15 @@ class TestDimensionless:
         (0, 1, -2, 0.0, 1.5, -0.7, -2.0),
     )
     def test_exponentiation(exponent: float) -> None:
-        assert DIMENSIONLESS**exponent is DIMENSIONLESS
+        assert UNITLESS**exponent is UNITLESS
 
     @staticmethod
     @pytest.mark.parametrize(
         ("left", "right", "expected"),
         (
-            (fraction, DIMENSIONLESS, True),
+            (fraction, UNITLESS, True),
             (fraction * kilogram / second, kilogram / second, True),
-            ((fraction * Metadata("mass")) * kilogram / second, kilogram / second, True),
+            ((fraction * Metadata("mass")) * kilogram / second, kilogram / second, False),
             (fraction, percent, False),
         ),
     )
@@ -976,3 +998,149 @@ class TestAbsoluteUnit:
 
         assert result.value == pytest.approx(expected.value)
         assert result.unit == expected.unit
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("left", "right", "expected"),
+        (
+            (absolute_kelvin, absolute_kelvin, True),
+            (absolute_kelvin, kelvin, False),
+            (kelvin, absolute_kelvin, False),
+            (absolute_celsius, celsius, False),
+            (absolute_celsius, absolute_kelvin, False),
+            (absolute_kelvin, absolute_celsius, False),
+        ),
+    )
+    def test_absolute_unit_equals_only_itself(left: Unit, right: Unit, expected: bool) -> None:
+        assert (left == right) is expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("unit", "expected"),
+        (
+            (kelvin, True),
+            (kilogram * meter / second**2, True),
+            (absolute_celsius, False),
+            (kilogram * absolute_celsius, False),
+            (absolute_celsius**2, False),
+            (meter * ((kilogram * absolute_celsius) * Metadata("x")), False),
+        ),
+    )
+    def test_is_relative(unit: Unit, expected: bool) -> None:
+        assert unit.is_relative is expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("quantity", "expected"),
+        (
+            (20.0 * absolute_kelvin, 20.0),
+            (20.0 * absolute_celsius, 293.15),
+            (32.0 * absolute_fahrenheit, 273.15),
+            (20.0 * celsius, 20.0),
+        ),
+    )
+    def test_coherent_value_counts_an_absolute_quantity_from_absolute_zero(quantity: Quantity, expected: float) -> None:
+        assert BASE_UNIT_SYSTEM.coherent_value(quantity) == pytest.approx(expected)
+
+    @staticmethod
+    def test_coherent_value_unit_error_if_unit_compounds_an_absolute_unit() -> None:
+        with pytest.raises(BiltUnitError, match="compound unit containing an absolute unit"):
+            BASE_UNIT_SYSTEM.coherent_value(60.0 * kilogram * absolute_celsius)
+
+    @staticmethod
+    def test_coherent_value_unit_error_if_coherent_unit_has_no_absolute_counterpart() -> None:
+        with pytest.raises(BiltUnitError, match="No absolute unit corresponding to second exists"):
+            BASE_UNIT_SYSTEM.coherent_value(2020.0 * absolute_year)
+
+
+class TestTaggedUnit:
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("unit", "expected"),
+        (
+            (kilogram * co2, MASS * co2),
+            (gram * co2, MASS * co2),
+            ((kilogram * co2) / (kilogram * nox), (MASS * co2) / (MASS * nox)),
+            ((kilogram * co2) / (kilogram * nox) * (gram * nox), MASS * co2),
+            ((kilogram * co2) / second, MASS * co2 / TIME),
+            ((kilogram / second) * co2, MASS / TIME * co2),
+            (fraction * co2, DIMENSIONLESS * co2),
+            ((fraction * co2) * kilogram, (DIMENSIONLESS * co2) * MASS),
+            ((UNITLESS * co2) ** 2, (DIMENSIONLESS * co2) ** 2),
+            (1 / (UNITLESS * co2), (DIMENSIONLESS * co2) ** -1),
+        ),
+    )
+    def test_dimension_carries_each_tag(unit: Unit, expected: Dimension) -> None:
+        assert unit.dimension is expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("left", "right"),
+        (
+            ((kilogram * co2) / (kilogram * nox), UNITLESS),
+            ((kilogram * co2) / (kilogram * nox), (kilogram * nox) / (kilogram * co2)),
+        ),
+    )
+    def test_units_differing_in_a_nested_tag_are_not_equal(left: Unit, right: Unit) -> None:
+        assert left != right
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("dimension", "expected"),
+        (
+            (MASS * co2, kilogram * co2),
+            ((MASS * co2) / (MASS * nox), (kilogram * co2) / (kilogram * nox)),
+            (MASS * co2 / TIME, (kilogram * co2) / second),
+            (MASS / TIME * co2, (kilogram / second) * co2),
+            (DIMENSIONLESS * co2, UNITLESS * co2),
+        ),
+    )
+    def test_coherent_unit_keeps_each_tag(dimension: Dimension, expected: Unit) -> None:
+        assert BASE_UNIT_SYSTEM.coherent_unit(dimension) is expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("quantity", "expected"),
+        (
+            (2000.0 * gram * co2, 2.0),
+            (3160.0 * (gram * co2) / (kilogram * nox), 3.16),
+            (50.0 * percent * co2, 0.5),
+        ),
+    )
+    def test_coherent_value_converts_within_the_tagged_dimension(quantity: Quantity, expected: float) -> None:
+        assert BASE_UNIT_SYSTEM.coherent_value(quantity) == pytest.approx(expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("name", "relation", "expected"),
+        (
+            ("kilogram_co2", kilogram * co2, MASS * co2),
+            ("tonne_co2", 1_000.0 * (kilogram * co2), MASS * co2),
+            ("emission_index", (kilogram * co2) / (kilogram * nox), (MASS * co2) / (MASS * nox)),
+            ("co2_rate", (kilogram * co2) / second, MASS * co2 / TIME),
+        ),
+    )
+    def test_named_unit_keeps_each_tag_of_its_relation(
+        name: str, relation: Unit | Quantity, expected: Dimension
+    ) -> None:
+        assert Unit.new_named(name, relation).dimension is expected
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("name", "relation", "expected"),
+        (
+            ("kilogram_of_co2", kilogram * co2, 1.0),
+            ("tonne_of_co2", 1_000.0 * (kilogram * co2), 1_000.0),
+            ("gram_of_co2", gram * co2, 0.001),
+        ),
+    )
+    def test_named_unit_converts_back_to_its_tagged_relation(
+        name: str, relation: Unit | Quantity, expected: float
+    ) -> None:
+        converted = (1.0 * Unit.new_named(name, relation)).convert_to(kilogram * co2)
+        assert converted.unit is kilogram * co2
+        assert converted.value == pytest.approx(expected)
+
+    @staticmethod
+    def test_named_unit_sheds_the_tags_of_its_relation() -> None:
+        assert Unit.new_named("kilogram_carbon", kilogram * co2).strip_metadata() is kilogram

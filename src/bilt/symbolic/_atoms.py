@@ -7,6 +7,7 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt.symbolic._dimensions import Coordinate, Dim
+    from bilt.units import Dimension
 
 __all__ = [
     "ADD",
@@ -36,6 +37,7 @@ __all__ = [
     "IndexOpType",
     "IntType",
     "OpType",
+    "QuantityType",
     "ReductionOpType",
     "RelationOpType",
     "SymbolType",
@@ -46,6 +48,7 @@ __all__ = [
     "dimension",
     "floating",
     "integer",
+    "quantity",
     "relation_operator",
     "symbol",
 ]
@@ -93,6 +96,7 @@ DimensionType = AtomType("Dimension")
 AxisType = AtomType("Axis")
 IntType = AtomType("Integer")
 FloatType = AtomType("Float")
+QuantityType = AtomType("Quantity")
 
 
 @typing.final
@@ -171,6 +175,10 @@ def axis(value: int) -> Atom:
 
 def coordinate(value: Coordinate) -> Atom:
     return Atom(CoordinateType, value)
+
+
+def quantity(coherent_value: float, dimensionality: Dimension, *, absolute: bool) -> Atom:
+    return Atom(QuantityType, (coherent_value, dimensionality, absolute))
 
 
 ADD = Atom(OpType, "add")

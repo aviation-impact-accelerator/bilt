@@ -13,6 +13,7 @@ from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._sub_system import SubSystemConstituent
+from bilt.core._system._dimensional_unification import check_dimensional_consistency
 from bilt.core._system._errors import (
     BiltSubSystemConflictError,
     BiltSubSystemMismatchedImplementationError,
@@ -20,6 +21,7 @@ from bilt.core._system._errors import (
     BiltSubSystemNameCollisionError,
     BiltSubSystemUnreferencedEntryError,
 )
+from bilt.core._system._input_validation import validate_inputs
 from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic._domains import Domain
 
@@ -29,6 +31,7 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
+    from bilt.core._port_declaration import PortDeclaration
     from bilt.core._structural_analysis import StructuralAnalyser
     from bilt.symbolic._dimensions import Coordinate, Dim
 
@@ -66,10 +69,15 @@ class Implementation:
 
         sub_systems = _build_sub_system_constituents(named_components, internal)
         _validate_sub_systems(named_components, internal, sub_systems)
-
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             named_components | sub_systems
         )
+        check_dimensional_consistency(system, self._components.values())
+        self._port_declarations: dict[str, PortDeclaration] = {
+            port: declaration
+            for component in self._components.values()
+            for port, declaration in component.__bilt_port_declarations__.items()
+        } | system.__bilt_port_declarations__
         self._evaluation_cache: dict[
             _CompilationRequest,
             dict[_CompilationContext, BackendCallable],
@@ -95,6 +103,8 @@ class Implementation:
         output: str,
         backend: Backend,
     ) -> object:
+        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
 
@@ -111,13 +121,15 @@ class Implementation:
 
                 backend_callable = self.get_evaluation(request, backend)
 
+                output_declaration = self._port_declarations.get(output)
+
                 lowered_inputs = lower_inputs(inputs)
                 alignment_plan = generate_alignment_plan(inputs)
                 aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
                 raw_output_value = backend_callable.evaluate(mangle_inputs(aligned_inputs))
 
                 output_domain = typing.cast("Domain", backend_callable.output_domain)
-                lifting_plan = generate_lifting_plan(output_domain)
+                lifting_plan = generate_lifting_plan(output_domain, output_declaration)
                 output_value = lift_output(raw_output_value, lifting_plan)
 
             evaluation.domains.bind(output_value)

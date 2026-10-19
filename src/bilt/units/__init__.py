@@ -1,10 +1,10 @@
 """Attach units to numerical values to create quantities."""
 
 __all__ = [
-    "DIMENSIONLESS",
     "EUR",
     "GBP",
     "JPY",
+    "UNITLESS",
     "USD",
     "Dimension",
     "Metadata",
@@ -97,12 +97,12 @@ from ._currencies import EUR as EUR
 from ._currencies import GBP as GBP
 from ._currencies import JPY as JPY
 from ._currencies import USD as USD
-from ._dimensions import Dimension as Dimension
 from ._metadata import Metadata as Metadata
 from ._prefix import Prefix as Prefix
 from ._quantities import Quantity as Quantity
 from ._units import Unit as Unit
-from .units import DIMENSIONLESS as DIMENSIONLESS
+from .dimensions._dimensions import Dimension as Dimension
+from .units import UNITLESS as UNITLESS
 from .units import absolute_celsius as absolute_celsius
 from .units import absolute_fahrenheit as absolute_fahrenheit
 from .units import absolute_kelvin as absolute_kelvin
