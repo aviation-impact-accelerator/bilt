@@ -53,6 +53,13 @@ def lower_transform(
         **closure.nonlocals,
     }
 
+    # Bind only names needed by expressions explicitly preserved by unit erasure.
+    # Attach them after the AST is copied so captured objects retain their identity.
+    preserved_names = {name for node in ast.walk(function_ast) for name in getattr(node, "_bilt_preserved_names", ())}
+    function_ast.__dict__["_bilt_runtime_bindings"] = {
+        name: value for name, value in bindings.items() if name in preserved_names
+    }
+
     if len(function_ast.body) != 1 or not isinstance(function_ast.body[0], ast.Return):
         ast.fix_missing_locations(function_ast)
         return function_ast, fallback_domain

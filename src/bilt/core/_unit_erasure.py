@@ -190,63 +190,72 @@ class _UnitEraser(ast.NodeTransformer):
         return self._erased(node) if isinstance(node, ast.expr) else self.generic_visit(node)
 
     def _erased(self, node: ast.expr) -> ast.expr:  # noqa: C901, PLR0911
+        if self._is_left_to_python(node):
+            if isinstance(node, (ast.Attribute, ast.Call)):
+                node.__dict__["_bilt_preserved_names"] = {
+                    child.id
+                    for child in ast.walk(node)
+                    if isinstance(child, ast.Name)
+                    and isinstance(child.ctx, ast.Load)
+                    and child not in self.shadowed
+                    and child.id in self.bindings
+                }
+            return node
+
         if self._is_constant(node):
             return self._literal(node, self._evaluated(node)) if self._reaches_a_unit(node) else node
 
-        if not self._is_left_to_python(node):
-            match node:
-                case ast.Attribute(
-                    value=ast.Call(func=ast.Attribute(attr="convert_to"), args=[unit], keywords=[]) as converted,
-                    attr="value",
+        match node:
+            case ast.Attribute(
+                value=ast.Call(func=ast.Attribute(attr="convert_to"), args=[unit], keywords=[]) as converted,
+                attr="value",
+            ):
+                conversion = self._conversion(unit, node)
+                coherent = self._erased(converted)
+                if conversion.offset:
+                    coherent = ast.BinOp(left=coherent, op=ast.Sub(), right=ast.Constant(conversion.offset))
+                return ast.BinOp(left=coherent, op=ast.Div(), right=ast.Constant(conversion.scale))
+            case ast.Call(func=ast.Attribute(value=quantity, attr="convert_to"), args=[unit], keywords=[]):
+                target = self._unit(unit, node)
+                declaration = (
+                    self.declared_parameters.get(quantity.id)
+                    if isinstance(quantity, ast.Name) and quantity not in self.shadowed
+                    else None
+                )
+                if declaration is not None and (
+                    target.dimension != declaration.dimensionality
+                    or not (target.category is UnitCategory.ABSOLUTE if declaration.absolute else target.is_relative)
                 ):
-                    conversion = self._conversion(unit, node)
-                    coherent = self._erased(converted)
-                    if conversion.offset:
-                        coherent = ast.BinOp(left=coherent, op=ast.Sub(), right=ast.Constant(conversion.offset))
-                    return ast.BinOp(left=coherent, op=ast.Div(), right=ast.Constant(conversion.scale))
-                case ast.Call(func=ast.Attribute(value=quantity, attr="convert_to"), args=[unit], keywords=[]):
-                    target = self._unit(unit, node)
-                    declaration = (
-                        self.declared_parameters.get(quantity.id)
-                        if isinstance(quantity, ast.Name) and quantity not in self.shadowed
-                        else None
+                    msg = (
+                        f"`{ast.unparse(node)}` contradicts the signature: `{ast.unparse(quantity)}` is a Quantity "
+                        f"of {declaration}, which converts only to "
+                        f"{'an absolute' if declaration.absolute else 'a relative'} unit such as "
+                        f"{declaration.coherent_unit}"
                     )
-                    if declaration is not None and (
-                        target.dimension != declaration.dimensionality
-                        or not (
-                            target.category is UnitCategory.ABSOLUTE if declaration.absolute else target.is_relative
-                        )
-                    ):
-                        msg = (
-                            f"`{ast.unparse(node)}` contradicts the signature: `{ast.unparse(quantity)}` is a Quantity "
-                            f"of {declaration}, which converts only to "
-                            f"{'an absolute' if declaration.absolute else 'a relative'} unit such as "
-                            f"{declaration.coherent_unit}"
-                        )
-                        raise BiltDefinitionError(msg)
-                    return self._erased(quantity)
-                case (
-                    ast.Call(func=function, args=[value, unit], keywords=[])
-                    | ast.Call(func=function, args=[value], keywords=[ast.keyword(arg="unit", value=unit)])
-                    | ast.Call(
-                        func=function,
-                        args=[],
-                        keywords=[ast.keyword(arg="value", value=value), ast.keyword(arg="unit", value=unit)]
-                        | [ast.keyword(arg="unit", value=unit), ast.keyword(arg="value", value=value)],
-                    )
-                ) if self._resolved(function) is Quantity:
-                    conversion = self._conversion(unit, node)
-                    coherent = ast.BinOp(left=self._erased(value), op=ast.Mult(), right=ast.Constant(conversion.scale))
-                    if conversion.offset:
-                        coherent = ast.BinOp(left=coherent, op=ast.Add(), right=ast.Constant(conversion.offset))
-                    return coherent
-                case ast.Call(func=ast.Attribute(value=quantity, attr="strip_metadata"), args=[], keywords=[]):
-                    return self._erased(quantity)
-                case ast.BinOp(left=quantity, op=ast.Mult(), right=tag) if isinstance(self._resolved(tag), Metadata):
-                    return self._erased(quantity)
-                case ast.Attribute(value=quantity, attr=attribute) if attribute in _QUANTITY_ATTRIBUTES:
-                    msg = f"`{ast.unparse(node)}` {_attribute_problem(quantity, attribute)}"
                     raise BiltDefinitionError(msg)
+                return self._erased(quantity)
+            case (
+                ast.Call(func=function, args=[value, unit], keywords=[])
+                | ast.Call(func=function, args=[value], keywords=[ast.keyword(arg="unit", value=unit)])
+                | ast.Call(
+                    func=function,
+                    args=[],
+                    keywords=[ast.keyword(arg="value", value=value), ast.keyword(arg="unit", value=unit)]
+                    | [ast.keyword(arg="unit", value=unit), ast.keyword(arg="value", value=value)],
+                )
+            ) if self._resolved(function) is Quantity:
+                conversion = self._conversion(unit, node)
+                coherent = ast.BinOp(left=self._erased(value), op=ast.Mult(), right=ast.Constant(conversion.scale))
+                if conversion.offset:
+                    coherent = ast.BinOp(left=coherent, op=ast.Add(), right=ast.Constant(conversion.offset))
+                return coherent
+            case ast.Call(func=ast.Attribute(value=quantity, attr="strip_metadata"), args=[], keywords=[]):
+                return self._erased(quantity)
+            case ast.BinOp(left=quantity, op=ast.Mult(), right=tag) if isinstance(self._resolved(tag), Metadata):
+                return self._erased(quantity)
+            case ast.Attribute(value=quantity, attr=attribute) if attribute in _QUANTITY_ATTRIBUTES:
+                msg = f"`{ast.unparse(node)}` {_attribute_problem(quantity, attribute)}"
+                raise BiltDefinitionError(msg)
 
         return typing.cast("ast.expr", self.generic_visit(node))
 

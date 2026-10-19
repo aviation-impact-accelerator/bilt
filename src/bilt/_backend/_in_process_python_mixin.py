@@ -53,13 +53,15 @@ class InProcessPythonMixin:
         module = ast.Module(body=[transformed], type_ignores=[])
         ast.fix_missing_locations(module)
 
-        namespace = {
+        namespace: dict[str, typing.Any] = {
             **self.compilation_namespace,
+            **typing.cast("dict[str, object]", getattr(function_definition, "_bilt_runtime_bindings", {})),
             **self.intrinsic_bindings.namespace(),
         }
 
         try:
             code = compile(module, "<backend_compile>", "exec")
+
         except Exception as e:
             msg = f"Error when trying to compile transformed function '{function_definition.name}' threw error: {e}"
             raise BiltCompilationError(msg) from e
