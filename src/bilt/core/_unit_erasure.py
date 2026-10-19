@@ -6,6 +6,7 @@ import ast
 import inspect
 import types
 import typing
+from collections import Counter
 
 from bilt.core._errors import BiltDefinitionError
 from bilt.units import Dimension, Metadata, Quantity, Unit
@@ -54,7 +55,10 @@ def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast
     eraser = _UnitEraser(
         bindings={**closure.globals, **closure.nonlocals},
         shadowed=shadowed,
-        plain_parameters=parameters - transform.__bilt_port_declarations__.keys(),
+        plain_parameters=_plain_aliases(
+            function_ast,
+            parameters - transform.__bilt_port_declarations__.keys(),
+        ),
         declared_parameters={
             name: declaration
             for name, declaration in transform.__bilt_port_declarations__.items()
@@ -65,6 +69,56 @@ def erase_units(function_ast: ast.FunctionDef, transform: BasicTransform) -> ast
         eraser.visit(statement)
 
     return function_ast
+
+
+def _plain_aliases(function_ast: ast.FunctionDef, plain: set[str]) -> set[str]:  # noqa: C901
+    """Include simple aliases of plain parameters, provided each is bound only once."""
+    nodes = [node for node, scope in _scoped(function_ast, function_ast, frozenset()) if scope is function_ast]
+
+    bindings: Counter[str] = Counter()
+    for node in nodes:
+        match node:
+            case ast.Name(id=name, ctx=ast.Store() | ast.Del()) | ast.arg(arg=name):
+                bindings[name] += 1
+
+            case ast.FunctionDef(name=name) | ast.AsyncFunctionDef(name=name) | ast.ClassDef(name=name):
+                bindings[name] += 1
+
+            case ast.Import(names=names):
+                bindings.update(alias.asname or alias.name.split(".")[0] for alias in names)
+
+            case ast.ImportFrom(names=names):
+                bindings.update(alias.asname or alias.name for alias in names)
+
+            case (
+                ast.ExceptHandler(name=str() as name)
+                | ast.MatchAs(name=str() as name)
+                | ast.MatchStar(name=str() as name)
+                | ast.MatchMapping(rest=str() as name)
+            ):
+                bindings[name] += 1
+
+    candidates: dict[str, str] = {}
+    for node in nodes:
+        match node:
+            case (
+                ast.Assign(
+                    targets=[ast.Name(id=target)],
+                    value=ast.Name(id=source),
+                )
+                | ast.AnnAssign(
+                    target=ast.Name(id=target),
+                    value=ast.Name(id=source),
+                )
+            ):
+                if bindings[target] == 1:
+                    candidates[target] = source
+
+    while True:
+        expanded = plain | {target for target, source in candidates.items() if source in plain}
+        if expanded == plain:
+            return plain
+        plain = expanded
 
 
 def _shadowed_names(function_ast: ast.FunctionDef) -> set[ast.Name]:
