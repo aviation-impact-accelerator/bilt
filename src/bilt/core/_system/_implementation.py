@@ -21,6 +21,7 @@ from bilt.core._system._errors import (
     BiltSubSystemNameCollisionError,
     BiltSubSystemUnreferencedEntryError,
 )
+from bilt.core._system._input_validation import validate_inputs
 from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic._domains import Domain
 
@@ -71,12 +72,12 @@ class Implementation:
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             named_components | sub_systems
         )
-        self._port_declarations: dict[str, PortDeclaration] = system.__bilt_port_declarations__ | {
-            port: declaration
-            for sub_system in sub_systems.values()
-            for port, declaration in sub_system.__bilt_port_declarations__.items()
-        }
         check_dimensional_consistency(system, self._components.values())
+        self._port_declarations: dict[str, PortDeclaration] = {
+            port: declaration
+            for component in self._components.values()
+            for port, declaration in component.__bilt_port_declarations__.items()
+        } | system.__bilt_port_declarations__
         self._evaluation_cache: dict[
             _CompilationRequest,
             dict[_CompilationContext, BackendCallable],
@@ -102,6 +103,8 @@ class Implementation:
         output: str,
         backend: Backend,
     ) -> object:
+        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
 
