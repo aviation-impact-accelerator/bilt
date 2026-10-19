@@ -33,7 +33,7 @@ def test_a_constructed_plain_object_can_be_aliased() -> None:
 
 
 def test_reassignment_does_not_mark_a_quantity_as_plain() -> None:
-    with pytest.raises(BiltDefinitionError, match="record.value"):
+    with pytest.raises(BiltDefinitionError, match=r"record\.value"):
 
         @transform
         def extracted(value: float) -> float:
@@ -43,11 +43,11 @@ def test_reassignment_does_not_mark_a_quantity_as_plain() -> None:
 
 
 def test_a_shadowed_constructor_does_not_mark_a_quantity_as_plain() -> None:
-    with pytest.raises(BiltDefinitionError, match="record.value"):
+    with pytest.raises(BiltDefinitionError, match=r"record\.value"):
 
         @transform
         def extracted(value: float) -> float:
-            namespace: type[SimpleNamespace] | type[Quantity] = SimpleNamespace
+            namespace: type[SimpleNamespace | Quantity] = SimpleNamespace
             namespace = Quantity
             record = namespace(value, meter)
             return record.value
