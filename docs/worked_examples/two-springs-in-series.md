@@ -15,10 +15,10 @@ More schematically:
 
 ```mermaid
 flowchart LR
-    support[Fixed support] --- s1["Spring 1<br/>k₁, x₁"]
+    support[Fixed support] --- s1["Spring 1: k₁, x₁"]
     s1 --- joint[Intermediate joint]
-    joint --- s2["Spring 2<br/>k₂, x₂"]
-    s2 --- load["Applied load<br/>F"]
+    joint --- s2["Spring 2: k₂, x₂"]
+    s2 --- load["Applied load: F"]
 ```
 
 Because the springs are in **series**:
@@ -70,6 +70,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from bilt.units import meter, newton
+
 
 def render_plot() -> None:
     buffer = StringIO()
@@ -80,17 +82,33 @@ def render_plot() -> None:
 
 ## 1. Start with one spring
 
-A spring has three boundary values:
+A spring has three boundary values: stiffness, extension, and force. We declare
+their dimensions rather than fixing particular units. Stiffness has dimension
+force per length, extension has dimension length, and force has dimension force.
+
+The system and equations use scalar quantity declarations. These accept scalar
+quantities or compatible unit-carrying tensors, allowing the same relationships
+to be reused over named domains. In this example we supply stiffness in N/m,
+extension in m, and force in N:
 
 ```python
-from bilt import Implementation, Interface, equation, field, system
+from typing import Annotated
+
+from bilt import Implementation, Interface, Quantity, equation, field, system
+from bilt.units import meter, newton
+from bilt.units.dimensions import FORCE, LENGTH
+
+
+Stiffness = Annotated[Quantity, FORCE / LENGTH]
+Length = Annotated[Quantity, LENGTH]
+Force = Annotated[Quantity, FORCE]
 
 
 @system
 class Spring(metaclass=Interface):
-    stiffness: float = field()
-    extension: float = field()
-    force: float = field()
+    stiffness: Stiffness = field()
+    extension: Length = field()
+    force: Force = field()
 ```
 
 Hooke's law is an equation:
@@ -98,9 +116,9 @@ Hooke's law is an equation:
 ```python
 @equation
 def hookes_law(
-    stiffness: float,
-    extension: float,
-    force: float,
+    stiffness: Stiffness,
+    extension: Length,
+    force: Force,
 ) -> bool:
     return force == stiffness * extension
 
@@ -134,14 +152,14 @@ The parent system exposes the values we want to use when working with two spring
 ```python
 @system
 class DoubleSpring(metaclass=Interface):
-    first_stiffness: float = field()
-    second_stiffness: float = field()
+    first_stiffness: Stiffness = field()
+    second_stiffness: Stiffness = field()
 
-    first_extension: float = field()
-    second_extension: float = field()
-    total_extension: float = field()
+    first_extension: Length = field()
+    second_extension: Length = field()
+    total_extension: Length = field()
 
-    force: float = field()
+    force: Force = field()
 ```
 
 The two `Spring` occurrences are not public fields. They belong to this implementation of `DoubleSpring`.
@@ -153,7 +171,7 @@ Parent values are connected to the first child independently:
 ```python
 @equation
 def first_stiffness_connection(
-    first_stiffness: float,
+    first_stiffness: Stiffness,
     first: Spring,
 ) -> bool:
     return first_stiffness == first.stiffness
@@ -161,7 +179,7 @@ def first_stiffness_connection(
 
 @equation
 def first_extension_connection(
-    first_extension: float,
+    first_extension: Length,
     first: Spring,
 ) -> bool:
     return first_extension == first.extension
@@ -169,7 +187,7 @@ def first_extension_connection(
 
 @equation
 def first_force_connection(
-    force: float,
+    force: Force,
     first: Spring,
 ) -> bool:
     return force == first.force
@@ -192,7 +210,7 @@ The second spring uses the same pattern:
 ```python
 @equation
 def second_stiffness_connection(
-    second_stiffness: float,
+    second_stiffness: Stiffness,
     second: Spring,
 ) -> bool:
     return second_stiffness == second.stiffness
@@ -200,7 +218,7 @@ def second_stiffness_connection(
 
 @equation
 def second_extension_connection(
-    second_extension: float,
+    second_extension: Length,
     second: Spring,
 ) -> bool:
     return second_extension == second.extension
@@ -208,7 +226,7 @@ def second_extension_connection(
 
 @equation
 def second_force_connection(
-    force: float,
+    force: Force,
     second: Spring,
 ) -> bool:
     return force == second.force
@@ -218,8 +236,8 @@ The same parent `force` value is connected independently to each spring.
 
 ```mermaid
 flowchart LR
-    force["Series force F"] --> s1["Spring 1<br/>F = k₁ x₁"]
-    force --> s2["Spring 2<br/>F = k₂ x₂"]
+    force["Series force F"] --> s1["Spring 1: F = k₁ x₁"]
+    force --> s2["Spring 2: F = k₂ x₂"]
 
     s1 --> x1["Extension x₁"]
     s2 --> x2["Extension x₂"]
@@ -240,9 +258,9 @@ The total extension is an ordinary parent equation:
 ```python
 @equation
 def total_extension_relation(
-    first_extension: float,
-    second_extension: float,
-    total_extension: float,
+    first_extension: Length,
+    second_extension: Length,
+    total_extension: Length,
 ) -> bool:
     return total_extension == first_extension + second_extension
 ```
@@ -299,99 +317,96 @@ For the executable documentation below, the same model is loaded from a temporar
 
 ```python exec="on" session="springs"
 model_source = """
-from bilt import Implementation, Interface, equation, field, system
+from typing import Annotated
 
+from bilt import Implementation, Interface, Quantity, equation, field, system
+from bilt.units import meter, newton
+from bilt.units.dimensions import FORCE, LENGTH
+
+
+Stiffness = Annotated[Quantity, FORCE / LENGTH]
+Length = Annotated[Quantity, LENGTH]
+Force = Annotated[Quantity, FORCE]
 
 @system
 class Spring(metaclass=Interface):
-    stiffness: float = field()
-    extension: float = field()
-    force: float = field()
-
+    stiffness: Stiffness = field()
+    extension: Length = field()
+    force: Force = field()
 
 @equation
 def hookes_law(
-    stiffness: float,
-    extension: float,
-    force: float,
+    stiffness: Stiffness,
+    extension: Length,
+    force: Force,
 ) -> bool:
     return force == stiffness * extension
-
 
 linear_spring = Implementation(
     Spring,
     [hookes_law],
 )
 
-
 @system
 class DoubleSpring(metaclass=Interface):
-    first_stiffness: float = field()
-    second_stiffness: float = field()
+    first_stiffness: Stiffness = field()
+    second_stiffness: Stiffness = field()
 
-    first_extension: float = field()
-    second_extension: float = field()
-    total_extension: float = field()
+    first_extension: Length = field()
+    second_extension: Length = field()
+    total_extension: Length = field()
 
-    force: float = field()
-
+    force: Force = field()
 
 @equation
 def first_stiffness_connection(
-    first_stiffness: float,
+    first_stiffness: Stiffness,
     first: Spring,
 ) -> bool:
     return first_stiffness == first.stiffness
 
-
 @equation
 def first_extension_connection(
-    first_extension: float,
+    first_extension: Length,
     first: Spring,
 ) -> bool:
     return first_extension == first.extension
 
-
 @equation
 def first_force_connection(
-    force: float,
+    force: Force,
     first: Spring,
 ) -> bool:
     return force == first.force
 
-
 @equation
 def second_stiffness_connection(
-    second_stiffness: float,
+    second_stiffness: Stiffness,
     second: Spring,
 ) -> bool:
     return second_stiffness == second.stiffness
 
-
 @equation
 def second_extension_connection(
-    second_extension: float,
+    second_extension: Length,
     second: Spring,
 ) -> bool:
     return second_extension == second.extension
 
-
 @equation
 def second_force_connection(
-    force: float,
+    force: Force,
     second: Spring,
 ) -> bool:
     return force == second.force
 
-
 @equation
 def total_extension_relation(
-    first_extension: float,
-    second_extension: float,
-    total_extension: float,
+    first_extension: Length,
+    second_extension: Length,
+    total_extension: Length,
 ) -> bool:
     return total_extension == first_extension + second_extension
-
 
 double_spring = Implementation(
     DoubleSpring,
@@ -435,33 +450,33 @@ Start by supplying the individual spring extensions and stiffnesses.
 We deliberately choose compatible values:
 
 ```text
-Spring 1: 100 × 0.075 = 7.5
-Spring 2: 300 × 0.025 = 7.5
+Spring 1: 100 N/m × 0.075 m = 7.5 N
+Spring 2: 300 N/m × 0.025 m = 7.5 N
 ```
 
 so both springs carry the same series force.
 
 ```python exec="on" source="above" session="springs"
 forward_case = DoubleSpring(
-    first_stiffness=100.0,
-    second_stiffness=300.0,
-    first_extension=0.075,
-    second_extension=0.025,
+    first_stiffness=100.0 * newton / meter,
+    second_stiffness=300.0 * newton / meter,
+    first_extension=0.075 * meter,
+    second_extension=0.025 * meter,
 )
 
 with double_spring:
     force = forward_case.force
     total_extension = forward_case.total_extension
 
-print(f"Force:           {force:.3f}")
-print(f"Total extension: {total_extension:.3f}")
+print(f"Force:           {force.convert_to(newton).value:.3f} N")
+print(f"Total extension: {total_extension.convert_to(meter).value:.3f} m")
 ```
 
 The result is:
 
 ```text
-Force:           7.500
-Total extension: 0.100
+Force:           7.500 N
+Total extension: 0.100 m
 ```
 
 The force comes from a child spring equation, while total extension comes from the parent equation.
@@ -469,30 +484,40 @@ The force comes from a child spring equation, while total extension comes from t
 ### Visualise the operating point
 
 ```python exec="on" html="on" source="above" session="springs"
-extension = np.linspace(0.0, 0.10, 100)
+extension_m = np.linspace(0.0, 0.10, 100)
+first_stiffness_n_per_m = forward_case.first_stiffness.convert_to(newton / meter).value
+second_stiffness_n_per_m = forward_case.second_stiffness.convert_to(newton / meter).value
 
 plt.plot(
-    extension,
-    100.0 * extension,
-    label="Spring 1: k = 100",
+    extension_m,
+    first_stiffness_n_per_m * extension_m,
+    label=f"Spring 1: k = {first_stiffness_n_per_m:g} N/m",
 )
 plt.plot(
-    extension,
-    300.0 * extension,
-    label="Spring 2: k = 300",
+    extension_m,
+    second_stiffness_n_per_m * extension_m,
+    label=f"Spring 2: k = {second_stiffness_n_per_m:g} N/m",
 )
 
-plt.scatter([0.075], [7.5])
-plt.scatter([0.025], [7.5])
+plt.scatter(
+    [forward_case.first_extension.convert_to(meter).value],
+    [force.convert_to(newton).value],
+)
+plt.scatter(
+    [forward_case.second_extension.convert_to(meter).value],
+    [force.convert_to(newton).value],
+)
 
-plt.xlabel("Extension")
-plt.ylabel("Force")
+plt.xlabel("Extension (m)")
+plt.ylabel("Force (N)")
 plt.title("Two spring force-extension relationships")
 plt.legend()
 render_plot()
 ```
 
-The same force intersects the two spring curves at different extensions because their stiffnesses differ.
+The plot uses numerical values explicitly converted to N/m, m, and N, so
+they match the labels. The same force intersects the two spring curves at
+different extensions because their stiffnesses differ.
 
 ## 8. Use the same model in another direction
 
@@ -500,9 +525,9 @@ Now supply the common force and the two stiffnesses, but **do not** supply eithe
 
 ```python exec="on" source="above" session="springs"
 reverse_case = DoubleSpring(
-    first_stiffness=100.0,
-    second_stiffness=300.0,
-    force=7.5,
+    first_stiffness=100.0 * newton / meter,
+    second_stiffness=300.0 * newton / meter,
+    force=7.5 * newton,
 )
 
 with double_spring:
@@ -510,9 +535,9 @@ with double_spring:
     second_extension = reverse_case.second_extension
     total_extension = reverse_case.total_extension
 
-print(f"First extension:  {first_extension:.3f}")
-print(f"Second extension: {second_extension:.3f}")
-print(f"Total extension:  {total_extension:.3f}")
+print(f"First extension:  {first_extension.convert_to(meter).value:.3f} m")
+print(f"Second extension: {second_extension.convert_to(meter).value:.3f} m")
+print(f"Total extension:  {total_extension.convert_to(meter).value:.3f} m")
 ```
 
 Bilt can use Hooke's law in the opposite direction inside each child:
@@ -535,13 +560,13 @@ So the complete route is:
 
 ```mermaid
 flowchart LR
-    force["Known series force F"] --> spring1["Spring 1<br/>known k₁"]
-    force --> spring2["Spring 2<br/>known k₂"]
+    force["Known series force F"] --> spring1["Spring 1: known k₁"]
+    force --> spring2["Spring 2: known k₂"]
 
     spring1 --> x1["Solve x₁ = F / k₁"]
     spring2 --> x2["Solve x₂ = F / k₂"]
 
-    x1 --> total["Add extensions<br/>x_total = x₁ + x₂"]
+    x1 --> total["Add extensions: x_total = x₁ + x₂"]
     x2 --> total
 ```
 
@@ -576,19 +601,25 @@ Instead, it demonstrates the acausal behaviour Bilt already supports when the co
 Try changing the common force:
 
 ```python
-force = 10.0
+force = 10.0 * newton
 ```
 
 or either stiffness:
 
 ```python
-first_stiffness = 150.0
-second_stiffness = 250.0
+first_stiffness = 150.0 * newton / meter
+second_stiffness = 250.0 * newton / meter
 ```
 
 Then ask again for:
 
 ```python
+spring_system = DoubleSpring(
+    first_stiffness=first_stiffness,
+    second_stiffness=second_stiffness,
+    force=force,
+)
+
 with double_spring:
     total_extension = spring_system.total_extension
 ```
