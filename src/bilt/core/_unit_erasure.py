@@ -196,12 +196,55 @@ class _UnitEraser(ast.NodeTransformer):
 
         return typing.cast("ast.expr", self.generic_visit(node))
 
-    def _is_constant(self, node: ast.expr) -> bool:
-        return all(
-            name.id in self.bindings and name not in self.shadowed
-            for name in ast.walk(node)
-            if isinstance(name, ast.Name)
-        )
+    def _is_constant(self, node: ast.expr) -> bool:  # noqa: PLR0911
+        """Whether this is a supported constant expression."""
+        match node:
+            case ast.Constant():
+                return True
+
+            case ast.Name(id=name):
+                if node in self.shadowed or name not in self.bindings:
+                    return False
+
+                value = self.bindings[name]
+                return type(value) in (bool, int, float) or isinstance(value, (Quantity, Unit, Dimension, Metadata))
+
+            case ast.Attribute(value=root):
+                # Resolve named constants through imported modules.
+                if isinstance(self._resolved(root), types.ModuleType):
+                    value = self._resolved(node)
+                    return type(value) in (bool, int, float) or isinstance(value, (Quantity, Unit, Dimension, Metadata))
+
+                # Supported, read-only properties on known Bilt constants.
+                return isinstance(self._resolved(root), (Quantity, Unit, Dimension)) and node.attr in {
+                    "value",
+                    "dimension",
+                    "is_dimensionless",
+                    "is_relative",
+                    "category",
+                }
+
+            case ast.UnaryOp(op=ast.UAdd() | ast.USub(), operand=operand):
+                return self._is_constant(operand)
+
+            case ast.BinOp(
+                left=left,
+                op=ast.Add() | ast.Sub() | ast.Mult() | ast.Div() | ast.Pow(),
+                right=right,
+            ):
+                return self._is_constant(left) and self._is_constant(right)
+
+            case ast.Call(func=function, args=args, keywords=keywords):
+                return (
+                    self._resolved(function) is Quantity
+                    and all(self._is_constant(arg) for arg in args)
+                    and all(
+                        keyword.arg in {"value", "unit"} and self._is_constant(keyword.value) for keyword in keywords
+                    )
+                )
+
+            case _:
+                return False
 
     def _reaches_a_unit(self, node: ast.expr) -> bool:
         """Whether `node` names a quantity, a unit or a dimensionality, or one of their classes."""
