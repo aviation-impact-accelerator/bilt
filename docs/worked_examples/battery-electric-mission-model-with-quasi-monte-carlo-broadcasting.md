@@ -1,4 +1,4 @@
-# Battery electric mission model with quasi-monte carlo broadcasting
+# Battery electric mission model with quasi-Monte Carlo broadcasting
 
 This worked example uses independently scrambled Sobol designs to evaluate a small battery-electric mission model over uncertain inputs, routes, and payload cases.
 
@@ -21,7 +21,7 @@ and evaluate it over:
 
 That is **196,608 mission cases** without loops over samples, routes, or payloads.
 
-The only explicit loop creates independent Sobol randomizations.
+The sampling loop creates independent Sobol randomizations; the later plots and stability checks also use loops. There is no loop over mission evaluations.
 
 ## The four domains
 
@@ -66,7 +66,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import beta, lognorm, norm, qmc
 
-from bilt import Dim, Implementation, Interface, Tensor, field, system, tensor, transform
+from bilt import Dim, Quantity, tensor
+from bilt.units import UNITLESS, kilogram, kilometer, kilowatthour, tonne
 
 
 def render_plot() -> None:
@@ -80,79 +81,93 @@ def render_plot() -> None:
 
 The Bilt model is written first, before introducing Sobol sampling or array shapes.
 
+Units are declared through dimensions, so callers can choose compatible units. Model port names describe physical quantities; units are attached to values rather than encoded in those names.
+
+Efficiencies, the usable fraction, and the energy multiplier are dimensionless quantities. They use `DIMENSIONLESS` in declarations and `UNITLESS` when values are supplied. The energy intensity has units of energy per distance per mass, such as kWh/(km·t).
+
+The system and transforms use scalar quantity declarations. These accept scalar quantities or unit-carrying tensors with compatible dimensions. We supply tensors to evaluate this example over named domains; the same model can also accept scalar inputs.
+
 Each transform describes one scalar engineering relationship. Nothing in these functions refers to `scramble`, `sample`, `route`, NumPy axes, or broadcasting.
 
 ```python
+from typing import Annotated
+
+from bilt import Implementation, Interface, Quantity, field, system, transform
+from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
+
+
+Mass = Annotated[Quantity, MASS]
+Length = Annotated[Quantity, LENGTH]
+Energy = Annotated[Quantity, ENERGY]
+SpecificEnergy = Annotated[Quantity, ENERGY / MASS]
+EnergyIntensity = Annotated[Quantity, ENERGY / (LENGTH * MASS)]
+Ratio = Annotated[Quantity, DIMENSIONLESS]
+
+
 @system
 class Mission(metaclass=Interface):
-    specific_energy_kwh_per_t: Tensor = field()
-    propulsive_efficiency: Tensor = field()
-    energy_multiplier: Tensor = field()
+    specific_energy: SpecificEnergy = field()
+    propulsive_efficiency: Ratio = field()
+    energy_multiplier: Ratio = field()
 
-    distance_km: Tensor = field()
-    payload_t: Tensor = field()
+    distance: Length = field()
+    payload: Mass = field()
 
-    empty_mass_t: float = field()
-    energy_per_km_t: float = field()
-    usable_fraction: float = field()
-    max_battery_mass_t: float = field()
+    empty_mass: Mass = field()
+    energy_intensity: EnergyIntensity = field()
+    usable_fraction: Ratio = field()
+    max_battery_mass: Mass = field()
 
-    gross_mass_t: Tensor = field()
-    shaft_energy_kwh: Tensor = field()
-    electrical_energy_kwh: Tensor = field()
-    battery_mass_t: Tensor = field()
-    battery_margin_t: Tensor = field()
-
-
-@transform
-def gross_mass_t(payload_t: float, empty_mass_t: float) -> float:
-    return empty_mass_t + payload_t
+    gross_mass: Mass = field()
+    shaft_energy: Energy = field()
+    electrical_energy: Energy = field()
+    battery_mass: Mass = field()
+    battery_margin: Mass = field()
 
 
 @transform
-def shaft_energy_kwh(
-    energy_multiplier: float,
-    distance_km: float,
-    gross_mass_t: float,
-    energy_per_km_t: float,
-) -> float:
-    return energy_multiplier * distance_km * gross_mass_t * energy_per_km_t
+def gross_mass(payload: Mass, empty_mass: Mass) -> Mass:
+    return empty_mass + payload
 
 
 @transform
-def electrical_energy_kwh(
-    shaft_energy_kwh: float,
-    propulsive_efficiency: float,
-) -> float:
-    return shaft_energy_kwh / propulsive_efficiency
+def shaft_energy(
+    energy_multiplier: Ratio,
+    distance: Length,
+    gross_mass: Mass,
+    energy_intensity: EnergyIntensity,
+) -> Energy:
+    return energy_multiplier * distance * gross_mass * energy_intensity
 
 
 @transform
-def battery_mass_t(
-    electrical_energy_kwh: float,
-    specific_energy_kwh_per_t: float,
-    usable_fraction: float,
-) -> float:
-    return electrical_energy_kwh / (specific_energy_kwh_per_t * usable_fraction)
+def electrical_energy(
+    shaft_energy: Energy,
+    propulsive_efficiency: Ratio,
+) -> Energy:
+    return shaft_energy / propulsive_efficiency
 
 
 @transform
-def battery_margin_t(
-    battery_mass_t: float,
-    max_battery_mass_t: float,
-) -> float:
-    return max_battery_mass_t - battery_mass_t
+def battery_mass(
+    electrical_energy: Energy,
+    specific_energy: SpecificEnergy,
+    usable_fraction: Ratio,
+) -> Mass:
+    return electrical_energy / (specific_energy * usable_fraction)
+
+
+@transform
+def battery_margin(
+    battery_mass: Mass,
+    max_battery_mass: Mass,
+) -> Mass:
+    return max_battery_mass - battery_mass
 
 
 mission_model = Implementation(
     Mission,
-    [
-        gross_mass_t,
-        shaft_energy_kwh,
-        electrical_energy_kwh,
-        battery_mass_t,
-        battery_margin_t,
-    ],
+    [gross_mass, shaft_energy, electrical_energy, battery_mass, battery_margin],
 )
 ```
 
@@ -160,86 +175,84 @@ The model above is ordinary displayed Python. For this documentation build, the 
 
 ```python exec="on" session="qmc"
 model_source = """
-from bilt import Implementation, Interface, Tensor, field, system, transform
+from typing import Annotated
+
+from bilt import Implementation, Interface, Quantity, field, system, transform
+from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
+
+
+Mass = Annotated[Quantity, MASS]
+Length = Annotated[Quantity, LENGTH]
+Energy = Annotated[Quantity, ENERGY]
+SpecificEnergy = Annotated[Quantity, ENERGY / MASS]
+EnergyIntensity = Annotated[Quantity, ENERGY / (LENGTH * MASS)]
+Ratio = Annotated[Quantity, DIMENSIONLESS]
 
 
 @system
 class Mission(metaclass=Interface):
-    specific_energy_kwh_per_t: Tensor = field()
-    propulsive_efficiency: Tensor = field()
-    energy_multiplier: Tensor = field()
+    specific_energy: SpecificEnergy = field()
+    propulsive_efficiency: Ratio = field()
+    energy_multiplier: Ratio = field()
 
-    distance_km: Tensor = field()
-    payload_t: Tensor = field()
+    distance: Length = field()
+    payload: Mass = field()
 
-    empty_mass_t: float = field()
-    energy_per_km_t: float = field()
-    usable_fraction: float = field()
-    max_battery_mass_t: float = field()
+    empty_mass: Mass = field()
+    energy_intensity: EnergyIntensity = field()
+    usable_fraction: Ratio = field()
+    max_battery_mass: Mass = field()
 
-    gross_mass_t: Tensor = field()
-    shaft_energy_kwh: Tensor = field()
-    electrical_energy_kwh: Tensor = field()
-    battery_mass_t: Tensor = field()
-    battery_margin_t: Tensor = field()
-
-
-@transform
-def gross_mass_t(payload_t: float, empty_mass_t: float) -> float:
-    return empty_mass_t + payload_t
+    gross_mass: Mass = field()
+    shaft_energy: Energy = field()
+    electrical_energy: Energy = field()
+    battery_mass: Mass = field()
+    battery_margin: Mass = field()
 
 
 @transform
-def shaft_energy_kwh(
-    energy_multiplier: float,
-    distance_km: float,
-    gross_mass_t: float,
-    energy_per_km_t: float,
-) -> float:
-    return (
-        energy_multiplier
-        * distance_km
-        * gross_mass_t
-        * energy_per_km_t
-    )
+def gross_mass(payload: Mass, empty_mass: Mass) -> Mass:
+    return empty_mass + payload
 
 
 @transform
-def electrical_energy_kwh(
-    shaft_energy_kwh: float,
-    propulsive_efficiency: float,
-) -> float:
-    return shaft_energy_kwh / propulsive_efficiency
+def shaft_energy(
+    energy_multiplier: Ratio,
+    distance: Length,
+    gross_mass: Mass,
+    energy_intensity: EnergyIntensity,
+) -> Energy:
+    return energy_multiplier * distance * gross_mass * energy_intensity
 
 
 @transform
-def battery_mass_t(
-    electrical_energy_kwh: float,
-    specific_energy_kwh_per_t: float,
-    usable_fraction: float,
-) -> float:
-    return electrical_energy_kwh / (
-        specific_energy_kwh_per_t * usable_fraction
-    )
+def electrical_energy(
+    shaft_energy: Energy,
+    propulsive_efficiency: Ratio,
+) -> Energy:
+    return shaft_energy / propulsive_efficiency
 
 
 @transform
-def battery_margin_t(
-    battery_mass_t: float,
-    max_battery_mass_t: float,
-) -> float:
-    return max_battery_mass_t - battery_mass_t
+def battery_mass(
+    electrical_energy: Energy,
+    specific_energy: SpecificEnergy,
+    usable_fraction: Ratio,
+) -> Mass:
+    return electrical_energy / (specific_energy * usable_fraction)
+
+
+@transform
+def battery_margin(
+    battery_mass: Mass,
+    max_battery_mass: Mass,
+) -> Mass:
+    return max_battery_mass - battery_mass
 
 
 mission_model = Implementation(
     Mission,
-    [
-        gross_mass_t,
-        shaft_energy_kwh,
-        electrical_energy_kwh,
-        battery_mass_t,
-        battery_margin_t,
-    ],
+    [gross_mass, shaft_energy, electrical_energy, battery_mass, battery_margin],
 )
 """
 
@@ -257,7 +270,7 @@ Mission = model_module.Mission
 mission_model = model_module.mission_model
 ```
 
-The important point is that the transforms themselves remain scalar. `battery_mass_t()` means the same thing whether it is evaluated once or over hundreds of thousands of combinations. Bilt is responsible for aligning the named domains and lifting the calculation.
+The important point is that the transforms themselves remain scalar. `battery_mass()` means the same thing whether it is evaluated once or over hundreds of thousands of combinations. Bilt is responsible for aligning the named domains and lifting the calculation.
 
 ## 2. Generate the uncertain inputs
 
@@ -328,7 +341,7 @@ draws = scrambled_sobol_inputs(scrambles=8, power=10)
 print(draws.specific_energy_kwh_per_t.shape)
 ```
 
-All three uncertain arrays have shape `(8, 1024)`, but that shape alone does not say what either axis means.
+All three uncertain arrays have shape `(8, 1024)`, but that shape alone does not say what either axis means. These are numerical sampling arrays: specific energy is expressed in kWh/t, while efficiency and the multiplier are dimensionless. We attach their units and domains when constructing the tensors below.
 
 ### Inspect the input distributions
 
@@ -376,30 +389,35 @@ distances_km = np.array([150.0, 250.0, 350.0, 450.0, 550.0, 650.0])
 payloads_t = np.array([2.0, 4.0, 6.0, 8.0])
 
 mission = Mission(
-    specific_energy_kwh_per_t=tensor(
+    specific_energy=tensor(
         draws.specific_energy_kwh_per_t,
         over=(scramble, sample),
+        unit=kilowatthour / tonne,
     ),
     propulsive_efficiency=tensor(
         draws.propulsive_efficiency,
         over=(scramble, sample),
+        unit=UNITLESS,
     ),
     energy_multiplier=tensor(
         draws.energy_multiplier,
         over=(scramble, sample),
+        unit=UNITLESS,
     ),
-    distance_km=tensor(
+    distance=tensor(
         distances_km,
         over=route,
+        unit=kilometer,
     ),
-    payload_t=tensor(
+    payload=tensor(
         payloads_t,
         over=payload_case,
+        unit=tonne,
     ),
-    empty_mass_t=20.0,
-    energy_per_km_t=0.18,
-    usable_fraction=0.85,
-    max_battery_mass_t=7.5,
+    empty_mass=20.0 * tonne,
+    energy_intensity=0.18 * kilowatthour / (kilometer * tonne),
+    usable_fraction=Quantity(0.85, UNITLESS),
+    max_battery_mass=7.5 * tonne,
 )
 ```
 
@@ -418,11 +436,16 @@ configuration         scalar
 
 ```python exec="on" source="above" session="qmc"
 with mission_model:
-    battery_mass = mission.battery_mass_t
-    battery_margin = mission.battery_margin_t
+    battery_mass = mission.battery_mass
+    battery_margin = mission.battery_margin
 
 print(battery_mass.domain)
 print(battery_mass.values.shape)
+
+# Calculated masses are returned in the coherent SI unit: kilograms.
+assert battery_mass.unit == kilogram
+assert battery_margin.unit == kilogram
+battery_mass_in_tonnes = battery_mass.convert_to(tonne)
 ```
 
 The expected shape is:
@@ -446,16 +469,16 @@ assert battery_margin.values.shape == (8, 1024, 6, 4)
 
 ### Current comparison boundary
 
-The model returns a numeric margin:
+The model returns a unit-carrying mass margin:
 
 ```text
 margin = maximum battery mass - required battery mass
 ```
 
-A positive margin is feasible. We form the Boolean mask after evaluation using NumPy.
+A non-negative margin is feasible. We convert the margin to tonnes before extracting its numerical array, then form the Boolean mask using NumPy. The histogram below also explicitly converts the calculated battery mass to tonnes so that its values match the axis label.
 
 ```python exec="on" source="above" session="qmc"
-feasible = battery_margin.values >= 0.0
+feasible = battery_margin.convert_to(tonne).values >= 0.0
 ```
 
 ## 5. Look at one output distribution
@@ -466,7 +489,7 @@ Below is the required battery mass for the 450 km route and 6 t payload case acr
 route_index = 3
 payload_index = 2
 
-selected_battery_mass = battery_mass.values[
+selected_battery_mass = battery_mass_in_tonnes.values[
     :,
     :,
     route_index,
@@ -474,7 +497,11 @@ selected_battery_mass = battery_mass.values[
 ].ravel()
 
 plt.hist(selected_battery_mass, bins=40)
-plt.axvline(7.5, linestyle="--", label="Maximum battery mass")
+plt.axvline(
+    mission.max_battery_mass.convert_to(tonne).value,
+    linestyle="--",
+    label="Maximum battery mass",
+)
 plt.xlabel("Required battery mass (t)")
 plt.ylabel("Count")
 plt.title("450 km route, 6 t payload")
@@ -620,11 +647,11 @@ or change the scalar aircraft assumptions when constructing `Mission`:
 
 ```python
 mission = Mission(
-    ...
-    empty_mass_t=20.0,
-    energy_per_km_t=0.18,
-    usable_fraction=0.85,
-    max_battery_mass_t=7.5,
+    # ... other inputs ...
+    empty_mass=20.0 * tonne,
+    energy_intensity=0.18 * kilowatthour / (kilometer * tonne),
+    usable_fraction=Quantity(0.85, UNITLESS),
+    max_battery_mass=7.5 * tonne,
 )
 ```
 
