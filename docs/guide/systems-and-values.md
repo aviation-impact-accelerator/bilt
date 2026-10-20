@@ -1,5 +1,7 @@
 ## Systems and values
 
+For signatures and usage rules, see the [Systems and implementations API](../api/systems.md).
+
 A Bilt model starts with a **system**.
 
 A system describes the values that make up the boundary of a model. It tells Bilt what exists, but not yet how those values are calculated.
@@ -88,3 +90,4 @@ In the next chapter, we'll introduce **acausal modelling** and **equations**, be
 ---
 
 [Index](../index.md) · [Equations and acausal modelling →](equations-and-acausal-modelling.md)
+
