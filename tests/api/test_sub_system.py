@@ -20,6 +20,12 @@ RESISTANCE = 3.0
 VOLTAGE = 6.0
 
 
+@pytest.fixture(autouse=True)
+def _select_structural_analyser(analyser_factory: object) -> None:
+    """Select the analyser before constructing test implementations."""
+    _ = analyser_factory
+
+
 def _resistor_implementation() -> Implementation:
     @system
     class Resistor(metaclass=Interface):
