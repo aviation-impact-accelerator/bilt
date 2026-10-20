@@ -24,6 +24,8 @@ dev = [
     "prek>=0.3.11",
     "pyrefly>=1.0.0",
     "pytest>=9.0.3",
+    "pytest-benchmark>=5.3.0",
+    "pytest-timeout>=2.4.0",
     "ruff>=0.15.12",
     "ty>=0.0.38",
 ]
@@ -39,8 +41,13 @@ docs = [
 python_version = "3.14"
 search_path = ["src", "benchmarks"]
 
+[tool.ty.environment]
+extra-paths = ["benchmarks"]
+
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
+testpaths = ["tests", "packages", "benchmarks"]
+pythonpath = ["benchmarks"]
 xfail_strict = true
 
 [tool.ruff]
@@ -87,6 +94,8 @@ known-first-party = ["bilt"]
 "packages/*/tests/**/*.py" = ["D1", "FBT001", "INP001", "S101"]
 "src/*" = ["D1"]
 "tests/*" = ["D1", "FBT001", "INP001", "S101"]
+"benchmarks/conftest.py" = ["D1", "INP001"]
+"benchmarks/test_*.py" = ["D1", "FBT001", "INP001", "S101"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -105,3 +114,4 @@ module-name = "bilt._native"
 python-source = "src"
 bindings = "pyo3"
 strip = false
+
