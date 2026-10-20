@@ -2,7 +2,6 @@ import os
 import typing
 
 import pytest
-
 from structural_search import SearchCase, SearchTrial, count_search
 
 if typing.TYPE_CHECKING:
