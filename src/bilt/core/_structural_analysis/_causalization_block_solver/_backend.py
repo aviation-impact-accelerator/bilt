@@ -62,7 +62,6 @@ class CausalizationStructuralAnalyzer:
             self.full_incidence_graph,
             available,
             request.output,
-            self.backend,
         )
         graph = build_matching_graph(self.full_incidence_graph, available)
         last_error: Exception | None = None
