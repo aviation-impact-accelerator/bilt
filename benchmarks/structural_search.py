@@ -1,22 +1,33 @@
-"""Compare cold structural search: uv run python benchmarks/structural_search.py --counters."""
+"""Cold structural-search trials and optional untimed search instrumentation."""
 
-# Standalone CLI: deferred Bilt imports keep controller startup independent.
-# ruff: noqa: INP001, PLC0415, T201
+# ruff: noqa: INP001 - benchmark helpers are not an installed package
 
-import argparse
+import dataclasses
 import functools
-import json
-import os
-import platform
-import statistics
-import subprocess
-import sys
-import time
 import typing
 from collections import Counter
 from contextlib import ExitStack
-from pathlib import Path
 from unittest.mock import patch
+
+from structural_models import build_model, expected_value
+
+from bilt._backend._case import BackendCase
+from bilt._backend._python._backend import PYTHON_BACKEND
+from bilt.core._errors import BiltAnalysisError
+from bilt.core._evaluation_context import EvaluationContext
+from bilt.core._evaluation_request import EvaluationRequest
+from bilt.core._structural_analysis._causalization_block_solver import _backend as scc
+from bilt.core._structural_analysis._causalization_block_solver._dm import dulmage_mendelsohn
+from bilt.core._structural_analysis._causalization_block_solver._errors import (
+    BiltOverconstrainedError,
+    BiltUnderconstrainedError,
+)
+from bilt.core._structural_analysis._causalization_block_solver._expand_structure import StructuralExpansion
+from bilt.core._structural_analysis._exhaustive import _backend as exhaustive
+from bilt.core._structural_analysis._exhaustive._backend import ExhaustiveStructuralAnalyser
+from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
+from bilt.core._system import _implementation as implementation_module
+from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
@@ -25,35 +36,109 @@ if typing.TYPE_CHECKING:
     from bilt.core._model_constituent import BiltModelConstituent
 
 
-class TrialResult(typing.TypedDict, total=False):
-    """One completed or timed-out worker result."""
+@dataclasses.dataclass(frozen=True)
+class SearchCase:
+    """One cell of the existing structural-search matrix."""
 
-    status: str
-    seconds: float
-    wall_limit_seconds: float
-    error_type: str
-    message: str
-    value: object
-    counts: dict[str, int]
-    structural_shape: dict[str, int]
-    rejection_kind: str
-    expected_outcome: str
-    policy_match: bool
+    solver: str
+    layout: str
+    coupled: bool
+    depth: int
+    rectangular: bool
 
 
-def build_model(*, coupled: bool, depth: int, rectangular: bool = False, layout: str = "links") -> Implementation:
-    """Import model fixtures only in workers, before the analysis timer."""
-    from structural_models import build_model as build_fixture
+@dataclasses.dataclass
+class SearchTrial:
+    """One fresh model, solver selection and evaluation context."""
 
-    return build_fixture(coupled=coupled, depth=depth, rectangular=rectangular, layout=layout)
+    case: SearchCase
+    implementation: Implementation
+    request: EvaluationRequest
+    resources: ExitStack
+    result: BackendCase | BiltAnalysisError | None = None
+    checked: bool = False
+    closed: bool = False
+
+    @classmethod
+    def prepare(cls, case: SearchCase) -> typing.Self:
+        """Build fixtures and enter their contexts before timing begins."""
+        resources = ExitStack()
+        try:
+            factory = (
+                ExhaustiveStructuralAnalyser if case.solver == "exhaustive" else scc.CausalizationStructuralAnalyzer
+            )
+            resources.enter_context(patch.object(implementation_module, "ExhaustiveStructuralAnalyser", factory))
+            implementation = build_model(
+                coupled=case.coupled, depth=case.depth, rectangular=case.rectangular, layout=case.layout
+            )
+            request = EvaluationRequest(output="x", input_domains={"a": Domain.scalar(), "b": Domain.scalar()})
+            resources.enter_context(EvaluationContext())
+            return cls(case, implementation, request, resources)
+        except BaseException:
+            resources.close()
+            raise
+
+    def analyse(self) -> None:
+        """Time analyser construction, planning and realisation exactly once."""
+        if self.closed or self.result is not None:
+            msg = "Each benchmark trial must be analysed once in a fresh context."
+            raise RuntimeError(msg)
+        try:
+            self.result = self.implementation.analyser_for(PYTHON_BACKEND).analyse(self.request)
+        except BiltAnalysisError as error:
+            self.result = error
+
+    def check(self) -> dict[str, object]:
+        """Verify every round's answer or rejection outside the timer."""
+        result = self.result
+        details: dict[str, object]
+        if self.case.coupled:
+            if not isinstance(result, BiltAnalysisError) or isinstance(
+                result, (BiltUnderconstrainedError, BiltOverconstrainedError)
+            ):
+                msg = f"Expected unsupported coupled execution, received {result!r}."
+                raise AssertionError(msg)
+            details = {"status": "rejected", "error_type": type(result).__name__, "message": str(result)}
+        else:
+            if not isinstance(result, BackendCase):
+                msg = f"Expected a successful plan, received {result!r}."
+                raise AssertionError(msg) from (result if isinstance(result, Exception) else None)
+            value = PYTHON_BACKEND.chain_case(result).callable(a=4.0, b=2.0)
+            expected = expected_value(coupled=False, depth=self.case.depth, layout=self.case.layout)
+            if value != expected:
+                msg = f"Expected {expected}, received {value}."
+                raise AssertionError(msg)
+            details = {"status": "success", "value": value, "expected_value": expected}
+        if self.case.rectangular:
+            details["structural_shape"] = self._check_rectangular_shape()
+        self.checked = True
+        return details
+
+    def _check_rectangular_shape(self) -> dict[str, int]:
+        incidence = self.implementation.structural_analysis()._incidence  # noqa: SLF001
+        graph, attributes = StructuralExpansion(
+            incidence, set(self.request.input_domains), self.request.output
+        ).collect()
+        partition = dulmage_mendelsohn(graph, frozenset(attributes.values()))
+        rows = len(graph) - len(attributes)
+        if rows >= len(attributes) or attributes[self.request.output] not in partition.well_determined:
+            msg = "Rectangular benchmark must have a well-determined target and surplus unknowns."
+            raise AssertionError(msg)
+        return {
+            "constraints": rows,
+            "unknowns": len(attributes),
+            "well_determined_unknowns": len(set(attributes.values()) & partition.well_determined),
+            "underdetermined_unknowns": len(set(attributes.values()) & partition.underdetermined),
+        }
+
+    def close(self) -> None:
+        """Restore the solver selection and release the evaluation context."""
+        self.resources.close()
+        self.closed = True
 
 
 def instrument(solver: str) -> tuple[ExitStack, Counter[str]]:
     """Count search operations without adding overhead to timing-only trials."""
-    from bilt.core._structural_analysis._causalization_block_solver import _backend as scc
-    from bilt.core._structural_analysis._exhaustive._backend import ExhaustiveStructuralAnalyser
-    from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
-
     stack = ExitStack()
     counts: Counter[str] = Counter()
     queries: set[tuple[int, frozenset[str], str]] = set()
@@ -102,8 +187,6 @@ def instrument(solver: str) -> tuple[ExitStack, Counter[str]]:
 
         stack.enter_context(patch.object(factory, "_plan_steps", plan))
     else:
-        from bilt.core._structural_analysis._exhaustive import _backend as exhaustive
-
         stack.enter_context(
             patch.object(BipartiteGraph, "search", counted("recursive_search_calls", BipartiteGraph.search))
         )
@@ -113,243 +196,20 @@ def instrument(solver: str) -> tuple[ExitStack, Counter[str]]:
     return stack, counts
 
 
-def _source_path() -> str:
-    import bilt
-
-    return str(Path(bilt.__file__).resolve())
-
-
-def annotate_policy(result: TrialResult, *, case: str) -> None:
-    """Check the requested computation, allowing surplus unknown branches."""
-    expected = "rejected" if case == "coupled" else "success"
-    result["expected_outcome"] = expected
-    result["policy_match"] = result["status"] == expected and result.get("rejection_kind") not in {
-        "underconstrained",
-        "overconstrained",
-    }
-
-
-def worker(args: argparse.Namespace) -> None:
-    """Run one isolated cold trial; check execution results outside its timer."""
-    from bilt._backend._python._backend import PYTHON_BACKEND
-    from bilt.core._errors import BiltAnalysisError
-    from bilt.core._evaluation_context import EvaluationContext
-    from bilt.core._evaluation_request import EvaluationRequest
-    from bilt.core._structural_analysis._causalization_block_solver._backend import (
-        CausalizationStructuralAnalyzer,
-    )
-    from bilt.core._structural_analysis._causalization_block_solver._errors import (
-        BiltOverconstrainedError,
-        BiltUnderconstrainedError,
-    )
-    from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
-    from bilt.core._system import _implementation as implementation_module
-    from bilt.symbolic._domains import Domain
-
-    factory = ExhaustiveStructuralAnalyser if args.solver == "exhaustive" else CausalizationStructuralAnalyzer
-    # Use the same solver in every child, through the existing test seam.
-    with patch.object(implementation_module, "ExhaustiveStructuralAnalyser", factory):
-        implementation = build_model(
-            coupled=args.case == "coupled", depth=args.depth, rectangular=args.rectangular, layout=args.layout
-        )
-        request = EvaluationRequest(output="x", input_domains={"a": Domain.scalar(), "b": Domain.scalar()})
-        stack, counts = instrument(args.solver) if args.count_worker else (ExitStack(), Counter())
-        result: TrialResult
-        with stack, EvaluationContext():
-            start = time.perf_counter()
-            try:
-                case = implementation.analyser_for(PYTHON_BACKEND).analyse(request)
-            except BiltAnalysisError as error:
-                result = {
-                    "status": "rejected",
-                    "seconds": time.perf_counter() - start,
-                    "error_type": type(error).__name__,
-                    "rejection_kind": "underconstrained"
-                    if isinstance(error, BiltUnderconstrainedError)
-                    else "overconstrained"
-                    if isinstance(error, BiltOverconstrainedError)
-                    else "other_analysis_error",
-                    "message": str(error),
-                }
-            else:
-                elapsed = time.perf_counter() - start
-                actual = PYTHON_BACKEND.chain_case(case).callable(a=4.0, b=2.0)
-                from structural_models import expected_value
-
-                expected = expected_value(coupled=args.case == "coupled", depth=args.depth, layout=args.layout)
-                if actual != expected:
-                    message = f"Expected {expected}, received {actual}."
-                    raise AssertionError(message)
-                result = {"status": "success", "seconds": elapsed, "value": actual}
-        if args.rectangular:
-            # Verify the actual expanded scope after timing and instrumentation.
-            from bilt.core._structural_analysis._causalization_block_solver._dm import dulmage_mendelsohn
-            from bilt.core._structural_analysis._causalization_block_solver._expand_structure import StructuralExpansion
-
-            incidence = implementation.structural_analysis()._incidence  # noqa: SLF001
-            graph, attributes = StructuralExpansion(incidence, set(request.input_domains), request.output).collect()
-            partition = dulmage_mendelsohn(graph, frozenset(attributes.values()))
-            rows = len(graph) - len(attributes)
-            if rows >= len(attributes) or attributes[request.output] not in partition.well_determined:
-                message = "Rectangular benchmark must have a well-determined target and surplus unknowns."
-                raise AssertionError(message)
-            result["structural_shape"] = {
-                "constraints": rows,
-                "unknowns": len(attributes),
-                "well_determined_unknowns": len(set(attributes.values()) & partition.well_determined),
-                "underdetermined_unknowns": len(set(attributes.values()) & partition.underdetermined),
-            }
-        if args.count_worker:
-            result["counts"] = dict(counts)
-        annotate_policy(result, case=args.case)
-        print(json.dumps(result), flush=True)
-
-
-def trial(args: argparse.Namespace, solver: str, case: str, depth: int, *, count: bool = False) -> TrialResult:
-    """Bound total worker wall time, while the worker times analysis separately."""
-    command = [
-        sys.executable,
-        str(Path(__file__).resolve()),
-        "--worker",
-        "--solver",
-        solver,
-        "--case",
-        case,
-        "--depth",
-        str(depth),
-    ]
-    command.extend(("--layout", args.layout))
-    if count:
-        command.append("--count-worker")
-    if args.rectangular:
-        command.append("--rectangular")
-    env = os.environ.copy()
-    env["PYTHONHASHSEED"] = str(args.hash_seed)
+def count_search(case: SearchCase) -> dict[str, object]:
+    """Run instrumentation on a separate fresh trial after timing finishes."""
+    trial = SearchTrial.prepare(case)
     try:
-        result = subprocess.run(  # noqa: S603 - invokes this script with validated CLI choices
-            command, capture_output=True, text=True, timeout=args.timeout, check=True, env=env
-        )
-    except subprocess.TimeoutExpired:
-        return {"status": "timeout", "wall_limit_seconds": args.timeout}
-    except subprocess.CalledProcessError as error:
-        message = f"Worker failed:\n{error.stdout}\n{error.stderr}"
-        raise RuntimeError(message) from error
-    return typing.cast("TrialResult", json.loads(result.stdout))
-
-
-def policy_summary(checks: list[TrialResult]) -> tuple[bool, str]:
-    """Summarise correctness separately from timing for both solvers."""
-    policy_match = all(check.get("policy_match", False) for check in checks)
-    label = "PASS" if policy_match else "FAIL / UNVERIFIED"
-    return policy_match, label
-
-
-def measure_cell(args: argparse.Namespace, solver: str, case: str, depth: int) -> dict[str, object]:
-    """Measure one cell and report correctness independently of its runtime."""
-    trials = []
-    for _ in range(args.repeats):
-        result = trial(args, solver, case, depth)
-        trials.append(result)
-        if result["status"] == "timeout":
-            break
-    seconds = [r["seconds"] for r in trials if "seconds" in r]
-    median = statistics.median(seconds) if seconds else None
-    row: dict[str, object] = {
-        "layout": args.layout,
-        "rectangular": args.rectangular,
-        "case": case,
-        "depth": depth,
-        "solver": solver,
-        "trials": trials,
-        "median_seconds": median,
-        "completed_trials": len(seconds),
-    }
-    checks = [*trials]
-    if args.counters:
-        counted = trial(args, solver, case, depth, count=True)
-        row["instrumented"] = counted
-        checks.append(counted)
-    policy_match, label = policy_summary(checks)
-    row["policy_match"] = policy_match
-    timing = f"{median * 1000:.3f} ms" if median is not None else f"wall timeout ({args.timeout:g} s)"
-    print(
-        f"{'rectangular' if args.rectangular else 'square':11} {args.layout:10} {case:8} depth={depth} {solver:10} {trials[-1]['status']:8} {timing} [{label}]",
-        flush=True,
-    )
-    return row
-
-
-def main() -> None:
-    """Run timing trials and optional separate operation-count trials."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--layout", choices=("links", "arithmetic", "siblings", "all"), default="all")
-    parser.add_argument("--scope", choices=("square", "rectangular", "both"), default="both")
-    parser.add_argument(
-        "--rectangular",
-        dest="scope",
-        action="store_const",
-        const="rectangular",
-        help="Alias for --scope rectangular: attach a surplus u + v = x branch.",
-    )
-    parser.add_argument("--repeats", type=int, default=3)
-    parser.add_argument("--timeout", type=float, default=100)
-    parser.add_argument("--max-depth", type=int, default=2)
-    parser.add_argument("--output", default="structural-search-results.json")
-    parser.add_argument(
-        "--counters",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Run a separate instrumented trial per case.",
-    )
-    parser.add_argument("--hash-seed", type=int, default=0)
-    parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--solver", choices=("all", "exhaustive", "scc"), default="all")
-    parser.add_argument("--case", choices=("all", "acyclic", "coupled"), default="all")
-    parser.add_argument("--depth", type=int)
-    parser.add_argument("--count-worker", action="store_true", help=argparse.SUPPRESS)
-    args = parser.parse_args()
-    args.rectangular = args.scope == "rectangular"
-    if args.worker:
-        worker(args)
-        return
-    if args.repeats < 1 or args.timeout <= 0 or args.max_depth < 0:
-        parser.error("repeats and timeout must be positive; max-depth must be nonnegative")
-    rows = []
-    cases = ("acyclic", "coupled") if args.case == "all" else (args.case,)
-    solvers = ("exhaustive", "scc") if args.solver == "all" else (args.solver,)
-    layouts = ("links", "arithmetic", "siblings") if args.layout == "all" else (args.layout,)
-    scopes = ("square", "rectangular") if args.scope == "both" else (args.scope,)
-    for scope in scopes:
-        for layout in layouts:
-            cell_args = argparse.Namespace(**vars(args))
-            cell_args.layout = layout
-            cell_args.rectangular = scope == "rectangular"
-            for case in cases:
-                for depth in range(args.max_depth + 1):
-                    rows.extend(measure_cell(cell_args, solver, case, depth) for solver in solvers)
-    required_failures = sum(not row["policy_match"] for row in rows)
-    report = {
-        "layout": args.layout,
-        "scope": args.scope,
-        "policy": "target-scoped evaluation",
-        "required_policy_failures": required_failures,
-        "hash_seed": args.hash_seed,
-        "timing_scope": "cold analyser construction, analysis and realisation; excludes imports, model build and execution",
-        "source_path": _source_path(),
-        "python": sys.version,
-        "platform": platform.platform(),
-        "repeats": args.repeats,
-        "timeout_seconds": args.timeout,
-        "rows": rows,
-    }
-    Path(args.output).write_text(json.dumps(report, indent=2) + "\n")
-    if required_failures:
-        print(
-            f"Saved {args.output}; {required_failures} required case(s) failed policy checks or were unverified.",
-            flush=True,
-        )
-        raise SystemExit(1)
+        resources, counts = instrument(case.solver)
+        with resources:
+            trial.analyse()
+        details = trial.check()
+        details["counts"] = dict(counts)
+        return details
+    finally:
+        trial.close()
 
 
 if __name__ == "__main__":
-    main()
+    msg = "Run structural benchmarks with: uv run pytest benchmarks --benchmark-only --timeout=100"
+    raise SystemExit(msg)

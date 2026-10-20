@@ -1,4 +1,4 @@
-"""Scalar fixtures imported by structural-search workers before timing starts."""
+"""Scalar fixtures built afresh before each structural-search benchmark round."""
 
 # ruff: noqa: INP001 - standalone benchmark companion, not an installed package
 
@@ -16,10 +16,10 @@ if typing.TYPE_CHECKING:
 class Ports(metaclass=Interface):
     """Common interface for every level and both sibling instances."""
 
-    a: float = field()
-    b: float = field()
-    x: float = field()
-    y: float = field()
+    a: float = typing.cast("float", field())
+    b: float = typing.cast("float", field())
+    x: float = typing.cast("float", field())
+    y: float = typing.cast("float", field())
 
 
 @equation
