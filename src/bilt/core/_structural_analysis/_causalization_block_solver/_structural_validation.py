@@ -4,7 +4,10 @@ from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltOverconstrainedError,
     BiltUnderconstrainedError,
 )
-from bilt.core._structural_analysis._causalization_block_solver._expand_structure import expand_structure
+from bilt.core._structural_analysis._causalization_block_solver._expand_structure import (
+    ExpansionSnapshot,
+    StructuralExpansion,
+)
 
 from ._dm import DMPartition, dulmage_mendelsohn
 
@@ -59,18 +62,20 @@ def validate_request_structure(
     incidence: FullIncidenceGraph,
     available: collections.abc.Set[str],
     output: str,
-) -> None:
+) -> ExpansionSnapshot | None:
     """Expand relevant children structurally, then validate the combined scope.
 
     Unresolved child boundaries are not independent equation rows. Expand every
     boundary reached in the unknown request scope before definitive DM analysis.
     Parent and child primitives remain simultaneous constraints; execution choices
-    and previous compilation failures do not affect this graph.
+    and previous compilation failures do not affect this graph. Return the
+    validated snapshot for execution preflight, or None for a supplied target.
     """
     if output in available:
-        return
+        return None
 
-    graph, attributes = expand_structure(incidence, available, output)
+    expansion = StructuralExpansion(incidence, available, output)
+    graph, attributes = expansion.collect()
     try:
         validate_structure(
             graph,
@@ -81,3 +86,5 @@ def validate_request_structure(
     except (BiltUnderconstrainedError, BiltOverconstrainedError) as error:
         message = f"Cannot compute {output} from available inputs {sorted(available)}. {error}"
         raise type(error)(message) from error
+
+    return expansion.snapshot()

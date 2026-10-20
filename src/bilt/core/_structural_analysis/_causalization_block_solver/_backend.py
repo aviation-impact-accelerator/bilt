@@ -8,6 +8,7 @@ from bilt.core._errors import BiltAnalysisError
 from bilt.core._structural_analysis._causalization_block_solver._blocks import (
     ordered_blocks,
 )
+from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
 from bilt.core._structural_analysis._causalization_block_solver._dependency_graph import (
     build_dependency_graph,
 )
@@ -66,11 +67,19 @@ class CausalizationStructuralAnalyzer:
     def _analyse(self, request: EvaluationRequest) -> BackendCase:
         """Search within the current request's route-cache scope."""
         available = set(request.input_domains)
-        validate_request_structure(
+        structure = validate_request_structure(
             self.full_incidence_graph,
             available,
             request.output,
         )
+        if structure is not None and (coupled := unavoidable_coupled_outputs(structure, request.output)):
+            msg = (
+                f"Cannot compute {request.output} from available inputs {sorted(available)}. "
+                f"Execution of coupled blocks is not yet supported by this analyser. "
+                f"Required coupled computations: {', '.join(sorted(coupled))}."
+            )
+            raise BiltExecutionPlanError(msg)
+
         graph = build_matching_graph(self.full_incidence_graph, available)
         last_error: Exception | None = None
 
