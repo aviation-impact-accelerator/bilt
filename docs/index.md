@@ -36,8 +36,11 @@ Worked examples show how these concepts fit together in complete models.
 
 ## API reference
 
+- [Tensors](api/tensors.md) - tensor construction, domains, broadcasting, reductions, selection and current limitations.
+
 - [Units](api/units.md) - built-in units, quantity and unit helpers, dimensions, metadata and errors.
 
 ## Configuration
 
 - [Using Bilt with ruff](config.md#ruff) - keep ruff from moving imports that Bilt needs at runtime into `if TYPE_CHECKING:` blocks.
+
