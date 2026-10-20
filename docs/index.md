@@ -34,6 +34,11 @@ Worked examples show how these concepts fit together in complete models.
 
 - [Compiling a Bilt model with JAX](worked_examples/compiling-a-bilt-model-with-JAX.md) - a detailed example of how to compile a Bilt model with JAX.
 
+## API reference
+
+- [Units](api/units.md) - built-in units, quantity and unit helpers, dimensions, metadata and errors.
+
 ## Configuration
 
 - [Using Bilt with ruff](config.md#ruff) - keep ruff from moving imports that Bilt needs at runtime into `if TYPE_CHECKING:` blocks.
+
