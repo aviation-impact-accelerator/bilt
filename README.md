@@ -1,45 +1,23 @@
-# Bilt
+<h1>Bilt<br><sub>Equation-oriented modelling in Python</sub></h1>
 
-**Composable engineering models from declarative relationships.**
+[Documentation](#documentation) · [Issues](https://github.com/aviation-impact-accelerator/bilt/issues)
 
-Bilt is a Python framework for building acausal, composable and unit-aware engineering models.
+![Python 3.14+](https://img.shields.io/badge/python-3.14%2B-blue)
+[![MIT License](https://img.shields.io/badge/license-MIT-green)](https://github.com/aviation-impact-accelerator/bilt/blob/main/LICENSE)
 
-Instead of writing a fixed calculation pipeline, you describe the relationships in the model. Given what is known and what is requested, Bilt works out how to calculate the result.
-
-> **The modeller declares meaning. Bilt derives mechanics.**
-
-## Core ideas
-
-* **Systems** define composable model boundaries.
-* **Values** describe the quantities in a model.
-* **Equations** declare acausal relationships between values.
-* **Transforms** declare directional relationships.
-* **Structural analysis** finds a valid route from known values to requested values.
-* **Domains and units** preserve the meaning of numerical data.
-
-For example, an equation such as
-
-[
-distance = speed * time
-]
-
-does not inherently say whether to calculate `distance`, `speed`, or `time`. Instead, it says that `distance` depends on `speed` and `time`.
-
-Bilt keeps the relationship intact and chooses a direction when the model is evaluated.
-
-The model declares the web.
-
-Evaluation finds a route through it.
+Bilt is a Python framework for composable engineering models. Describe the relationships between quantities; Bilt derives a calculation from the values you know to the outputs you need.
 
 ## Why Bilt?
 
-Engineering models often begin as equations and end up encoded as rigid sequences of calculations.
+- **Acausal equations:** use the same relationship to calculate different quantities.
+- **Composable systems:** connect reusable components through equations and directed transforms.
+- **Physical unit analysis:** check equations for dimensional consistency, validate input quantities and convert compatible units automatically.
+- **Named tensor dimensions:** align and broadcast data across time, location or scenario axes.
+- **Python and JAX backends:** choose how supported models execute.
 
-Bilt keeps the model separate from the mechanics used to execute it. This makes relationships easier to compose, reuse and inspect, while leaving Bilt free to derive an appropriate computation plan for each evaluation.
+## Installation
 
-That plan can include structural analysis, equation isolation, domain alignment, lowering and execution.
-
-## Install
+Requires Python 3.14+, [uv](https://docs.astral.sh/uv/) and a [Rust toolchain](https://www.rust-lang.org/tools/install).
 
 ```bash
 git clone https://github.com/aviation-impact-accelerator/bilt.git
@@ -47,26 +25,83 @@ cd bilt
 uv sync
 ```
 
-Run the tests with:
+Use `uv sync --extra jax` to include the optional JAX backend.
 
-```bash
-uv run pytest
+## Quickstart
+
+Declare **distance = speed × time**, then ask for either distance or speed:
+
+```python
+from typing import Annotated
+
+from bilt import Implementation, Interface, Quantity, equation, field, system
+from bilt.units import hour, kilometer, meter, second
+from bilt.units.dimensions import LENGTH, TIME
+
+
+Length = Annotated[Quantity, LENGTH]
+Duration = Annotated[Quantity, TIME]
+Speed = Annotated[Quantity, LENGTH / TIME]
+
+
+@system
+class Motion(metaclass=Interface):
+    distance: Length = field()
+    speed: Speed = field()
+    time: Duration = field()
+
+
+@equation
+def kinematic_relation(distance: Length, speed: Speed, time: Duration) -> bool:
+    return distance == speed * time
+
+
+motion_model = Implementation(Motion, [kinematic_relation])
+
+with motion_model:
+    journey = Motion(speed=36.0 * kilometer / hour, time=5.0 * second)
+    assert journey.distance == 50.0 * meter
+
+    another_journey = Motion(distance=1.0 * kilometer, time=100.0 * second)
+    assert another_journey.speed == 10.0 * meter / second
+    assert another_journey.speed.convert_to(kilometer / hour).value == 36.0
 ```
 
-Bilt currently targets Python 3.14.
+Bilt rearranges the equation and handles unit conversions. The annotations declare physical dimensions; incompatible equations or input quantities raise dimensionality errors. Equation rearrangement is limited to supported symbolic operations.
 
-## Status
+Save the example as `motion.py` and run it with `uv run python motion.py`.
 
-Bilt is under active development at the **Aviation Impact Accelerator (AIA)** at the University of Cambridge.
+## Documentation
 
-We currently use it to develop engineering models within AIA while continuing to evolve the public API and modelling architecture. Expect breaking changes as the project develops.
+The user guide and worked examples cover units, transforms, subsystem composition, tensors and backends. From the repository root, run:
 
-We are interested in collaboration around scientific modelling, structural analysis, compiler techniques, heterogeneous execution and explainable model evaluation.
+```bash
+uv run --group docs zensical serve
+```
 
-## Learn more
+Then open [http://localhost:8000](http://localhost:8000).
 
-See the [documentation](./docs/index.md) and [examples](./examples/) for the current API.
+## Development
 
-> **The model is declared.
-> The question is asked.
-> Execution is derived.**
+Developed at the [**Aviation Impact Accelerator, University of Cambridge**](https://aiazero.org). Bilt is under active development; expect API changes.
+
+Contributions and modelling examples are welcome.
+
+### Roadmap
+
+In order of priority, the following features are planned:
+
+1. Migrate exhaustive search structural analysis to a more efficient algorithm
+2. Detection and solving of coupled linear equations across subsystems
+3. Extend Tensor indexing and reduction operations to computational model intermediates
+3. Solving coupled non-linear equations across subsystems
+4. Automatic differentiation through computational models
+5. Solve ODE systems
+
+### Maintainers
+
+Bilt is maintained by [James Emberton](https://github.com/j-emberton)
+and [Sam Brockie](https://github.com/brocksam) at the Aviation Impact
+Accelerator, University of Cambridge.
+
+For questions, bug reports and proposals, please open a GitHub issue, or a Github Discussion.
