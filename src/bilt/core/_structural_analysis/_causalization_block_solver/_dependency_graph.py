@@ -4,38 +4,26 @@ import typing
 
 import rustworkx as rx
 
-from bilt.core._structural_analysis._plan import PlanStep
-from bilt.core._sub_system import SubSystemConstituent
-
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt.core._model_constituent import BiltModelConstituent
+    from bilt.core._structural_analysis._plan import PlanStep
 
 
 def build_dependency_graph(
-    assignments: collections.abc.Mapping[str, BiltModelConstituent],
+    steps: collections.abc.Collection[PlanStep],
     available: collections.abc.Set[str],
 ) -> tuple[rx.PyDiGraph, dict[str, set[str]]]:
-    """Build producer-to-consumer dependencies for candidate assignments.
+    """Build producer-to-consumer dependencies from settled steps.
 
     Node payloads are PlanSteps. Unresolved inputs are grouped by the
     output that requires them. Cycles are retained for SCC analysis.
     """
     graph = rx.PyDiGraph(multigraph=False)
-    producer_nodes: dict[str, int] = {}
-
-    for output, constituent in assignments.items():
-        if isinstance(constituent, SubSystemConstituent):
-            msg = "Subsystem dependency analysis requires a selected child route."
-            raise NotImplementedError(msg)
-
-        step = PlanStep(operation=constituent, output=output)
-        producer_nodes[output] = graph.add_node(step)
-
+    producer_nodes = {step.output: graph.add_node(step) for step in steps}
     unresolved: dict[str, set[str]] = {}
 
-    for output, consumer in producer_nodes.items():
+    for consumer in graph.node_indices():
         step = typing.cast("PlanStep", graph[consumer])
 
         for attribute in step.consumed:
@@ -44,7 +32,7 @@ def build_dependency_graph(
 
             producer = producer_nodes.get(attribute)
             if producer is None:
-                unresolved.setdefault(output, set()).add(attribute)
+                unresolved.setdefault(step.output, set()).add(attribute)
             else:
                 graph.add_edge(producer, consumer, None)
 
