@@ -1,5 +1,7 @@
 ## Domains and tensors
 
+For constructors, reductions, indexing and their current limitations, see the [Tensor API reference](../api/tensors.md).
+
 So far, every value in our examples has been a scalar:
 
 ```python
@@ -459,3 +461,4 @@ Bilt does that by allowing **systems to be composed from other systems**, while 
 That is the subject of the next chapter.
 
 [← Models to computation](models-to-computation.md) · [Index](../index.md) · [Systems of systems →](systems-of-systems.md)
+
