@@ -170,6 +170,7 @@ class CausalizationStructuralAnalyzer:
             assignments,
             available,
             self.backend,
+            target=output,
         )
         by_output = {step.output: step for step in settled}
         selected: dict[str, PlanStep] = {}
