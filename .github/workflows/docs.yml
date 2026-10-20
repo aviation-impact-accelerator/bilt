@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  UV_LOCKED: 1
+
 defaults:
   run:
     shell: bash
@@ -33,7 +36,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies
-        run: uv sync --locked --no-dev --extra jax --group docs
+        run: uv sync --no-dev --extra jax --group docs
 
       - name: Build with Zensical
         run: uv run --no-sync zensical build --clean

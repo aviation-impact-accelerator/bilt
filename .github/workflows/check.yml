@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+env:
+  UV_LOCKED: 1
+
 defaults:
   run:
     shell: bash
@@ -40,7 +43,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install dependencies
-        run: uv sync --locked --python ${{ matrix.python-version }} --all-packages --extra jax --group docs
+        run: uv sync --all-extras --all-groups
 
       - name: Configure PyO3 Python
         run: |
