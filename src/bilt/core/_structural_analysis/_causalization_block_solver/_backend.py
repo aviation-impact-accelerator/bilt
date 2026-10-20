@@ -21,6 +21,10 @@ from bilt.core._structural_analysis._causalization_block_solver._matching import
     build_matching_graph,
     find_matching,
 )
+from bilt.core._structural_analysis._causalization_block_solver._route_cache import (
+    invalidate_route_cache,
+    route_cache_scope,
+)
 from bilt.core._structural_analysis._causalization_block_solver._settle_assignments import (
     settle_assignments,
 )
@@ -55,7 +59,12 @@ class CausalizationStructuralAnalyzer:
         self._failures: dict[PlanStep, RealizationFailure] = {}
 
     def analyse(self, request: EvaluationRequest) -> BackendCase:
-        """Find and realise a plan, retrying unsuccessful assignments."""
+        """Find and realise a plan, sharing route answers across nested analysis."""
+        with route_cache_scope():
+            return self._analyse(request)
+
+    def _analyse(self, request: EvaluationRequest) -> BackendCase:
+        """Search within the current request's route-cache scope."""
         available = set(request.input_domains)
         validate_request_structure(
             self.full_incidence_graph,
@@ -92,6 +101,9 @@ class CausalizationStructuralAnalyzer:
                 if not isinstance(result, RealizationFailure):
                     return result
 
+                # Child analysis may have learned failures, too. Invalidate all
+                # dependent parent answers before the next route query.
+                invalidate_route_cache()
                 last_error = result.cause
                 failed_step = result.failed_plan_step
 
@@ -115,7 +127,15 @@ class CausalizationStructuralAnalyzer:
         available: set[str],
         output: str,
     ) -> frozenset[str] | None:
-        """Return the inputs used by a structural plan, without realising it."""
+        """Reuse an execution-route query within the current nested analysis."""
+        with route_cache_scope() as cache:
+            key = self, frozenset(available), output
+            if key not in cache:
+                cache[key] = self._required_inputs_for_target(available, output)
+            return cache[key]
+
+    def _required_inputs_for_target(self, available: set[str], output: str) -> frozenset[str] | None:
+        """Search for route inputs without realising operations."""
         graph = build_matching_graph(self.full_incidence_graph, available)
 
         for assignments in _candidate_assignments(graph, self._failures):
