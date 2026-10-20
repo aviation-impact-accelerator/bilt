@@ -1,5 +1,7 @@
 ## Transforms and implementations
 
+See the [Equations and transforms API](../api/relationships.md) and [Systems and implementations API](../api/systems.md) for concise references.
+
 In the previous chapter, we used an equation to describe a mathematical relationship:
 
 ```python

@@ -1,5 +1,7 @@
 # Using different backends
 
+For backend selection and supported operations, see the [Backends API](../api/backends.md).
+
 Bilt separates the model from the way its computations are executed.
 
 Systems, equations, and transforms describe the model. A **backend** determines
