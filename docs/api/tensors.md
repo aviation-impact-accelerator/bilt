@@ -70,6 +70,7 @@ named parameters with a dimension captured by a global or closure name:
 ```python
 from bilt import Tensor, transform
 
+
 @transform
 def averaged(values: Tensor) -> Tensor:
     return values.mean(time) * 2.0
@@ -122,9 +123,11 @@ intermediate as a Tensor parameter in a separate relationship:
 ```python
 from bilt import Tensor, equation
 
+
 @equation
 def doubling(doubled: Tensor, values: Tensor) -> bool:
     return doubled == values * 2.0
+
 
 @equation
 def selecting(selected: Tensor, doubled: Tensor) -> bool:

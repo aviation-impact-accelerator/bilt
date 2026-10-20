@@ -43,4 +43,3 @@ Worked examples show how these concepts fit together in complete models.
 ## Configuration
 
 - [Using Bilt with ruff](config.md#ruff) - keep ruff from moving imports that Bilt needs at runtime into `if TYPE_CHECKING:` blocks.
-
