@@ -1,5 +1,7 @@
 ## Transforms and implementations
 
+See the [Equations and transforms API](../api/relationships.md) and [Systems and implementations API](../api/systems.md) for concise references.
+
 In the previous chapter, we used an equation to describe a mathematical relationship:
 
 ```python
@@ -357,3 +359,4 @@ The next question is how Bilt chooses a route from the values that are known to 
 That is the subject of the next chapter: **from models to computation**.
 
 [← Equations and acausal modelling](equations-and-acausal-modelling.md) · [Index](../index.md) · [Models to computation →](models-to-computation.md)
+
