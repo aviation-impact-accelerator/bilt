@@ -11,6 +11,7 @@ from bilt.core._equation import BasicEquation
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
+from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralAnalysis
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._system._dimensional_unification import check_dimensional_consistency
@@ -82,12 +83,19 @@ class Implementation:
             _CompilationRequest,
             dict[_CompilationContext, BackendCallable],
         ] = {}
+        self._structural_analysis: StructuralAnalysis | None = None
         self._analysers: dict[Backend, StructuralAnalyser] = {}
         system.__bilt_system_registry__.add(self)
 
     @property
     def system(self) -> Interface:
         return self._system
+
+    def structural_analysis(self) -> StructuralAnalysis:
+        """Return backend-independent analysis of this implementation's structure."""
+        if self._structural_analysis is None:
+            self._structural_analysis = StructuralAnalysis(tuple(self._components.values()))
+        return self._structural_analysis
 
     def analyser_for(self, backend: Backend) -> StructuralAnalyser:
         """The structural analyser for this implementation's components under ``backend``."""
