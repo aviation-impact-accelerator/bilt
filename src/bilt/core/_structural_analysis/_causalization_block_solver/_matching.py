@@ -56,12 +56,34 @@ def build_matching_graph(
         if node is not None:
             graph.remove_node(node)
 
+    _prefer_available_inputs(graph, available)
     return graph
 
 
+def _prefer_available_inputs(graph: rx.PyGraph, available: collections.abc.Set[str]) -> None:
+    """Prefer primitive directions with supplied inputs without deleting alternatives."""
+    for first, second in graph.edge_list():
+        attribute, operation = (first, second) if isinstance(graph[first], str) else (second, first)
+        candidate = graph[operation]
+        if isinstance(candidate, PlanStep):
+            weight = 0
+        else:
+            step = PlanStep(
+                operation=typing.cast("BiltModelConstituent", candidate),
+                output=typing.cast("str", graph[attribute]),
+            )
+            weight = int(set(step.consumed) <= available)
+        graph.update_edge(first, second, weight)
+
+
 def find_matching(graph: rx.PyGraph) -> dict[str, BiltModelConstituent]:
-    """Return a maximum candidate assignment, pending validation."""
-    matching = rx.max_weight_matching(graph, max_cardinality=True)
+    """Maximise cardinality, preferring directions with already-supplied inputs.
+
+    Weights only break ties; other directions remain candidates for retries.
+    """
+    matching = rx.max_weight_matching(
+        graph, max_cardinality=True, weight_fn=lambda weight: weight if isinstance(weight, int) else 0
+    )
     assignments: dict[str, BiltModelConstituent] = {}
 
     for first, second in matching:
