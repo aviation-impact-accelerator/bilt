@@ -29,14 +29,17 @@ see [Units](units.md). Supply known values at construction.
 ```python
 from bilt import Implementation, Interface, field, system, transform
 
+
 @system
 class Doubling(metaclass=Interface):
     value: float = field()
     doubled: float = field()
 
+
 @transform
 def doubled(value: float) -> float:
     return value * 2.0
+
 
 model = Implementation(Doubling, [doubled])
 

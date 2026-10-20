@@ -50,6 +50,7 @@ For example:
 import jax.numpy as jnp
 from bilt import transform
 
+
 @transform
 def root(value: float) -> float:
     return jnp.sqrt(value)

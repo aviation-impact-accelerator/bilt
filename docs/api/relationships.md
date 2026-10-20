@@ -14,6 +14,7 @@ See [Equations](../guide/equations-and-acausal-modelling.md) and
 ```python
 from bilt import equation
 
+
 @equation
 def motion(distance: float, speed: float, duration: float) -> bool:
     return distance == speed * duration
@@ -43,6 +44,7 @@ occur once in the simplified relation; this is not a general nonlinear solver.
 
 ```python
 from bilt import transform
+
 
 @transform
 def kinetic_energy(mass: float, speed: float) -> float:

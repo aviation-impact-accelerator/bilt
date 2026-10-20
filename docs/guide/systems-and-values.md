@@ -90,4 +90,3 @@ In the next chapter, we'll introduce **acausal modelling** and **equations**, be
 ---
 
 [Index](../index.md) · [Equations and acausal modelling →](equations-and-acausal-modelling.md)
-
