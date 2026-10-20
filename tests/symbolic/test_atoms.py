@@ -1,6 +1,9 @@
+import weakref
+
 import pytest
 
 from bilt.errors import BiltAtomMutationError
+from bilt.symbolic import _atoms
 from bilt.symbolic._atoms import (
     ADD,
     EQUALS,
@@ -32,8 +35,9 @@ from bilt.symbolic._atoms import (
 
 
 @pytest.fixture(autouse=True)
-def clear_atoms_between_tests() -> None:
-    clear_atom_cache()
+def clear_atoms_between_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Preserve atoms retained by equations created during test collection.
+    monkeypatch.setattr(_atoms, "_atom_cache", weakref.WeakValueDictionary())
 
 
 def test_atom_type_constructs_atom() -> None:
