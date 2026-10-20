@@ -12,8 +12,7 @@ from bilt.core._structural_analysis._causalization_block_solver._dependency_grap
     build_dependency_graph,
 )
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
-    BiltOverconstrainedError,
-    BiltUnderconstrainedError,
+    BiltExecutionPlanError,
 )
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import (
     FullIncidenceGraph,
@@ -77,10 +76,8 @@ class CausalizationStructuralAnalyzer:
                         request.output,
                     )
                 except BiltAnalysisError as error:
-                    last_error = error
-                    break
-
-                if steps is None:
+                    if last_error is None:
+                        last_error = error
                     break
 
                 route = tuple((step.output, step.child_inputs) for step in steps)
@@ -107,13 +104,11 @@ class CausalizationStructuralAnalyzer:
                 break
 
         msg = f"Cannot compute {request.output} from available inputs {available}."
-        if isinstance(last_error, (BiltUnderconstrainedError, BiltOverconstrainedError)):
-            raise last_error
         if last_error is not None:
-            msg = f"{msg} The last route tried was rejected with: {type(last_error).__name__}: {last_error}"
-            raise BiltAnalysisError(msg) from last_error
+            msg = f"{msg} An execution route was rejected with: {type(last_error).__name__}: {last_error}"
+            raise BiltExecutionPlanError(msg) from last_error
 
-        raise BiltUnderconstrainedError(msg)
+        raise BiltExecutionPlanError(msg)
 
     def required_inputs_for_target(
         self,
@@ -129,9 +124,6 @@ class CausalizationStructuralAnalyzer:
             except BiltAnalysisError:
                 continue
 
-            if steps is None:
-                continue
-
             if output in available:
                 return frozenset({output})
 
@@ -145,13 +137,14 @@ class CausalizationStructuralAnalyzer:
         assignments: collections.abc.Mapping[str, BiltModelConstituent],
         available: set[str],
         output: str,
-    ) -> tuple[PlanStep, ...] | None:
+    ) -> tuple[PlanStep, ...]:
         """Select the target's dependencies and order an acyclic plan."""
         if output in available:
             return ()
 
         if output not in assignments:
-            return None
+            msg = f"No candidate producer for {output!r}."
+            raise BiltExecutionPlanError(msg)
 
         settled, _ = settle_assignments(
             assignments,
@@ -170,7 +163,8 @@ class CausalizationStructuralAnalyzer:
 
             step = by_output.get(attribute)
             if step is None:
-                return None
+                msg = f"No supported execution route for {attribute!r}."
+                raise BiltExecutionPlanError(msg)
 
             selected[attribute] = step
             pending.extend(step.consumed)
@@ -180,7 +174,8 @@ class CausalizationStructuralAnalyzer:
             available,
         )
         if unresolved:
-            return None
+            msg = f"Unresolved execution dependencies: {unresolved}."
+            raise BiltExecutionPlanError(msg)
 
         blocks = ordered_blocks(graph)
         if not rx.is_directed_acyclic_graph(graph):
@@ -188,7 +183,7 @@ class CausalizationStructuralAnalyzer:
             msg = (
                 f"Execution of coupled blocks is not yet supported by this analyser. Required computations: {outputs}."
             )
-            raise BiltAnalysisError(msg)
+            raise BiltExecutionPlanError(msg)
 
         return tuple(step for block in blocks for step in block)
 

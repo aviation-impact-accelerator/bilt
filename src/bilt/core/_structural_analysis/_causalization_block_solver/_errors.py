@@ -7,3 +7,7 @@ class BiltUnderconstrainedError(BiltAnalysisError):
 
 class BiltOverconstrainedError(BiltAnalysisError):
     """The scoped problem has competing or surplus constraints."""
+
+
+class BiltExecutionPlanError(BiltAnalysisError):
+    """A structurally validated request has no supported execution plan."""
