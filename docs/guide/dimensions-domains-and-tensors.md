@@ -1,5 +1,7 @@
 ## Domains and tensors
 
+For constructors, reductions, indexing and their current limitations, see the [Tensor API reference](../api/tensors.md).
+
 So far, every value in our examples has been a scalar:
 
 ```python

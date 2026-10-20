@@ -36,6 +36,8 @@ Worked examples show how these concepts fit together in complete models.
 
 ## API reference
 
+- [Tensors](api/tensors.md) - tensor construction, domains, broadcasting, reductions, selection and current limitations.
+
 - [Units](api/units.md) - built-in units, quantity and unit helpers, dimensions, metadata and errors.
 
 ## Configuration
