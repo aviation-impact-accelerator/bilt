@@ -28,6 +28,7 @@ nav = [
 
     { "API reference" = [
         { "Units" = "api/units.md" },
+        { "Tensors" = "api/tensors.md" },
     ] },
 
     { "Bilt worked examples" = [
@@ -55,3 +56,4 @@ features = [
 
 
 [project.plugins.markdown-exec]
+
