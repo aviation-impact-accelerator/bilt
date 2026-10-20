@@ -1,5 +1,7 @@
 ## Units in models
 
+For a catalogue of built-in units, helpers and errors, see the [Units API reference](../api/units.md).
+
 So far, the values in our models have mostly been plain numbers:
 
 ```python
@@ -528,3 +530,4 @@ We can now write the same engineering relationships as before, while stating wha
 ---
 
 [← Backends](backends.md) · [Index](../index.md)
+
