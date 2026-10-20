@@ -23,6 +23,11 @@ nav = [
         { "Dimensions, domains and tensors" = "guide/dimensions-domains-and-tensors.md" },
         { "System of systems" = "guide/systems-of-systems.md" },
         { "Backends" = "guide/backends.md" },
+        { "Units" = "guide/units.md" },
+    ] },
+
+    { "API reference" = [
+        { "Units" = "api/units.md" },
     ] },
 
     { "Bilt worked examples" = [
@@ -50,3 +55,4 @@ features = [
 
 
 [project.plugins.markdown-exec]
+
