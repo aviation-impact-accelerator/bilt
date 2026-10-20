@@ -227,24 +227,6 @@ def _sub_system_to_callable(
         output_domain=child_callable.output_domain,
     )
 
-    try:
-        child_callable = sub_system.implementation.get_evaluation(
-            child_request,
-            backend,
-        )
-    except BiltAnalysisError as error:
-        return RealizationFailure(
-            failed_plan_step=plan_step,
-            cause=error,
-        )
-
-    return BackendCallable(
-        name=mangle_name(plan_step.output),
-        parameters=tuple(mangle_name(port) for port in plan_step.consumed),
-        callable=child_callable.callable,
-        output_domain=child_callable.output_domain,
-    )
-
 
 def _guarded_transpile(
     function_ast: ast.FunctionDef,
