@@ -73,19 +73,23 @@ Save the example as `motion.py` and run it with `uv run python motion.py`.
 
 ## Documentation
 
-The user guide and worked examples cover units, transforms, subsystem composition, tensors and backends. From the repository root, run:
-
-```bash
-uv run --group docs zensical serve
-```
-
-Then open [http://localhost:8000](http://localhost:8000).
+The [documentation](https://aviation-impact-accelerator.github.io/bilt/) includes a user guide, worked examples and an API reference covering units, transforms, subsystem composition, tensors and backends.
 
 ## Development
 
 Developed at the [**Aviation Impact Accelerator, University of Cambridge**](https://aiazero.org). Bilt is under active development; expect API changes.
 
 Contributions and modelling examples are welcome.
+
+### Previewing the documentation
+
+To preview the documentation locally while editing it, run from the repository root:
+
+```bash
+uv run --extra jax --group docs zensical serve
+```
+
+Then open [http://localhost:8000](http://localhost:8000).
 
 ### Roadmap
 
