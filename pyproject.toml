@@ -37,6 +37,7 @@ docs = [
 
 [tool.pyrefly]
 python_version = "3.14"
+search_path = ["src", "benchmarks"]
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
