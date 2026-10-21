@@ -3,7 +3,7 @@ name = "bilt"
 version = "0.2.0"
 description = "Causal and acausal systems models in Python."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 dependencies = [
     "networkx>=3.6.1",
     "rustworkx>=0.18.0"
@@ -38,7 +38,7 @@ docs = [
 ]
 
 [tool.pyrefly]
-python_version = "3.14"
+python_version = "3.15"
 search_path = ["src", "benchmarks"]
 
 [tool.ty.environment]
@@ -52,7 +52,7 @@ xfail_strict = true
 
 [tool.ruff]
 line-length = 120
-target-version = "py314"
+target-version = "py315"
 
 [tool.ruff.format]
 docstring-code-format = true
