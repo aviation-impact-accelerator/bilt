@@ -33,7 +33,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        run: rustup toolchain install
 
       - name: Install dependencies
         run: uv sync --no-dev --extra jax --group docs
