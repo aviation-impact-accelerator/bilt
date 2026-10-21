@@ -1,0 +1,5 @@
+[default]
+extend-words = {
+    "bilt" = "bilt"
+}
+locale = "en-us"

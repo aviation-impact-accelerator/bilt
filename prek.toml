@@ -115,3 +115,11 @@ entry = "cargo test"
 language = "system"
 pass_filenames = false
 types = ["rust"]
+
+[[repos]]
+repo = "https://github.com/crate-ci/typos"
+rev = "v1.49.0"
+
+[[repos.hooks]]
+id = "typos"
+args = []
