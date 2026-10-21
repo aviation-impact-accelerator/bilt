@@ -1,11 +1,11 @@
 import typing
-import pytest
 
 from benchmark_trials import benchmark_trials
 from scale_models import ScaleCase, ScaleTrial
 from structural_search import instrument
 
 if typing.TYPE_CHECKING:
+    import pytest
     from pytest_benchmark.fixture import BenchmarkFixture
 
 

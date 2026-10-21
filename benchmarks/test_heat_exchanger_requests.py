@@ -1,11 +1,11 @@
 import typing
-import pytest
 
 from benchmark_trials import benchmark_trials
 from difficult_models import DifficultCase, DifficultTrial
 from structural_search import instrument
 
 if typing.TYPE_CHECKING:
+    import pytest
     from pytest_benchmark.fixture import BenchmarkFixture
 
 

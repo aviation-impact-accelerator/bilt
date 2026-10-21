@@ -1,11 +1,11 @@
 import os
 import typing
-import pytest
 
 from benchmark_trials import benchmark_trials
 from structural_search import SearchCase, SearchTrial, count_search
 
 if typing.TYPE_CHECKING:
+    import pytest
     from pytest_benchmark.fixture import BenchmarkFixture
 
 
