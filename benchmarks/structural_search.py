@@ -19,8 +19,7 @@ from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver import _backend as scc
 from bilt.core._structural_analysis._causalization_block_solver._dm import dulmage_mendelsohn
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
-    BiltOverconstrainedError,
-    BiltUnderconstrainedError,
+    BiltExecutionPlanError,
 )
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import StructuralExpansion
 from bilt.core._structural_analysis._exhaustive import _backend as exhaustive
@@ -93,12 +92,7 @@ class SearchTrial:
         result = self.result
         details: dict[str, object]
         if self.case.coupled:
-            if not isinstance(result, BiltAnalysisError) or isinstance(
-                result, (BiltUnderconstrainedError, BiltOverconstrainedError)
-            ):
-                msg = f"Expected unsupported coupled execution, received {result!r}."
-                raise AssertionError(msg)
-            details = {"status": "rejected", "error_type": type(result).__name__, "message": str(result)}
+            details = check_coupled_rejection(result, solver=self.case.solver, output=self.request.output)
         else:
             if not isinstance(result, BackendCase):
                 msg = f"Expected a successful plan, received {result!r}."
@@ -135,6 +129,40 @@ class SearchTrial:
         """Restore the solver selection and release the evaluation context."""
         self.resources.close()
         self.closed = True
+
+
+def check_coupled_rejection(result: object, *, solver: str, output: str) -> dict[str, object]:
+    """Reject unrelated failures, including failures wrapped by the analyser.
+
+    SCC reports unsupported coupled execution explicitly. The legacy analyser
+    reports only that no acyclic plan exists; require its unwrapped no-route
+    error, rather than accepting an exhausted search caused by realisation.
+    """
+    valid = False
+    if solver == "scc" and isinstance(result, BiltExecutionPlanError):
+        cause: BaseException = result
+        visited: set[int] = set()
+        while isinstance(cause, BiltExecutionPlanError) and id(cause) not in visited:
+            visited.add(id(cause))
+            if cause.__cause__ is None:
+                valid = "Execution of coupled blocks is not yet supported" in str(cause)
+                break
+            cause = cause.__cause__
+    elif solver == "exhaustive" and type(result) is BiltAnalysisError:
+        valid = (
+            str(result).startswith(f"Cannot compute {output} from available inputs ")
+            and "route tried was rejected" not in str(result)
+            and result.__cause__ is None
+        )
+    if not valid:
+        msg = f"Expected unsupported coupled execution, received {result!r}."
+        raise AssertionError(msg) from (result if isinstance(result, Exception) else None)
+    return {
+        "status": "rejected",
+        "error_type": type(result).__name__,
+        "message": str(result),
+        "rejection_reason": "unsupported_coupled_execution" if solver == "scc" else "no_acyclic_plan",
+    }
 
 
 def instrument(solver: str) -> tuple[ExitStack, Counter[str]]:
