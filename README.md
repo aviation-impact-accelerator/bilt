@@ -2,7 +2,7 @@
 
 [Documentation](#documentation) · [Issues](https://github.com/aviation-impact-accelerator/bilt/issues)
 
-![Python 3.14+](https://img.shields.io/badge/python-3.14%2B-blue)
+![Python 3.15](https://img.shields.io/badge/python-3.15%2B-blue)
 [![MIT License](https://img.shields.io/badge/license-MIT-green)](https://github.com/aviation-impact-accelerator/bilt/blob/main/LICENSE)
 
 Bilt is a Python framework for composable engineering models. Describe the relationships between quantities; Bilt derives a calculation from the values you know to the outputs you need.
