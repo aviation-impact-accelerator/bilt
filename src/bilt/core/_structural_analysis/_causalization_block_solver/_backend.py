@@ -72,7 +72,9 @@ class CausalizationStructuralAnalyzer:
             available,
             request.output,
         )
-        if structure is not None and (coupled := unavoidable_coupled_outputs(structure, request.output)):
+        if structure is not None and (
+            coupled := unavoidable_coupled_outputs(structure.well_determined, request.output)
+        ):
             msg = (
                 f"Cannot compute {request.output} from available inputs {sorted(available)}. "
                 f"Execution of coupled blocks is not yet supported by this analyser. "

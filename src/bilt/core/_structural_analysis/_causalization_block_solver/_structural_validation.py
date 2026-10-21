@@ -1,3 +1,4 @@
+import dataclasses
 import typing
 
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
@@ -19,6 +20,14 @@ if typing.TYPE_CHECKING:
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import (
         FullIncidenceGraph,
     )
+
+
+@dataclasses.dataclass(frozen=True)
+class ValidatedStructure:
+    """The full validated scope and its well-determined execution-preflight region."""
+
+    snapshot: ExpansionSnapshot
+    well_determined: ExpansionSnapshot
 
 
 def validate_structure(
@@ -62,14 +71,14 @@ def validate_request_structure(
     incidence: FullIncidenceGraph,
     available: collections.abc.Set[str],
     output: str,
-) -> ExpansionSnapshot | None:
+) -> ValidatedStructure | None:
     """Expand relevant children structurally, then validate the combined scope.
 
     Unresolved child boundaries are not independent equation rows. Expand every
     boundary reached in the unknown request scope before definitive DM analysis.
     Parent and child primitives remain simultaneous constraints; execution choices
     and previous compilation failures do not affect this graph. Return the
-    validated snapshot for execution preflight, or None for a supplied target.
+    full snapshot and its well-determined region, or None for a supplied target.
     """
     if output in available:
         return None
@@ -77,7 +86,7 @@ def validate_request_structure(
     expansion = StructuralExpansion(incidence, available, output)
     graph, attributes = expansion.collect()
     try:
-        validate_structure(
+        partition = validate_structure(
             graph,
             frozenset(attributes.values()),
             frozenset(),
@@ -87,4 +96,22 @@ def validate_request_structure(
         message = f"Cannot compute {output} from available inputs {sorted(available)}. {error}"
         raise type(error)(message) from error
 
-    return expansion.snapshot()
+    snapshot = expansion.snapshot()
+    attribute_nodes = frozenset(attributes.values())
+    well_attributes = frozenset(name for name, node in attributes.items() if node in partition.well_determined)
+    # to_incidence inserts primitive rows in snapshot order after the attributes.
+    # Map by node identity, not by labels, which can be shared by distinct rows.
+    row_nodes = (node for node in graph.node_indices() if node not in attribute_nodes)
+    well_constraints = tuple(
+        constraint
+        for constraint, node in zip(snapshot.constraints, row_nodes, strict=True)
+        if node in partition.well_determined
+    )
+    return ValidatedStructure(
+        snapshot=snapshot,
+        well_determined=dataclasses.replace(
+            snapshot,
+            attributes=well_attributes | snapshot.available,
+            constraints=well_constraints,
+        ),
+    )

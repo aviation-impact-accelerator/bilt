@@ -16,18 +16,22 @@ if typing.TYPE_CHECKING:
 
 
 def unavoidable_coupled_outputs(structure: ExpansionSnapshot, output: str) -> frozenset[str]:
-    """Return coupled ancestors of the target in a complete square structure.
+    """Return coupled ancestors of the target in a complete square region.
 
-    Call only after structural validation. With a perfect assignment of every
+    Call after full-scope validation, using its well-determined region when the
+    full structure is rectangular. With a perfect assignment of every
     primitive row and unknown, the irreducible equation blocks are invariant
     under alternative perfect matchings. Transforms are forced to their declared
     outputs. Their inputs remain dependencies, never alternative assignments.
 
-    Incomplete, rectangular or directionally unmatchable structures are left to
-    execution search. A cycle in an arbitrary partial assignment is not proof.
+    Incomplete, non-square, non-closed or directionally unmatchable regions are
+    left to execution search. A cycle in an arbitrary partial assignment is not proof.
     """
     unknowns = structure.attributes - structure.available
     if not structure.complete or output not in unknowns or len(unknowns) != len(structure.constraints):
+        return frozenset()
+
+    if any(constraint.attributes - structure.available - unknowns for constraint in structure.constraints):
         return frozenset()
 
     graph = rx.PyGraph(multigraph=False)

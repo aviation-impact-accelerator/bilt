@@ -4,6 +4,13 @@
 uv run pytest benchmarks --benchmark-only --timeout=100
 ```
 
+or for a more concise summary
+```sh
+uv run pytest benchmarks -q \
+  --benchmark-columns=median,min,max \
+  --benchmark-sort=name
+```
+
 This replaces `uv run benchmarks/structural_search.py`. The benchmarks measure
 how much work each analyser needs to find a calculation plan, or establish that
 no currently supported plan exists. They use small scalar models with inputs
