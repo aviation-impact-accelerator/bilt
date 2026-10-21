@@ -15,12 +15,14 @@ from bilt.core._structural_analysis._causalization_block_solver._dependency_grap
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltExecutionPlanError,
 )
+from bilt.core._structural_analysis._causalization_block_solver._expand_structure import StructuralExpansion
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import (
     FullIncidenceGraph,
 )
 from bilt.core._structural_analysis._causalization_block_solver._matching import (
     build_matching_graph,
     find_matching,
+    prefer_structural_producers,
 )
 from bilt.core._structural_analysis._causalization_block_solver._route_cache import (
     invalidate_route_cache,
@@ -45,6 +47,7 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCase
     from bilt.core._evaluation_request import EvaluationRequest
     from bilt.core._model_constituent import BiltModelConstituent
+    from bilt.core._structural_analysis._causalization_block_solver._expand_structure import ExpansionSnapshot
 
 
 class CausalizationStructuralAnalyzer:
@@ -83,6 +86,7 @@ class CausalizationStructuralAnalyzer:
             raise BiltExecutionPlanError(msg)
 
         graph = build_matching_graph(self.full_incidence_graph, available)
+        self._prefer_child_producers(graph, available, request.output, structure.snapshot if structure else None)
         last_error: Exception | None = None
 
         for assignments in _candidate_assignments(
@@ -150,6 +154,7 @@ class CausalizationStructuralAnalyzer:
     def _required_inputs_for_target(self, available: set[str], output: str) -> frozenset[str] | None:
         """Search for route inputs without realising operations."""
         graph = build_matching_graph(self.full_incidence_graph, available)
+        self._prefer_child_producers(graph, available, output)
 
         for assignments in _candidate_assignments(
             graph, self._failures, output=None if output in available else output
@@ -166,6 +171,33 @@ class CausalizationStructuralAnalyzer:
             return frozenset(attribute for step in steps for attribute in step.consumed if attribute not in produced)
 
         return None
+
+    def _prefer_child_producers(
+        self,
+        graph: rx.PyGraph,
+        available: set[str],
+        output: str,
+        structure: ExpansionSnapshot | None = None,
+    ) -> None:
+        """Order competing child producers without expanding simple chains again."""
+        if output in available:
+            return
+        child_count = sum(
+            isinstance(self.full_incidence_graph.graph[node], SubSystemConstituent)
+            for node in self.full_incidence_graph.constituent_nodes
+        )
+        if child_count <= 1:
+            return
+        if structure is None:
+            try:
+                expansion = StructuralExpansion(self.full_incidence_graph, available, output)
+                expansion.collect()
+            except BiltAnalysisError:
+                # Route queries are not definitive validation. A failed hint
+                # must leave their existing execution search available.
+                return
+            structure = expansion.snapshot()
+        prefer_structural_producers(graph, structure)
 
     def _plan_steps(
         self,
