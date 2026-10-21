@@ -1,26 +1,48 @@
 # Structural search benchmarks
 
+Run the routine selection:
+
 ```sh
 uv run pytest benchmarks --benchmark-only --timeout=100
 ```
 
-or for a more concise summary
+Run the extended matrix:
+
 ```sh
-uv run pytest benchmarks -q \
-  --benchmark-columns=median,min,max \
-  --benchmark-sort=name
+uv run pytest benchmarks --search-extended --benchmark-only --timeout=100
 ```
 
-This replaces `uv run benchmarks/structural_search.py`. The benchmarks measure
-how much work each analyser needs to find a calculation plan, or establish that
-no currently supported plan exists. They use small scalar models with inputs
-`a = 4`, `b = 2` and requested output `x`.
+`--search-large` remains an alias for `--search-extended`. The default is a
+small representative selection from every family; extended runs retain every
+previously supplied case. Selection changes which cases run, not their models,
+timed work, numerical checks or rejection checks. Both modes verify every
+round, including `--benchmark-disable` correctness runs. Timeouts still fail.
 
-Each case combines a **layout**, a **nesting depth**, **acyclic or coupled leaf
-equations**, and a **square or rectangular structure**. Running both solvers over
-all combinations gives 72 benchmark results. All fixture relations are acausal
-`@equation` definitions: the analyser chooses their calculation directions and
-execution order.
+| Suite | Routine cases | Extended cases |
+| --- | ---: | ---: |
+| Structural layouts | 30 | 72 |
+| Failure recovery | 6 | 18 |
+| Scaling and thermal networks | 8 | 25 |
+| Difficult requests | 10 | 30 |
+| **Total** | **54** | **145** |
+
+Routine structural cases cover every layout, square/rectangular shape and
+acyclic/coupled outcome at depth 1, plus depth-0 links as a primitive baseline.
+The depth-2 rectangular coupled siblings case is explicitly retained for both
+solvers: it caught the earlier approximately 78-second rejection regression.
+Extended structural runs cover the full 72-case product of layouts, shapes,
+outcomes, depths 0–2 and solvers.
+
+The existing SCC-only stress endpoints (chain depth 32, tree depth 4 and
+parallel depth 3) remain SCC-only in the extended suite. Other workloads are
+paired across both solvers. No existing case is removed because its timing
+resembles another. The largest exhaustive stress combinations are not newly
+introduced by this reorganisation.
+
+The benchmarks measure how much work each analyser needs to find a calculation
+plan, or establish that no currently supported plan exists. Structural layout
+fixtures use scalar inputs `a = 4`, `b = 2` and requested output `x`. They use
+acausal equations; the analyser chooses their calculation directions and order.
 
 ## What the layouts represent
 
@@ -116,6 +138,12 @@ execution is not supported yet, so the expected outcome is rejection of the
 execution plan. This measures how quickly each analyser establishes that a
 supported acyclic route does not exist.
 
+Rejection checks follow explicit exception causes. SCC must report unsupported
+coupled-block execution; an isolation, compilation or unexplained planning
+failure is a benchmark failure. The exhaustive solver has no dedicated coupled
+diagnostic, so it must report an unwrapped no-route error. Its result is recorded
+as `no_acyclic_plan`, rather than claiming it diagnosed a coupled block.
+
 ## Square and rectangular cases
 
 These labels describe the expanded primitive constraint graph after fixing the
@@ -141,7 +169,35 @@ is not accepted as the expected coupled rejection for these fixtures.
 
 ## Timing
 
-Each case uses five pedantic rounds, with one analysis per round and no automatic
+`test_realisation_failure_recovery.py` runs six routine cases at depth 1. Extended runs cover
+18 cases: two solvers, depths 0–2 and three
+failure modes. Each timed trial serves two requests on the same initially fresh
+analyser:
+
+- **Control:** solve `z = 2*x` backwards, then forwards; both must succeed.
+- **Isolation:** request `x` from `z` in `z = x*x`. The current isolator must
+  refuse that direction; a subsequent request for `z` from `x` must return 25
+  for `x=5`.
+- **Backend:** use `z = 2*x` and deliberately refuse compilation of the inverse
+  leaf function. Check exactly one refusal, then verify forward evaluation
+  returns 10 for `x=5`. The refusal hook is restored after every trial.
+
+These measure exhaustion, error propagation through child boundaries and survival
+of another equation direction across requests. They **do not** demonstrate
+finding an alternative route for the same request. Two independently supplied
+producers can be a structural conflict under SCC validation; those would make an
+invalid successful-retry fixture. Unit/tensor failures and successful same-request
+route replacement need separate policy-valid fixtures before benchmarking.
+
+The timing scope is the two requests together. Compare recovery cases with their
+control at the same depth, rather than comparing directly with a single-request
+structural-search measurement. Results use `recovery_scope=new_request_same_analyser`.
+
+```sh
+uv run pytest benchmarks/test_realisation_failure_recovery.py --benchmark-columns=median,min,max
+```
+
+Each structural-search case uses five pedantic rounds, with one analysis per round and no automatic
 calibration or warmup. Every round builds a fresh model and enters a fresh
 `EvaluationContext` before timing. The timer includes analyser construction,
 analysis and realisation. Execution, correctness checks, structural-shape checks
@@ -185,5 +241,100 @@ PYTHONHASHSEED=0 uv run pytest benchmarks --benchmark-only --timeout=100 --bench
 Saved baselines live in the ignored `.benchmarks/` directory. For cProfile, use
 `--benchmark-cprofile=cumtime --benchmark-cprofile-loops=1` to preserve fresh trial state.
 
-Benchmarks are opt-in: normal `uv run pytest` discovers the existing `tests/` and
-`packages/` suites. Benchmark helper regressions live in `tests/benchmarks/`.
+Benchmark helper regressions live in `tests/benchmarks/`. If `benchmarks` is in
+pytest's `testpaths`, a normal `uv run pytest` also includes timing runs. Use
+`--benchmark-disable` for the combined correctness run without repeated timing.
+
+## Scaling and engineering workloads
+
+`test_network_scaling.py` runs eight routine cases, with both solvers:
+
+| Topology | Routine depth | Extended paired depths | SCC-only stress depth |
+| --- | --- | --- | --- |
+| Chain | 4 | 4, 8, 16 | 32 |
+| Tree | 1 | 1, 2, 3 | 4 |
+| Parallel heat exchangers | 1 | 0, 1, 2 | 3 |
+| Series heat exchangers | 1 | 1, 2 | — |
+
+The thermal leaf uses `heat = flow * capacity * (outlet - inlet)`. A parallel
+wrapper splits heat and flow equally, propagates fluid heat capacity, feeds both
+children from the common inlet, and mixes their equal-flow outlets. These are
+acausal equations built through the normal modelling API. Values use consistent
+SI units; the benchmark does not measure quantity conversion or tensor lowering.
+
+Every round checks the independent network balance
+`outlet = inlet + heat / (flow * capacity)`: the default inputs give 315 K.
+Extra correctness cases cover zero heat and cooling. Timings exclude fixture
+construction, execution, checks and the graph-size inspection. Reports include
+actual expanded constraints, unknowns, subsystem instances and leaf counts.
+The two solvers must each agree with the analytic reference.
+
+A series wrapper preserves flow, allocates half the heat to each child,
+connects the first outlet to the second inlet and exposes the final outlet.
+The same whole-network energy balance applies.
+
+Series depth 1 previously exposed multi-second SCC searches; producer-ordering
+improvements address those on the updated solver branch. It is now a routine
+regression case. Benchmark timings depend on the solver changes present in the
+branch being measured. This benchmark-only change includes no solver fixes.
+
+```sh
+uv run pytest benchmarks/test_network_scaling.py --benchmark-columns=median,min,max
+uv run pytest benchmarks/test_network_scaling.py --search-counters --benchmark-json=scaling.json
+uv run pytest benchmarks/test_network_scaling.py --search-extended -k 'series and depth1' --search-rounds=1 --timeout=15
+```
+
+These small deterministic networks broaden coverage but do not establish
+production-scale performance for arbitrary engineering models. Interpret scaling
+by topology and graph size, rather than combining all cases into one score.
+
+
+### Difficult request directions and network shapes
+
+Run the additional families with:
+
+```bash
+uv run pytest benchmarks/test_heat_exchanger_requests.py --search-counters --benchmark-columns=median,min,max
+```
+
+Routine runs select one nested size per family, giving 10 cases.
+`--search-extended` runs all 30 cases, preserving every earlier size. Both solvers
+receive the same model, request and scalar input values. The timing lifecycle,
+fresh contexts, per-round verification and separate counters match the other
+search benchmarks. `--timeout=30` bounds each pytest case; timeouts fail.
+
+| Family | Request and network | Expected behaviour | What it probes |
+| --- | --- | --- | --- |
+| `reverse` | Series exchangers; supply outlet, heat, flow and capacity; request inlet. | Success: 300 K. | Whether matching follows the supplied information backwards through nested children. |
+| `heat` | Series exchangers; supply inlet, outlet, flow and capacity; request total heat. | Reject unsupported coupled execution. | A shared unknown connects both children and intermediate temperatures; the normal forward direction cannot resolve it. |
+| `flow` | Series exchangers; supply inlet, outlet, heat and capacity; request shared flow. | Reject unsupported coupled execution. | The same coordination problem with flow appearing as a factor in every exchanger balance. |
+| `mixed` | Alternate series and parallel layers; supply inlet, heat, flow and capacity; request outlet. | Success: 315 K. | Dependencies that run along series connections and reconverge at parallel mixing equations. |
+| `unanchored` | Series exchangers; supply heat, flow and capacity, but neither temperature; request outlet. | Reject an underconstrained target. | Terminating an impossible search when temperature differences are determined but absolute temperatures are not. |
+
+All cases use capacity 4,000 J/(kg K), flow 2 kg/s and total heat 120,000 W,
+where supplied. The reference temperatures are inlet 300 K and outlet 315 K.
+For success cases the reference comes from the whole-network energy balance,
+`outlet - inlet = heat / (flow * capacity)`, independently of solver output.
+
+`heat` and `flow` have unique physical answers (120,000 W and 2 kg/s), but a
+unique answer does not imply an acyclic execution plan. In a two-exchanger
+series network, the intermediate temperature and the shared unknown must be
+solved together. These are rejection benchmarks until coupled solving is
+implemented; they must eventually become numeric success benchmarks.
+
+`unanchored` is different: adding an arbitrary constant to every temperature
+preserves all equations, so no unique outlet temperature exists. SCC must
+report an underconstrained problem, including through its normal error
+wrapping. The exhaustive solver has only a generic no-acyclic-plan error;
+that is a weaker diagnostic and is recorded as such. Unrelated isolation,
+compilation or other analysis failures do not count as correct rejections.
+
+Depth counts binary wrapper layers: depth 0 has one exchanger and depth `d`
+has `2**d` exchanger instances. Routine sizes are depth 1 for reverse, heat, flow and unanchored, and
+depth 2 for mixed. Extended sizes are depths 1–3 for reverse, heat and flow;
+2–4 for mixed; and 0–2 for unanchored. Mixed depth 2 genuinely contains both series
+and parallel connections; it is not merely a renamed parallel network.
+
+These cases measure search and rejection with scalar, consistent SI values.
+They do not cover unit conversion, tensor shape failures, nonlinear block
+execution or successful same-request recovery after a refused realisation.
