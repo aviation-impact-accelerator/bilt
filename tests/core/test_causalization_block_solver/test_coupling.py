@@ -28,10 +28,10 @@ if typing.TYPE_CHECKING:
 
 @system
 class Ports(metaclass=Interface):
-    a: float = field()
-    b: float = field()
-    x: float = field()
-    y: float = field()
+    a: float = typing.cast("float", field())
+    b: float = typing.cast("float", field())
+    x: float = typing.cast("float", field())
+    y: float = typing.cast("float", field())
 
 
 @equation
@@ -86,9 +86,9 @@ def test_rejects_nested_coupling_before_execution_search(monkeypatch: pytest.Mon
 
 
 def _coupled(operations: list[BiltModelConstituent], available: set[str], output: str) -> frozenset[str]:
-    snapshot = validate_request_structure(FullIncidenceGraph(operations), available, output)
-    assert snapshot is not None
-    return unavoidable_coupled_outputs(snapshot, output)
+    structure = validate_request_structure(FullIncidenceGraph(operations), available, output)
+    assert structure is not None
+    return unavoidable_coupled_outputs(structure.well_determined, output)
 
 
 def test_boundary_input_breaks_coupling_and_allows_evaluation() -> None:
@@ -142,7 +142,7 @@ def test_downstream_coupled_block_does_not_reject_target() -> None:
     assert _coupled([source, first, second], {"a"}, "y") == frozenset({"y", "z"})
 
 
-def test_rectangular_scope_falls_back_to_search() -> None:
+def test_rectangular_scope_with_acyclic_target_is_not_coupled() -> None:
     @equation
     def source(x: float, a: float) -> bool:
         return x == a
