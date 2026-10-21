@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14"
 
 [manifest]
@@ -60,9 +60,9 @@ dev = [
     { name = "ty", specifier = ">=0.0.38" },
 ]
 docs = [
-    { name = "markdown-exec", extras = ["ansi"] },
-    { name = "matplotlib" },
-    { name = "scipy" },
+    { name = "markdown-exec", extras = ["ansi"], specifier = ">=1.12.3" },
+    { name = "matplotlib", specifier = ">=3.11.2" },
+    { name = "scipy", specifier = ">=1.18.1" },
     { name = "zensical", specifier = ">=0.0.47" },
 ]
 
