@@ -1,11 +1,11 @@
 import typing
 
+import pytest  # noqa: TC002
 from benchmark_trials import benchmark_trials
 from recovery_models import RecoveryTrial
 from structural_search import instrument
 
 if typing.TYPE_CHECKING:
-    import pytest
     from pytest_benchmark.fixture import BenchmarkFixture
 
 
