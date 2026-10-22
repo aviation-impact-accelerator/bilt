@@ -1,12 +1,8 @@
-import typing
-
 import pytest  # noqa: TC002
 from benchmark_trials import benchmark_trials
+from pytest_benchmark.fixture import BenchmarkFixture  # noqa: TC002 - runtime annotation inspection
 from recovery_models import RecoveryTrial
 from structural_search import instrument
-
-if typing.TYPE_CHECKING:
-    from pytest_benchmark.fixture import BenchmarkFixture
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
