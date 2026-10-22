@@ -5,7 +5,7 @@ import typing
 from bilt._backend import BackendCase
 from bilt.core._errors import BiltAnalysisError
 from bilt.core._structural_analysis._exhaustive._bipartite import BipartiteGraph
-from bilt.core._structural_analysis._plan import AnalysisPlan
+from bilt.core._structural_analysis._plan import AnalysisPlan, PlanBlock
 from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan
 
 if typing.TYPE_CHECKING:
@@ -44,7 +44,7 @@ class ExhaustiveStructuralAnalyser:
             realised_plan = realize_plan(
                 AnalysisPlan(
                     request=request,
-                    steps=tuple(steps),
+                    blocks=tuple(PlanBlock(steps=(step,)) for step in steps),
                 ),
                 self.backend,
             )
