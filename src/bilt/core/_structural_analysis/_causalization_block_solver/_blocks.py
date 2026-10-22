@@ -4,13 +4,15 @@ import typing
 
 import rustworkx as rx
 
+from bilt.core._structural_analysis._plan import PlanBlock
+
 if typing.TYPE_CHECKING:
     from bilt.core._structural_analysis._plan import PlanStep
 
 
 def ordered_blocks(
     dependency_graph: rx.PyDiGraph,
-) -> tuple[tuple[PlanStep, ...], ...]:
+) -> tuple[PlanBlock, ...]:
     """Group strongly connected steps and order producers before consumers.
 
     Steps within a block are sorted by output for reproducibility.
@@ -26,7 +28,11 @@ def ordered_blocks(
                 key=lambda step: step.output,
             )
         )
-        block_node = block_graph.add_node(steps)
+        block = PlanBlock(
+            steps=steps,
+            is_cyclic=len(component) > 1 or dependency_graph.has_edge(component[0], component[0]),
+        )
+        block_node = block_graph.add_node(block)
 
         for node in component:
             node_to_block[node] = block_node
@@ -38,7 +44,7 @@ def ordered_blocks(
         if source_block != target_block:
             block_graph.add_edge(source_block, target_block, None)
 
-    def block_key(block: tuple[PlanStep, ...]) -> str:
-        return block[0].output
+    def block_key(block: PlanBlock) -> str:
+        return block.steps[0].output
 
     return tuple(rx.lexicographical_topological_sort(block_graph, block_key))

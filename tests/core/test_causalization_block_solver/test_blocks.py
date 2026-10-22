@@ -7,7 +7,7 @@ from bilt.core._structural_analysis._causalization_block_solver._blocks import (
 from bilt.core._structural_analysis._causalization_block_solver._dependency_graph import (
     build_dependency_graph,
 )
-from bilt.core._structural_analysis._plan import PlanStep
+from bilt.core._structural_analysis._plan import PlanBlock, PlanStep
 
 
 @transform
@@ -56,7 +56,10 @@ def test_blocks_order_a_chain() -> None:
     blocks = ordered_blocks(graph)
 
     assert unresolved == {}
-    assert blocks == ((first,), (second,))
+    assert blocks == (PlanBlock(steps=(first,)), PlanBlock(steps=(second,)))
+    assert all(not block.is_cyclic for block in blocks)
+    assert blocks[0].inputs == frozenset({"a"})
+    assert blocks[1].inputs == frozenset({"b"})
 
 
 def test_blocks_order_independent_branches_deterministically() -> None:
@@ -71,7 +74,7 @@ def test_blocks_order_independent_branches_deterministically() -> None:
     blocks = ordered_blocks(graph)
 
     assert unresolved == {}
-    assert tuple(tuple(step.output for step in block) for block in blocks) == (("b",), ("c",), ("d",), ("e",))
+    assert tuple(tuple(step.output for step in block.steps) for block in blocks) == (("b",), ("c",), ("d",), ("e",))
 
 
 def test_blocks_group_a_fully_coupled_system() -> None:
@@ -85,7 +88,10 @@ def test_blocks_group_a_fully_coupled_system() -> None:
     blocks = ordered_blocks(graph)
 
     assert unresolved == {}
-    assert blocks == ((first, second),)
+    assert blocks == (PlanBlock(steps=(first, second), is_cyclic=True),)
+    assert blocks[0].outputs == frozenset({"x", "y"})
+    assert blocks[0].inputs == frozenset({"b"})
+    assert blocks[0].operations == (x, y)
 
 
 def test_blocks_order_a_coupled_group_between_direct_steps() -> None:
@@ -100,7 +106,9 @@ def test_blocks_order_a_coupled_group_between_direct_steps() -> None:
     blocks = ordered_blocks(graph)
 
     assert unresolved == {}
-    assert tuple(tuple(step.output for step in block) for block in blocks) == (("b",), ("x", "y"), ("z",))
+    assert tuple(tuple(step.output for step in block.steps) for block in blocks) == (("b",), ("x", "y"), ("z",))
+    assert tuple(block.is_cyclic for block in blocks) == (False, True, False)
+    assert tuple(block.inputs for block in blocks) == (frozenset({"a"}), frozenset({"b"}), frozenset({"x"}))
 
 
 def test_blocks_preserve_original_step_objects() -> None:
@@ -109,7 +117,7 @@ def test_blocks_preserve_original_step_objects() -> None:
 
     blocks = ordered_blocks(graph)
 
-    assert blocks[0][0] is step
+    assert blocks[0].steps[0] is step
 
 
 def test_blocks_leave_dependency_graph_unchanged() -> None:
@@ -135,7 +143,7 @@ def test_blocks_include_a_singleton_with_a_self_dependency() -> None:
 
     blocks = ordered_blocks(graph)
 
-    assert blocks == ((step,),)
+    assert blocks == (PlanBlock(steps=(step,), is_cyclic=True),)
     assert graph.has_edge(node, node)
 
 

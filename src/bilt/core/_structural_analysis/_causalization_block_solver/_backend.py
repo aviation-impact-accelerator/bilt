@@ -88,7 +88,7 @@ class CausalizationStructuralAnalyzer:
 
             while True:
                 try:
-                    steps = planning.plan_steps(
+                    blocks = planning.plan_blocks(
                         assignments,
                         available,
                         request.output,
@@ -99,13 +99,13 @@ class CausalizationStructuralAnalyzer:
                         last_error = error
                     break
 
-                route = tuple((step.output, step.child_inputs) for step in steps)
+                route = tuple((step.output, step.child_inputs) for block in blocks for step in block.steps)
                 if route in attempted_routes:
                     break
                 attempted_routes.add(route)
 
                 result = realize_plan(
-                    AnalysisPlan(request=request, steps=steps),
+                    AnalysisPlan(request=request, blocks=blocks),
                     self.backend,
                 )
                 if not isinstance(result, RealizationFailure):
@@ -153,15 +153,21 @@ class CausalizationStructuralAnalyzer:
             graph, self._failures, output=None if output in available else output
         ):
             try:
-                steps = planning.plan_steps(assignments, available, output, backend=self.backend)
+                blocks = planning.plan_blocks(assignments, available, output, backend=self.backend)
             except BiltAnalysisError:
                 continue
 
             if output in available:
                 return frozenset({output})
 
-            produced = {step.output for step in steps}
-            return frozenset(attribute for step in steps for attribute in step.consumed if attribute not in produced)
+            produced = {step.output for block in blocks for step in block.steps}
+            return frozenset(
+                attribute
+                for block in blocks
+                for step in block.steps
+                for attribute in step.consumed
+                if attribute not in produced
+            )
 
         return None
 
