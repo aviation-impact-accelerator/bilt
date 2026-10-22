@@ -15,6 +15,12 @@ Bilt is a Python framework for composable engineering models. Describe the relat
 - **Named tensor dimensions:** align and broadcast data across time, location or scenario axes.
 - **Python and JAX backends:** choose how supported models execute.
 
+Bilt is a Python framework for modelling interacting scientific and engineering systems. Define systems and their relationships through equations and directed transforms, then supply what is known and request what you want to calculate.
+
+We built Bilt at Cambridge's Aviation Impact Accelerator to explore low order models from different viewpoints without repeatedly rewriting their calculations. Bilt separates model description, computational planning and backend execution, letting analysts focus on engineering meaning and assumptions. Replaceable implementations, physical unit checks and symbolic tensor dimensions keep models reusable and explicit, with Python and JAX backends for execution.
+
+Explainability is a central aspiration: we want modellers to interrogate how a calculation was chosen, which relationships it uses and why alternatives were rejected, as well as inspect its result.
+
 ## Installation
 
 Requires Python 3.14+, [uv](https://docs.astral.sh/uv/) and a [Rust toolchain](https://www.rust-lang.org/tools/install).
