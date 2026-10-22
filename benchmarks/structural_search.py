@@ -205,7 +205,7 @@ def instrument(solver: str) -> tuple[ExitStack, Counter[str]]:
             stack.enter_context(patch.object(owner, name, counted(label, getattr(owner, name))))
         original_plan = typing.cast(
             "Callable[..., object]",
-            scc_planning.plan_steps,
+            scc_planning.plan_blocks,
         )
 
         def plan(

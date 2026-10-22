@@ -1,4 +1,4 @@
-__all__ = ["AnalysisPlan", "PlanStep"]
+__all__ = ["AnalysisPlan", "PlanBlock", "PlanStep"]
 
 import dataclasses
 import typing
@@ -58,11 +58,54 @@ class PlanStep:
 
 
 @dataclasses.dataclass(frozen=True)
+class PlanBlock:
+    """An SCC of matched operations, with its external data dependencies.
+
+    Outputs are the block's unknowns. Each step retains its original operation
+    and selected child route. Step order is reproducible, but is not an
+    execution order inside a cyclic block. A self-loop is cyclic even when the
+    block contains only one step.
+    """
+
+    steps: tuple[PlanStep, ...]
+    is_cyclic: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.steps:
+            msg = "A plan block must contain at least one step."
+            raise ValueError(msg)
+        if len(self.steps) > 1 and not self.is_cyclic:
+            msg = "An acyclic SCC block must contain exactly one step."
+            raise ValueError(msg)
+
+    @property
+    def outputs(self) -> frozenset[str]:
+        """Return the unknowns produced together by this block."""
+        return frozenset(step.output for step in self.steps)
+
+    @property
+    def inputs(self) -> frozenset[str]:
+        """Return dependencies supplied from outside this block."""
+        outputs = self.outputs
+        return frozenset(attribute for step in self.steps for attribute in step.consumed if attribute not in outputs)
+
+    @property
+    def operations(self) -> tuple[BiltModelConstituent, ...]:
+        """Return the matched operations in the same order as the steps."""
+        return tuple(step.operation for step in self.steps)
+
+
+@dataclasses.dataclass(frozen=True)
 class AnalysisPlan:
-    """A plan through a complete system graph to satisfy an evaluation request."""
+    """Dependency-ordered blocks satisfying an evaluation request."""
 
     request: EvaluationRequest
-    steps: tuple[PlanStep, ...]
+    blocks: tuple[PlanBlock, ...]
+
+    @property
+    def steps(self) -> tuple[PlanStep, ...]:
+        """Return a flat inspection view, not an execution order for cyclic blocks."""
+        return tuple(step for block in self.blocks for step in block.steps)
 
     @property
     def inputs(self) -> frozenset[str]:
