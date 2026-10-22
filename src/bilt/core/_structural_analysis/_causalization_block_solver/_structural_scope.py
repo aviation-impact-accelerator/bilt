@@ -57,6 +57,11 @@ class StructuralAnalysis:
     def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent]) -> None:
         self._incidence = FullIncidenceGraph(constituents)
 
+    @property
+    def attribute_names(self) -> frozenset[str]:
+        """Return local incidence names, including qualified child ports."""
+        return frozenset(self._incidence.attribute_nodes)
+
     def inspect(
         self,
         available: collections.abc.Set[str],

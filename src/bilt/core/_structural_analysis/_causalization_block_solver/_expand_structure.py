@@ -85,6 +85,7 @@ class _Context:
         [collections.abc.Set[str], collections.abc.Set[str]],
         StructuralScope,
     ]
+    attribute_names: frozenset[str]
     ancestors: frozenset[int]
 
 
@@ -99,7 +100,9 @@ class StructuralExpansion:
     def __init__(self, incidence: FullIncidenceGraph, available: collections.abc.Set[str], output: str) -> None:
         self.available = frozenset(available)
         self.contexts: dict[tuple[str, ...], _Context] = {
-            (): _Context(functools.partial(inspect_structure, incidence), frozenset())
+            (): _Context(
+                functools.partial(inspect_structure, incidence), frozenset(incidence.attribute_nodes), frozenset()
+            )
         }
         self.attributes: set[str] = set()
         self.rows: dict[tuple[tuple[str, ...], int], ExpandedConstraint] = {}
@@ -183,7 +186,8 @@ class StructuralExpansion:
         if id(implementation) in ancestors:
             message = f"Recursive subsystem containment at {'.'.join(path)!r} is not supported."
             raise BiltAnalysisError(message)
-        self.contexts[path] = _Context(implementation.structural_analysis().inspect, ancestors | {id(implementation)})
+        analysis = implementation.structural_analysis()
+        self.contexts[path] = _Context(analysis.inspect, analysis.attribute_names, ancestors | {id(implementation)})
         # Expansion can expose ports referenced by parent or sibling constraints.
         # Replay existing attributes into the new child context, too.
         for attribute in sorted(self.attributes):
@@ -199,7 +203,12 @@ class StructuralExpansion:
         prefix = _prefix(namespace)
         if attribute in self.available or not attribute.startswith(prefix):
             return
-        job = namespace, attribute[len(prefix) :]
+        local_attribute = attribute[len(prefix) :]
+        # Descendant internals need revisiting here only if this local graph
+        # actually references them. Unknown requested names remain in attributes.
+        if local_attribute not in self.contexts[namespace].attribute_names:
+            return
+        job = namespace, local_attribute
         if job not in self.scheduled:
             self.scheduled.add(job)
             self.pending.append(job)

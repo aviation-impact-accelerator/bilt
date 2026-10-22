@@ -4,11 +4,20 @@ import pytest
 
 from bilt import Implementation, Interface, equation, field, system
 from bilt.core._errors import BiltAnalysisError
-from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
+from bilt.core._structural_analysis._causalization_block_solver import _expand_structure, _structural_scope
+from bilt.core._structural_analysis._causalization_block_solver._errors import (
+    BiltOverconstrainedError,
+    BiltUnderconstrainedError,
+)
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import StructuralExpansion
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_structure
 from bilt.core._sub_system import SubSystemConstituent
+
+if typing.TYPE_CHECKING:
+    import collections.abc
+
+    from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralScope
 
 
 @system
@@ -139,3 +148,56 @@ def test_supplied_target_needs_no_child_expansion() -> None:
     graph, attributes = snapshot.to_incidence()
     assert graph.num_nodes() == 0
     assert attributes == {}
+
+
+@pytest.mark.parametrize("output", ("missing", "child.missing"))
+def test_absent_target_is_preserved_without_querying_local_graph(output: str) -> None:
+    expansion = StructuralExpansion(FullIncidenceGraph([_child()]), set(), output)
+    snapshot = expansion.snapshot()
+    assert snapshot.complete
+    assert snapshot.query_count == 0
+    assert snapshot.attributes == frozenset({output})
+    graph, attributes = expansion.collect()
+    assert set(attributes) == {output}
+    with pytest.raises(BiltUnderconstrainedError, match=output):
+        validate_structure(graph, frozenset(attributes.values()), frozenset())
+
+
+def test_nested_queries_only_visit_graphs_containing_the_attribute(monkeypatch: pytest.MonkeyPatch) -> None:
+    original = _structural_scope.inspect_structure
+    queried: list[frozenset[str]] = []
+
+    def inspect_present(
+        incidence: FullIncidenceGraph,
+        available: collections.abc.Set[str],
+        required: collections.abc.Set[str],
+    ) -> StructuralScope:
+        assert required <= incidence.attribute_nodes.keys()
+        queried.append(frozenset(required))
+        return original(incidence, available, required)
+
+    monkeypatch.setattr(_expand_structure, "inspect_structure", inspect_present)
+    monkeypatch.setattr(_structural_scope, "inspect_structure", inspect_present)
+
+    @equation
+    def connection(b: float, inner: Ports) -> bool:
+        return b == inner.b
+
+    @equation
+    def supply(a: float, inner: Ports) -> bool:
+        return inner.a == a
+
+    outer = SubSystemConstituent("outer", Implementation(Ports, [_child("inner"), connection, supply]))
+    expansion = StructuralExpansion(FullIncidenceGraph([outer]), {"outer.a"}, "outer.b")
+    graph, attributes = expansion.collect()
+    snapshot = expansion.snapshot()
+    # The qualified inner.a name must still revisit the outer graph and expose
+    # supply, even though it is not a name in the root graph.
+    assert {row.operation for row in snapshot.constraints} == {relation, connection, supply}
+    assert frozenset({"inner.a"}) in queried
+    expected_queries = 6  # Root boundary, three outer names, and two leaf names.
+    assert snapshot.query_count == len(queried) == expected_queries
+    assert snapshot.expanded_paths == frozenset({("outer",), ("outer", "inner")})
+    partition = validate_structure(graph, frozenset(attributes.values()), frozenset())
+    assert not partition.underdetermined
+    assert not partition.overdetermined
