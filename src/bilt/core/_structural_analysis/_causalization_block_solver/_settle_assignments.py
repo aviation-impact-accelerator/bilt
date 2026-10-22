@@ -17,42 +17,16 @@ def settle_assignments(
     available: collections.abc.Set[str],
     backend: Backend,
     *,
-    target: str | None = None,
+    target: str,
 ) -> tuple[tuple[PlanStep, ...], frozenset[str]]:
-    """Propagate established dependencies in stable order until no progress.
+    """Settle the target's dependencies until no more inputs are established.
 
     After stalling, retain remaining candidate dependencies for explicit cycle
     and unresolved-input checks. A rejected child route is local to this
     candidate input set, not a permanent rejection of the child output.
-    With target, follow its dependencies and potential inputs of selected children.
-    Without target, retain full-assignment settlement for existing callers.
+    Follow the target's dependencies and potential inputs of selected children.
     """
-    if target is not None:
-        return _TargetSettlement(assignments, available, backend).settle(target)
-
-    established = set(available)
-    pending = dict(assignments)
-    settled: dict[str, PlanStep] = {}
-
-    while pending:
-        before = len(pending)
-        for output in sorted(pending):
-            step = _assignment_step(pending[output], output, established, backend)
-            if step is not None and set(step.consumed) <= established:
-                settled[output] = step
-                established.add(output)
-        for output in settled:
-            pending.pop(output, None)
-        if len(pending) == before:
-            break
-
-    candidate_inputs = set(available) | set(assignments)
-    for output, operation in sorted(pending.items()):
-        step = _assignment_step(operation, output, candidate_inputs, backend)
-        if step is not None:
-            settled[output] = step
-
-    return tuple(settled[output] for output in sorted(settled)), frozenset(assignments.keys() - settled.keys())
+    return _TargetSettlement(assignments, available, backend).settle(target)
 
 
 def _assignment_step(
