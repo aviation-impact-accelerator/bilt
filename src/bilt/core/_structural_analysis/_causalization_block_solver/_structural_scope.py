@@ -6,6 +6,7 @@ import dataclasses
 import typing
 
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
+from bilt.core._structural_analysis._causalization_block_solver._structural_cache import get_structural_cache
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform
 
@@ -90,6 +91,10 @@ def inspect_structure(
     """
     supplied = frozenset(available)
     targets = frozenset(required)
+    cache = get_structural_cache()
+    key = incidence, supplied, targets
+    if cache is not None and key in cache:
+        return cache[key]
     selected, child_ports, attributes = _scope_nodes(incidence, supplied, targets)
 
     constraints: dict[int, BasicEquation | BasicTransform] = {}
@@ -110,13 +115,16 @@ def inspect_structure(
                 )
             )
 
-    return StructuralScope(
+    scope = StructuralScope(
         constraints=tuple(constraints.values()),
         boundaries=tuple(boundaries),
         attributes=frozenset(attributes),
         available=supplied,
         required=targets,
     )
+    if cache is not None:
+        cache[key] = scope
+    return scope
 
 
 def _scope_nodes(
