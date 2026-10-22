@@ -17,6 +17,8 @@ from bilt.core._errors import BiltAnalysisError
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver import _backend as scc
+from bilt.core._structural_analysis._causalization_block_solver import _planning as scc_planning
+from bilt.core._structural_analysis._causalization_block_solver import _search as scc_search
 from bilt.core._structural_analysis._causalization_block_solver._dm import dulmage_mendelsohn
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltExecutionPlanError,
@@ -32,6 +34,7 @@ if typing.TYPE_CHECKING:
     from collections.abc import Callable
 
     from bilt import Implementation
+    from bilt._backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
 
 
@@ -193,27 +196,27 @@ def instrument(solver: str) -> tuple[ExitStack, Counter[str]]:
 
     stack.enter_context(patch.object(factory, "required_inputs_for_target", required))
     if solver == "scc":
-        for name, label in (
-            ("find_matching", "execution_matching_calls"),
-            ("settle_assignments", "settlement_calls"),
-            ("realize_plan", "realisation_attempts"),
-            ("validate_request_structure", "structural_validation_calls"),
+        for owner, name, label in (
+            (scc_search, "find_matching", "execution_matching_calls"),
+            (scc_planning, "settle_assignments", "settlement_calls"),
+            (scc, "realize_plan", "realisation_attempts"),
+            (scc, "validate_request_structure", "structural_validation_calls"),
         ):
-            stack.enter_context(patch.object(scc, name, counted(label, getattr(scc, name))))
+            stack.enter_context(patch.object(owner, name, counted(label, getattr(owner, name))))
         original_plan = typing.cast(
-            "Callable[[object, dict[str, BiltModelConstituent], set[str], str], object]",
-            scc.CausalizationStructuralAnalyzer._plan_steps,  # noqa: SLF001 - benchmark instrumentation
+            "Callable[..., object]",
+            scc_planning.plan_steps,
         )
 
         def plan(
-            self: object, assignments: dict[str, BiltModelConstituent], available: set[str], output: str
+            assignments: dict[str, BiltModelConstituent], available: set[str], output: str, *, backend: Backend
         ) -> object:
             counts["candidate_checks"] += 1
             if output not in available and output not in assignments:
                 counts["candidates_without_target_assignment"] += 1
-            return original_plan(self, assignments, available, output)
+            return original_plan(assignments, available, output, backend=backend)
 
-        stack.enter_context(patch.object(factory, "_plan_steps", plan))
+        stack.enter_context(patch.object(scc_planning, "plan_steps", plan))
     else:
         stack.enter_context(
             patch.object(BipartiteGraph, "search", counted("recursive_search_calls", BipartiteGraph.search))

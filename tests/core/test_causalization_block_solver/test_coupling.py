@@ -10,6 +10,7 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver import _backend as solver
+from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import (
@@ -73,7 +74,7 @@ def _unexpected_search(*_: object, **__: object) -> typing.Never:
 @pytest.mark.parametrize("depth", (0, 1, 2))
 def test_rejects_nested_coupling_before_execution_search(monkeypatch: pytest.MonkeyPatch, depth: int) -> None:
     implementation = _nested(depth)
-    monkeypatch.setattr(solver, "find_matching", _unexpected_search)
+    monkeypatch.setattr(search, "find_matching", _unexpected_search)
     monkeypatch.setattr(SubSystemConstituent, "required_inputs_for", _unexpected_search)
     # Construct through the existing seam without changing the production default.
     from bilt.core._system import _implementation as implementation_module  # noqa: PLC0415

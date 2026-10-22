@@ -8,6 +8,8 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver import _backend as solver
+from bilt.core._structural_analysis._causalization_block_solver import _planning as planning
+from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltExecutionPlanError,
@@ -124,8 +126,8 @@ def test_rectangular_nested_coupling_skips_execution_search(
 ) -> None:
     implementation = _nested(depth, siblings=siblings)
     monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", solver.CausalizationStructuralAnalyzer)
-    for name in ("find_matching", "settle_assignments", "realize_plan"):
-        monkeypatch.setattr(solver, name, _unexpected)
+    for owner, name in ((search, "find_matching"), (planning, "settle_assignments"), (solver, "realize_plan")):
+        monkeypatch.setattr(owner, name, _unexpected)
     monkeypatch.setattr(SubSystemConstituent, "required_inputs_for", _unexpected)
     request = EvaluationRequest(output="x", input_domains=dict.fromkeys({"a", "b"}, Domain.scalar()))
     with EvaluationContext(), pytest.raises(BiltExecutionPlanError, match=r"Cannot compute x.*coupled blocks"):
