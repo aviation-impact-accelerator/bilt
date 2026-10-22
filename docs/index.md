@@ -8,6 +8,7 @@ Models are built from systems, equations and transforms, with Bilt determining h
 
 The user guide introduces the main Bilt concepts:
 
+- [Modelling philosophy](guide/modelling-philosophy.md)
 - [Systems and values](guide/systems-and-values.md)
 - [Equations and acausal modelling](guide/equations-and-acausal-modelling.md)
 - [Transforms and implementations](guide/transforms-and-implementations.md)
