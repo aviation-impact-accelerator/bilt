@@ -8,6 +8,7 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver import _backend as solver
+from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._plan import PlanStep
 from bilt.core._structural_analysis._realize import RealizationFailure
 from bilt.symbolic._domains import Domain
@@ -45,8 +46,8 @@ def test_missing_or_isolated_target_skips_matching(monkeypatch: pytest.MonkeyPat
     graph = _graph()
     if present:
         graph.add_node("missing")
-    monkeypatch.setattr(solver, "find_matching", _unexpected_matching)
-    assert list(solver._candidate_assignments(graph, {}, output="missing")) == []  # noqa: SLF001
+    monkeypatch.setattr(search, "find_matching", _unexpected_matching)
+    assert list(search.candidate_assignments(graph, {}, output="missing")) == []
 
 
 @pytest.mark.parametrize("preexisting", (False, True))
@@ -55,18 +56,18 @@ def test_failed_target_producer_prunes_retries(monkeypatch: pytest.MonkeyPatch, 
     step = PlanStep(operation=x, output="x")
     failure = RealizationFailure(failed_plan_step=step)
     failures = {step: failure} if preexisting else {}
-    candidates = solver._candidate_assignments(graph, failures, output="x")  # noqa: SLF001
+    candidates = search.candidate_assignments(graph, failures, output="x")
     if not preexisting:
         assert next(candidates)["x"] is x
         failures[step] = failure
-    monkeypatch.setattr(solver, "find_matching", _unexpected_matching)
+    monkeypatch.setattr(search, "find_matching", _unexpected_matching)
     assert list(candidates) == []
 
 
 def test_prunes_targetless_descendants_and_preserves_other_choices(monkeypatch: pytest.MonkeyPatch) -> None:
     graph = _graph()
     original_edges = graph.edge_list()
-    matching = solver.find_matching
+    matching = search.find_matching
     calls = []
 
     def checked_matching(candidate: rx.PyGraph) -> dict[str, BiltModelConstituent]:
@@ -75,8 +76,8 @@ def test_prunes_targetless_descendants_and_preserves_other_choices(monkeypatch: 
         calls.append(candidate)
         return matching(candidate)
 
-    monkeypatch.setattr(solver, "find_matching", checked_matching)
-    assignments = list(solver._candidate_assignments(graph, {}, output="x"))  # noqa: SLF001
+    monkeypatch.setattr(search, "find_matching", checked_matching)
+    assignments = list(search.candidate_assignments(graph, {}, output="x"))
     assert {frozenset(assignment) for assignment in assignments} == {frozenset({"x", "y"}), frozenset({"x"})}
     expected_calls = 2
     assert len(calls) == expected_calls
@@ -94,8 +95,8 @@ def test_matching_omitting_target_still_explores_alternatives() -> None:
     producer = graph.add_node(relation)
     graph.add_edge(x_node, producer, 0)
     graph.add_edge(y_node, producer, 1)
-    assert solver.find_matching(graph) == {"y": relation}
-    assignments = list(solver._candidate_assignments(graph, {}, output="x"))  # noqa: SLF001
+    assert search.find_matching(graph) == {"y": relation}
+    assignments = list(search.candidate_assignments(graph, {}, output="x"))
     assert any(assignment.get("x") is relation for assignment in assignments)
 
 

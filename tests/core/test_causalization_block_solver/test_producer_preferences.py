@@ -10,6 +10,7 @@ from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver import _backend as solver
 from bilt.core._structural_analysis._causalization_block_solver import _matching as matching
+from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import (
     ExpandedConstraint,
     StructuralExpansion,
@@ -132,7 +133,7 @@ def test_nested_series_uses_first_candidates_in_each_query(
     monkeypatch: pytest.MonkeyPatch, depth: int, output: str
 ) -> None:
     monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", solver.CausalizationStructuralAnalyzer)
-    original = solver._candidate_assignments  # noqa: SLF001
+    original = search.candidate_assignments
 
     def first_only(
         graph: rx.PyGraph,
@@ -147,7 +148,7 @@ def test_nested_series_uses_first_candidates_in_each_query(
         msg = "Reachable series requests should not enumerate alternative matchings."
         raise AssertionError(msg)
 
-    monkeypatch.setattr(solver, "_candidate_assignments", first_only)
+    monkeypatch.setattr(search, "candidate_assignments", first_only)
     implementation = _nested(depth)
     values = {"heat": 12_000.0, "flow": 2.0, "capacity": 4_000.0}
     values["inlet" if output == "outlet" else "outlet"] = 10.0 if output == "outlet" else 11.5
@@ -262,7 +263,7 @@ def test_failed_preferred_direction_still_leaves_alternative_matching() -> None:
     expansion.collect()
     matching.prefer_structural_producers(graph, expansion.snapshot())
     failures: dict[PlanStep, RealizationFailure] = {}
-    candidates = solver._candidate_assignments(graph, failures, output="outlet")  # noqa: SLF001
+    candidates = search.candidate_assignments(graph, failures, output="outlet")
     assert next(candidates)["right.inlet"] is connection
     failed = PlanStep(operation=connection, output="right.inlet")
     failures[failed] = RealizationFailure(failed_plan_step=failed)
