@@ -1,10 +1,8 @@
 """Construct an ordered execution plan from candidate assignments."""
 
-__all__ = ["plan_steps"]
+__all__ = ["plan_blocks"]
 
 import typing
-
-import rustworkx as rx
 
 from bilt.core._structural_analysis._causalization_block_solver._blocks import ordered_blocks
 from bilt.core._structural_analysis._causalization_block_solver._dependency_graph import build_dependency_graph
@@ -16,17 +14,17 @@ if typing.TYPE_CHECKING:
 
     from bilt._backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
-    from bilt.core._structural_analysis._plan import PlanStep
+    from bilt.core._structural_analysis._plan import PlanBlock, PlanStep
 
 
-def plan_steps(
+def plan_blocks(
     assignments: collections.abc.Mapping[str, BiltModelConstituent],
     available: set[str],
     output: str,
     *,
     backend: Backend,
-) -> tuple[PlanStep, ...]:
-    """Select the target's dependencies and order an acyclic plan."""
+) -> tuple[PlanBlock, ...]:
+    """Select target dependencies and preserve their ordered acyclic blocks."""
     if output in available:
         return ()
 
@@ -67,9 +65,9 @@ def plan_steps(
         raise BiltExecutionPlanError(msg)
 
     blocks = ordered_blocks(graph)
-    if not rx.is_directed_acyclic_graph(graph):
+    if any(block.is_cyclic for block in blocks):
         outputs = ", ".join(sorted(selected))
         msg = f"Execution of coupled blocks is not yet supported by this analyser. Required computations: {outputs}."
         raise BiltExecutionPlanError(msg)
 
-    return tuple(step for block in blocks for step in block)
+    return blocks

@@ -29,10 +29,16 @@ if typing.TYPE_CHECKING:
 
 
 def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
-    """Convert an AnalysisPlan into a BackendCase by compiling each step to a callable."""
+    """Realise ordered acyclic blocks, propagating domains between them."""
     symbol_domains = plan.request.input_domains.copy()
     intermediates = []
-    for step in plan.steps:
+    for block in plan.blocks:
+        if block.is_cyclic:
+            outputs = ", ".join(sorted(block.outputs))
+            msg = f"Execution of coupled blocks is not yet supported. Required computations: {outputs}."
+            raise BiltAnalysisError(msg)
+
+        step = block.steps[0]
         result = _operation_to_callable(
             step,
             backend=backend,

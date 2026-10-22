@@ -5,9 +5,10 @@ import pytest
 from bilt import Implementation, Interface, field, system
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
+from bilt.core._errors import BiltAnalysisError
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
+from bilt.core._structural_analysis._plan import AnalysisPlan, PlanBlock, PlanStep
 from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.symbolic._domains import Domain
@@ -40,7 +41,7 @@ def _scalar_plan(
             output=output,
             input_domains=dict.fromkeys(inputs, SCALAR_DOMAIN),
         ),
-        steps=steps,
+        blocks=tuple(PlanBlock(steps=(step,)) for step in steps),
     )
 
 
@@ -241,3 +242,45 @@ def test_realize_plan_mangles_subsystem_parameters() -> None:
         )
         == result
     )
+
+
+@pytest.mark.parametrize("step_count", (1, 2))
+def test_realize_plan_rejects_cyclic_blocks_before_isolation(step_count: int) -> None:
+    steps = (
+        PlanStep(operation=wiring, output="supply"),
+        PlanStep(operation=wiring, output="resistor.v"),
+    )[:step_count]
+    plan = AnalysisPlan(
+        request=EvaluationRequest(output="supply", input_domains={}),
+        blocks=(PlanBlock(steps=steps, is_cyclic=True),),
+    )
+
+    with pytest.raises(BiltAnalysisError, match="Execution of coupled blocks is not yet supported"):
+        _realize_scalar_plan(plan)
+
+
+def test_realize_plan_propagates_domains_between_blocks() -> None:
+    from bilt import transform  # noqa: PLC0415
+
+    @transform
+    def doubled(a: float) -> float:
+        return 2 * a
+
+    @transform
+    def answer(doubled: float) -> float:
+        return doubled + 1
+
+    first = PlanBlock(steps=(PlanStep(operation=doubled, output="doubled"),))
+    second = PlanBlock(steps=(PlanStep(operation=answer, output="answer"),))
+    plan = AnalysisPlan(
+        request=EvaluationRequest(output="answer", input_domains={"a": SCALAR_DOMAIN}),
+        blocks=(first, second),
+    )
+
+    case = _realize_scalar_plan(plan)
+
+    assert not isinstance(case, RealizationFailure)
+    assert tuple(operation.name for operation in case.intermediates) == ("doubled", "answer")
+    assert all(operation.output_domain == SCALAR_DOMAIN for operation in case.intermediates)
+    expected = 7.0
+    assert PYTHON_BACKEND.chain_case(case).callable(a=SUPPLY_VOLTAGE) == expected
