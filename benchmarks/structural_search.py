@@ -216,7 +216,7 @@ def instrument(solver: str) -> tuple[ExitStack, Counter[str]]:
                 counts["candidates_without_target_assignment"] += 1
             return original_plan(assignments, available, output, backend=backend)
 
-        stack.enter_context(patch.object(scc_planning, "plan_steps", plan))
+        stack.enter_context(patch.object(scc_planning, "plan_blocks", plan))
     else:
         stack.enter_context(
             patch.object(BipartiteGraph, "search", counted("recursive_search_calls", BipartiteGraph.search))
