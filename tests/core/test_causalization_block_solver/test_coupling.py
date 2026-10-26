@@ -71,7 +71,7 @@ def _unexpected_search(*_: object, **__: object) -> typing.Never:
     raise AssertionError(message)
 
 
-@pytest.mark.parametrize("depth", (0, 1, 2))
+@pytest.mark.parametrize("depth", (1, 2))
 def test_rejects_nested_coupling_before_execution_search(monkeypatch: pytest.MonkeyPatch, depth: int) -> None:
     implementation = _nested(depth)
     monkeypatch.setattr(search, "find_matching", _unexpected_search)

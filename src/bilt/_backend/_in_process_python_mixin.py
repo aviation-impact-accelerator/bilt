@@ -7,7 +7,8 @@ import dataclasses
 import typing
 
 from bilt._backend._callable import BackendCallable
-from bilt._backend._errors import BiltCompilationError
+from bilt._backend._errors import BiltCompilationError, BiltUnsupportedNodeError
+from bilt._backend._linear_solve import LINEAR_SOLVE_INTRINSIC_NAME
 from bilt.core._to_ast import (
     ISEL_INTRINSIC_NAME,
     MAX_INTRINSIC_NAME,
@@ -28,9 +29,10 @@ class PythonIntrinsicBindings:
     min: typing.Callable[..., typing.Any]
     max: typing.Callable[..., typing.Any]
     prod: typing.Callable[..., typing.Any]
+    linear_solve: typing.Callable[..., typing.Any] | None = None
 
     def namespace(self) -> dict[str, typing.Any]:
-        return {
+        namespace = {
             ISEL_INTRINSIC_NAME: self.isel,
             MEAN_INTRINSIC_NAME: self.mean,
             SUM_INTRINSIC_NAME: self.sum,
@@ -38,6 +40,9 @@ class PythonIntrinsicBindings:
             MAX_INTRINSIC_NAME: self.max,
             PROD_INTRINSIC_NAME: self.prod,
         }
+        if self.linear_solve is not None:
+            namespace[LINEAR_SOLVE_INTRINSIC_NAME] = self.linear_solve
+        return namespace
 
 
 class InProcessPythonMixin:
@@ -46,6 +51,16 @@ class InProcessPythonMixin:
     ast_transformer: ast.NodeTransformer
     compilation_namespace: dict[str, typing.Any]
     intrinsic_bindings: PythonIntrinsicBindings
+
+    def transpile_linear_solve(self, function_definition: ast.FunctionDef) -> BackendCallable:
+        """Compile a solve using this backend's intrinsic and compilation policy."""
+        if self.intrinsic_bindings.linear_solve is None:
+            message = "The selected backend does not support scalar linear blocks."
+            raise BiltUnsupportedNodeError(message)
+        # The enclosing case is compiled as a whole. Avoid an additional
+        # zero-argument JIT boundary around constant systems.
+        function_definition.__dict__["_bilt_inline"] = True
+        return self.transpile(function_definition)
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Rewrite the definition with `ast_transformer`, then compile and exec it into `compilation_namespace`."""
