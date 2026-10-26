@@ -94,14 +94,14 @@ class SearchTrial:
         """Verify every round's answer or rejection outside the timer."""
         result = self.result
         details: dict[str, object]
-        if self.case.coupled:
+        if self.case.coupled and not (self.case.solver == "scc" and self.case.depth == 0):
             details = check_coupled_rejection(result, solver=self.case.solver, output=self.request.output)
         else:
             if not isinstance(result, BackendCase):
                 msg = f"Expected a successful plan, received {result!r}."
                 raise AssertionError(msg) from (result if isinstance(result, Exception) else None)
             value = PYTHON_BACKEND.chain_case(result).callable(a=4.0, b=2.0)
-            expected = expected_value(coupled=False, depth=self.case.depth, layout=self.case.layout)
+            expected = expected_value(coupled=self.case.coupled, depth=self.case.depth, layout=self.case.layout)
             if value != expected:
                 msg = f"Expected {expected}, received {value}."
                 raise AssertionError(msg)

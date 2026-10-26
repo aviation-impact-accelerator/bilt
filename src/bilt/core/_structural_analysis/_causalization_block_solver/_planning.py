@@ -8,6 +8,10 @@ from bilt.core._structural_analysis._causalization_block_solver._blocks import o
 from bilt.core._structural_analysis._causalization_block_solver._dependency_graph import build_dependency_graph
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._structural_analysis._causalization_block_solver._settle_assignments import settle_assignments
+from bilt.core._structural_analysis._linear_block import (
+    BiltLinearBlockError,
+    extract_linear_block,
+)
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -24,7 +28,7 @@ def plan_blocks(
     *,
     backend: Backend,
 ) -> tuple[PlanBlock, ...]:
-    """Select target dependencies and preserve their ordered acyclic blocks."""
+    """Select target dependencies and preserve supported ordered blocks."""
     if output in available:
         return ()
 
@@ -65,9 +69,17 @@ def plan_blocks(
         raise BiltExecutionPlanError(msg)
 
     blocks = ordered_blocks(graph)
-    if any(block.is_cyclic for block in blocks):
-        outputs = ", ".join(sorted(selected))
-        msg = f"Execution of coupled blocks is not yet supported by this analyser. Required computations: {outputs}."
-        raise BiltExecutionPlanError(msg)
+    for block in blocks:
+        if not block.is_cyclic:
+            continue
+        try:
+            extract_linear_block(block)
+        except BiltLinearBlockError as error:
+            outputs = ", ".join(sorted(block.outputs))
+            msg = (
+                f"Execution of coupled blocks is not yet supported for this formulation. "
+                f"Required computations: {outputs}. {error}"
+            )
+            raise BiltExecutionPlanError(msg) from error
 
     return blocks
