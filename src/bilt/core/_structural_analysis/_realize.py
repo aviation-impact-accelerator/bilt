@@ -1,4 +1,4 @@
-__all__ = ["RealizationFailure", "realize_plan"]
+__all__ = ["BlockRealizationFailure", "BlockRealizationKey", "RealizationFailure", "realize_plan"]
 
 import ast
 import copy
@@ -13,8 +13,10 @@ from bilt.core._errors import BiltAnalysisError
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_name
+from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._realize_linear import realize_linear_block
 from bilt.core._sub_system import SubSystemConstituent
+from bilt.core._tensors._errors import BiltSymbolicLoweringError, BiltTensorDomainError
 from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import tree_to_functiondef
@@ -26,10 +28,21 @@ from bilt.symbolic._isolation._isolate import isolate
 
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
-    from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
+    from bilt.core._structural_analysis._plan import AnalysisPlan, PlanBlock, PlanStep
 
 
-def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
+type BlockRealizationKey = tuple[
+    frozenset[tuple[PlanStep, frozenset[str] | None]],
+    frozenset[tuple[str, Domain | None]],
+]
+
+
+def realize_plan(
+    plan: AnalysisPlan,
+    backend: Backend,
+    *,
+    block_failures: dict[BlockRealizationKey, BlockRealizationFailure] | None = None,
+) -> BackendCase | RealizationFailure | BlockRealizationFailure:
     """Realise ordered direct steps and supported scalar linear blocks."""
     symbol_domains = plan.request.input_domains.copy()
     intermediates = []
@@ -39,7 +52,20 @@ def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | Realizat
             names = {mangle_name(step.output) for step in plan.steps} | set(map(mangle_name, plan.inputs))
             while name in names:
                 name += "_"
-            intermediates.extend(realize_linear_block(block, backend, symbol_domains, solution_name=name))
+            key = (
+                frozenset((step, step.child_inputs) for step in block.steps),
+                frozenset((attribute, symbol_domains.get(attribute)) for attribute in block.inputs),
+            )
+            if block_failures is not None and key in block_failures:
+                return block_failures[key]
+            try:
+                callables = realize_linear_block(block, backend, symbol_domains, solution_name=name)
+            except (BiltLinearBlockError, BiltSymbolicLoweringError, BiltTensorDomainError) as error:
+                failure = BlockRealizationFailure(failed_block=block, cause=error)
+                if block_failures is not None:
+                    block_failures[key] = failure
+                return failure
+            intermediates.extend(callables)
             symbol_domains.update(dict.fromkeys(block.outputs, Domain.scalar()))
             continue
 
@@ -262,3 +288,17 @@ class RealizationFailure:
 
     failed_plan_step: PlanStep
     cause: Exception | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class BlockRealizationFailure:
+    """A coupled block rejected during lowering or compilation, before execution.
+
+    This rejects the combined formulation, not any individual equation. The
+    caller may memoize it by matched steps, child routes and incoming domains
+    within one analysis request. Numerical failures during evaluation do not
+    produce this result.
+    """
+
+    failed_block: PlanBlock
+    cause: Exception
