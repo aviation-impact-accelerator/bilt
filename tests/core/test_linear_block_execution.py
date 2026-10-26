@@ -14,7 +14,7 @@ from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
-from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.errors import BiltAnalysisError, BiltLinearSolveError
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain
@@ -195,7 +195,7 @@ def test_nonscalar_domains_are_rejected_without_permanent_assignment_failures() 
     analyser = CausalizationStructuralAnalyzer([total, difference], PYTHON_BACKEND)
     axis = Dim("axis")
     with EvaluationContext():
-        with pytest.raises(BiltLinearBlockError, match="require scalar coefficients"):
+        with pytest.raises(BiltExecutionPlanError, match="require scalar coefficients"):
             analyser.analyse(EvaluationRequest(output="x", input_domains={"p": Domain((axis,)), "q": Domain.scalar()}))
         case = analyser.analyse(EvaluationRequest(output="x", input_domains=dict.fromkeys({"p", "q"}, Domain.scalar())))
 
@@ -206,7 +206,7 @@ def test_unsupported_backend_is_reported(monkeypatch: pytest.MonkeyPatch) -> Non
     bindings = dataclasses.replace(PYTHON_BACKEND.intrinsic_bindings, linear_solve=None)
     monkeypatch.setattr(PYTHON_BACKEND, "intrinsic_bindings", bindings)
 
-    with pytest.raises(BiltLinearBlockError, match="backend does not support scalar linear blocks"):
+    with pytest.raises(BiltExecutionPlanError, match="backend does not support scalar linear blocks"):
         _case([total, difference], dict.fromkeys({"p", "q"}, Domain.scalar()), "x", PYTHON_BACKEND)
 
 
@@ -296,7 +296,7 @@ def test_linear_solve_capability_does_not_require_python_intrinsic_bindings(supp
     selected = typing.cast("Backend", backend)
     inputs = dict.fromkeys({"p", "q"}, Domain.scalar())
     if not supports_linear_solve:
-        with pytest.raises(BiltLinearBlockError, match="backend does not support scalar linear blocks"):
+        with pytest.raises(BiltExecutionPlanError, match="backend does not support scalar linear blocks"):
             _case([total, difference], inputs, "x", selected)
         return
 

@@ -27,6 +27,8 @@ from bilt.core._structural_analysis._causalization_block_solver._structural_vali
 )
 from bilt.core._structural_analysis._plan import AnalysisPlan
 from bilt.core._structural_analysis._realize import (
+    BlockRealizationFailure,
+    BlockRealizationKey,
     RealizationFailure,
     realize_plan,
 )
@@ -80,6 +82,7 @@ class CausalizationStructuralAnalyzer:
         graph = build_matching_graph(self.full_incidence_graph, available)
         self._prefer_child_producers(graph, available, request.output, structure.snapshot if structure else None)
         last_error: Exception | None = None
+        block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
 
         for assignments in search.candidate_assignments(
             graph, self._failures, output=None if request.output in available else request.output
@@ -107,22 +110,16 @@ class CausalizationStructuralAnalyzer:
                 result = realize_plan(
                     AnalysisPlan(request=request, blocks=blocks),
                     self.backend,
+                    block_failures=block_failures,
                 )
-                if not isinstance(result, RealizationFailure):
+                if not isinstance(result, (RealizationFailure, BlockRealizationFailure)):
                     return result
 
-                # Child analysis may have learned failures, too. Invalidate all
-                # dependent parent answers before the next route query.
+                # Invalidate dependent parent answers before the next route query.
                 invalidate_route_cache()
                 last_error = result.cause
-                failed_step = result.failed_plan_step
-
-                if isinstance(failed_step.operation, SubSystemConstituent):
-                    # Child analysis may have rejected an internal step.
-                    # Query it again before abandoning this assignment.
+                if self._retry_child(result):
                     continue
-
-                self._failures[failed_step] = result
                 break
 
         msg = f"Cannot compute {request.output} from available inputs {available}."
@@ -131,6 +128,20 @@ class CausalizationStructuralAnalyzer:
             raise BiltExecutionPlanError(msg) from last_error
 
         raise BiltExecutionPlanError(msg)
+
+    def _retry_child(self, failure: RealizationFailure | BlockRealizationFailure) -> bool:
+        """Retry child route discovery, or let matching advance to another candidate."""
+        if isinstance(failure, BlockRealizationFailure):
+            # The request cache rejects only this block formulation and domains.
+            # No individual constituent assignment has been proven invalid.
+            return False
+        step = failure.failed_plan_step
+        if isinstance(step.operation, SubSystemConstituent):
+            # Child analysis may have rejected an internal step. Query it again
+            # before abandoning this assignment.
+            return True
+        self._failures[step] = failure
+        return False
 
     def required_inputs_for_target(
         self,
