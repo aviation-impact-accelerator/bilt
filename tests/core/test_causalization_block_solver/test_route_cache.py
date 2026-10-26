@@ -23,7 +23,7 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCase
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
     from bilt.core._structural_analysis._plan import AnalysisPlan
-    from bilt.core._structural_analysis._realize import RealizationFailure
+    from bilt.core._structural_analysis._realize import BlockRealizationFailure, BlockRealizationKey, RealizationFailure
 
 
 @transform
@@ -110,10 +110,15 @@ def test_analysis_shares_queries_but_discards_them_before_next_request(
     parent = CausalizationStructuralAnalyzer([b], PYTHON_BACKEND)
     original = solver.realize_plan
 
-    def realise(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
+    def realise(
+        plan: AnalysisPlan,
+        backend: Backend,
+        *,
+        block_failures: dict[BlockRealizationKey, BlockRealizationFailure] | None = None,
+    ) -> BackendCase | RealizationFailure | BlockRealizationFailure:
         assert child.required_inputs_for_target({"a"}, "b") == frozenset({"a"})
         assert child.required_inputs_for_target({"a"}, "b") == frozenset({"a"})
-        return original(plan, backend)
+        return original(plan, backend, block_failures=block_failures)
 
     monkeypatch.setattr(solver, "realize_plan", realise)
     request = EvaluationRequest(output="b", input_domains={"a": Domain.scalar()})
