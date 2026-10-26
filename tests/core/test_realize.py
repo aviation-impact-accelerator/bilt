@@ -3,13 +3,13 @@ import typing
 import pytest
 
 from bilt import Implementation, Interface, field, system
+from bilt._backend._case import BackendCase
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
-from bilt.core._errors import BiltAnalysisError
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanBlock, PlanStep
-from bilt.core._structural_analysis._realize import RealizationFailure, realize_plan
+from bilt.core._structural_analysis._realize import BlockRealizationFailure, realize_plan
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.symbolic._domains import Domain
 
@@ -62,7 +62,7 @@ def test_realize_plan_mangles_the_case_names() -> None:
 
     case = _realize_scalar_plan(plan)
 
-    assert not isinstance(case, RealizationFailure)
+    assert isinstance(case, BackendCase)
     assert case.name == "resistor__v"
     assert case.return_name == "resistor__v"
     assert case.parameters == ("resistor__i", "resistor__r")
@@ -77,7 +77,7 @@ def test_realize_plan_leaves_plain_names_alone() -> None:
 
     case = _realize_scalar_plan(plan)
 
-    assert not isinstance(case, RealizationFailure)
+    assert isinstance(case, BackendCase)
     assert case.name == "c"
     assert case.parameters == ("a", "b")
 
@@ -117,7 +117,7 @@ def test_realize_plan_mangles_an_equation_reading_a_dotted_port() -> None:
 
     case = _realize_scalar_plan(plan)
 
-    assert not isinstance(case, RealizationFailure)
+    assert isinstance(case, BackendCase)
     assert case.name == "supply"
     assert case.parameters == ("resistor__v",)
     assert case.intermediates[0].name == "supply"
@@ -140,7 +140,7 @@ def test_realize_plan_mangles_an_equation_solving_for_a_dotted_port() -> None:
 
     case = _realize_scalar_plan(plan)
 
-    assert not isinstance(case, RealizationFailure)
+    assert isinstance(case, BackendCase)
     assert case.name == "resistor__v"
     assert case.parameters == ("supply",)
     assert case.intermediates[0].name == "resistor__v"
@@ -169,7 +169,7 @@ def test_realize_plan_accepts_a_transform_decorated_through_the_package() -> Non
 
     case = _realize_scalar_plan(plan)
 
-    assert not isinstance(case, RealizationFailure)
+    assert isinstance(case, BackendCase)
     assert case.intermediates[0].evaluate({"a": SUPPLY_VOLTAGE}) == 2 * SUPPLY_VOLTAGE
     assert case.intermediates[0].output_domain == SCALAR_DOMAIN
 
@@ -194,7 +194,7 @@ def test_realize_plan_accepts_a_transform_decorated_through_an_alias() -> None:
 
     case = _realize_scalar_plan(plan)
 
-    assert not isinstance(case, RealizationFailure)
+    assert isinstance(case, BackendCase)
     assert case.intermediates[0].evaluate({"a": SUPPLY_VOLTAGE}) == 2 * SUPPLY_VOLTAGE
     assert case.intermediates[0].output_domain == SCALAR_DOMAIN
 
@@ -230,7 +230,7 @@ def test_realize_plan_mangles_subsystem_parameters() -> None:
 
     result = 6.0
 
-    assert not isinstance(case, RealizationFailure)
+    assert isinstance(case, BackendCase)
     assert case.name == "resistor__v"
     assert case.parameters == ("resistor__i", "resistor__r")
     assert case.intermediates[0].name == "resistor__v"
@@ -261,8 +261,10 @@ def test_realize_plan_rejects_unsupported_cyclic_blocks(step_count: int) -> None
         blocks=(PlanBlock(steps=steps, is_cyclic=True),),
     )
 
-    with pytest.raises(BiltAnalysisError, match="not a primitive equation"):
-        _realize_scalar_plan(plan)
+    failure = _realize_scalar_plan(plan)
+    assert isinstance(failure, BlockRealizationFailure)
+    assert failure.failed_block is plan.blocks[0]
+    assert "not a primitive equation" in str(failure.cause)
 
 
 def test_realize_plan_propagates_domains_between_blocks() -> None:
@@ -285,7 +287,7 @@ def test_realize_plan_propagates_domains_between_blocks() -> None:
 
     case = _realize_scalar_plan(plan)
 
-    assert not isinstance(case, RealizationFailure)
+    assert isinstance(case, BackendCase)
     assert tuple(operation.name for operation in case.intermediates) == ("doubled", "answer")
     assert all(operation.output_domain == SCALAR_DOMAIN for operation in case.intermediates)
     expected = 7.0
