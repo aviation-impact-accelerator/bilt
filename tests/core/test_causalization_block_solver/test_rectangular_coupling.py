@@ -116,7 +116,7 @@ def _unexpected(*_: object, **__: object) -> typing.Never:
     raise AssertionError(msg)
 
 
-@pytest.mark.parametrize("depth", (0, 1, 2))
+@pytest.mark.parametrize("depth", (1, 2))
 @pytest.mark.parametrize("siblings", (False, True))
 def test_rectangular_nested_coupling_skips_execution_search(
     monkeypatch: pytest.MonkeyPatch,

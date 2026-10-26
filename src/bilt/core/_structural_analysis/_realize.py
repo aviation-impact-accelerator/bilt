@@ -13,11 +13,13 @@ from bilt.core._errors import BiltAnalysisError
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_name
+from bilt.core._structural_analysis._realize_linear import realize_linear_block
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
+from bilt.symbolic._domains import Domain
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltIsolationError
 from bilt.symbolic._isolation._isolate import isolate
@@ -25,18 +27,21 @@ from bilt.symbolic._isolation._isolate import isolate
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
-    from bilt.symbolic._domains import Domain
 
 
 def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | RealizationFailure:
-    """Realise ordered acyclic blocks, propagating domains between them."""
+    """Realise ordered direct steps and supported scalar linear blocks."""
     symbol_domains = plan.request.input_domains.copy()
     intermediates = []
-    for block in plan.blocks:
+    for index, block in enumerate(plan.blocks):
         if block.is_cyclic:
-            outputs = ", ".join(sorted(block.outputs))
-            msg = f"Execution of coupled blocks is not yet supported. Required computations: {outputs}."
-            raise BiltAnalysisError(msg)
+            name = f"__bilt_linear_solution_{index}"
+            names = {mangle_name(step.output) for step in plan.steps} | set(map(mangle_name, plan.inputs))
+            while name in names:
+                name += "_"
+            intermediates.extend(realize_linear_block(block, backend, symbol_domains, solution_name=name))
+            symbol_domains.update(dict.fromkeys(block.outputs, Domain.scalar()))
+            continue
 
         step = block.steps[0]
         result = _operation_to_callable(

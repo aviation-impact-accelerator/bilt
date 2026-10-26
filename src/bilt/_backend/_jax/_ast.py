@@ -16,5 +16,7 @@ class JAXASTTransformer(ast.NodeTransformer):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         self.generic_visit(node)
+        if getattr(node, "_bilt_inline", False):
+            return node
         node.decorator_list.insert(0, ast.Name(id="jax.jit", ctx=ast.Load()))
         return node

@@ -245,17 +245,23 @@ def test_realize_plan_mangles_subsystem_parameters() -> None:
 
 
 @pytest.mark.parametrize("step_count", (1, 2))
-def test_realize_plan_rejects_cyclic_blocks_before_isolation(step_count: int) -> None:
+def test_realize_plan_rejects_unsupported_cyclic_blocks(step_count: int) -> None:
+    from bilt import transform  # noqa: PLC0415
+
+    @transform
+    def opaque(a: float) -> float:
+        return 2 * a
+
     steps = (
-        PlanStep(operation=wiring, output="supply"),
-        PlanStep(operation=wiring, output="resistor.v"),
+        PlanStep(operation=opaque, output="supply"),
+        PlanStep(operation=opaque, output="resistor.v"),
     )[:step_count]
     plan = AnalysisPlan(
         request=EvaluationRequest(output="supply", input_domains={}),
         blocks=(PlanBlock(steps=steps, is_cyclic=True),),
     )
 
-    with pytest.raises(BiltAnalysisError, match="Execution of coupled blocks is not yet supported"):
+    with pytest.raises(BiltAnalysisError, match="not a primitive equation"):
         _realize_scalar_plan(plan)
 
 
