@@ -216,7 +216,7 @@ def test_pytest_runner_checks_disabled_and_intermediate_rounds(
 ) -> None:
     from pathlib import Path  # noqa: PLC0415
 
-    root = Path(__file__).resolve().parents[2]
+    root = Path(__file__).resolve().parents[1]
     pytester.makeini(f"[pytest]\npythonpath = {root / 'src'} {root / 'benchmarks'}\n")
     checks = """
 import structural_search as search
