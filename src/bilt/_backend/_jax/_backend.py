@@ -8,6 +8,7 @@ from bilt._backend._base_backend import ActivatableBackendMixin
 from bilt._backend._in_process_python_mixin import InProcessPythonMixin, PythonIntrinsicBindings
 from bilt._backend._jax._ast import JAXASTTransformer
 from bilt._backend._jax._supports import _validate
+from bilt._backend._linear_solve import validate_linear_shapes, validate_linear_solution
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
 if typing.TYPE_CHECKING:
@@ -21,6 +22,18 @@ def _isel(
     axis: int,
 ) -> jax.Array:
     return jnp.take(value, jnp.asarray(index)[None], axis=axis)
+
+
+def _solve_linear(matrix: object, rhs: object) -> jax.Array:
+    coefficients = jnp.asarray(matrix)
+    values = jnp.asarray(rhs)
+    validate_linear_shapes(coefficients.shape, values.shape)
+    dtype = jnp.result_type(coefficients, values, jnp.float32)
+    solution = jnp.linalg.solve(coefficients.astype(dtype), values.astype(dtype))
+    # Python exceptions cannot be raised from traced array predicates. A host
+    # callback validates actual values, also when the surrounding case is jitted.
+    jax.debug.callback(validate_linear_solution, coefficients, values, solution, ordered=True)
+    return solution
 
 
 class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignmentMixin):
@@ -39,6 +52,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
             min=jnp.min,
             max=jnp.max,
             prod=jnp.prod,
+            linear_solve=_solve_linear,
         )
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:

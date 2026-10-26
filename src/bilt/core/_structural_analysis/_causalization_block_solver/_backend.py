@@ -68,7 +68,7 @@ class CausalizationStructuralAnalyzer:
             request.output,
         )
         if structure is not None and (
-            coupled := unavoidable_coupled_outputs(structure.well_determined, request.output)
+            coupled := unavoidable_coupled_outputs(structure.well_determined, request.output, allow_local_linear=True)
         ):
             msg = (
                 f"Cannot compute {request.output} from available inputs {sorted(available)}. "

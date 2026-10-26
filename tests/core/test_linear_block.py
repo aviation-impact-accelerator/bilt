@@ -5,7 +5,7 @@ import pytest
 
 from bilt import Implementation, Interface, equation, field, system, transform
 from bilt._backend._python._backend import PYTHON_BACKEND
-from bilt.core._structural_analysis._causalization_block_solver._linear_block import (
+from bilt.core._structural_analysis._linear_block import (
     BiltLinearBlockError,
     LinearBlock,
     extract_linear_block,

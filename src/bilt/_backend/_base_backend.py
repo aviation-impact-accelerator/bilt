@@ -32,6 +32,15 @@ class Backend(typing.Protocol):
         """Apply the given alignment plan on the provided lowered inputs."""
 
 
+@typing.runtime_checkable
+class ScalarLinearSolveBackend(typing.Protocol):
+    """Optional compilation capability for scalar linear-solve functions."""
+
+    def transpile_linear_solve(self, function_definition: ast.FunctionDef) -> BackendCallable:
+        """Compile a function containing Bilt's scalar linear-solve intrinsic."""
+        ...
+
+
 class ActivatableBackendMixin:
     """Makes a backend the one dispatch selects for the duration of a `with` block."""
 

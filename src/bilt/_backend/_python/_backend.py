@@ -6,6 +6,7 @@ import numpy as np
 from bilt._backend import BackendCallable, BackendCase
 from bilt._backend._base_backend import ActivatableBackendMixin
 from bilt._backend._in_process_python_mixin import InProcessPythonMixin, PythonIntrinsicBindings
+from bilt._backend._linear_solve import numpy_solve_linear
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
 
@@ -33,6 +34,7 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
             min=np.min,
             max=np.max,
             prod=np.prod,
+            linear_solve=numpy_solve_linear,
         )
 
     def chain_case(self, case: BackendCase) -> BackendCallable:
