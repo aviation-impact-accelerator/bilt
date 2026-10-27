@@ -16,7 +16,7 @@ from bilt.symbolic._algebra._expr_ops import (
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._expressions import Expr, tensor_symbol_expr
 from bilt.symbolic._isolation._isolate import isolate
-from bilt.symbolic._tree import int_tree
+from bilt.symbolic._tree import int_tree, relation_tree
 
 if typing.TYPE_CHECKING:
     from bilt.symbolic._tree import Tree
@@ -175,9 +175,11 @@ def test_isolate_allows_mean_on_rhs() -> None:
     x = tensor_symbol_expr("x")
     y = Expr.symbol("y")
 
-    actual = isolate(y == x.mean(time), y)
+    # Keep the requested orientation explicit across Expr/TensorExpr comparisons.
+    equation = relation_tree("==", y.tree, x.mean(time).tree)
+    actual = isolate(equation, y)
 
-    assert_same_tree(actual.as_tree(), y == x.mean(time))
+    assert_same_tree(actual.as_tree(), equation)
 
 
 def test_isolate_rearranges_around_mean() -> None:
@@ -186,10 +188,11 @@ def test_isolate_rearranges_around_mean() -> None:
     a = Expr.symbol("a")
     y = Expr.symbol("y")
 
-    actual = isolate(y == a + x.mean(time), a)
+    equation = relation_tree("==", y.tree, (a + x.mean(time)).tree)
+    actual = isolate(equation, a)
 
     expected_rhs = y - x.mean(time)
-    assert_same_tree(actual.as_tree(), a == expected_rhs)
+    assert_same_tree(actual.as_tree(), relation_tree("==", a.tree, expected_rhs.tree))
 
 
 def test_isolate_cannot_invert_mean() -> None:
