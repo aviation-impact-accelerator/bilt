@@ -53,7 +53,7 @@ dev = [
     { name = "examples", editable = "packages/examples" },
     { name = "prek", specifier = ">=0.3.11" },
     { name = "pyrefly", specifier = ">=1.0.0" },
-    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-benchmark", specifier = ">=5.3.0" },
     { name = "pytest-timeout", specifier = ">=2.4.0" },
     { name = "ruff", specifier = ">=0.17.2" },
