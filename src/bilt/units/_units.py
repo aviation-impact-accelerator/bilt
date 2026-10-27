@@ -104,11 +104,11 @@ class UnitComposition:
             return cls._cache[key]
 
         instance = object.__new__(cls)
-        instance._composition = composition  # noqa: SLF001
-        instance._scale = scale  # noqa: SLF001
-        instance._dimension = functools.reduce(  # noqa: SLF001
+        instance._composition = composition
+        instance._scale = scale
+        instance._dimension = functools.reduce(
             operator.mul,
-            (term.dimension for term in instance._composition),  # noqa: SLF001
+            (term.dimension for term in instance._composition),
             Dimension(),
         )
         cls._cache[key] = instance
@@ -278,13 +278,13 @@ class Unit:
             return typing.cast("typing.Self", relation.composition[0].unit)
 
         instance = object.__new__(cls)
-        instance._name = name  # noqa: SLF001
-        instance._prefix = None  # noqa: SLF001
-        instance._relation = relation  # noqa: SLF001
-        instance._offset = None  # noqa: SLF001
-        instance._metadata = metadata  # noqa: SLF001
-        instance._dimension = relation.dimension if metadata is None else relation.dimension * metadata  # noqa: SLF001
-        instance._category = UnitCategory.DERIVED  # noqa: SLF001
+        instance._name = name
+        instance._prefix = None
+        instance._relation = relation
+        instance._offset = None
+        instance._metadata = metadata
+        instance._dimension = relation.dimension if metadata is None else relation.dimension * metadata
+        instance._category = UnitCategory.DERIVED
 
         cls._cache[key] = instance
 
@@ -350,13 +350,13 @@ class Unit:
             raise BiltUnitError(message)
 
         instance = object.__new__(cls)
-        instance._name = name  # noqa: SLF001
-        instance._relation = relation  # noqa: SLF001
-        instance._offset = None  # noqa: SLF001
-        instance._prefix = prefix  # noqa: SLF001
-        instance._metadata = None  # noqa: SLF001
-        instance._dimension = instance._relation.dimension  # noqa: SLF001
-        instance._category = UnitCategory.NAMED  # noqa: SLF001
+        instance._name = name
+        instance._relation = relation
+        instance._offset = None
+        instance._prefix = prefix
+        instance._metadata = None
+        instance._dimension = instance._relation.dimension
+        instance._category = UnitCategory.NAMED
 
         cls._cache[(name, relation, None)] = instance
         cls._name_cache[name] = instance
@@ -396,13 +396,13 @@ class Unit:
             raise BiltUnitError(message)
 
         instance = object.__new__(cls)
-        instance._name = name  # noqa: SLF001
-        instance._relation = relation  # noqa: SLF001
-        instance._offset = offset  # noqa: SLF001
-        instance._prefix = None  # noqa: SLF001
-        instance._metadata = metadata  # noqa: SLF001
-        instance._dimension = scale.dimension  # noqa: SLF001
-        instance._category = UnitCategory.ABSOLUTE  # noqa: SLF001
+        instance._name = name
+        instance._relation = relation
+        instance._offset = offset
+        instance._prefix = None
+        instance._metadata = metadata
+        instance._dimension = scale.dimension
+        instance._category = UnitCategory.ABSOLUTE
 
         cls._cache[key] = instance
         cls._name_cache[name] = instance
@@ -638,14 +638,14 @@ def _create_name(relation: UnitComposition, metadata: Metadata | None) -> str:
 
 def _define_base_unit(name: str, dimension: Dimension, prefix: Prefix | None = None) -> Unit:
     base_unit = object.__new__(Unit)
-    base_unit._name = name  # noqa: SLF001
-    base_unit._prefix = prefix  # noqa: SLF001
-    base_unit._dimension = dimension  # noqa: SLF001
+    base_unit._name = name
+    base_unit._prefix = prefix
+    base_unit._dimension = dimension
     relation = UnitComposition(UnitOrder(base_unit, 1))
-    base_unit._relation = relation  # noqa: SLF001
-    base_unit._metadata = None  # noqa: SLF001
-    base_unit._offset = None  # noqa: SLF001
-    base_unit._category = UnitCategory.BASE  # noqa: SLF001
+    base_unit._relation = relation
+    base_unit._metadata = None
+    base_unit._offset = None
+    base_unit._category = UnitCategory.BASE
 
     Unit._cache[(name, relation, None)] = base_unit  # noqa: SLF001
     Unit._name_cache[name] = base_unit  # noqa: SLF001
