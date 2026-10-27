@@ -157,8 +157,16 @@ def series_circuit_over_resistors() -> Implementation:
     )
 
 
-def _sensed_resistor() -> tuple[Any, Implementation]:
-    """A ``Resistor`` whose current is reachable directly or through its sense port."""
+def _child_implementation(parent: Implementation, name: str) -> Implementation:
+    """The implementation behind one of ``parent``'s sub-system references."""
+    constituent = parent._components[name]  # noqa: SLF001
+    assert isinstance(constituent, SubSystemConstituent)
+    return constituent.implementation
+
+
+@pytest.fixture
+def component_over_sensed_resistor() -> Implementation:
+    """A ``Component`` bridged to a ``Resistor`` whose current is reachable only through its sense port."""
 
     @system
     class Resistor(metaclass=Interface):
@@ -175,20 +183,7 @@ def _sensed_resistor() -> tuple[Any, Implementation]:
     def sense_eq(i_sense: float, i: float) -> bool:
         return i_sense == i
 
-    return Resistor, Implementation(Resistor, [ohms_law, sense_eq])
-
-
-def _child_implementation(parent: Implementation, name: str) -> Implementation:
-    """The implementation behind one of ``parent``'s sub-system references."""
-    constituent = parent._components[name]  # noqa: SLF001
-    assert isinstance(constituent, SubSystemConstituent)
-    return constituent.implementation
-
-
-@pytest.fixture
-def component_over_sensed_resistor() -> Implementation:
-    """A ``Component`` bridged to a ``Resistor`` whose current is reachable only through its sense port."""
-    Resistor, resistor = _sensed_resistor()  # noqa: N806
+    resistor = Implementation(Resistor, [ohms_law, sense_eq])
 
     @system
     class Component(metaclass=Interface):
@@ -979,7 +974,23 @@ def test_a_reachable_route_is_still_found_two_levels_down(
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
 def test_two_parents_reach_one_shared_child_by_different_routes(backend: Backend) -> None:
     """One parent is wired to the resistor's current, the other only to its sense port."""
-    Resistor, resistor = _sensed_resistor()  # noqa: N806
+
+    @system
+    class Resistor(metaclass=Interface):
+        v: float = field()
+        i: float = field()
+        r: float = field()
+        i_sense: float = field()
+
+    @equation
+    def ohms_law(v: float, i: float, r: float) -> bool:
+        return v == i * r
+
+    @equation
+    def sense_eq(i_sense: float, i: float) -> bool:
+        return i_sense == i
+
+    resistor = Implementation(Resistor, [ohms_law, sense_eq])
 
     @system
     class DirectRig(metaclass=Interface):

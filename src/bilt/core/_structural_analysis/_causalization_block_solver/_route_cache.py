@@ -16,7 +16,7 @@ _cache: contextvars.ContextVar[RouteCache | None] = contextvars.ContextVar("bilt
 
 
 @contextlib.contextmanager
-def route_cache_scope() -> collections.abc.Iterator[RouteCache]:
+def route_cache_scope() -> collections.abc.Generator[RouteCache]:
     """Share a cache with nested calls and discard it after the outermost call.
 
     Standalone route queries also establish a temporary scope. No entries survive
