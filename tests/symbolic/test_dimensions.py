@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 from bilt.symbolic._dimensions import coordinate_axis, dim
 
@@ -18,9 +18,9 @@ def test_dimensions_with_different_names_are_not_equal() -> None:
 def test_coordinate_axis_binds_coordinates_to_dimension() -> None:
     time = dim("time")
     coordinates = (
-        datetime.date(2026, 1, 1),
-        datetime.date(2026, 2, 1),
-        datetime.date(2026, 3, 1),
+        dt.date(2026, 1, 1),
+        dt.date(2026, 2, 1),
+        dt.date(2026, 3, 1),
     )
 
     axis = coordinate_axis(time, coordinates)
