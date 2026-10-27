@@ -31,7 +31,7 @@ dev = [
 ]
 
 docs = [
-    "zensical>=0.0.47",
+    "zensical>=0.0.72",
     "markdown-exec[ansi]>=1.12.5",
     "matplotlib>=3.11.2",
     "scipy>=1.18.1",
