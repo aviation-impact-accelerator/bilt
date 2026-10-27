@@ -333,25 +333,6 @@ def test_parallel_sources_share_one_bus_voltage(backend: Backend, output: str) -
         assert float(result.value) == pytest.approx(7.2, abs=1e-5)
 
 
-@pytest.mark.parametrize("selection", ("isel", "sel"))
-def test_selections_of_unknowns_remain_unsupported(backend: Backend, selection: str) -> None:
-    @equation
-    def first(x: X, y: X, p: Tensor) -> bool:
-        return x + y == p
-
-    @equation
-    def second(x: X, y: X, q: Tensor) -> bool:
-        return x - 0.25 * getattr(y, selection)(TIME, 0) == q
-
-    with pytest.raises(BiltExecutionPlanError, match="coupled blocks"):
-        _evaluate(
-            [first, second],
-            {"p": tensor([2.0, 4.0], over=TIME), "q": tensor([0.0, 1.0], over=TIME)},
-            "x",
-            backend,
-        )
-
-
 def test_partial_unknown_domain_hints_are_rejected(backend: Backend) -> None:
     @equation
     def first(x: X, y: Tensor, p: Tensor) -> bool:

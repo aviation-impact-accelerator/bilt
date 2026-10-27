@@ -7,7 +7,7 @@ from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError, LinearBlock, extract_linear_block
 from bilt.symbolic._algebra._affine import AffineAnalysisError, AffineForm, add_affine, scale_affine, subtract_affine
 from bilt.symbolic._algebra._expr_ops import BINARY_ARG_COUNT, is_zero, multiply_many, negate, one, zero
-from bilt.symbolic._atoms import ADD, MEAN, MUL, NEG, SUM, SymbolType
+from bilt.symbolic._atoms import ADD, ISEL, MEAN, MUL, NEG, SEL, SUM, CoordinateType, IntType, SymbolType
 from bilt.symbolic._tree import Tree
 
 if typing.TYPE_CHECKING:
@@ -19,7 +19,7 @@ class LinearOperatorBlock:
     """Rows of linear actions on unknown tensors, with independent right-hand sides.
 
     Unlike pointwise coefficients, each operator tree includes the unknown on
-    which it acts. Reductions can couple different coordinates.
+    which it acts. Reductions and selections can couple different coordinates.
     """
 
     block: PlanBlock
@@ -95,7 +95,8 @@ def _operator_form(tree: Tree, symbols: frozenset[str]) -> AffineForm:
                 _operator_form(dependent[0], symbols),
                 multiply_many(child for child in tree.args if child is not dependent[0]),
             )
-    if tree.head in (SUM, MEAN) and not any(_depends(child, symbols) for child in tree.args[1:]):
+    if tree.head in (SUM, MEAN, ISEL, SEL) and not any(_depends(child, symbols) for child in tree.args[1:]):
+        _validate_selection(tree)
         form = _operator_form(tree.args[0], symbols)
         return AffineForm(
             {name: Tree(tree.head, (value, *tree.args[1:])) for name, value in form.coefficients.items()},
@@ -103,3 +104,13 @@ def _operator_form(tree: Tree, symbols: frozenset[str]) -> AffineForm:
         )
     message = f"Unsupported unknown-dependent linear operator: {tree!s}."
     raise AffineAnalysisError(message)
+
+
+def _validate_selection(tree: Tree) -> None:
+    if tree.head not in (ISEL, SEL):
+        return
+    selector = tree.args[-1]
+    selector_type = IntType if tree.head is ISEL else CoordinateType
+    if not selector.is_leaf or selector.head.atom_type is not selector_type:
+        message = "Linear unknown selections require a literal position or coordinate."
+        raise AffineAnalysisError(message)
