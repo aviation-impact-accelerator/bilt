@@ -182,37 +182,77 @@ class Expr:
 
 @typing.final
 class TensorExpr(Expr):
-    """A symbolic expression representing a tensor-valued quantity."""
+    """A symbolic expression supporting tensor operations through composition.
+
+    Reductions and selections retain this wrapper even when their eventual
+    domain is scalar. Actual domains are resolved and checked during lowering.
+    """
 
     __slots__ = ()
 
-    def mean(self, dim: Dim) -> Expr:
+    def __add__(self, other: object) -> TensorExpr:
+        return TensorExpr(super().__add__(other).tree)
+
+    def __radd__(self, other: object) -> TensorExpr:
+        return TensorExpr(super().__radd__(other).tree)
+
+    def __sub__(self, other: object) -> TensorExpr:
+        return TensorExpr(super().__sub__(other).tree)
+
+    def __rsub__(self, other: object) -> TensorExpr:
+        return TensorExpr(super().__rsub__(other).tree)
+
+    def __mul__(self, other: object) -> TensorExpr:
+        return TensorExpr(super().__mul__(other).tree)
+
+    def __rmul__(self, other: object) -> TensorExpr:
+        return TensorExpr(super().__rmul__(other).tree)
+
+    def __truediv__(self, other: object) -> TensorExpr:
+        return TensorExpr(super().__truediv__(other).tree)
+
+    def __rtruediv__(self, other: object) -> TensorExpr:
+        return TensorExpr(super().__rtruediv__(other).tree)
+
+    def __pow__(self, other: object) -> TensorExpr:
+        return TensorExpr(super().__pow__(other).tree)
+
+    def __rpow__(self, other: object) -> TensorExpr:
+        return TensorExpr(super().__rpow__(other).tree)
+
+    def __neg__(self) -> TensorExpr:
+        return TensorExpr(super().__neg__().tree)
+
+    def __pos__(self) -> TensorExpr:
+        return self
+
+    def mean(self, dim: Dim) -> TensorExpr:
         """Return the symbolic mean over a dimension."""
-        return Expr(mean_tree(self.tree, dim))
+        return TensorExpr(mean_tree(self.tree, dim))
 
-    def sum(self, dim: Dim) -> Expr:
+    def sum(self, dim: Dim) -> TensorExpr:
         """Return the symbolic sum over a dimension."""
-        return Expr(sum_tree(self.tree, dim))
+        return TensorExpr(sum_tree(self.tree, dim))
 
-    def min(self, dim: Dim) -> Expr:
+    def min(self, dim: Dim) -> TensorExpr:
         """Return the symbolic minimum over a dimension."""
-        return Expr(min_tree(self.tree, dim))
+        return TensorExpr(min_tree(self.tree, dim))
 
-    def max(self, dim: Dim) -> Expr:
+    def max(self, dim: Dim) -> TensorExpr:
         """Return the symbolic maximum over a dimension."""
-        return Expr(max_tree(self.tree, dim))
+        return TensorExpr(max_tree(self.tree, dim))
 
-    def prod(self, dim: Dim) -> Expr:
+    def prod(self, dim: Dim) -> TensorExpr:
         """Return the symbolic product over a dimension."""
-        return Expr(prod_tree(self.tree, dim))
+        return TensorExpr(prod_tree(self.tree, dim))
 
-    def isel(self, dim: Dim, index: int | Expr) -> Expr:
+    def isel(self, dim: Dim, index: int | Expr) -> TensorExpr:
         """Select a position along a symbolic dimension."""
-        return Expr(isel_tree(self.tree, dim, as_tree(index)))
+        return TensorExpr(isel_tree(self.tree, dim, as_tree(index)))
 
-    def sel(self, dim: Dim, coordinate: Coordinate) -> Expr:
+    def sel(self, dim: Dim, coordinate: Coordinate) -> TensorExpr:
         """Select a coordinate along a symbolic dimension."""
-        return Expr(
+        return TensorExpr(
             sel_tree(
                 self.tree,
                 dim,
