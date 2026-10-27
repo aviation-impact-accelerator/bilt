@@ -63,7 +63,7 @@ def test_non_tensor_parameter_uses_plain_expression() -> None:
         ("prod", prod_tree),
     ),
 )
-def test_tensor_expression_reduction_returns_plain_expression(
+def test_tensor_expression_reduction_preserves_tensor_expression(
     method_name: str,
     tree_builder: collections.abc.Callable[[Tree, Dim], Tree],
 ) -> None:
@@ -72,26 +72,26 @@ def test_tensor_expression_reduction_returns_plain_expression(
 
     result = getattr(value, method_name)(time)
 
-    assert type(result) is Expr
+    assert type(result) is TensorExpr
     assert result.tree is tree_builder(value.tree, time)
 
 
-def test_tensor_expression_arithmetic_returns_plain_expression() -> None:
+def test_tensor_expression_arithmetic_preserves_tensor_expression() -> None:
     left = tensor_symbol_expr("left")
     right = tensor_symbol_expr("right")
 
     result = left + right
 
-    assert type(result) is Expr
+    assert type(result) is TensorExpr
 
 
-def test_tensor_expression_isel_returns_plain_expression() -> None:
+def test_tensor_expression_isel_preserves_tensor_expression() -> None:
     time = Dim("time")
     value = tensor_symbol_expr("value")
 
     result = value.isel(time, 1)
 
-    assert type(result) is Expr
+    assert type(result) is TensorExpr
     assert result.tree is isel_tree(
         value.tree,
         time,
@@ -99,13 +99,13 @@ def test_tensor_expression_isel_returns_plain_expression() -> None:
     )
 
 
-def test_tensor_expression_sel_returns_plain_expression() -> None:
+def test_tensor_expression_sel_preserves_tensor_expression() -> None:
     time = Dim("time")
     value = tensor_symbol_expr("value")
 
     result = value.sel(time, 2025)
 
-    assert type(result) is Expr
+    assert type(result) is TensorExpr
     assert result.tree is sel_tree(
         value.tree,
         time,
