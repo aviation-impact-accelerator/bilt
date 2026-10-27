@@ -43,7 +43,7 @@ def realize_plan(
     *,
     block_failures: dict[BlockRealizationKey, BlockRealizationFailure] | None = None,
 ) -> BackendCase | RealizationFailure | BlockRealizationFailure:
-    """Realise ordered direct steps and supported scalar linear blocks."""
+    """Realise ordered direct steps and supported linear blocks."""
     symbol_domains = plan.request.input_domains.copy()
     intermediates = []
     for index, block in enumerate(plan.blocks):
@@ -66,7 +66,8 @@ def realize_plan(
                     block_failures[key] = failure
                 return failure
             intermediates.extend(callables)
-            symbol_domains.update(dict.fromkeys(block.outputs, Domain.scalar()))
+            for output, callable_ in zip(sorted(block.outputs), callables[1:], strict=True):
+                symbol_domains[output] = _output_domain(callable_, output)
             continue
 
         step = block.steps[0]
@@ -79,11 +80,7 @@ def realize_plan(
             return result
         intermediates.append(result)
 
-        if result.output_domain is None:
-            msg = f"Realized step {step.output!r} has no output domain."
-            raise BiltAnalysisError(msg)
-
-        symbol_domains[step.output] = result.output_domain
+        symbol_domains[step.output] = _output_domain(result, step.output)
 
     output = mangle_name(plan.output)
     return BackendCase(
@@ -92,6 +89,13 @@ def realize_plan(
         intermediates=intermediates,
         return_name=output,
     )
+
+
+def _output_domain(callable_: BackendCallable, output: str) -> Domain:
+    if callable_.output_domain is None:
+        message = f"Realized step {output!r} has no output domain."
+        raise BiltAnalysisError(message)
+    return callable_.output_domain
 
 
 def _operation_to_callable(

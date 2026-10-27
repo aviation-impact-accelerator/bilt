@@ -133,7 +133,7 @@ def test_block_rejection_is_specific_to_its_incoming_domains() -> None:
         rejected = realize_plan(_plan(domain=Domain((Dim("axis"),))), PYTHON_BACKEND, block_failures=failures)
         accepted = realize_plan(_plan(), PYTHON_BACKEND, block_failures=failures)
     assert isinstance(rejected, BlockRealizationFailure)
-    assert "require scalar coefficients" in str(rejected.cause)
+    assert "must be registered" in str(rejected.cause)
     assert isinstance(accepted, BackendCase)
     assert PYTHON_BACKEND.chain_case(accepted).callable(p=10.0, q=2.0) == pytest.approx(6.0)
 
