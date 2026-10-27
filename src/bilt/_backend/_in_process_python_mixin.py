@@ -8,7 +8,11 @@ import typing
 
 from bilt._backend._callable import BackendCallable
 from bilt._backend._errors import BiltCompilationError, BiltUnsupportedNodeError
-from bilt._backend._linear_solve import LINEAR_SOLVE_INTRINSIC_NAME
+from bilt._backend._linear_solve import (
+    LINEAR_BASIS_INTRINSIC_NAME,
+    LINEAR_EXPAND_INTRINSIC_NAME,
+    LINEAR_SOLVE_INTRINSIC_NAME,
+)
 from bilt.core._to_ast import (
     ISEL_INTRINSIC_NAME,
     MAX_INTRINSIC_NAME,
@@ -31,6 +35,9 @@ class PythonIntrinsicBindings:
     prod: typing.Callable[..., typing.Any]
     linear_solve: typing.Callable[..., typing.Any] | None = None
 
+    linear_basis: typing.Callable[..., typing.Any] | None = None
+    linear_expand: typing.Callable[..., typing.Any] | None = None
+
     def namespace(self) -> dict[str, typing.Any]:
         namespace = {
             ISEL_INTRINSIC_NAME: self.isel,
@@ -42,6 +49,10 @@ class PythonIntrinsicBindings:
         }
         if self.linear_solve is not None:
             namespace[LINEAR_SOLVE_INTRINSIC_NAME] = self.linear_solve
+        if self.linear_basis is not None:
+            namespace[LINEAR_BASIS_INTRINSIC_NAME] = self.linear_basis
+        if self.linear_expand is not None:
+            namespace[LINEAR_EXPAND_INTRINSIC_NAME] = self.linear_expand
         return namespace
 
 
@@ -57,6 +68,15 @@ class InProcessPythonMixin:
         if self.intrinsic_bindings.linear_solve is None:
             message = "The selected backend does not support linear blocks."
             raise BiltUnsupportedNodeError(message)
+        namespace = self.intrinsic_bindings.namespace()
+        for node in ast.walk(function_definition):
+            if (
+                isinstance(node, ast.Name)
+                and node.id in (LINEAR_BASIS_INTRINSIC_NAME, LINEAR_EXPAND_INTRINSIC_NAME)
+                and node.id not in namespace
+            ):
+                message = "The selected backend does not support joint tensor linear blocks."
+                raise BiltUnsupportedNodeError(message)
         # The enclosing case is compiled as a whole. Avoid an additional
         # zero-argument JIT boundary around constant systems.
         function_definition.__dict__["_bilt_inline"] = True

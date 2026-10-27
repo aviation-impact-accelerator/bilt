@@ -1,4 +1,5 @@
 import ast
+import functools
 import typing
 
 import jax
@@ -8,7 +9,14 @@ from bilt._backend._base_backend import ActivatableBackendMixin
 from bilt._backend._in_process_python_mixin import InProcessPythonMixin, PythonIntrinsicBindings
 from bilt._backend._jax._ast import JAXASTTransformer
 from bilt._backend._jax._supports import _validate
-from bilt._backend._linear_assembly import assemble_pointwise
+from bilt._backend._linear_assembly import (
+    LinearLayout,
+    assemble_joint,
+    assemble_pointwise,
+    expand_linear_coefficient,
+    linear_basis,
+    project_joint,
+)
 from bilt._backend._linear_solve import validate_linear_shapes, validate_linear_solution
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
@@ -25,18 +33,27 @@ def _isel(
     return jnp.take(value, jnp.asarray(index)[None], axis=axis)
 
 
-def _solve_linear(matrix: object, rhs: object, *, batch_rank: int | None = None) -> jax.Array:
-    if batch_rank is not None:
+def _solve_linear(
+    matrix: object,
+    rhs: object,
+    *,
+    batch_rank: int | None = None,
+    layout: LinearLayout | None = None,
+    values: tuple[object, ...] = (),
+) -> jax.Array | tuple[object, ...]:
+    if layout is not None:
+        matrix, rhs = assemble_joint(matrix, rhs, values, layout, xp=jnp)
+    elif batch_rank is not None:
         matrix, rhs = assemble_pointwise(matrix, rhs, batch_rank, xp=jnp)
     coefficients = jnp.asarray(matrix)
-    values = jnp.asarray(rhs)
-    validate_linear_shapes(coefficients.shape, values.shape)
-    dtype = jnp.result_type(coefficients, values, jnp.float32)
-    solution = jnp.linalg.solve(coefficients.astype(dtype), values.astype(dtype)[..., None])[..., 0]
+    rhs_values = jnp.asarray(rhs)
+    validate_linear_shapes(coefficients.shape, rhs_values.shape)
+    dtype = jnp.result_type(coefficients, rhs_values, jnp.float32)
+    solution = jnp.linalg.solve(coefficients.astype(dtype), rhs_values.astype(dtype)[..., None])[..., 0]
     # Python exceptions cannot be raised from traced array predicates. A host
     # callback validates actual values, also when the surrounding case is jitted.
-    jax.debug.callback(validate_linear_solution, coefficients, values, solution, ordered=True)
-    return solution
+    jax.debug.callback(validate_linear_solution, coefficients, rhs_values, solution, ordered=True)
+    return solution if layout is None else project_joint(solution, values, layout, xp=jnp)
 
 
 class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignmentMixin):
@@ -56,6 +73,8 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
             max=jnp.max,
             prod=jnp.prod,
             linear_solve=_solve_linear,
+            linear_basis=functools.partial(linear_basis, xp=jnp),
+            linear_expand=functools.partial(expand_linear_coefficient, xp=jnp),
         )
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:
