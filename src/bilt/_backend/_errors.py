@@ -18,8 +18,8 @@ class BiltCompilationError(BiltBackendError):
 
 
 class BiltLinearSolveError(BiltBackendError):
-    """A scalar linear system could not be evaluated safely."""
+    """A linear system could not be evaluated safely."""
 
     def __init__(self, problem: str) -> None:
         self.problem = problem
-        super().__init__(f"Cannot solve scalar linear block: {problem}.")
+        super().__init__(f"Cannot solve linear block: {problem}.")

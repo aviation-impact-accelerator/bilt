@@ -1,17 +1,18 @@
-"""Scalar linear-solve intrinsic and runtime validation shared by backends."""
+"""Linear-solve intrinsic and runtime validation shared by backends."""
 
 import numpy as np
 
 from bilt._backend._errors import BiltLinearSolveError
+from bilt._backend._linear_assembly import assemble_pointwise
 
 LINEAR_SOLVE_INTRINSIC_NAME = "__bilt_solve_linear__"
 _MATRIX_RANK = 2
 
 
 def validate_linear_shapes(matrix_shape: tuple[int, ...], rhs_shape: tuple[int, ...]) -> None:
-    """Require one square system with scalar entries, rather than batched systems."""
-    if len(matrix_shape) != _MATRIX_RANK or matrix_shape[0] != matrix_shape[1] or rhs_shape != (matrix_shape[0],):
-        problem = "expected a square matrix and vector of scalar coefficients"
+    """Require square trailing matrix axes and one matching vector per system."""
+    if len(matrix_shape) < _MATRIX_RANK or matrix_shape[-2] != matrix_shape[-1] or rhs_shape != matrix_shape[:-1]:
+        problem = "expected square trailing matrix axes and matching right-hand-side vectors"
         raise BiltLinearSolveError(problem)
 
 
@@ -30,15 +31,17 @@ def validate_linear_solution(matrix: object, rhs: object, solution: object) -> N
         raise BiltLinearSolveError(problem)
 
 
-def numpy_solve_linear(matrix: object, rhs: object) -> np.ndarray:
+def numpy_solve_linear(matrix: object, rhs: object, *, batch_rank: int | None = None) -> np.ndarray:
     """Solve once with NumPy; do not form an explicit matrix inverse."""
+    if batch_rank is not None:
+        matrix, rhs = assemble_pointwise(matrix, rhs, batch_rank, xp=np)
     coefficients = np.asarray(matrix)
     values = np.asarray(rhs)
     validate_linear_shapes(coefficients.shape, values.shape)
     validate_linear_inputs(coefficients, values)
     dtype = np.result_type(coefficients, values, np.float64)
     try:
-        solution = np.linalg.solve(coefficients.astype(dtype), values.astype(dtype))
+        solution = np.linalg.solve(coefficients.astype(dtype), values.astype(dtype)[..., None])[..., 0]
     except np.linalg.LinAlgError as error:
         problem = "the matrix is singular"
         raise BiltLinearSolveError(problem) from error
