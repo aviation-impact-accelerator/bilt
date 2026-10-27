@@ -7,13 +7,13 @@ __all__ = [
 ]
 
 import dataclasses
-import datetime
+import datetime as dt
 import typing
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
-type Coordinate = str | int | float | datetime.date | datetime.datetime
+type Coordinate = str | int | float | dt.date | dt.datetime
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
