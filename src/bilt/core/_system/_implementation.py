@@ -171,7 +171,11 @@ class Implementation:
 
         backend_callable = backend.chain_case(planned_case)
         if planned_case.intermediates:
-            output_domain = planned_case.intermediates[-1].output_domain
+            output_domain = next(
+                operation.output_domain
+                for operation in reversed(planned_case.intermediates)
+                if operation.name == planned_case.return_name
+            )
         else:
             output_domain = request.input_domains[request.output]
 
