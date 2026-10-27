@@ -6,10 +6,8 @@ import typing
 
 import rustworkx as rx
 
-from bilt.core._structural_analysis._linear_block import (
-    BiltLinearBlockError,
-    extract_linear_block,
-)
+from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
+from bilt.core._structural_analysis._linear_operator import extract_supported_linear_block
 from bilt.core._structural_analysis._plan import PlanBlock, PlanStep
 from bilt.core._transform import BasicTransform
 
@@ -94,7 +92,7 @@ def _unsupported_outputs(
                 is_cyclic=True,
             )
             try:
-                extract_linear_block(block)
+                extract_supported_linear_block(block)
             except BiltLinearBlockError:
                 pass
             else:
