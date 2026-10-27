@@ -33,11 +33,11 @@ class Backend(typing.Protocol):
 
 
 @typing.runtime_checkable
-class ScalarLinearSolveBackend(typing.Protocol):
-    """Optional compilation capability for scalar linear-solve functions."""
+class LinearSolveBackend(typing.Protocol):
+    """Optional compilation capability for linear-solve functions."""
 
     def transpile_linear_solve(self, function_definition: ast.FunctionDef) -> BackendCallable:
-        """Compile a function containing Bilt's scalar linear-solve intrinsic."""
+        """Compile a function containing Bilt's linear-solve intrinsic."""
         ...
 
 

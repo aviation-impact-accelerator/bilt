@@ -191,11 +191,11 @@ def test_nonfinite_inputs_are_reported(bad: float) -> None:
         PYTHON_BACKEND.chain_case(case).callable(p=bad, q=2.0)
 
 
-def test_nonscalar_domains_are_rejected_without_permanent_assignment_failures() -> None:
+def test_unregistered_domains_are_rejected_without_permanent_assignment_failures() -> None:
     analyser = CausalizationStructuralAnalyzer([total, difference], PYTHON_BACKEND)
     axis = Dim("axis")
     with EvaluationContext():
-        with pytest.raises(BiltExecutionPlanError, match="require scalar coefficients"):
+        with pytest.raises(BiltExecutionPlanError, match="must be registered"):
             analyser.analyse(EvaluationRequest(output="x", input_domains={"p": Domain((axis,)), "q": Domain.scalar()}))
         case = analyser.analyse(EvaluationRequest(output="x", input_domains=dict.fromkeys({"p", "q"}, Domain.scalar())))
 
@@ -206,7 +206,7 @@ def test_unsupported_backend_is_reported(monkeypatch: pytest.MonkeyPatch) -> Non
     bindings = dataclasses.replace(PYTHON_BACKEND.intrinsic_bindings, linear_solve=None)
     monkeypatch.setattr(PYTHON_BACKEND, "intrinsic_bindings", bindings)
 
-    with pytest.raises(BiltExecutionPlanError, match="backend does not support scalar linear blocks"):
+    with pytest.raises(BiltExecutionPlanError, match="backend does not support linear blocks"):
         _case([total, difference], dict.fromkeys({"p", "q"}, Domain.scalar()), "x", PYTHON_BACKEND)
 
 
@@ -296,7 +296,7 @@ def test_linear_solve_capability_does_not_require_python_intrinsic_bindings(supp
     selected = typing.cast("Backend", backend)
     inputs = dict.fromkeys({"p", "q"}, Domain.scalar())
     if not supports_linear_solve:
-        with pytest.raises(BiltExecutionPlanError, match="backend does not support scalar linear blocks"):
+        with pytest.raises(BiltExecutionPlanError, match="backend does not support linear blocks"):
             _case([total, difference], inputs, "x", selected)
         return
 

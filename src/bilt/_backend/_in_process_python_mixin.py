@@ -55,7 +55,7 @@ class InProcessPythonMixin:
     def transpile_linear_solve(self, function_definition: ast.FunctionDef) -> BackendCallable:
         """Compile a solve using this backend's intrinsic and compilation policy."""
         if self.intrinsic_bindings.linear_solve is None:
-            message = "The selected backend does not support scalar linear blocks."
+            message = "The selected backend does not support linear blocks."
             raise BiltUnsupportedNodeError(message)
         # The enclosing case is compiled as a whole. Avoid an additional
         # zero-argument JIT boundary around constant systems.
