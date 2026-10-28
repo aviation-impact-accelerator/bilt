@@ -261,13 +261,13 @@ def test_explicit_common_unknown_domains_are_preserved(backend: Backend) -> None
     np.testing.assert_allclose(result.values, [4.0, 9.0], rtol=1e-5)
 
 
-def test_mixed_shared_and_tensor_unknowns_are_still_deferred(backend: Backend) -> None:
+def test_incompatible_shared_and_tensor_equation_layouts_are_rejected(backend: Backend) -> None:
     @equation
     def hinted(x: OverTime, y: Shared, p: Tensor) -> bool:
         return x + y == p
 
     parent = Implementation(Ports, [feedback], internal_implementations={"inner": Implementation(Ports, [hinted])})
-    with pytest.raises(BiltExecutionPlanError, match="require a common pointwise domain"):
+    with pytest.raises(BiltExecutionPlanError, match="same domain layout"):
         parent.evaluate({"inner.p": tensor([10.0, 20.0], over=TIME), "q": 2.0}, "inner.x", backend)
 
 
@@ -281,13 +281,13 @@ def test_hinted_input_must_match_its_qualified_domain(backend: Backend) -> None:
         parent.evaluate({"inner.p": tensor([10.0, 20.0], over=SITE), "q": 2.0}, "inner.x", backend)
 
 
-def test_unknown_reductions_inside_cross_boundary_blocks_are_still_deferred(backend: Backend) -> None:
+def test_joint_cross_boundary_reductions_require_explicit_hints(backend: Backend) -> None:
     @equation
     def reduction(x: Tensor, y: Tensor, p: Tensor) -> bool:
         return x.sum(TIME) + y == p
 
     parent = Implementation(Ports, [feedback], internal_implementations={"inner": Implementation(Ports, [reduction])})
-    with pytest.raises(BiltExecutionPlanError, match="Execution of coupled blocks is not yet supported"):
+    with pytest.raises(BiltExecutionPlanError, match="explicit Domain hints"):
         parent.evaluate({"inner.p": tensor([10.0, 20.0], over=TIME), "q": 2.0}, "inner.x", backend)
 
 
@@ -422,7 +422,7 @@ def test_rejected_tensor_layout_does_not_reject_a_later_scalar_request(backend: 
         return x + y == p
 
     parent = Implementation(Ports, [feedback], internal_implementations={"inner": Implementation(Ports, [hinted])})
-    with pytest.raises(BiltExecutionPlanError, match="require a common pointwise domain"):
+    with pytest.raises(BiltExecutionPlanError, match="same domain layout"):
         parent.evaluate({"inner.p": tensor([10.0, 20.0], over=TIME), "q": 2.0}, "inner.x", backend)
     assert parent.evaluate({"inner.p": 10.0, "q": 2.0}, "inner.x", backend) == pytest.approx(6.0)
 

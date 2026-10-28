@@ -4,7 +4,12 @@ import dataclasses
 import typing
 
 from bilt.core._equation import BasicEquation
-from bilt.core._structural_analysis._linear_block import BiltLinearBlockError, LinearBlock, extract_linear_block
+from bilt.core._structural_analysis._linear_block import (
+    BiltLinearBlockError,
+    LinearBlock,
+    extract_linear_block,
+    extract_qualified_linear_block,
+)
 from bilt.symbolic._algebra._affine import AffineAnalysisError
 from bilt.symbolic._algebra._expr_ops import BINARY_ARG_COUNT, add, multiply, zero
 from bilt.symbolic._atoms import ADD, ISEL, MEAN, MUL, NEG, SEL, SUM, CoordinateType, IntType, SymbolType
@@ -12,6 +17,7 @@ from bilt.symbolic._tree import Tree, symbol_tree
 
 if typing.TYPE_CHECKING:
     from bilt.core._structural_analysis._plan import PlanBlock
+    from bilt.core._structural_analysis._qualified_block import QualifiedBlock
 
 
 @dataclasses.dataclass(frozen=True)
@@ -21,7 +27,7 @@ class LinearOperatorBlock:
     Keep each complete receiver so broadcasting precedes reductions and selections.
     """
 
-    block: PlanBlock
+    block: PlanBlock | QualifiedBlock
     unknowns: tuple[str, ...]
     equations: tuple[tuple[Tree, Tree], ...]
 
@@ -63,6 +69,29 @@ def extract_supported_linear_block(block: PlanBlock) -> LinearBlock | LinearOper
             raise BiltLinearBlockError(message) from error
         equations.append((tree.left, tree.right))
     return LinearOperatorBlock(block, unknowns, tuple(equations))
+
+
+def extract_supported_qualified_block(block: QualifiedBlock) -> LinearBlock | LinearOperatorBlock:
+    """Retain qualified receiver expressions for the existing supported tensor operators."""
+    try:
+        return extract_qualified_linear_block(block)
+    except BiltLinearBlockError as error:
+        if not isinstance(error.__cause__, AffineAnalysisError):
+            raise
+    equations = []
+    for row in block.rows:
+        tree = row.tree
+        if not tree.is_equality or len(tree.args) != BINARY_ARG_COUNT:
+            message = f"Qualified linear operator row {row.label!r} is not a binary equality."
+            raise BiltLinearBlockError(message)
+        try:
+            _validate_linear(tree.left, frozenset(block.unknowns))
+            _validate_linear(tree.right, frozenset(block.unknowns))
+        except AffineAnalysisError as error:
+            message = f"Cannot extract supported linear tensor operators for {row.label!r}."
+            raise BiltLinearBlockError(message) from error
+        equations.append((tree.left, tree.right))
+    return LinearOperatorBlock(block, block.unknowns, tuple(equations))
 
 
 def _depends(tree: Tree, symbols: frozenset[str]) -> bool:

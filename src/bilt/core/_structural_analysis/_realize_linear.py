@@ -19,12 +19,12 @@ from bilt.core._structural_analysis._domain_inference import infer_linear_domain
 from bilt.core._structural_analysis._linear_block import (
     BiltLinearBlockError,
     LinearBlock,
-    extract_qualified_linear_block,
 )
 from bilt.core._structural_analysis._linear_domains import declared_linear_domains
 from bilt.core._structural_analysis._linear_operator import (
     LinearOperatorBlock,
     extract_supported_linear_block,
+    extract_supported_qualified_block,
     linear_operator_rows,
 )
 from bilt.core._structural_analysis._linear_operator_lowering import OperatorLowering, expression_ast
@@ -54,7 +54,7 @@ def realize_linear_block(
         message = "The selected backend does not support linear blocks."
         raise BiltLinearBlockError(message)
     if isinstance(block, QualifiedBlock):
-        linear = extract_qualified_linear_block(block)
+        linear = extract_supported_qualified_block(block)
     else:
         linear = extract_supported_linear_block(block)
     lowering = _LinearLowering(linear, symbol_domains, solution_name)
@@ -70,9 +70,6 @@ def realize_linear_block(
         else []
     )
     domains, pointwise = lowering.output_domains(coefficients, rhs)
-    if isinstance(block, QualifiedBlock) and not pointwise:
-        message = "Cross-boundary linear blocks currently require a common pointwise domain for all unknowns."
-        raise BiltLinearBlockError(message)
     vector = ast.Tuple(elts=[_names(value, lowering.parameters) for value, _ in rhs], ctx=ast.Load())
     if pointwise:
         matrix = ast.Tuple(
@@ -166,6 +163,12 @@ class _LinearLowering:
             result[name] = self.ordered(domain)
         pointwise = isinstance(self.linear, LinearBlock) and all(domain == common for domain in result.values())
         if not pointwise and any(name not in hints for name in self.linear.unknowns):
+            if isinstance(self.linear.block, QualifiedBlock):
+                missing = sorted(set(self.linear.unknowns) - hints.keys())
+                message = (
+                    f"Joint cross-boundary blocks require explicit Domain hints for every unknown. Missing: {missing}."
+                )
+                raise BiltLinearBlockError(message)
             result = infer_linear_domains(
                 self.linear.unknowns,
                 self.linear.equations

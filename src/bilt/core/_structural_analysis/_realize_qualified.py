@@ -1,4 +1,4 @@
-"""Realise qualified pointwise plans using the existing primitive and linear compilers."""
+"""Realise qualified linear plans using the existing primitive and linear compilers."""
 
 import dataclasses
 import typing
