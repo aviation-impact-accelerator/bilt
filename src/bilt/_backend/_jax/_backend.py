@@ -15,6 +15,7 @@ from bilt._backend._linear_assembly import (
     assemble_pointwise,
     expand_linear_coefficient,
     linear_basis,
+    linear_zero,
     project_joint,
 )
 from bilt._backend._linear_solve import validate_linear_shapes, validate_linear_solution
@@ -75,6 +76,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
             linear_solve=_solve_linear,
             linear_basis=functools.partial(linear_basis, xp=jnp),
             linear_expand=functools.partial(expand_linear_coefficient, xp=jnp),
+            linear_zero=functools.partial(linear_zero, xp=jnp),
         )
 
     def transpile(self, function_definition: ast.FunctionDef) -> BackendCallable:

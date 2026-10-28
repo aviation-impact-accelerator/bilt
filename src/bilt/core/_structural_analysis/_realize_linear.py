@@ -23,8 +23,8 @@ from bilt.core._structural_analysis._linear_operator import (
     extract_supported_linear_block,
     linear_operator_rows,
 )
-from bilt.core._tensors._expression_lowering import lower_expression
-from bilt.core._to_ast import tree_to_functiondef
+from bilt.core._structural_analysis._linear_operator_lowering import OperatorLowering, expression_ast
+from bilt.core._tensors._expression_lowering import LoweredExpression, lower_expression
 from bilt.symbolic._domains import Domain, union
 from bilt.symbolic._expressions import Expr
 
@@ -49,13 +49,18 @@ def realize_linear_block(
         message = "The selected backend does not support linear blocks."
         raise BiltLinearBlockError(message)
     lowering = _LinearLowering(extract_supported_linear_block(block), symbol_domains, solution_name)
-    rhs = [lowering.lower(tree, symbol_domains) for tree in lowering.linear.rhs]
+    rhs = (
+        [lowering.lower(tree, symbol_domains) for tree in lowering.linear.rhs]
+        if isinstance(lowering.linear, LinearBlock)
+        else []
+    )
     coefficients = (
         [[lowering.lower(tree, symbol_domains) for tree in row] for row in lowering.linear.coefficients]
         if isinstance(lowering.linear, LinearBlock)
         else []
     )
     domains, pointwise = lowering.output_domains(coefficients, rhs)
+    vector = ast.Tuple(elts=[_names(value, lowering.parameters) for value, _ in rhs], ctx=ast.Load())
     if pointwise:
         matrix = ast.Tuple(
             elts=[
@@ -71,13 +76,13 @@ def realize_linear_block(
             else []
         )
     else:
-        matrix, assignments, keywords = lowering.joint(domains, rhs)
+        matrix, vector, assignments, keywords = lowering.joint(domains, rhs)
     solve = _function(
         solution_name,
         tuple(map(mangle_name, lowering.parameters)),
         ast.Call(
             func=ast.Name(id=LINEAR_SOLVE_INTRINSIC_NAME, ctx=ast.Load()),
-            args=[matrix, ast.Tuple(elts=[_names(value, lowering.parameters) for value, _ in rhs], ctx=ast.Load())],
+            args=[matrix, vector],
             keywords=keywords,
         ),
     )
@@ -116,15 +121,16 @@ class _LinearLowering:
     def canonical(self) -> Domain:
         return current_evaluation().canonical_order
 
-    def lower(self, tree: Tree, domains: dict[str, Domain]) -> Lowered:
+    def lowered(self, tree: Tree, domains: dict[str, Domain]) -> LoweredExpression:
         try:
-            lowered = lower_expression(Expr(tree), symbol_domains=domains, canonical_order=self.canonical)
+            return lower_expression(Expr(tree), symbol_domains=domains, canonical_order=self.canonical)
         except BiltDomainBindingError as error:
             message = f"Cannot lower a linear block with the current coordinate bindings: {error}"
             raise BiltLinearBlockError(message) from error
-        function = tree_to_functiondef(lowered.tree, name=self.solution_name, parameter_order=self.parameters)
-        expression = typing.cast("ast.expr", typing.cast("ast.Return", function.body[0]).value)
-        return expression, lowered.domain
+
+    def lower(self, tree: Tree, domains: dict[str, Domain]) -> Lowered:
+        lowered = self.lowered(tree, domains)
+        return expression_ast(lowered.tree), lowered.domain
 
     def output_domains(self, coefficients: list[list[Lowered]], rhs: list[Lowered]) -> tuple[dict[str, Domain], bool]:
         known = union(*(self.symbol_domains[name] for name in self.parameters))
@@ -149,7 +155,9 @@ class _LinearLowering:
         if not pointwise and any(name not in hints for name in self.linear.unknowns):
             result = infer_linear_domains(
                 self.linear.unknowns,
-                tuple(zip(linear_operator_rows(self.linear), self.linear.rhs, strict=True)),
+                self.linear.equations
+                if isinstance(self.linear, LinearOperatorBlock)
+                else tuple(zip(linear_operator_rows(self.linear), self.linear.rhs, strict=True)),
                 {name: self.symbol_domains[name] for name in self.parameters},
                 hints,
                 self.canonical,
@@ -163,15 +171,42 @@ class _LinearLowering:
     def axes(self, domain: Domain) -> tuple[int, ...]:
         return tuple(i for i, dim in enumerate(self.canonical.dims) if dim in domain.dims)
 
+    def local_name(self, suffix: str) -> str:
+        name = self.solution_name + suffix
+        while name in set(map(mangle_name, self.parameters)):
+            name += "_"
+        return name
+
+    def operator_values(
+        self, linear: LinearOperatorBlock, domains: dict[str, Domain]
+    ) -> tuple[list[ast.expr], list[ast.expr], list[Domain], list[ast.stmt]]:
+        builder = OperatorLowering(
+            linear.unknowns, self.parameters, self.local_name("_basis"), self.local_name("_zeros")
+        )
+        rows: list[ast.expr] = []
+        constants: list[ast.expr] = []
+        row_domains = []
+        for left, right in linear.equations:
+            lhs = self.lowered(left, self.symbol_domains | domains)
+            rhs = self.lowered(right, self.symbol_domains | domains)
+            first, second = builder.split(lhs.tree), builder.split(rhs.tree)
+            rows.append(ast.BinOp(left=first.linear, op=ast.Sub(), right=second.linear))
+            constants.append(ast.BinOp(left=second.constant, op=ast.Sub(), right=first.constant))
+            row_domains.append(union(lhs.domain, rhs.domain))
+        return rows, constants, row_domains, [builder.zeros()]
+
     def joint(
         self, domains: dict[str, Domain], rhs: list[Lowered]
-    ) -> tuple[ast.Tuple, list[ast.stmt], list[ast.keyword]]:
-        rows = []
-        row_domains = []
-        for tree, (_, rhs_domain) in zip(linear_operator_rows(self.linear), rhs, strict=True):
-            value, domain = self.lower(tree, {**self.symbol_domains, **domains})
-            rows.append(value)
-            row_domains.append(union(domain, rhs_domain))
+    ) -> tuple[ast.Tuple, ast.Tuple, list[ast.stmt], list[ast.keyword]]:
+        basis_name = self.local_name("_basis")
+        if isinstance(self.linear, LinearOperatorBlock):
+            rows, constants, row_domains, extra = self.operator_values(self.linear, domains)
+        else:
+            lowered = [self.lower(tree, self.symbol_domains | domains) for tree in linear_operator_rows(self.linear)]
+            rows = [_names(value, self.parameters, self.linear.unknowns, basis_name) for value, _ in lowered]
+            row_domains = [union(domain, rhs_domain) for (_, domain), (_, rhs_domain) in zip(lowered, rhs, strict=True)]
+            constants = [_names(value, self.parameters) for value, _ in rhs]
+            extra = []
         if collections.Counter(domains.values()) != collections.Counter(self.ordered(domain) for domain in row_domains):
             message = "Tensor block scalar equations must have the same domain layout as its unknowns."
             raise BiltLinearBlockError(message)
@@ -184,9 +219,6 @@ class _LinearLowering:
         values = ast.Tuple(
             elts=[ast.Name(id=mangle_name(name), ctx=ast.Load()) for name in self.parameters], ctx=ast.Load()
         )
-        basis_name = self.solution_name + "_basis"
-        while basis_name in set(map(mangle_name, self.parameters)):
-            basis_name += "_"
         assignments: list[ast.stmt] = [
             ast.Assign(
                 targets=[ast.Name(id=basis_name, ctx=ast.Store())],
@@ -197,11 +229,10 @@ class _LinearLowering:
                 ),
             )
         ]
-        matrix = ast.Tuple(
-            elts=[_names(value, self.parameters, self.linear.unknowns, basis_name) for value in rows], ctx=ast.Load()
-        )
+        assignments.extend(extra)
+        matrix = ast.Tuple(elts=rows, ctx=ast.Load())
         keywords = [ast.keyword(arg="layout", value=layout_ast), ast.keyword(arg="values", value=values)]
-        return matrix, assignments, keywords
+        return matrix, ast.Tuple(elts=constants, ctx=ast.Load()), assignments, keywords
 
 
 def _names(

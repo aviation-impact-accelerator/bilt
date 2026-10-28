@@ -12,6 +12,7 @@ from bilt._backend._linear_solve import (
     LINEAR_BASIS_INTRINSIC_NAME,
     LINEAR_EXPAND_INTRINSIC_NAME,
     LINEAR_SOLVE_INTRINSIC_NAME,
+    LINEAR_ZERO_INTRINSIC_NAME,
 )
 from bilt.core._to_ast import (
     ISEL_INTRINSIC_NAME,
@@ -37,6 +38,7 @@ class PythonIntrinsicBindings:
 
     linear_basis: typing.Callable[..., typing.Any] | None = None
     linear_expand: typing.Callable[..., typing.Any] | None = None
+    linear_zero: typing.Callable[..., typing.Any] | None = None
 
     def namespace(self) -> dict[str, typing.Any]:
         namespace = {
@@ -53,6 +55,8 @@ class PythonIntrinsicBindings:
             namespace[LINEAR_BASIS_INTRINSIC_NAME] = self.linear_basis
         if self.linear_expand is not None:
             namespace[LINEAR_EXPAND_INTRINSIC_NAME] = self.linear_expand
+        if self.linear_zero is not None:
+            namespace[LINEAR_ZERO_INTRINSIC_NAME] = self.linear_zero
         return namespace
 
 
@@ -72,7 +76,7 @@ class InProcessPythonMixin:
         for node in ast.walk(function_definition):
             if (
                 isinstance(node, ast.Name)
-                and node.id in (LINEAR_BASIS_INTRINSIC_NAME, LINEAR_EXPAND_INTRINSIC_NAME)
+                and node.id in (LINEAR_BASIS_INTRINSIC_NAME, LINEAR_EXPAND_INTRINSIC_NAME, LINEAR_ZERO_INTRINSIC_NAME)
                 and node.id not in namespace
             ):
                 message = "The selected backend does not support joint tensor linear blocks."

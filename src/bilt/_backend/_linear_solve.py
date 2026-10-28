@@ -8,6 +8,7 @@ from bilt._backend._linear_assembly import LinearLayout, assemble_joint, assembl
 LINEAR_SOLVE_INTRINSIC_NAME = "__bilt_solve_linear__"
 LINEAR_BASIS_INTRINSIC_NAME = "__bilt_linear_basis__"
 LINEAR_EXPAND_INTRINSIC_NAME = "__bilt_linear_expand__"
+LINEAR_ZERO_INTRINSIC_NAME = "__bilt_linear_zero__"
 _MATRIX_RANK = 2
 
 

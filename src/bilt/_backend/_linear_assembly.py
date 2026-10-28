@@ -96,3 +96,12 @@ def project_joint(
         result.append(vector[offset : offset + width].reshape(shape))
         offset += width
     return tuple(result)
+
+
+def linear_zero(value: object, *, basis: bool = False, xp: types.ModuleType) -> object:
+    """Preserve an array's shape without inspecting its numerical values.
+
+    For an identity-basis entry, omit the trailing coefficient-column axis.
+    """
+    array = xp.asarray(value)
+    return xp.zeros(array.shape[:-1] if basis else array.shape, dtype=array.dtype)
