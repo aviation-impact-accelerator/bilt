@@ -163,12 +163,6 @@ class _LinearLowering:
             result[name] = self.ordered(domain)
         pointwise = isinstance(self.linear, LinearBlock) and all(domain == common for domain in result.values())
         if not pointwise and any(name not in hints for name in self.linear.unknowns):
-            if isinstance(self.linear.block, QualifiedBlock):
-                missing = sorted(set(self.linear.unknowns) - hints.keys())
-                message = (
-                    f"Joint cross-boundary blocks require explicit Domain hints for every unknown. Missing: {missing}."
-                )
-                raise BiltLinearBlockError(message)
             result = infer_linear_domains(
                 self.linear.unknowns,
                 self.linear.equations
