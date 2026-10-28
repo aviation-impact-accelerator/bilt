@@ -51,12 +51,19 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
                 args_for_intermediate = [inputs[name] for name in intermediate.parameters]
                 result = intermediate.callable(*args_for_intermediate)
                 inputs[intermediate.name] = result
+            if case.expose_intermediates:
+                return tuple(inputs[output.backend_name] for output in case.outputs)
             return inputs[case.return_name]
 
         final_callable.__signature__ = (  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
             expected_signature
         )
-        return BackendCallable(name=case.name, parameters=case.parameters, callable=final_callable)
+        return BackendCallable(
+            name=case.name,
+            parameters=case.parameters,
+            callable=final_callable,
+            outputs=case.outputs if case.expose_intermediates else None,
+        )
 
 
 PYTHON_BACKEND = PythonBackend()
