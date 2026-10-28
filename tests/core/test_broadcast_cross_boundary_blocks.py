@@ -281,14 +281,16 @@ def test_hinted_input_must_match_its_qualified_domain(backend: Backend) -> None:
         parent.evaluate({"inner.p": tensor([10.0, 20.0], over=SITE), "q": 2.0}, "inner.x", backend)
 
 
-def test_joint_cross_boundary_reductions_require_explicit_hints(backend: Backend) -> None:
+def test_joint_cross_boundary_reductions_infer_unknown_domains(backend: Backend) -> None:
     @equation
     def reduction(x: Tensor, y: Tensor, p: Tensor) -> bool:
         return x.sum(TIME) + y == p
 
     parent = Implementation(Ports, [feedback], internal_implementations={"inner": Implementation(Ports, [reduction])})
-    with pytest.raises(BiltExecutionPlanError, match="explicit Domain hints"):
-        parent.evaluate({"inner.p": tensor([10.0, 20.0], over=TIME), "q": 2.0}, "inner.x", backend)
+    result = parent.evaluate({"inner.p": tensor([10.0, 20.0], over=TIME), "q": 2.0}, "inner.x", backend)
+    assert isinstance(result, Tensor)
+    assert result.domain == domain(TIME)
+    np.testing.assert_allclose(result.values, [2.0 / 3.0, 32.0 / 3.0], atol=1e-5)
 
 
 def test_singular_coordinate_does_not_poison_later_values(backend: Backend) -> None:
