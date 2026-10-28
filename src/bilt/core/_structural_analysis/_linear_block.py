@@ -117,7 +117,7 @@ def extract_linear_block(block: PlanBlock) -> LinearBlock:
 
 
 def extract_qualified_linear_block(block: QualifiedBlock) -> LinearBlock:
-    """Extract a square scalar affine system from source-preserving qualified rows."""
+    """Extract a square pointwise affine system from source-preserving qualified rows."""
     if len(block.rows) != len(block.unknowns):
         message = "A qualified linear solve requires equally many primitive rows and unknowns."
         raise BiltLinearBlockError(message)
