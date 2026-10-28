@@ -6,9 +6,11 @@ import typing
 
 import rustworkx as rx
 
-from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
+from bilt.core._equation import BasicEquation
+from bilt.core._structural_analysis._linear_block import BiltLinearBlockError, extract_qualified_linear_block
 from bilt.core._structural_analysis._linear_operator import extract_supported_linear_block
 from bilt.core._structural_analysis._plan import PlanBlock, PlanStep
+from bilt.core._structural_analysis._qualified_block import QualifiedBlock, QualifiedEquation
 from bilt.core._transform import BasicTransform
 
 if typing.TYPE_CHECKING:
@@ -19,7 +21,11 @@ if typing.TYPE_CHECKING:
 
 
 def unavoidable_coupled_outputs(
-    structure: ExpansionSnapshot, output: str, *, allow_local_linear: bool = False
+    structure: ExpansionSnapshot,
+    output: str,
+    *,
+    allow_local_linear: bool = False,
+    allow_cross_boundary_linear: bool = False,
 ) -> frozenset[str]:
     """Return coupled ancestors of the target in a complete square region.
 
@@ -34,8 +40,9 @@ def unavoidable_coupled_outputs(
 
     With ``allow_local_linear``, omit components whose primitive equations all
     belong to one implementation and can be extracted in its local namespace.
-    A child plans and realises its own blocks. Components spanning different
-    implementation paths still require joint execution across boundaries.
+    A child plans and realises its own blocks. ``allow_cross_boundary_linear``
+    also permits primitive affine blocks spanning implementation paths; their
+    input domains and backend capabilities remain realisation-time checks.
     """
     unknowns = structure.attributes - structure.available
     if not structure.complete or output not in unknowns or len(unknowns) != len(structure.constraints):
@@ -72,7 +79,13 @@ def unavoidable_coupled_outputs(
             dependencies.add_edge(nodes[consumed], nodes[produced], None)
 
     required = rx.ancestors(dependencies, nodes[output]) | {nodes[output]}
-    return _unsupported_outputs(dependencies, assigned, required, allow_local_linear=allow_local_linear)
+    return _unsupported_outputs(
+        dependencies,
+        assigned,
+        required,
+        allow_local_linear=allow_local_linear,
+        allow_cross_boundary_linear=allow_cross_boundary_linear,
+    )
 
 
 def _unsupported_outputs(
@@ -81,6 +94,7 @@ def _unsupported_outputs(
     required: set[int],
     *,
     allow_local_linear: bool,
+    allow_cross_boundary_linear: bool,
 ) -> frozenset[str]:
     unsupported: set[str] = set()
     for component in rx.strongly_connected_components(dependencies):
@@ -88,6 +102,8 @@ def _unsupported_outputs(
             continue
         outputs = sorted(typing.cast("str", dependencies[node]) for node in component)
         if allow_local_linear and _locally_supported(outputs, assigned):
+            continue
+        if allow_cross_boundary_linear and _qualified_supported(outputs, assigned):
             continue
         unsupported.update(outputs)
     return frozenset(unsupported)
@@ -107,6 +123,23 @@ def _locally_supported(outputs: list[str], assigned: dict[str, ExpandedConstrain
     )
     try:
         extract_supported_linear_block(block)
+    except BiltLinearBlockError:
+        return False
+    return True
+
+
+def _qualified_supported(outputs: list[str], assigned: dict[str, ExpandedConstraint]) -> bool:
+    if not all(isinstance(assigned[name].operation, BasicEquation) for name in outputs):
+        return False
+    try:
+        block = QualifiedBlock(
+            tuple(
+                QualifiedEquation(typing.cast("BasicEquation", assigned[name].operation), assigned[name].path)
+                for name in outputs
+            ),
+            tuple(outputs),
+        )
+        extract_qualified_linear_block(block)
     except BiltLinearBlockError:
         return False
     return True

@@ -16,7 +16,11 @@ from bilt.core._errors import BiltDomainBindingError
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._port import mangle_name
 from bilt.core._structural_analysis._domain_inference import infer_linear_domains
-from bilt.core._structural_analysis._linear_block import BiltLinearBlockError, LinearBlock
+from bilt.core._structural_analysis._linear_block import (
+    BiltLinearBlockError,
+    LinearBlock,
+    extract_qualified_linear_block,
+)
 from bilt.core._structural_analysis._linear_domains import declared_linear_domains
 from bilt.core._structural_analysis._linear_operator import (
     LinearOperatorBlock,
@@ -24,6 +28,7 @@ from bilt.core._structural_analysis._linear_operator import (
     linear_operator_rows,
 )
 from bilt.core._structural_analysis._linear_operator_lowering import OperatorLowering, expression_ast
+from bilt.core._structural_analysis._qualified_block import QualifiedBlock
 from bilt.core._tensors._expression_lowering import LoweredExpression, lower_expression
 from bilt.symbolic._domains import Domain, union
 from bilt.symbolic._expressions import Expr
@@ -38,7 +43,7 @@ type Lowered = tuple[ast.expr, Domain]
 
 
 def realize_linear_block(
-    block: PlanBlock,
+    block: PlanBlock | QualifiedBlock,
     backend: Backend,
     symbol_domains: dict[str, Domain],
     *,
@@ -48,7 +53,15 @@ def realize_linear_block(
     if not isinstance(backend, LinearSolveBackend):
         message = "The selected backend does not support linear blocks."
         raise BiltLinearBlockError(message)
-    lowering = _LinearLowering(extract_supported_linear_block(block), symbol_domains, solution_name)
+    if isinstance(block, QualifiedBlock):
+        if any(symbol_domains[name].dims for name in block.inputs) or any(hint.dims for _, hint in block.domain_hints):
+            message = "Cross-boundary linear blocks currently require scalar inputs and unknowns."
+            raise BiltLinearBlockError(message)
+        linear = extract_qualified_linear_block(block)
+    else:
+        linear = extract_supported_linear_block(block)
+    lowering = _LinearLowering(linear, symbol_domains, solution_name)
+    batch_rank = len(lowering.canonical.dims)
     rhs = (
         [lowering.lower(tree, symbol_domains) for tree in lowering.linear.rhs]
         if isinstance(lowering.linear, LinearBlock)
@@ -70,11 +83,7 @@ def realize_linear_block(
             ctx=ast.Load(),
         )
         assignments = []
-        keywords = (
-            [ast.keyword(arg="batch_rank", value=ast.Constant(len(lowering.canonical.dims)))]
-            if lowering.canonical.dims
-            else []
-        )
+        keywords = [ast.keyword(arg="batch_rank", value=ast.Constant(batch_rank))] if batch_rank else []
     else:
         matrix, vector, assignments, keywords = lowering.joint(domains, rhs)
     solve = _function(
@@ -92,7 +101,7 @@ def realize_linear_block(
         for index, output in enumerate(lowering.linear.unknowns):
             slice_ = (
                 ast.Tuple(elts=[ast.Constant(Ellipsis), ast.Constant(index)], ctx=ast.Load())
-                if pointwise and lowering.canonical.dims
+                if pointwise and batch_rank
                 else ast.Constant(index)
             )
             projection = _function(
@@ -137,7 +146,11 @@ class _LinearLowering:
         if any(dim not in self.canonical.dims for dim in known.dims):
             message = "Linear-block input dimensions must be registered in the evaluation context."
             raise BiltLinearBlockError(message)
-        hints = declared_linear_domains(self.linear.block)
+        hints = (
+            dict(self.linear.block.domain_hints)
+            if isinstance(self.linear.block, QualifiedBlock)
+            else declared_linear_domains(self.linear.block)
+        )
         for name in hints.keys() & self.symbol_domains.keys():
             if set(hints[name].dims) != set(self.symbol_domains[name].dims):
                 message = f"Input {name!r} does not match its linear-block Domain hint."

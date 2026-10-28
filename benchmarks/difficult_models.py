@@ -92,7 +92,7 @@ class DifficultTrial(ScaleTrial):
 
     def check(self) -> dict[str, object]:
         """Check every round; unrelated isolation or compilation errors must fail."""
-        if self.case.layout in {"heat", "flow"}:
+        if self.case.layout == "flow" or (self.case.layout == "heat" and self.case.solver != "scc"):
             # Shared heat/flow must be solved simultaneously with intermediate
             # temperatures. A unique physical solution need not have an acyclic plan.
             details = check_coupled_rejection(self.result, solver=self.case.solver, output=self.request.output)
