@@ -204,7 +204,7 @@ def test_selection_requires_the_axis_in_the_unknown_domain(backend: Backend) -> 
         )
 
 
-def test_selection_requires_explicit_unknown_domains(backend: Backend) -> None:
+def test_selection_infers_unknown_domains(backend: Backend) -> None:
     @equation
     def first(x: Tensor, y: Tensor, p: Tensor) -> bool:
         return x + y == p
@@ -213,10 +213,11 @@ def test_selection_requires_explicit_unknown_domains(backend: Backend) -> None:
     def second(x: Tensor, y: Tensor, q: Tensor) -> bool:
         return x - 0.25 * y.isel(TIME, 0) == q
 
-    with pytest.raises(BiltExecutionPlanError, match="explicit Domain hints"):
-        _evaluate(
-            [first, second], {"p": tensor([2.0, 4.0], over=TIME), "q": tensor([0.0, 1.0], over=TIME)}, "x", backend
-        )
+    result, case = _evaluate(
+        [first, second], {"p": tensor([2.0, 4.0], over=TIME), "q": tensor([0.0, 1.0], over=TIME)}, "x", backend
+    )
+    np.testing.assert_allclose(result, [0.4, 1.4], atol=1e-5)
+    assert next(operation for operation in case.intermediates if operation.name == "x").output_domain == domain(TIME)
 
 
 def test_known_input_selector_remains_unsupported(backend: Backend) -> None:

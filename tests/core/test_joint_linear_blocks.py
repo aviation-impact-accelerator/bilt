@@ -146,7 +146,7 @@ def test_cached_joint_solve_accepts_different_dimension_extents(backend: Backend
     np.testing.assert_allclose(second.values, [1, 3], atol=1e-5)
 
 
-def test_missing_operator_domain_hints_are_rejected(backend: Backend) -> None:
+def test_missing_operator_domains_are_inferred(backend: Backend) -> None:
     @equation
     def first(x: Tensor, y: Tensor, p: Tensor) -> bool:
         return x + y == p
@@ -155,8 +155,9 @@ def test_missing_operator_domain_hints_are_rejected(backend: Backend) -> None:
     def second(x: Tensor, y: Tensor, q: float) -> bool:
         return x.sum(TIME) - y == q
 
-    with pytest.raises(BiltExecutionPlanError, match="explicit Domain hints"):
-        _evaluate([first, second], {"p": tensor([2.0, 4.0], over=TIME), "q": 1.0}, "x", backend)
+    result, case = _evaluate([first, second], {"p": tensor([2.0, 4.0], over=TIME), "q": 1.0}, "x", backend)
+    np.testing.assert_allclose(result, [1 / 3, 7 / 3], atol=1e-5)
+    assert next(operation for operation in case.intermediates if operation.name == "x").output_domain == domain(TIME)
 
 
 def test_inconsistent_scalar_equation_counts_are_rejected_before_execution(backend: Backend) -> None:
@@ -333,7 +334,7 @@ def test_parallel_sources_share_one_bus_voltage(backend: Backend, output: str) -
         assert float(result.value) == pytest.approx(7.2, abs=1e-5)
 
 
-def test_partial_unknown_domain_hints_are_rejected(backend: Backend) -> None:
+def test_partial_unknown_domain_hints_are_completed(backend: Backend) -> None:
     @equation
     def first(x: X, y: Tensor, p: Tensor) -> bool:
         return x + y == p
@@ -342,8 +343,9 @@ def test_partial_unknown_domain_hints_are_rejected(backend: Backend) -> None:
     def second(x: X, y: Tensor, q: float) -> bool:
         return x.sum(TIME) - y == q
 
-    with pytest.raises(BiltExecutionPlanError, match="explicit Domain hints"):
-        _evaluate([first, second], {"p": tensor([2.0, 4.0], over=TIME), "q": 1.0}, "x", backend)
+    result, case = _evaluate([first, second], {"p": tensor([2.0, 4.0], over=TIME), "q": 1.0}, "x", backend)
+    np.testing.assert_allclose(result, [1 / 3, 7 / 3], atol=1e-5)
+    assert next(operation for operation in case.intermediates if operation.name == "x").output_domain == domain(TIME)
 
 
 def test_singular_joint_system_is_reported(backend: Backend) -> None:
