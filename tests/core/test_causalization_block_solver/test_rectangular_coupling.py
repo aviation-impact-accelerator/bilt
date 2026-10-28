@@ -50,6 +50,11 @@ def difference(x: float, y: float, b: float) -> bool:
 
 
 @equation
+def nonlinear_total(x: float, y: float, a: float) -> bool:
+    return x * y == a
+
+
+@equation
 def surplus(u: float, v: float, x: float) -> bool:
     return u + v == x
 
@@ -99,8 +104,8 @@ def combined(x: float, left: Ports, right: Ports) -> bool:
     return x == left.x + right.x
 
 
-def _nested(depth: int, *, siblings: bool) -> Implementation:
-    implementation = Implementation(Ports, [total, difference, surplus])
+def _nested(depth: int, *, siblings: bool, supported: bool = True) -> Implementation:
+    implementation = Implementation(Ports, [total if supported else nonlinear_total, difference, surplus])
     for _ in range(depth):
         if siblings:
             children = [SubSystemConstituent(name, implementation) for name in ("left", "right")]
@@ -118,20 +123,28 @@ def _unexpected(*_: object, **__: object) -> typing.Never:
 
 @pytest.mark.parametrize("depth", (1, 2))
 @pytest.mark.parametrize("siblings", (False, True))
-def test_rectangular_nested_coupling_skips_execution_search(
+@pytest.mark.parametrize("supported", (False, True))
+def test_rectangular_nested_coupling_uses_child_capability(
     monkeypatch: pytest.MonkeyPatch,
     depth: int,
     *,
     siblings: bool,
+    supported: bool,
 ) -> None:
-    implementation = _nested(depth, siblings=siblings)
+    implementation = _nested(depth, siblings=siblings, supported=supported)
     monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", solver.CausalizationStructuralAnalyzer)
-    for owner, name in ((search, "find_matching"), (planning, "settle_assignments"), (solver, "realize_plan")):
-        monkeypatch.setattr(owner, name, _unexpected)
-    monkeypatch.setattr(SubSystemConstituent, "required_inputs_for", _unexpected)
     request = EvaluationRequest(output="x", input_domains=dict.fromkeys({"a", "b"}, Domain.scalar()))
-    with EvaluationContext(), pytest.raises(BiltExecutionPlanError, match=r"Cannot compute x.*coupled blocks"):
-        implementation.analyser_for(PYTHON_BACKEND).analyse(request)
+    if not supported:
+        for owner, name in ((search, "find_matching"), (planning, "settle_assignments"), (solver, "realize_plan")):
+            monkeypatch.setattr(owner, name, _unexpected)
+        monkeypatch.setattr(SubSystemConstituent, "required_inputs_for", _unexpected)
+        with EvaluationContext(), pytest.raises(BiltExecutionPlanError, match=r"Cannot compute x.*coupled blocks"):
+            implementation.analyser_for(PYTHON_BACKEND).analyse(request)
+        return
+    expected = {(False, 1): 3.0, (False, 2): 3.0, (True, 1): 7.5, (True, 2): 24.375}
+    with EvaluationContext():
+        case = implementation.analyser_for(PYTHON_BACKEND).analyse(request)
+    assert PYTHON_BACKEND.chain_case(case).callable(a=4.0, b=2.0) == pytest.approx(expected[siblings, depth])
 
 
 @pytest.mark.parametrize("reverse", (False, True))
