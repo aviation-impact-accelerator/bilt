@@ -225,6 +225,31 @@ def test_scalar_declared_tensor_intermediate_stays_a_tensor(backend: Backend) ->
         assert instance.doubled.unit == kilogram
 
 
+def test_scalar_intermediate_in_a_batched_plan_needs_no_axis_squeezing(backend: Backend) -> None:
+    time = Dim("cache_batch_time")
+
+    @system
+    class Demo(metaclass=Interface):
+        values: Tensor = field()
+        offset: float = field()
+        doubled_offset: float = field()
+        result: Tensor = field()
+
+    @transform
+    def doubled_offset(offset: float) -> float:
+        return offset * 2
+
+    @transform
+    def result(values: Tensor, doubled_offset: float) -> Tensor:
+        return values + doubled_offset
+
+    with backend, Implementation(Demo, [doubled_offset, result]):
+        instance = Demo(values=tensor([1.0, 2.0, 3.0], over=time), offset=3.0)
+        np.testing.assert_allclose(instance.result.values, [7.0, 8.0, 9.0])
+        assert instance.doubled_offset == pytest.approx(6.0)
+        assert not isinstance(instance.doubled_offset, Tensor)
+
+
 def test_scalar_intermediates_use_their_own_unit_declarations(backend: Backend) -> None:
     @system
     class Resistor(metaclass=Interface):
