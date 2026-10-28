@@ -1,15 +1,18 @@
-# Structural search benchmarks
+# Structural search and coupled linear benchmarks
+
+The linear cases exercise the existing optional JAX backend. Use `--all-extras`
+to include it; no new dependency group is added.
 
 Run the routine selection:
 
 ```sh
-uv run pytest benchmarks --benchmark-only --timeout=100
+uv run --all-extras pytest benchmarks --benchmark-only --timeout=100
 ```
 
 Run the extended matrix:
 
 ```sh
-uv run pytest benchmarks --search-extended --benchmark-only --timeout=100
+uv run --all-extras pytest benchmarks --search-extended --benchmark-only --timeout=100
 ```
 
 `--search-large` remains an alias for `--search-extended`. The default is a
@@ -24,7 +27,8 @@ round, including `--benchmark-disable` correctness runs. Timeouts still fail.
 | Failure recovery | 6 | 18 |
 | Scaling and thermal networks | 8 | 25 |
 | Difficult requests | 10 | 30 |
-| **Total** | **54** | **145** |
+| Coupled linear analysis and evaluation | 32 | 96 |
+| **Total** | **86** | **241** |
 
 Routine structural cases cover every layout, square/rectangular shape and
 acyclic/coupled outcome at depth 1, plus depth-0 links as a primitive baseline.
@@ -36,12 +40,13 @@ Extended structural runs cover the full 72-case product of layouts, shapes,
 outcomes, depths 0–2 and solvers.
 
 The existing SCC-only stress endpoints (chain depth 32, tree depth 4 and
-parallel depth 3) remain SCC-only in the extended suite. Other workloads are
-paired across both solvers. No existing case is removed because its timing
+parallel depth 3) remain SCC-only in the extended suite. Other existing search workloads are
+paired across both solvers. The new coupled linear cases are SCC-only: exhaustive
+does not execute these blocks, so a rejection time would not measure equivalent work. No existing case is removed because its timing
 resembles another. The largest exhaustive stress combinations are not newly
 introduced by this reorganisation.
 
-The benchmarks measure how much work each analyser needs to find a calculation
+The structural search benchmarks measure how much work each analyser needs to find a calculation
 plan, or establish that no currently supported plan exists. Structural layout
 fixtures use scalar inputs `a = 4`, `b = 2` and requested output `x`. They use
 acausal equations; the analyser chooses their calculation directions and order.
@@ -203,7 +208,7 @@ control at the same depth, rather than comparing directly with a single-request
 structural-search measurement. Results use `recovery_scope=new_request_same_analyser`.
 
 ```sh
-uv run pytest benchmarks/test_realisation_failure_recovery.py --benchmark-columns=median,min,max
+uv run --all-extras pytest benchmarks/test_realisation_failure_recovery.py --benchmark-columns=median,min,max
 ```
 
 Each structural-search case uses five pedantic rounds, with one analysis per round and no automatic
@@ -228,9 +233,9 @@ interruption; the runner no longer provides subprocess isolation.
 ## Select, count and compare
 
 ```sh
-uv run pytest benchmarks --benchmark-only --timeout=100 -k 'siblings and rectangular'
-uv run pytest benchmarks --benchmark-only --timeout=100 --search-rounds=10
-uv run pytest benchmarks --benchmark-only --timeout=100 --search-counters --benchmark-json=benchmark-results.json
+uv run --all-extras pytest benchmarks --benchmark-only --timeout=100 -k 'siblings and rectangular'
+uv run --all-extras pytest benchmarks --benchmark-only --timeout=100 --search-rounds=10
+uv run --all-extras pytest benchmarks --benchmark-only --timeout=100 --search-counters --benchmark-json=benchmark-results.json
 ```
 
 `--search-counters` runs one additional fresh, untimed trial per case. Its counts
@@ -243,15 +248,15 @@ For repeatable comparisons, set the hash seed before starting Python and use the
 same machine and options:
 
 ```sh
-PYTHONHASHSEED=0 uv run pytest benchmarks --benchmark-only --timeout=100 --benchmark-autosave
-PYTHONHASHSEED=0 uv run pytest benchmarks --benchmark-only --timeout=100 --benchmark-compare
+PYTHONHASHSEED=0 uv run --all-extras pytest benchmarks --benchmark-only --timeout=100 --benchmark-autosave
+PYTHONHASHSEED=0 uv run --all-extras pytest benchmarks --benchmark-only --timeout=100 --benchmark-compare
 ```
 
 Saved baselines live in the ignored `.benchmarks/` directory. For cProfile, use
 `--benchmark-cprofile=cumtime --benchmark-cprofile-loops=1` to preserve fresh trial state.
 
 Benchmark helper regressions live in `tests/benchmarks/`. If `benchmarks` is in
-pytest's `testpaths`, a normal `uv run pytest` also includes timing runs. Use
+pytest's `testpaths`, a normal `uv run --all-extras pytest` also includes timing runs. Use
 `--benchmark-disable` for the combined correctness run without repeated timing.
 
 ## Scaling and engineering workloads
@@ -288,9 +293,9 @@ regression case. Benchmark timings depend on the solver changes present in the
 branch being measured. This benchmark-only change includes no solver fixes.
 
 ```sh
-uv run pytest benchmarks/test_network_scaling.py --benchmark-columns=median,min,max
-uv run pytest benchmarks/test_network_scaling.py --search-counters --benchmark-json=scaling.json
-uv run pytest benchmarks/test_network_scaling.py --search-extended -k 'series and depth1' --search-rounds=1 --timeout=15
+uv run --all-extras pytest benchmarks/test_network_scaling.py --benchmark-columns=median,min,max
+uv run --all-extras pytest benchmarks/test_network_scaling.py --search-counters --benchmark-json=scaling.json
+uv run --all-extras pytest benchmarks/test_network_scaling.py --search-extended -k 'series and depth1' --search-rounds=1 --timeout=15
 ```
 
 These small deterministic networks broaden coverage but do not establish
@@ -303,7 +308,7 @@ by topology and graph size, rather than combining all cases into one score.
 Run the additional families with:
 
 ```bash
-uv run pytest benchmarks/test_heat_exchanger_requests.py --search-counters --benchmark-columns=median,min,max
+uv run --all-extras pytest benchmarks/test_heat_exchanger_requests.py --search-counters --benchmark-columns=median,min,max
 ```
 
 Routine runs select one nested size per family, giving 10 cases.
@@ -347,3 +352,132 @@ and parallel connections; it is not merely a renamed parallel network.
 These cases measure search and rejection with scalar, consistent SI values.
 They do not cover unit conversion, tensor shape failures, nonlinear block
 execution or successful same-request recovery after a refused realisation.
+
+
+## Coupled linear engineering benchmarks
+
+The new benchmarks measure successful numerical solves, separately from the
+existing search and rejection workloads. Both Python and JAX run every case,
+with an explicit-domain version and an inferred-domain version of the same
+physical network. All use known positive resistances/conductances, so their
+solutions are unique. Source voltages and temperature rises are prescribed;
+signed current or heat flow may reverse in the larger shared-load cases.
+They do not cover singular, nonlinear or sparse solves.
+
+| File | Timed work | Work outside timing |
+| --- | --- | --- |
+| `test_coupled_linear_analysis.py` | Fresh analyser construction, structural planning, realisation and chaining through `get_evaluation` | Model construction, input creation and domain registration; numerical execution and checks |
+| `test_coupled_linear_evaluation.py` | Warm public `Implementation.evaluate`, including compilation-cache lookup, validation, alignment, assembly, numerical solve, lifting and JAX completion | Model construction, one compilation/warm-up execution and all numerical checks |
+| `linear_models.py` | Shared fixtures, lifecycle and independent analytic references | Not a timed test file |
+
+These scopes differ deliberately from the existing search benchmarks, which
+stop at `BackendCase` construction. Cold linear timings include Bilt callable
+chaining, but exclude first device execution and JAX primitive compilation.
+Warm timings represent the public evaluation path, not bare `linalg.solve`.
+JAX results are synchronized with `block_until_ready` and `effects_barrier`;
+asynchronous dispatch alone is not reported as solve time. Python runs do not
+pay for these synchronization calls.
+
+Every measured round checks **all physical outputs** outside the timer, not
+just the requested current or heat flow. Checks cover coherent units, named
+output domains, array shapes and numeric answers. For warm runs, the actual
+timed result is checked before checking companion outputs. Cold runs also
+check the compiled target domain. A failure to plan, compile or solve fails
+the benchmark; these cases have no accepted rejection outcome.
+
+### Electrical: source branches feeding a load
+
+Each branch has a known source voltage `E[i]` and series resistance `R`.
+The parent supplies the branch voltage balances. A child supplies the load
+relation, so current and load voltage must be solved across the boundary:
+
+```text
+E[i] = R*I[i] + V
+V = Rload*sum(I, branch)        # shared-load variant
+```
+
+The **shared** variant is a common bus and one load connected to the same
+return as the sources. All branch currents influence one bus voltage. For
+`E=[10,12,14] V`, `R=1 ohm` and `Rload=0.5 ohm`, the answer is
+`I=[2.8,4.8,6.8] A` and one `V=7.2 V`. Its physical joint system has `N+1`
+scalar unknowns for `N` branches.
+
+The **pointwise** variant gives each branch its own load: replace the child
+relation with `V[i]=Rload*I[i]`. Each coordinate then has an independent
+2-by-2 system. This measures batched pointwise solving rather than a single
+coordinate-coupled matrix.
+
+The reference uses the closed-form conductance balance:
+`V=Rload*sum(E/R)/(1+Rload*N/R)`, then `I=(E-V)/R`. It does not call either
+Bilt analyser or a numerical linear solver.
+
+### Thermal: source, contact and sink temperatures
+
+Each channel has a prescribed source temperature rise `S[i]` above a common
+ambient, a source resistance `Rs`, and contact conductance `G`. The parent
+connects the source to a child containing the contact and sink relations:
+
+```text
+S[i] = H[i] + Rs*Q[i]
+Q[i] = G*(H[i] - C)
+C = Rk*sum(Q, branch)          # shared-sink variant
+```
+
+`H` is the hot contact temperature rise, `C` the cold-side rise, and `Q` the
+heat flow. These are steady-state **temperature rises**, not absolute
+thermodynamic temperatures. Resistance is in K/W, conductance in W/K, heat
+in W and temperature rise in K.
+
+The **shared** variant has one isothermal sink receiving heat from all
+channels. With `S=[30,40,50] K`, `Rs=0.5 K/W`, `G=2 W/K`, and
+`Rk=0.25 K/W`, it returns `Q=[90,160,230]/7 W`,
+`H=[165,200,235]/7 K`, and one `C=120/7 K`. There are `2*N+1`
+physical scalar unknowns.
+
+The **pointwise** variant has an independent sink per channel:
+`C[i]=Rk*Q[i]`. Each coordinate has a 3-by-3 system. The reference combines
+`Rs+1/G` into one branch resistance, applies the closed-form shared or
+independent sink balance, and reconstructs `Q` and `H`.
+
+### Sizes, nesting and domain hints
+
+Routine runs use three coordinates with no extra wrapper layers. Extended
+runs add two configurations, independently varying size and nesting:
+
+| Coordinates | Extra wrapper depth | Purpose |
+| ---: | ---: | --- |
+| 3 | 0 | Small routine representative |
+| 16 | 0 | More independent pointwise systems, or a larger dense joint system |
+| 3 | 2 | More subsystem boundaries and qualified alias equations at fixed physical size |
+
+Depth zero still has a parent and one child containing physical equations.
+Each extra wrapper introduces explicit aliases and forwards known coefficients;
+it adds no new physical resistance or heat source. Alias rows remain in the
+assembled block where required, so the actual matrix can be larger than the
+physical unknown counts above. Depth tests measure current representation and
+planning costs as well as numerical assembly. They are not larger physical
+networks. This suite does not establish scaling for arbitrary mesh topology.
+
+The **hinted** version adds exact `Domain` annotations to unknowns and aliases.
+The **inferred** version retains the same unit declarations and equations but
+omits those hints. Both are checked against the same analytic reference. Their
+cold timings can expose inference overhead; their warm runs should execute the
+same physical problem after compilation.
+
+Run just these cases:
+
+```sh
+uv run --all-extras pytest benchmarks/test_coupled_linear_analysis.py benchmarks/test_coupled_linear_evaluation.py --benchmark-only --timeout=100
+uv run --all-extras pytest benchmarks/test_coupled_linear_analysis.py benchmarks/test_coupled_linear_evaluation.py --search-extended --benchmark-only --search-counters --benchmark-json=linear.json --timeout=100
+```
+
+The new selection adds 16 physical/backend/hint configurations in routine mode
+and 48 in extended mode, each timed in two phases: **32** and **96** cases.
+It reuses `--search-rounds` (default five), `--search-extended` and the existing
+trial runner. `--search-counters` adds a separate untimed SCC analysis trial;
+no instrumentation is included in the timed calls. Saved JSON records physical
+unknown counts (excluding aliases), all expected output values/domains, backend,
+hint policy, coordinate count, wrapper depth, target and timing scope.
+
+No existing benchmark models, outcomes or timing boundaries change. No solver,
+backend, dependency configuration or default analyser changes are required.
