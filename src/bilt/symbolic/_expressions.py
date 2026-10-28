@@ -131,7 +131,7 @@ class Expr:
     # Expr deliberately overloads Python equality to construct symbolic relation
     # trees. This violates the normal object.__eq__ contract, which returns bool,
     # so static checkers need targeted suppressions here.
-    def __eq__(self, other: object, /) -> Tree:  # type: ignore[override]  # pyrefly: ignore[bad-override]  # ty: ignore[invalid-method-override]
+    def __eq__(self, other: object, /) -> Tree:  # pyrefly: ignore[bad-override]  # ty: ignore[invalid-method-override]
         return relation_tree("==", self._rep, as_tree(other))
 
     # See __eq__.
