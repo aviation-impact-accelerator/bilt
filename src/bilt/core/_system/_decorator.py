@@ -179,6 +179,7 @@ def _create_method(  # noqa: PLR0913
     body = [f"    {line}" for line in body]
     src = f"{decorator}def {name}({', '.join(args)}):\n{'\n'.join(body)}"
     exec(src, global_namespace, local_namespace)  # noqa: S102
+    attribute: types.FunctionType | property
     match method:
         case Method.METHOD:
             attribute = typing.cast("types.FunctionType", local_namespace[name])

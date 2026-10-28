@@ -9,6 +9,8 @@ import rustworkx as rx
 from bilt.core._transform import BasicTransform
 
 if typing.TYPE_CHECKING:
+    import collections.abc
+
     from bilt.core._structural_analysis._causalization_block_solver._expand_structure import (
         ExpandedConstraint,
         ExpansionSnapshot,
@@ -38,6 +40,7 @@ def unavoidable_coupled_outputs(structure: ExpansionSnapshot, output: str) -> fr
     attributes = {name: graph.add_node(name) for name in sorted(unknowns)}
     for constraint in structure.constraints:
         row = graph.add_node(constraint)
+        candidates: collections.abc.Set[str]
         if isinstance(constraint.operation, BasicTransform):
             prefix = ".".join((*constraint.path, "")) if constraint.path else ""
             candidates = {prefix + constraint.operation.__bilt_name__}
@@ -53,9 +56,9 @@ def unavoidable_coupled_outputs(structure: ExpansionSnapshot, output: str) -> fr
     dependencies = rx.PyDiGraph(multigraph=False)
     nodes = {name: dependencies.add_node(name) for name in sorted(unknowns)}
     for first, second in matching:
-        row, attribute = (second, first) if isinstance(graph[first], str) else (first, second)
-        constraint = typing.cast("ExpandedConstraint", graph[row])
-        produced = typing.cast("str", graph[attribute])
+        row_node, attribute_node = (second, first) if isinstance(graph[first], str) else (first, second)
+        constraint = typing.cast("ExpandedConstraint", graph[row_node])
+        produced = typing.cast("str", graph[attribute_node])
         for consumed in sorted((constraint.attributes & unknowns) - {produced}):
             dependencies.add_edge(nodes[consumed], nodes[produced], None)
 

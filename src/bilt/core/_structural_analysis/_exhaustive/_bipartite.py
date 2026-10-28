@@ -32,7 +32,7 @@ def _flatten_sub_paths(sub_paths: collections.abc.Iterable[list[PlanStep]]) -> l
 
 class BipartiteGraph:
     def __init__(self, constituents: collections.abc.Iterable[BiltModelConstituent], backend: Backend) -> None:
-        self.graph = nx.DiGraph()
+        self.graph: nx.DiGraph[Node] = nx.DiGraph()
         self._backend = backend
         for constituent in constituents:
             self._add_constituent(constituent)

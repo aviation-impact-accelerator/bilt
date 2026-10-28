@@ -56,9 +56,9 @@ def build_matching_graph(
                     )
 
     for attribute in available:
-        node = incidence.attribute_nodes.get(attribute)
-        if node is not None:
-            graph.remove_node(node)
+        attribute_node = incidence.attribute_nodes.get(attribute)
+        if attribute_node is not None:
+            graph.remove_node(attribute_node)
 
     _prefer_available_inputs(graph, available)
     return graph
