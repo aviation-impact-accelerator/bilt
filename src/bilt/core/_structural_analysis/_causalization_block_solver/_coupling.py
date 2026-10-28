@@ -7,8 +7,11 @@ import typing
 import rustworkx as rx
 
 from bilt.core._equation import BasicEquation
-from bilt.core._structural_analysis._linear_block import BiltLinearBlockError, extract_qualified_linear_block
-from bilt.core._structural_analysis._linear_operator import extract_supported_linear_block
+from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
+from bilt.core._structural_analysis._linear_operator import (
+    extract_supported_linear_block,
+    extract_supported_qualified_block,
+)
 from bilt.core._structural_analysis._plan import PlanBlock, PlanStep
 from bilt.core._structural_analysis._qualified_block import QualifiedBlock, QualifiedEquation
 from bilt.core._transform import BasicTransform
@@ -41,7 +44,7 @@ def unavoidable_coupled_outputs(
     With ``allow_local_linear``, omit components whose primitive equations all
     belong to one implementation and can be extracted in its local namespace.
     A child plans and realises its own blocks. ``allow_cross_boundary_linear``
-    also permits primitive affine blocks spanning implementation paths; their
+    also permits supported linear tensor blocks spanning implementation paths; their
     input domains and backend capabilities remain realisation-time checks.
     """
     unknowns = structure.attributes - structure.available
@@ -139,7 +142,7 @@ def _qualified_supported(outputs: list[str], assigned: dict[str, ExpandedConstra
             ),
             tuple(outputs),
         )
-        extract_qualified_linear_block(block)
+        extract_supported_qualified_block(block)
     except BiltLinearBlockError:
         return False
     return True

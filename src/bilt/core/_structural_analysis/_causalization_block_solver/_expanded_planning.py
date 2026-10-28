@@ -6,7 +6,8 @@ import rustworkx as rx
 
 from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
-from bilt.core._structural_analysis._linear_block import BiltLinearBlockError, extract_qualified_linear_block
+from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
+from bilt.core._structural_analysis._linear_operator import extract_supported_qualified_block
 from bilt.core._structural_analysis._qualified_block import QualifiedBlock, QualifiedEquation, QualifiedStep
 from bilt.core._transform import BasicTransform
 
@@ -46,7 +47,7 @@ def matching_step(graph: rx.PyGraph, first: int, second: int) -> QualifiedStep:
 def plan_blocks(
     assignments: collections.abc.Mapping[str, QualifiedStep], available: set[str], output: str
 ) -> tuple[QualifiedStep | QualifiedBlock, ...]:
-    """Select the target closure and retain ordered pointwise equation SCCs."""
+    """Select the target closure and retain ordered supported linear equation SCCs."""
     selected = {}
     pending = [output]
     while pending:
@@ -91,7 +92,7 @@ def _linear_block(steps: tuple[QualifiedStep, ...]) -> QualifiedBlock:
         tuple(step.output for step in steps),
     )
     try:
-        extract_qualified_linear_block(block)
+        extract_supported_qualified_block(block)
     except BiltLinearBlockError as error:
         message = f"Execution of coupled blocks is not yet supported for this qualified formulation: {error}"
         raise BiltExecutionPlanError(message) from error
