@@ -77,7 +77,7 @@ def test_wrong_structural_diagnosis_is_not_a_coupled_pass(
 ) -> None:
     trial = prepare_trial(search.SearchCase(solver="scc", layout="links", coupled=True, depth=1, rectangular=False))
     trial.result = error_type("Wrong structural diagnosis")
-    with pytest.raises(AssertionError, match="Expected unsupported coupled execution"):
+    with pytest.raises(AssertionError, match="Expected a successful plan"):
         trial.check()
 
 
@@ -142,7 +142,9 @@ def test_cyclic_exception_chain_does_not_hang() -> None:
 def test_numerical_success_is_not_a_coupled_pass(
     prepare_trial: Callable[[search.SearchCase], search.SearchTrial],
 ) -> None:
-    trial = prepare_trial(search.SearchCase(solver="scc", layout="links", coupled=True, depth=1, rectangular=False))
+    trial = prepare_trial(
+        search.SearchCase(solver="exhaustive", layout="links", coupled=True, depth=1, rectangular=False)
+    )
     trial.result = search.BackendCase("x", (), [], "x")
     with pytest.raises(AssertionError, match="Expected unsupported coupled execution"):
         trial.check()

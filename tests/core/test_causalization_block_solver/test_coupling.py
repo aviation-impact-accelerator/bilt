@@ -10,9 +10,7 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver import _backend as solver
-from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
-from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import (
     ExpandedConstraint,
     ExpansionSnapshot,
@@ -66,24 +64,18 @@ def _nested(depth: int) -> Implementation:
     return implementation
 
 
-def _unexpected_search(*_: object, **__: object) -> typing.Never:
-    message = "Unavoidable coupled requests must be rejected before execution search."
-    raise AssertionError(message)
-
-
 @pytest.mark.parametrize("depth", (1, 2))
-def test_rejects_nested_coupling_before_execution_search(monkeypatch: pytest.MonkeyPatch, depth: int) -> None:
+def test_child_owned_linear_coupling_is_deferred_to_child(monkeypatch: pytest.MonkeyPatch, depth: int) -> None:
     implementation = _nested(depth)
-    monkeypatch.setattr(search, "find_matching", _unexpected_search)
-    monkeypatch.setattr(SubSystemConstituent, "required_inputs_for", _unexpected_search)
     # Construct through the existing seam without changing the production default.
     from bilt.core._system import _implementation as implementation_module  # noqa: PLC0415
 
     monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", solver.CausalizationStructuralAnalyzer)
     analyser = implementation.analyser_for(PYTHON_BACKEND)
     request = EvaluationRequest(output="x", input_domains=dict.fromkeys({"a", "b"}, Domain.scalar()))
-    with pytest.raises(BiltExecutionPlanError, match=r"Cannot compute x.*coupled blocks"):
-        analyser.analyse(request)
+    with EvaluationContext():
+        case = analyser.analyse(request)
+        assert PYTHON_BACKEND.chain_case(case).callable(a=4.0, b=2.0) == pytest.approx(3.0)
 
 
 def _coupled(operations: list[BiltModelConstituent], available: set[str], output: str) -> frozenset[str]:
