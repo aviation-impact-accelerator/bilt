@@ -30,6 +30,8 @@ Routine structural cases cover every layout, square/rectangular shape and
 acyclic/coupled outcome at depth 1, plus depth-0 links as a primitive baseline.
 The depth-2 rectangular coupled siblings case is explicitly retained for both
 solvers: it caught the earlier approximately 78-second rejection regression.
+SCC now solves the child-owned linear blocks in this fixture; exhaustive still
+rejects them. Retain the case to track that successful nested search as well.
 Extended structural runs cover the full 72-case product of layouts, shapes,
 outcomes, depths 0–2 and solvers.
 
@@ -133,14 +135,13 @@ x - y = b
 
 Neither equation can calculate its output from `a` and `b` alone without also
 knowing the other unknown. Together they form a block requiring a simultaneous
-solve. These equations have a unique mathematical solution, but coupled-block
-execution is not supported yet, so the expected outcome is rejection of the
-execution plan. This measures how quickly each analyser establishes that a
-supported acyclic route does not exist.
+solve. SCC solves this linear block at the leaf, including leaves inside nested
+or sibling subsystems. Every SCC round checks the independently calculated
+numeric answer. The exhaustive solver still rejects these requests because it
+requires an acyclic plan; its timings therefore measure a different outcome.
 
-Rejection checks follow explicit exception causes. SCC must report unsupported
-coupled-block execution; an isolation, compilation or unexplained planning
-failure is a benchmark failure. The exhaustive solver has no dedicated coupled
+Rejection checks follow explicit exception causes. A failed SCC solve is a
+benchmark failure. The exhaustive solver has no dedicated coupled
 diagnostic, so it must report an unwrapped no-route error. Its result is recorded
 as `no_acyclic_plan`, rather than claiming it diagnosed a coupled block.
 

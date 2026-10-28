@@ -32,9 +32,10 @@ def unavoidable_coupled_outputs(
     Incomplete, non-square, non-closed or directionally unmatchable regions are
     left to execution search. A cycle in an arbitrary partial assignment is not proof.
 
-    With ``allow_local_linear``, omit components whose primitive equations can
-    be extracted locally. Components involving expanded child paths remain
-    unsupported until joint execution across subsystem boundaries is available.
+    With ``allow_local_linear``, omit components whose primitive equations all
+    belong to one implementation and can be extracted in its local namespace.
+    A child plans and realises its own blocks. Components spanning different
+    implementation paths still require joint execution across boundaries.
     """
     unknowns = structure.attributes - structure.available
     if not structure.complete or output not in unknowns or len(unknowns) != len(structure.constraints):
@@ -86,16 +87,26 @@ def _unsupported_outputs(
         if len(component) <= 1 or not required.intersection(component):
             continue
         outputs = sorted(typing.cast("str", dependencies[node]) for node in component)
-        if allow_local_linear and all(not assigned[name].path for name in outputs):
-            block = PlanBlock(
-                steps=tuple(PlanStep(operation=assigned[name].operation, output=name) for name in outputs),
-                is_cyclic=True,
-            )
-            try:
-                extract_supported_linear_block(block)
-            except BiltLinearBlockError:
-                pass
-            else:
-                continue
+        if allow_local_linear and _locally_supported(outputs, assigned):
+            continue
         unsupported.update(outputs)
     return frozenset(unsupported)
+
+
+def _locally_supported(outputs: list[str], assigned: dict[str, ExpandedConstraint]) -> bool:
+    """Check a single owner's equations using child-local output names."""
+    path = assigned[outputs[0]].path
+    if any(assigned[name].path != path for name in outputs):
+        return False
+    prefix = ".".join((*path, "")) if path else ""
+    if any(not name.startswith(prefix) for name in outputs):
+        return False
+    block = PlanBlock(
+        steps=tuple(PlanStep(operation=assigned[name].operation, output=name[len(prefix) :]) for name in outputs),
+        is_cyclic=True,
+    )
+    try:
+        extract_supported_linear_block(block)
+    except BiltLinearBlockError:
+        return False
+    return True

@@ -94,7 +94,7 @@ class SearchTrial:
         """Verify every round's answer or rejection outside the timer."""
         result = self.result
         details: dict[str, object]
-        if self.case.coupled and not (self.case.solver == "scc" and self.case.depth == 0):
+        if self.case.coupled and self.case.solver == "exhaustive":
             details = check_coupled_rejection(result, solver=self.case.solver, output=self.request.output)
         else:
             if not isinstance(result, BackendCase):
