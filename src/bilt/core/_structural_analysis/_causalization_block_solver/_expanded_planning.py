@@ -46,7 +46,7 @@ def matching_step(graph: rx.PyGraph, first: int, second: int) -> QualifiedStep:
 def plan_blocks(
     assignments: collections.abc.Mapping[str, QualifiedStep], available: set[str], output: str
 ) -> tuple[QualifiedStep | QualifiedBlock, ...]:
-    """Select the target closure and retain ordered scalar equation SCCs."""
+    """Select the target closure and retain ordered pointwise equation SCCs."""
     selected = {}
     pending = [output]
     while pending:

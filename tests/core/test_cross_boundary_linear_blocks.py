@@ -196,9 +196,12 @@ def test_unexpected_compiler_errors_are_not_treated_as_alternative_routes(monkey
         _crossing().evaluate({"inner.p": 10.0, "q": 2.0}, "inner.x", PYTHON_BACKEND)
 
 
-def test_tensor_cross_boundary_blocks_remain_deferred(backend: Backend) -> None:
-    with pytest.raises(BiltExecutionPlanError, match="require scalar inputs and unknowns"):
-        _crossing().evaluate({"inner.p": tensor([10.0, 12.0], over=dim("time")), "q": 2.0}, "inner.x", backend)
+def test_tensor_cross_boundary_blocks_broadcast_scalar_inputs(backend: Backend) -> None:
+    time = dim("time")
+    result = _crossing().evaluate({"inner.p": tensor([10.0, 12.0], over=time), "q": 2.0}, "inner.x", backend)
+    assert isinstance(result, Tensor)
+    assert result.domain.dims == (time,)
+    np.testing.assert_allclose(result.values, [6.0, 7.0], rtol=1e-5)
 
 
 def test_runtime_singularity_does_not_poison_other_input_values(backend: Backend) -> None:

@@ -54,9 +54,6 @@ def realize_linear_block(
         message = "The selected backend does not support linear blocks."
         raise BiltLinearBlockError(message)
     if isinstance(block, QualifiedBlock):
-        if any(symbol_domains[name].dims for name in block.inputs) or any(hint.dims for _, hint in block.domain_hints):
-            message = "Cross-boundary linear blocks currently require scalar inputs and unknowns."
-            raise BiltLinearBlockError(message)
         linear = extract_qualified_linear_block(block)
     else:
         linear = extract_supported_linear_block(block)
@@ -73,6 +70,9 @@ def realize_linear_block(
         else []
     )
     domains, pointwise = lowering.output_domains(coefficients, rhs)
+    if isinstance(block, QualifiedBlock) and not pointwise:
+        message = "Cross-boundary linear blocks currently require a common pointwise domain for all unknowns."
+        raise BiltLinearBlockError(message)
     vector = ast.Tuple(elts=[_names(value, lowering.parameters) for value, _ in rhs], ctx=ast.Load())
     if pointwise:
         matrix = ast.Tuple(
