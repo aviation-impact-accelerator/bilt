@@ -164,9 +164,17 @@ form, or 27 equations and 31 unknowns in rectangular form. Its target remains in
 the well-determined region in both forms. Equal equation and unknown counts
 alone are not a general test of whether a model is solvable.
 
-Expected outcomes are the same in both shapes: acyclic cases succeed and coupled
-cases reject unsupported execution. An underconstraint or overconstraint error
-is not accepted as the expected coupled rejection for these fixtures.
+Expected outcomes are the same in both shapes: acyclic cases succeed, SCC solves
+the linear coupled cases, and exhaustive rejects coupled execution. An
+underconstraint or overconstraint error is not accepted as a coupled rejection.
+
+The difficult thermal requests also exercise cross-boundary coupling. With both
+endpoint temperatures, flow and heat capacity supplied, SCC now solves the shared
+heat input together with intermediate temperatures. Each round checks the total
+heat against the independent reference of 120,000 W. Exhaustive still rejects
+that request. Finding the unknown flow remains a coupled nonlinear formulation
+and is still expected to be rejected by both solvers. The fixture models,
+request values and timing boundaries are unchanged.
 
 ## Timing
 

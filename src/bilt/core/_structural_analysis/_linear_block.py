@@ -1,17 +1,19 @@
 """Extract symbolic linear systems from blocks of primitive equations."""
 
-__all__ = ["BiltLinearBlockError", "LinearBlock", "extract_linear_block"]
+__all__ = ["BiltLinearBlockError", "LinearBlock", "extract_linear_block", "extract_qualified_linear_block"]
 
 import dataclasses
 import typing
 
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError
+from bilt.core._structural_analysis._plan import PlanBlock
 from bilt.symbolic._algebra._affine import AffineAnalysisError, as_affine, subtract_affine
 from bilt.symbolic._algebra._expr_ops import BINARY_ARG_COUNT, negate, zero
 
 if typing.TYPE_CHECKING:
-    from bilt.core._structural_analysis._plan import PlanBlock, PlanStep
+    from bilt.core._structural_analysis._plan import PlanStep
+    from bilt.core._structural_analysis._qualified_block import QualifiedBlock
     from bilt.symbolic._tree import Tree
 
 
@@ -34,7 +36,7 @@ class LinearBlock:
     is performed here.
     """
 
-    block: PlanBlock
+    block: PlanBlock | QualifiedBlock
     unknowns: tuple[str, ...]
     coefficients: tuple[tuple[Tree, ...], ...]
     rhs: tuple[Tree, ...]
@@ -42,6 +44,9 @@ class LinearBlock:
     @property
     def row_steps(self) -> tuple[PlanStep, ...]:
         """Return the original matched steps corresponding to the matrix rows."""
+        if not isinstance(self.block, PlanBlock):
+            message = "Qualified linear rows retain their sources in block.rows, rather than local plan steps."
+            raise TypeError(message)
         return tuple(sorted(self.block.steps, key=lambda step: step.output))
 
     @property
@@ -109,3 +114,28 @@ def extract_linear_block(block: PlanBlock) -> LinearBlock:
         coefficients=tuple(coefficients),
         rhs=tuple(rhs),
     )
+
+
+def extract_qualified_linear_block(block: QualifiedBlock) -> LinearBlock:
+    """Extract a square scalar affine system from source-preserving qualified rows."""
+    if len(block.rows) != len(block.unknowns):
+        message = "A qualified linear solve requires equally many primitive rows and unknowns."
+        raise BiltLinearBlockError(message)
+    coefficients = []
+    rhs = []
+    symbols = frozenset(block.unknowns)
+    for row in block.rows:
+        tree = row.tree
+        if not tree.is_equality or len(tree.args) != BINARY_ARG_COUNT:
+            message = f"Equation {row.label!r} is not a binary equality."
+            raise BiltLinearBlockError(message)
+        try:
+            form = subtract_affine(as_affine(tree.left, symbols), as_affine(tree.right, symbols))
+        except AffineAnalysisError as error:
+            message = (
+                f"Cannot extract a supported affine form for equation {row.label!r} with unknowns {block.unknowns!r}."
+            )
+            raise BiltLinearBlockError(message) from error
+        coefficients.append(tuple(form.coefficients.get(name, zero()) for name in block.unknowns))
+        rhs.append(negate(form.constant))
+    return LinearBlock(block, block.unknowns, tuple(coefficients), tuple(rhs))
