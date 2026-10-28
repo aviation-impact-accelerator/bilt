@@ -28,6 +28,7 @@ dev = [
     "pytest-timeout>=2.4.0",
     "ruff>=0.17.2",
     "ty>=0.0.91",
+    "types-networkx>=3.6.1.20261024",
 ]
 
 docs = [
