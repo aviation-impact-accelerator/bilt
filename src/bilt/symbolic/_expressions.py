@@ -135,7 +135,7 @@ class Expr:
         return relation_tree("==", self._rep, as_tree(other))
 
     # See __eq__.
-    def __ne__(self, other: object, /) -> Tree:  # type: ignore[override]  # pyrefly: ignore[bad-override]  # ty: ignore[invalid-method-override]
+    def __ne__(self, other: object, /) -> Tree:  # pyrefly: ignore[bad-override]  # ty: ignore[invalid-method-override]
         return relation_tree("!=", self._rep, as_tree(other))
 
     def __lt__(self, other: object) -> Tree:
