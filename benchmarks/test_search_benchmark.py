@@ -211,6 +211,27 @@ def test_counter_failure_restores_patches(monkeypatch: pytest.MonkeyPatch) -> No
 pytest_plugins = ("pytester",)
 
 
+def test_expanded_search_counters_include_matching_planning_and_realisation() -> None:
+    from difficult_models import DifficultCase, DifficultTrial  # noqa: PLC0415
+
+    original_matching = search.scc_expanded_search.find_matching
+    original_plan = search.scc_expanded_planning.plan_blocks
+    original_realize = search.scc_expanded_search.realize_qualified_plan
+    trial = DifficultTrial.prepare_difficult(DifficultCase("scc", "heat", 1))
+    try:
+        resources, counts = search.instrument("scc")
+        with resources:
+            trial.analyse()
+        assert trial.check()["status"] == "success"
+        for name in ("execution_matching_calls", "candidate_checks", "realisation_attempts"):
+            assert counts[name] > 0
+    finally:
+        trial.close()
+    assert search.scc_expanded_search.find_matching is original_matching
+    assert search.scc_expanded_planning.plan_blocks is original_plan
+    assert search.scc_expanded_search.realize_qualified_plan is original_realize
+
+
 @pytest.mark.parametrize("failure_mode", ("disabled", "middle-round"))
 def test_pytest_runner_checks_disabled_and_intermediate_rounds(
     pytester: pytest.Pytester,

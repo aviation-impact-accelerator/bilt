@@ -17,6 +17,8 @@ from bilt.core._errors import BiltAnalysisError
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver import _backend as scc
+from bilt.core._structural_analysis._causalization_block_solver import _expanded_planning as scc_expanded_planning
+from bilt.core._structural_analysis._causalization_block_solver import _expanded_search as scc_expanded_search
 from bilt.core._structural_analysis._causalization_block_solver import _planning as scc_planning
 from bilt.core._structural_analysis._causalization_block_solver import _search as scc_search
 from bilt.core._structural_analysis._causalization_block_solver._dm import dulmage_mendelsohn
@@ -34,8 +36,6 @@ if typing.TYPE_CHECKING:
     from collections.abc import Callable
 
     from bilt import Implementation
-    from bilt._backend import Backend
-    from bilt.core._model_constituent import BiltModelConstituent
 
 
 @dataclasses.dataclass(frozen=True)
@@ -198,25 +198,28 @@ def instrument(solver: str) -> tuple[ExitStack, Counter[str]]:
     if solver == "scc":
         for owner, name, label in (
             (scc_search, "find_matching", "execution_matching_calls"),
+            (scc_expanded_search, "find_matching", "execution_matching_calls"),
             (scc_planning, "settle_assignments", "settlement_calls"),
             (scc, "realize_plan", "realisation_attempts"),
+            (scc_expanded_search, "realize_qualified_plan", "realisation_attempts"),
             (scc, "validate_request_structure", "structural_validation_calls"),
         ):
             stack.enter_context(patch.object(owner, name, counted(label, getattr(owner, name))))
-        original_plan = typing.cast(
-            "Callable[..., object]",
-            scc_planning.plan_blocks,
+
+        def checked_plan(function: Callable[..., object]) -> Callable[..., object]:
+            @functools.wraps(function)
+            def plan(assignments: dict[str, object], available: set[str], output: str, **kwargs: object) -> object:
+                counts["candidate_checks"] += 1
+                if output not in available and output not in assignments:
+                    counts["candidates_without_target_assignment"] += 1
+                return function(assignments, available, output, **kwargs)
+
+            return plan
+
+        stack.enter_context(patch.object(scc_planning, "plan_blocks", checked_plan(scc_planning.plan_blocks)))
+        stack.enter_context(
+            patch.object(scc_expanded_planning, "plan_blocks", checked_plan(scc_expanded_planning.plan_blocks))
         )
-
-        def plan(
-            assignments: dict[str, BiltModelConstituent], available: set[str], output: str, *, backend: Backend
-        ) -> object:
-            counts["candidate_checks"] += 1
-            if output not in available and output not in assignments:
-                counts["candidates_without_target_assignment"] += 1
-            return original_plan(assignments, available, output, backend=backend)
-
-        stack.enter_context(patch.object(scc_planning, "plan_blocks", plan))
     else:
         stack.enter_context(
             patch.object(BipartiteGraph, "search", counted("recursive_search_calls", BipartiteGraph.search))

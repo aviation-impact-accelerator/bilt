@@ -10,6 +10,10 @@ from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltExecutionPlanError,
 )
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import StructuralExpansion
+from bilt.core._structural_analysis._causalization_block_solver._expanded_search import (
+    analyse_expanded,
+    required_inputs_expanded,
+)
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import (
     FullIncidenceGraph,
 )
@@ -25,6 +29,7 @@ from bilt.core._structural_analysis._causalization_block_solver._structural_cach
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import (
     validate_request_structure,
 )
+from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._plan import AnalysisPlan
 from bilt.core._structural_analysis._realize import (
     BlockRealizationFailure,
@@ -41,6 +46,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._evaluation_request import EvaluationRequest
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis._causalization_block_solver._expand_structure import ExpansionSnapshot
+    from bilt.core._structural_analysis._causalization_block_solver._structural_validation import ValidatedStructure
     from bilt.core._structural_analysis._plan import PlanStep
 
 
@@ -69,15 +75,9 @@ class CausalizationStructuralAnalyzer:
             available,
             request.output,
         )
-        if structure is not None and (
-            coupled := unavoidable_coupled_outputs(structure.well_determined, request.output, allow_local_linear=True)
-        ):
-            msg = (
-                f"Cannot compute {request.output} from available inputs {sorted(available)}. "
-                f"Execution of coupled blocks is not yet supported by this analyser. "
-                f"Required coupled computations: {', '.join(sorted(coupled))}."
-            )
-            raise BiltExecutionPlanError(msg)
+        expanded = self._preflight(request, structure)
+        if expanded is not None:
+            return expanded
 
         graph = build_matching_graph(self.full_incidence_graph, available)
         self._prefer_child_producers(graph, available, request.output, structure.snapshot if structure else None)
@@ -129,6 +129,23 @@ class CausalizationStructuralAnalyzer:
 
         raise BiltExecutionPlanError(msg)
 
+    def _preflight(self, request: EvaluationRequest, structure: ValidatedStructure | None) -> BackendCase | None:
+        """Keep local requests on their existing path; expand execution only for cross-boundary coupling."""
+        if structure is None or not (
+            coupled := unavoidable_coupled_outputs(structure.well_determined, request.output, allow_local_linear=True)
+        ):
+            return None
+        if not unavoidable_coupled_outputs(
+            structure.well_determined, request.output, allow_local_linear=True, allow_cross_boundary_linear=True
+        ):
+            return analyse_expanded(request, structure.well_determined, self.backend)
+        msg = (
+            f"Cannot compute {request.output} from available inputs {sorted(request.input_domains)}. "
+            f"Execution of coupled blocks is not yet supported by this analyser. "
+            f"Required coupled computations: {', '.join(sorted(coupled))}."
+        )
+        raise BiltExecutionPlanError(msg)
+
     def _retry_child(self, failure: RealizationFailure | BlockRealizationFailure) -> bool:
         """Retry child route discovery, or let matching advance to another candidate."""
         if isinstance(failure, BlockRealizationFailure):
@@ -159,13 +176,15 @@ class CausalizationStructuralAnalyzer:
         """Search for route inputs without realising operations."""
         graph = build_matching_graph(self.full_incidence_graph, available)
         self._prefer_child_producers(graph, available, output)
+        needs_expanded = False
 
         for assignments in search.candidate_assignments(
             graph, self._failures, output=None if output in available else output
         ):
             try:
                 blocks = planning.plan_blocks(assignments, available, output, backend=self.backend)
-            except BiltAnalysisError:
+            except BiltAnalysisError as error:
+                needs_expanded |= isinstance(error.__cause__, BiltLinearBlockError)
                 continue
 
             if output in available:
@@ -180,6 +199,26 @@ class CausalizationStructuralAnalyzer:
                 if attribute not in produced
             )
 
+        return self._expanded_required_inputs(available, output) if needs_expanded else None
+
+    def _expanded_required_inputs(self, available: set[str], output: str) -> frozenset[str] | None:
+        if not any(
+            isinstance(self.full_incidence_graph.graph[node], SubSystemConstituent)
+            for node in self.full_incidence_graph.constituent_nodes
+        ):
+            return None
+        try:
+            structure = validate_request_structure(self.full_incidence_graph, available, output)
+        except BiltAnalysisError:
+            return None
+        if structure is None or not unavoidable_coupled_outputs(
+            structure.well_determined, output, allow_local_linear=True
+        ):
+            return None
+        if not unavoidable_coupled_outputs(
+            structure.well_determined, output, allow_local_linear=True, allow_cross_boundary_linear=True
+        ):
+            return required_inputs_expanded(structure.well_determined, output)
         return None
 
     def _prefer_child_producers(

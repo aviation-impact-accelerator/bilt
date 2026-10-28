@@ -213,7 +213,7 @@ def _unexpected_search(*_: object, **__: object) -> typing.Never:
     raise AssertionError(message)
 
 
-def test_coupling_across_parent_and_child_is_still_rejected_early(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_scalar_coupling_across_parent_and_child_can_be_solved() -> None:
     difference_value = 2.0
 
     @equation
@@ -221,9 +221,7 @@ def test_coupling_across_parent_and_child_is_still_rejected_early(monkeypatch: p
         return inner.x - inner.y == difference_value
 
     parent = Implementation(Pair, [feedback], internal_implementations={"inner": Implementation(Pair, [balance])})
-    monkeypatch.setattr(search, "find_matching", _unexpected_search)
-    with pytest.raises(BiltExecutionPlanError, match=r"Required coupled computations: inner\.x, inner\.y"):
-        parent.evaluate({"inner.p": 4.0}, "inner.x", PYTHON_BACKEND)
+    assert parent.evaluate({"inner.p": 4.0}, "inner.x", PYTHON_BACKEND) == pytest.approx(3.0)
 
 
 @pytest.mark.parametrize("directional", (False, True))
@@ -261,7 +259,7 @@ def test_sibling_instances_share_code_but_not_block_values(backend: Backend) -> 
     assert result == pytest.approx(9.0)
 
 
-def test_coupling_between_instances_of_one_implementation_is_still_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_scalar_coupling_between_instances_of_one_implementation_can_be_solved() -> None:
     @equation
     def left_feedback(left: Pair, right: Pair, q: float) -> bool:
         return left.x - 2 * right.y == q
@@ -274,6 +272,4 @@ def test_coupling_between_instances_of_one_implementation_is_still_rejected(monk
     parent = Implementation(
         Pair, [left_feedback, right_feedback], internal_implementations={"left": child, "right": child}
     )
-    monkeypatch.setattr(search, "find_matching", _unexpected_search)
-    with pytest.raises(BiltExecutionPlanError, match="Required coupled computations"):
-        parent.evaluate({"left.p": 4.0, "right.p": 8.0, "q": 1.0}, "left.x", PYTHON_BACKEND)
+    assert parent.evaluate({"left.p": 4.0, "right.p": 8.0, "q": 1.0}, "left.x", PYTHON_BACKEND) == pytest.approx(1 / 3)

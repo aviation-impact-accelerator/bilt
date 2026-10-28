@@ -1,6 +1,6 @@
 """Primitive equation blocks with explicit subsystem ownership and qualified symbols."""
 
-__all__ = ["QualifiedBlock", "QualifiedEquation"]
+__all__ = ["QualifiedBlock", "QualifiedEquation", "QualifiedPlan", "QualifiedStep"]
 
 import dataclasses
 import typing
@@ -8,10 +8,12 @@ import typing
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError
 from bilt.core._structural_analysis._linear_domains import equation_domain_hints, merge_domain_hints
+from bilt.core._transform import BasicTransform
 from bilt.symbolic._atoms import SymbolType
 from bilt.symbolic._tree import Tree, symbol_tree
 
 if typing.TYPE_CHECKING:
+    from bilt.core._evaluation_request import EvaluationRequest
     from bilt.symbolic._domains import Domain
 
 
@@ -109,3 +111,37 @@ def _qualify_tree(tree: Tree, names: dict[str, str]) -> Tree:
         return result
 
     return visit(tree)
+
+
+@dataclasses.dataclass(frozen=True)
+class QualifiedStep:
+    """An ordered primitive computation retaining its implementation namespace."""
+
+    source: BasicEquation | BasicTransform
+    path: tuple[str, ...]
+    output: str
+
+    @property
+    def prefix(self) -> str:
+        return ".".join((*self.path, "")) if self.path else ""
+
+    @property
+    def inputs(self) -> frozenset[str]:
+        parameters = frozenset(self.prefix + name for name in self.source.__bilt_parameters__)
+        return parameters if isinstance(self.source, BasicTransform) else parameters - {self.output}
+
+
+@dataclasses.dataclass(frozen=True)
+class QualifiedPlan:
+    """Ordered primitive steps and coupled equation blocks in the expanded scope."""
+
+    request: EvaluationRequest
+    blocks: tuple[QualifiedStep | QualifiedBlock, ...]
+
+    @property
+    def outputs(self) -> frozenset[str]:
+        return frozenset(
+            name
+            for block in self.blocks
+            for name in (block.unknowns if isinstance(block, QualifiedBlock) else (block.output,))
+        )
