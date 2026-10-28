@@ -116,25 +116,33 @@ Selection works on **named intermediate ports over known dimensions**.
 Dimensions, extents and coordinate axes must be established before calculation;
 Bilt cannot infer new dimensions or changed extents on the fly.
 
-Arithmetic and reduction/selection results are plain symbolic expressions
-without tensor methods. To apply another reduction or selection, expose the
-intermediate as a Tensor parameter in a separate relationship:
+Supported tensor arithmetic and reduction/selection expressions retain tensor
+methods in equations, so composed receivers such as `(weights*x+y).sum(time)`
+can be written directly. Broadcast alignment applies before the reduction.
+
+Subsystem port expressions such as `child.x` still do not expose tensor methods
+directly. A child-local equation can reduce its own Tensor parameter, or a parent
+can expose the port through a Tensor alias:
 
 ```python
 from bilt import Tensor, equation
 
 
 @equation
-def doubling(doubled: Tensor, values: Tensor) -> bool:
-    return doubled == values * 2.0
+def expose(x: Tensor, child: Child) -> bool:
+    return x == child.x
 
 
 @equation
-def selecting(selected: Tensor, doubled: Tensor) -> bool:
-    return selected == doubled.isel(time, 1)
+def aggregate(total: float, x: Tensor) -> bool:
+    return total == x.sum(time)
 ```
 
-The same pattern supports repeated reductions. Concrete tensor methods are
+Here `Child` is an existing system interface with an `x` port. See
+[Linear systems](linear-systems.md) for the narrower set of unknown-dependent
+operators accepted inside a coupled block.
+
+Concrete tensor methods are
 model-only: calling them directly on a returned `Tensor` raises `TypeError`.
 Outside models, work with `t.values` for numerical operations.
 

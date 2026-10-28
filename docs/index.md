@@ -8,13 +8,13 @@ Models are built from systems, equations and transforms, with Bilt determining h
 
 The user guide introduces the main Bilt concepts:
 
-- [Modelling philosophy](guide/modelling-philosophy.md)
 - [Systems and values](guide/systems-and-values.md)
 - [Equations and acausal modelling](guide/equations-and-acausal-modelling.md)
 - [Transforms and implementations](guide/transforms-and-implementations.md)
 - [Models to computation](guide/models-to-computation.md)
 - [Dimensions, domains and tensors](guide/dimensions-domains-and-tensors.md)
 - [Systems of systems](guide/systems-of-systems.md)
+- [Coupled linear systems](guide/coupled-linear-systems.md)
 - [Backends](guide/backends.md)
 - [Units](guide/units.md)
 
@@ -39,6 +39,7 @@ Worked examples show how these concepts fit together in complete models.
 
 - [Systems and implementations](api/systems.md)
 - [Equations and transforms](api/relationships.md)
+- [Linear systems](api/linear-systems.md)
 - [Backends](api/backends.md)
 
 - [Tensors](api/tensors.md) - tensor construction, domains, broadcasting, reductions, selection and current limitations.

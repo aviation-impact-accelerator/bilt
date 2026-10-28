@@ -50,11 +50,9 @@ We will:
 - connect each child to ordinary values on the parent;
 - ask the same equations for different quantities.
 
-There is one important limitation to keep in mind:
+The requests in this example can be decomposed into independent child-system evaluations and ordinary parent equations. They do not require a coupled solver.
 
-> Bilt does not yet solve equations that require a simultaneous coupled solve across sibling subsystems.
-
-So we will only use computation paths that can be decomposed into independent child-system evaluations and ordinary parent equations.
+For requests that do require equations from multiple children to be solved together, see [Coupled linear systems](../guide/coupled-linear-systems.md) and its current analyser availability note.
 
 ```python exec="on" session="springs"
 from io import StringIO
@@ -574,7 +572,7 @@ The model is still describing the same two springs in series. Bilt is simply usi
 
 The component equations have not changed. Only the known values and requested values have.
 
-## 9. What we cannot ask yet
+## 9. A request that needs a coupled solve
 
 A tempting query is:
 
@@ -592,9 +590,9 @@ For two springs in series, that requires Bilt to determine the shared force and 
 
 That is a genuinely coupled solve across the two child systems.
 
-This example deliberately does **not** rely on that capability.
+The calculations above deliberately use decomposable requests, so they also work with the default exhaustive analyser.
 
-Instead, it demonstrates the acausal behaviour Bilt already supports when the computation can be decomposed into independent subsystem routes.
+The SCC analyser on the coupled-solve feature branch can support this linear coupled formulation. See [Coupled linear systems](../guide/coupled-linear-systems.md) for its current availability and a runnable introduction, or the [recuperated gas turbine](two-shaft-gas-turbine.md#14-close-the-loop-with-recuperation) for a larger feedback example.
 
 ## 10. Explore the model yourself
 

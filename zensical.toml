@@ -6,6 +6,8 @@ docs_dir = "docs"
 repo_url = "https://github.com/aviation-impact-accelerator/bilt"
 extra_javascript = [
     "javascripts/mermaid-zoom.js",
+    "javascripts/mathjax.js",
+    "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js",
 ]
 
 extra_css = [
@@ -22,6 +24,7 @@ nav = [
         { "Models to computation" = "guide/models-to-computation.md" },
         { "Dimensions, domains and tensors" = "guide/dimensions-domains-and-tensors.md" },
         { "System of systems" = "guide/systems-of-systems.md" },
+        { "Coupled linear systems" = "guide/coupled-linear-systems.md" },
         { "Backends" = "guide/backends.md" },
         { "Units" = "guide/units.md" },
     ] },
@@ -29,6 +32,7 @@ nav = [
     { "API reference" = [
         { "Systems and implementations" = "api/systems.md" },
         { "Equations and transforms" = "api/relationships.md" },
+        { "Linear systems" = "api/linear-systems.md" },
         { "Units" = "api/units.md" },
         { "Tensors" = "api/tensors.md" },
         { "Backends" = "api/backends.md" },
@@ -59,3 +63,6 @@ features = [
 
 
 [project.plugins.markdown-exec]
+
+[project.markdown_extensions]
+pymdownx.arithmatex.generic = true

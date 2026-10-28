@@ -300,9 +300,9 @@ Circuit
     └── Resistor
 ```
 
-With the current systems-of-systems API, equations should not directly couple multiple child interfaces.
+For a decomposable request, one useful pattern is to connect each child to values on the parent and relate those values there.
 
-Instead, connect each child independently to values on the parent.
+This also makes intermediate boundary quantities easy to inspect. It is a modelling pattern, rather than a restriction on which child interfaces an equation may mention.
 
 For example:
 
@@ -351,7 +351,7 @@ first_resistor.voltage
 second_resistor.voltage
 ```
 
-This keeps each child independently analysable while still allowing the parent to describe relationships between them.
+When the required boundary inputs can be established independently, each child can be evaluated on its own. Parent aliases do not remove mathematical coupling: if the relationships form a cycle, the SCC analyser may need to solve their primitive equations together.
 
 ### Put it together
 
@@ -462,7 +462,7 @@ def voltage_connection(
     return supply_voltage == resistor.voltage
 ```
 
-When several children need to interact, use parent values as the coupling layer:
+Parent values can provide a convenient coupling layer when several children interact:
 
 ```text
 child
@@ -487,4 +487,12 @@ The hierarchy organises the model.
 
 The relationships determine what can be computed.
 
-[← Dimensions, domains and tensors](dimensions-domains-and-tensors.md) · [Index](../index.md) · [Backends →](backends.md)
+
+
+### When the parent and child must be solved together
+
+A subsystem boundary does not always define an independent calculation. A parent's balance may depend on a child output while that output depends on a value determined by the same balance.
+
+The SCC analyser can retain those primitive equations in one supported linear block, preserving each child instance's identity. See [Coupled linear systems](coupled-linear-systems.md), including the feature-branch availability note, and the [recuperated gas turbine](../worked_examples/two-shaft-gas-turbine.md#14-close-the-loop-with-recuperation).
+
+[← Dimensions, domains and tensors](dimensions-domains-and-tensors.md) · [Index](../index.md) · [Coupled linear systems →](coupled-linear-systems.md)
