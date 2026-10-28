@@ -12,7 +12,6 @@ from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._structural_analysis import _realize_linear as linear_realization
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._sub_system import SubSystemConstituent
@@ -261,7 +260,7 @@ def test_literal_selection_connects_coordinates_in_a_qualified_joint_block(
     np.testing.assert_allclose(result.values, [0.4, 1.4] if output == "inner.x" else [1.6, 2.6], atol=1e-5)
 
 
-def test_missing_unknown_hints_are_rejected_without_domain_inference(backend: Backend) -> None:
+def test_missing_unknown_hints_are_inferred(backend: Backend) -> None:
     @equation
     def unhinted(x: Tensor, y: Tensor, q: float) -> bool:
         return 0.5 * x.sum(TIME) - y == q
@@ -269,8 +268,10 @@ def test_missing_unknown_hints_are_rejected_without_domain_inference(backend: Ba
     parent = Implementation(
         Ports, [boundary, supply_q], internal_implementations={"inner": Implementation(Ports, [unhinted])}
     )
-    with pytest.raises(BiltExecutionPlanError, match=r"explicit Domain hints.*inner.x.*inner.y"):
-        parent.evaluate({"p": tensor([2.0, 4.0, 6.0], over=TIME), "q": 1.0}, "inner.x", backend)
+    result = parent.evaluate({"p": tensor([2.0, 4.0, 6.0], over=TIME), "q": 1.0}, "inner.x", backend)
+    assert isinstance(result, Tensor)
+    assert result.domain == domain(TIME)
+    np.testing.assert_allclose(result.values, [0.0, 2.0, 4.0], atol=1e-5)
 
 
 @pytest.mark.parametrize("output", ("inner.x", "inner.y"))
@@ -412,16 +413,7 @@ def test_required_inputs_can_describe_a_child_with_a_joint_cross_boundary_route(
     assert child.required_inputs_for("module.y", backend, within={"module.p", "module.q"}) == frozenset({"p", "q"})
 
 
-def test_partial_hints_do_not_invoke_cross_boundary_domain_inference(monkeypatch: pytest.MonkeyPatch) -> None:
-    def unexpected(*_: object, **__: object) -> typing.Never:
-        message = "Qualified joint plans must request missing hints rather than infer them in this PR."
-        raise AssertionError(message)
-
-    monkeypatch.setattr(linear_realization, "infer_linear_domains", unexpected)
-    assert _model().evaluate(
-        {"p": tensor([2.0, 4.0, 6.0], over=TIME), "q": 1.0}, "inner.y", PYTHON_BACKEND
-    ) == pytest.approx(2.0)
-
+def test_partial_hints_allow_inference_of_the_remaining_unknown(backend: Backend) -> None:
     @equation
     def partial(x: OverTime, y: Tensor, q: float) -> bool:
         return 0.5 * x.sum(TIME) - y == q
@@ -429,8 +421,8 @@ def test_partial_hints_do_not_invoke_cross_boundary_domain_inference(monkeypatch
     parent = Implementation(
         Ports, [boundary, supply_q], internal_implementations={"inner": Implementation(Ports, [partial])}
     )
-    with pytest.raises(BiltExecutionPlanError, match=r"explicit Domain hints.*inner.y"):
-        parent.evaluate({"p": tensor([2.0, 4.0, 6.0], over=TIME), "q": 1.0}, "inner.y", PYTHON_BACKEND)
+    result = parent.evaluate({"p": tensor([2.0, 4.0, 6.0], over=TIME), "q": 1.0}, "inner.y", backend)
+    assert result == pytest.approx(2.0, abs=1e-5)
 
 
 @pytest.mark.parametrize("output", ("inner.x", "inner.y"))
