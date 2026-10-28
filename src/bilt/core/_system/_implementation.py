@@ -42,6 +42,7 @@ class _CompilationRequest:
     output: str
     input_domains: frozenset[tuple[str, Domain]]
     backend: Backend
+    expose_intermediates: bool
 
 
 @dataclasses.dataclass(frozen=True)
@@ -111,13 +112,33 @@ class Implementation:
         output: str,
         backend: Backend,
     ) -> object:
+        """Calculate the requested value without retaining intermediate results."""
+        return self._evaluate(inputs, output, backend, expose_intermediates=False)[output]
+
+    def _evaluate_with_intermediates(
+        self,
+        inputs: dict[str, object],
+        output: str,
+        backend: Backend,
+    ) -> dict[str, object]:
+        """Calculate and lift every port computed in this implementation's plan."""
+        return self._evaluate(inputs, output, backend, expose_intermediates=True)
+
+    def _evaluate(
+        self,
+        inputs: dict[str, object],
+        output: str,
+        backend: Backend,
+        *,
+        expose_intermediates: bool,
+    ) -> dict[str, object]:
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
 
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
 
             if output in inputs:
-                output_value = inputs[output]
+                outputs = {output: inputs[output]}
             else:
                 request = EvaluationRequest(
                     output=output,
@@ -127,27 +148,38 @@ class Implementation:
                     },
                 )
 
-                backend_callable = self.get_evaluation(request, backend)
-
-                output_declaration = self._port_declarations.get(output)
+                backend_callable = self.get_evaluation(request, backend, expose_intermediates=expose_intermediates)
 
                 lowered_inputs = lower_inputs(inputs)
                 alignment_plan = generate_alignment_plan(inputs)
                 aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
-                raw_output_value = backend_callable.evaluate(mangle_inputs(aligned_inputs))
+                backend_inputs = mangle_inputs(aligned_inputs)
+                if expose_intermediates:
+                    raw_outputs = backend_callable.evaluate_outputs(backend_inputs)
+                    output_domains = {result.port: result.domain for result in backend_callable.outputs or ()}
+                else:
+                    raw_outputs = {output: backend_callable.evaluate(backend_inputs)}
+                    output_domains = {output: typing.cast("Domain", backend_callable.output_domain)}
 
-                output_domain = typing.cast("Domain", backend_callable.output_domain)
-                lifting_plan = generate_lifting_plan(output_domain, output_declaration)
-                output_value = lift_output(raw_output_value, lifting_plan)
+                outputs = {
+                    name: lift_output(
+                        value,
+                        generate_lifting_plan(output_domains[name], self._port_declarations.get(name)),
+                    )
+                    for name, value in raw_outputs.items()
+                }
 
-            evaluation.domains.bind(output_value)
+            validate_inputs(self._system.__bilt_name__, self._port_declarations, outputs)
+            evaluation.domains.bind_all(outputs.values())
 
-        return output_value
+        return outputs
 
     def get_evaluation(
         self,
         request: EvaluationRequest,
         backend: Backend,
+        *,
+        expose_intermediates: bool = False,
     ) -> BackendCallable:
         evaluation = current_evaluation()
 
@@ -155,6 +187,7 @@ class Implementation:
             output=request.output,
             input_domains=frozenset(request.input_domains.items()),
             backend=backend,
+            expose_intermediates=expose_intermediates,
         )
         compilation_context = _CompilationContext(
             canonical_order=evaluation.canonical_order,
@@ -169,7 +202,9 @@ class Implementation:
 
         planned_case = self.analyser_for(backend).analyse(request)
 
-        backend_callable = backend.chain_case(planned_case)
+        backend_callable = backend.chain_case(
+            dataclasses.replace(planned_case, expose_intermediates=expose_intermediates)
+        )
         if planned_case.intermediates:
             output_domain = planned_case.intermediates[-1].output_domain
         else:

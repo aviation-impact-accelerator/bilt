@@ -29,8 +29,13 @@ def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -
     inputs = {
         name: value for name, value in instance.__bilt_system_instance_variables__.items() if value is not MISSING
     }
-    output = attribute.name
     backend = _backend_stack[-1] if _backend_stack else PYTHON_BACKEND
-    result = typing.cast("T", implementation.evaluate(inputs=inputs, output=output, backend=backend))
-    instance.__bilt_system_instance_variables__[attribute.name] = result
-    return result
+    outputs = implementation._evaluate_with_intermediates(inputs=inputs, output=attribute.name, backend=backend)  # noqa: SLF001
+    if attribute.name not in outputs:
+        msg = f"Evaluating {attribute.name!r} did not produce the requested value."
+        raise RuntimeError(msg)
+    if collisions := outputs.keys() & inputs.keys():
+        msg = f"Evaluating {attribute.name!r} recomputed available ports: {sorted(collisions)}."
+        raise RuntimeError(msg)
+    instance.__bilt_system_instance_variables__.update(outputs)
+    return typing.cast("T", outputs[attribute.name])

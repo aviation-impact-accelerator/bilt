@@ -49,7 +49,16 @@ with model:
 ```
 
 An instance retains the implementation selected on its first calculated lookup
-and caches requested outputs. Use a fresh instance when comparing implementations,
+and caches requested outputs and the intermediate ports computed on the way.
+Later lookups can reuse these ports, including intermediates without interface
+fields. Each retained value has its own tensor domain and declared unit.
+Only values in the parent's plan are retained: a computed child port uses its
+dotted name, while the child's internal intermediates stay private.
+No values are shared between instances. Keeping intermediates can retain large
+arrays for the lifetime of the instance. Direct `implementation.evaluate(...)`
+still returns only the requested value and does not retain intermediate values.
+
+Use a fresh instance when comparing implementations,
 inputs or backends. Registering an implementation alone does not activate it.
 Component order does not prescribe execution order.
 

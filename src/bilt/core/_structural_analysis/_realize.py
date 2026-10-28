@@ -5,7 +5,7 @@ import copy
 import dataclasses
 import typing
 
-from bilt._backend._callable import BackendCallable
+from bilt._backend._callable import BackendCallable, BackendOutput
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
@@ -32,6 +32,7 @@ def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | Realizat
     """Convert an AnalysisPlan into a BackendCase by compiling each step to a callable."""
     symbol_domains = plan.request.input_domains.copy()
     intermediates = []
+    outputs = []
     for step in plan.steps:
         result = _operation_to_callable(
             step,
@@ -47,6 +48,7 @@ def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | Realizat
             raise BiltAnalysisError(msg)
 
         symbol_domains[step.output] = result.output_domain
+        outputs.append(BackendOutput(backend_name=result.name, port=step.output, domain=result.output_domain))
 
     output = mangle_name(plan.output)
     return BackendCase(
@@ -54,6 +56,7 @@ def realize_plan(plan: AnalysisPlan, backend: Backend) -> BackendCase | Realizat
         parameters=tuple(map(mangle_name, sorted(plan.inputs))),
         intermediates=intermediates,
         return_name=output,
+        outputs=tuple(outputs),
     )
 
 

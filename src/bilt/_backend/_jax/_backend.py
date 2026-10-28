@@ -58,7 +58,15 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
                     for parameter in interim_callable.parameters
                 )
             })\n"""
-        chained_callable_as_string += f"    return {case.return_name}_\n"
+        if case.expose_intermediates:
+            returns = ", ".join(
+                output.backend_name if output.backend_name in case_parameters else f"{output.backend_name}_"
+                for output in case.outputs
+            )
+            chained_callable_as_string += f"    return ({returns},)\n" if returns else "    return ()\n"
+        else:
+            return_name = case.return_name if case.return_name in case_parameters else f"{case.return_name}_"
+            chained_callable_as_string += f"    return {return_name}\n"
         chained_callable_ast = typing.cast(
             "ast.FunctionDef",
             ast.parse(chained_callable_as_string).body[0],
@@ -69,6 +77,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
         final_callable = self.transpile(chained_callable_ast)
         self.compilation_namespace = old_namespace
 
+        final_callable.outputs = case.outputs if case.expose_intermediates else None
         return final_callable
 
 
