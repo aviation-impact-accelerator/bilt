@@ -6,9 +6,9 @@ import typing
 from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError, LinearBlock, extract_linear_block
 from bilt.symbolic._algebra._affine import AffineAnalysisError, AffineForm, add_affine, scale_affine, subtract_affine
-from bilt.symbolic._algebra._expr_ops import BINARY_ARG_COUNT, is_zero, multiply_many, negate, one, zero
+from bilt.symbolic._algebra._expr_ops import BINARY_ARG_COUNT, add, is_zero, multiply, multiply_many, negate, one, zero
 from bilt.symbolic._atoms import ADD, ISEL, MEAN, MUL, NEG, SEL, SUM, CoordinateType, IntType, SymbolType
-from bilt.symbolic._tree import Tree
+from bilt.symbolic._tree import Tree, symbol_tree
 
 if typing.TYPE_CHECKING:
     from bilt.core._structural_analysis._plan import PlanBlock
@@ -114,3 +114,24 @@ def _validate_selection(tree: Tree) -> None:
     if not selector.is_leaf or selector.head.atom_type is not selector_type:
         message = "Linear unknown selections require a literal position or coordinate."
         raise AffineAnalysisError(message)
+
+
+def linear_operator_rows(linear: LinearBlock | LinearOperatorBlock) -> tuple[Tree, ...]:
+    """Return the same normalized operator rows for domain inference and assembly."""
+    terms = (
+        tuple(
+            tuple(
+                multiply(coefficient, symbol_tree(name)) for coefficient, name in zip(row, linear.unknowns, strict=True)
+            )
+            for row in linear.coefficients
+        )
+        if isinstance(linear, LinearBlock)
+        else linear.operators
+    )
+    rows = []
+    for row in terms:
+        tree = zero()
+        for term in row:
+            tree = add(tree, term)
+        rows.append(tree)
+    return tuple(rows)

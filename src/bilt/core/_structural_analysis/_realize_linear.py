@@ -15,15 +15,18 @@ from bilt._backend._linear_solve import (
 from bilt.core._errors import BiltDomainBindingError
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._port import mangle_name
+from bilt.core._structural_analysis._domain_inference import infer_linear_domains
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError, LinearBlock
 from bilt.core._structural_analysis._linear_domains import declared_linear_domains
-from bilt.core._structural_analysis._linear_operator import LinearOperatorBlock, extract_supported_linear_block
+from bilt.core._structural_analysis._linear_operator import (
+    LinearOperatorBlock,
+    extract_supported_linear_block,
+    linear_operator_rows,
+)
 from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._to_ast import tree_to_functiondef
-from bilt.symbolic._algebra._expr_ops import add, multiply, zero
 from bilt.symbolic._domains import Domain, union
 from bilt.symbolic._expressions import Expr
-from bilt.symbolic._tree import symbol_tree
 
 if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable
@@ -144,8 +147,14 @@ class _LinearLowering:
             result[name] = self.ordered(domain)
         pointwise = isinstance(self.linear, LinearBlock) and all(domain == common for domain in result.values())
         if not pointwise and any(name not in hints for name in self.linear.unknowns):
-            message = "Joint linear blocks require explicit Domain hints for every block unknown."
-            raise BiltLinearBlockError(message)
+            result = infer_linear_domains(
+                self.linear.unknowns,
+                tuple(zip(linear_operator_rows(self.linear), self.linear.rhs, strict=True)),
+                {name: self.symbol_domains[name] for name in self.parameters},
+                hints,
+                self.canonical,
+            )
+            pointwise = isinstance(self.linear, LinearBlock) and all(domain == common for domain in result.values())
         return result, pointwise
 
     def ordered(self, domain: Domain) -> Domain:
@@ -157,22 +166,9 @@ class _LinearLowering:
     def joint(
         self, domains: dict[str, Domain], rhs: list[Lowered]
     ) -> tuple[ast.Tuple, list[ast.stmt], list[ast.keyword]]:
-        if isinstance(self.linear, LinearBlock):
-            operator_rows = tuple(
-                tuple(
-                    multiply(coefficient, symbol_tree(name))
-                    for coefficient, name in zip(row, self.linear.unknowns, strict=True)
-                )
-                for row in self.linear.coefficients
-            )
-        else:
-            operator_rows = self.linear.operators
         rows = []
         row_domains = []
-        for row, (_, rhs_domain) in zip(operator_rows, rhs, strict=True):
-            tree = zero()
-            for term in row:
-                tree = add(tree, term)
+        for tree, (_, rhs_domain) in zip(linear_operator_rows(self.linear), rhs, strict=True):
             value, domain = self.lower(tree, {**self.symbol_domains, **domains})
             rows.append(value)
             row_domains.append(union(domain, rhs_domain))
