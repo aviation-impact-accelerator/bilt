@@ -487,4 +487,12 @@ The hierarchy organises the model.
 
 The relationships determine what can be computed.
 
-[← Dimensions, domains and tensors](dimensions-domains-and-tensors.md) · [Index](../index.md) · [Backends →](backends.md)
+
+
+### When the parent and child must be solved together
+
+A subsystem boundary does not always define an independent calculation. A parent's balance may depend on a child output while that output depends on a value determined by the same balance.
+
+The SCC analyser can retain those primitive equations in one supported linear block, preserving each child instance's identity. See [Coupled linear systems](coupled-linear-systems.md) and the [recuperated gas turbine](../worked_examples/two-shaft-gas-turbine.md#14-close-the-loop-with-recuperation).
+
+[← Dimensions, domains and tensors](dimensions-domains-and-tensors.md) · [Index](../index.md) · [Coupled linear systems →](coupled-linear-systems.md)

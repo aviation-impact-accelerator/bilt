@@ -60,7 +60,8 @@ structural analyser by default, with either the Python or JAX backend. It orders
 ordinary calculations and solves supported coupled linear blocks, including
 blocks spanning parent and child equations. There is no separate public solver
 selection argument. Exhaustive analysis remains available internally for
-comparison tests and benchmarks.
+comparison tests and benchmarks. See [Linear systems](linear-systems.md) for
+supported expressions, domain inference and failure behaviour.
 
 Instance results are cached, but only constructor-supplied values are boundary
 inputs for subsequent requests. Reading one calculated output does not add an

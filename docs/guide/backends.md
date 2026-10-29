@@ -307,4 +307,4 @@ with JAX_BACKEND, implementation:
 The model describes **what** to compute. The backend determines **how** that
 calculation runs.
 
-[← Systems of systems](systems-of-systems.md) · [Index](../index.md) · [Units →](units.md)
+[← Coupled linear systems](coupled-linear-systems.md) · [Index](../index.md) · [Units →](units.md)
