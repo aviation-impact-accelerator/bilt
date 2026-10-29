@@ -69,7 +69,7 @@ class SearchTrial:
             factory = (
                 ExhaustiveStructuralAnalyser if case.solver == "exhaustive" else scc.CausalizationStructuralAnalyzer
             )
-            resources.enter_context(patch.object(implementation_module, "ExhaustiveStructuralAnalyser", factory))
+            resources.enter_context(patch.object(implementation_module, "CausalizationStructuralAnalyzer", factory))
             implementation = build_model(
                 coupled=case.coupled, depth=case.depth, rectangular=case.rectangular, layout=case.layout
             )

@@ -85,29 +85,11 @@ core exit temperature = Quantity(1000, absolute_kelvin) K
 
 A real engine model would usually determine the turbine expansion from pressures and component efficiencies. Here the fixed exit temperature keeps the physics intentionally low-order while giving the shaft-power calculation a well-defined endpoint.
 
-## The Bilt modelling constraint
+## How this example is evaluated
 
-There is one important Bilt limitation in this example:
+The requests below can be decomposed into ordinary calculations. The parent values make the component connections and shaft balances easy to inspect.
 
-> Bilt does not yet solve equations that require a simultaneous coupled solve across sibling subsystems.
-
-So we do not write one equation containing both a compressor and a turbine.
-
-Instead:
-
-```text
-child component
-      ↕
-ordinary parent value
-      ↕
-parent equation
-      ↕
-ordinary parent value
-      ↕
-child component
-```
-
-This keeps the model acausal while ensuring every requested result can be reached through computation paths Bilt can solve today.
+The default causalization analyser also supports linear coupled blocks across subsystem boundaries. This example does not require that capability; a nonlinear coupled block would still need a different formulation.
 
 The gas path still runs physically from compressor to turbine, but those physical arrows do **not** prescribe the direction in which Bilt must use the equations.
 
@@ -661,21 +643,7 @@ The hierarchy organises the model. It does not prescribe an execution order.
 
 A child system can also have more than one valid internal route to the same port. Which route Bilt uses depends on the values available in the surrounding model, so nesting a subsystem does not turn it into a fixed one-way calculation.
 
-The important restriction is simply that the path can be decomposed into:
-
-```text
-parent value
-    ↕
-one child system
-    ↕
-parent value
-    ↕
-parent equation
-    ↕
-parent value
-    ↕
-one child system
-```
+For these requests, the required boundary values can be established before evaluating each child. This is a property of the example, rather than a general restriction on subsystem equations.
 
 For the executable documentation below, the same model is loaded from a temporary Python module. This gives Bilt a real source file for `inspect.getsource()` during the `markdown-exec` build.
 
@@ -1609,4 +1577,4 @@ No manually inverted model is required.
 
 > **Acausal modelling means describing the relationships once, then asking for the quantity you need.**
 
-The example remains within Bilt's current capabilities because every route is decomposable and no equation directly couples multiple sibling subsystems.
+The forward and inverse requests here are decomposable. Supported linear feedback between subsystems can also be handled by the default causalization analyser.

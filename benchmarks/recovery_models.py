@@ -91,7 +91,7 @@ class RecoveryTrial:
         resources = ExitStack()
         try:
             factory = ExhaustiveStructuralAnalyser if solver == "exhaustive" else CausalizationStructuralAnalyzer
-            resources.enter_context(patch.object(implementation_module, "ExhaustiveStructuralAnalyser", factory))
+            resources.enter_context(patch.object(implementation_module, "CausalizationStructuralAnalyzer", factory))
             implementation = build_recovery_model(mode, depth)
             refused: list[str] = []
             if mode == "backend":

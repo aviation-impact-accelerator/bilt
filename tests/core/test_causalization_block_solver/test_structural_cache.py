@@ -170,7 +170,7 @@ def test_shared_child_query_reuse_preserves_distinct_instance_rows(walks: list[Q
 def test_nested_requests_share_queries_and_next_request_starts_fresh(
     monkeypatch: pytest.MonkeyPatch, walks: list[Query], *, query_only: bool
 ) -> None:
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
     parent, child = _shared_parent()
     child_incidence = child.structural_analysis()._incidence  # noqa: SLF001
     request = EvaluationRequest(output="answer", input_domains=dict.fromkeys(("left.a", "right.a"), Domain.scalar()))

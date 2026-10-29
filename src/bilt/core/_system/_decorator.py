@@ -70,6 +70,7 @@ def _create_initialize_method(cls: Interface) -> None:
         "self.__bilt_system_implementation__ = MISSING",
         f"self.__bilt_system_instance_variables__ = {{{', '.join(f'"{parameter}": {parameter}' for parameter in parameters)}}}",
         "_check_inputs(type(self), self.__bilt_system_instance_variables__)",
+        "self.__bilt_system_instance_inputs__ = self.__bilt_system_instance_variables__.copy()",
     ]
     _create_method(
         cls,

@@ -161,7 +161,7 @@ def test_child_failure_invalidates_cached_parent_route(monkeypatch: pytest.Monke
         a: float = field()
         b: float = field()
 
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
     implementation = Implementation(Ports, [b])
     child = SubSystemConstituent("child", implementation)
     parent = CausalizationStructuralAnalyzer([child], PYTHON_BACKEND)

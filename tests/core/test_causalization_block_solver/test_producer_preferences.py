@@ -132,7 +132,9 @@ def test_forward_boundary_producers_are_preferred_without_removing_edges(*, reve
 def test_nested_series_uses_first_candidates_in_each_query(
     monkeypatch: pytest.MonkeyPatch, depth: int, output: str
 ) -> None:
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", solver.CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(
+        implementation_module, "CausalizationStructuralAnalyzer", solver.CausalizationStructuralAnalyzer
+    )
     original = search.candidate_assignments
 
     def first_only(
@@ -171,7 +173,9 @@ def test_unresolved_expansion_does_not_supply_hints() -> None:
 
 @pytest.mark.parametrize("depth", (1, 2))
 def test_preferences_follow_the_current_request_in_both_directions(monkeypatch: pytest.MonkeyPatch, depth: int) -> None:
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", solver.CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(
+        implementation_module, "CausalizationStructuralAnalyzer", solver.CausalizationStructuralAnalyzer
+    )
     analyser = _nested(depth).analyser_for(PYTHON_BACKEND)
     shared = {"heat": 12_000.0, "flow": 2.0, "capacity": 4_000.0}
     requests = (("outlet", {"inlet": 10.0}, 11.5), ("inlet", {"outlet": 11.5}, 10.0))
@@ -211,7 +215,9 @@ def test_hint_discovery_failure_preserves_existing_route_query(monkeypatch: pyte
         msg = "Cannot discover a preference."
         raise BiltAnalysisError(msg)
 
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", solver.CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(
+        implementation_module, "CausalizationStructuralAnalyzer", solver.CausalizationStructuralAnalyzer
+    )
     implementation = _nested(1)
     monkeypatch.setattr(solver, "StructuralExpansion", refused_hint)
     analyser = implementation.analyser_for(PYTHON_BACKEND)
@@ -242,7 +248,9 @@ def test_single_child_query_does_not_expand_an_ordering_hint(monkeypatch: pytest
         msg = "A single child must keep the existing lightweight ordering."
         raise AssertionError(msg)
 
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", solver.CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(
+        implementation_module, "CausalizationStructuralAnalyzer", solver.CausalizationStructuralAnalyzer
+    )
     child = Implementation(Ports, [exchange])
     parent = Implementation(Ports, [supply], internal_implementations={"left": child})
     monkeypatch.setattr(solver, "StructuralExpansion", unexpected_expansion)
