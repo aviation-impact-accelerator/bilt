@@ -305,7 +305,7 @@ class LinearTrial:
         resources = ExitStack()
         try:
             resources.enter_context(
-                patch.object(implementation_module, "ExhaustiveStructuralAnalyser", CausalizationStructuralAnalyzer)
+                patch.object(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
             )
             model, inputs, expected = _electrical(case) if case.family == "electrical" else _thermal(case)
             context = resources.enter_context(EvaluationContext())

@@ -70,7 +70,9 @@ def test_child_owned_linear_coupling_is_deferred_to_child(monkeypatch: pytest.Mo
     # Construct through the existing seam without changing the production default.
     from bilt.core._system import _implementation as implementation_module  # noqa: PLC0415
 
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", solver.CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(
+        implementation_module, "CausalizationStructuralAnalyzer", solver.CausalizationStructuralAnalyzer
+    )
     analyser = implementation.analyser_for(PYTHON_BACKEND)
     request = EvaluationRequest(output="x", input_domains=dict.fromkeys({"a", "b"}, Domain.scalar()))
     with EvaluationContext():

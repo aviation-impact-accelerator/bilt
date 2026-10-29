@@ -50,11 +50,7 @@ We will:
 - connect each child to ordinary values on the parent;
 - ask the same equations for different quantities.
 
-There is one important limitation to keep in mind:
-
-> Bilt does not yet solve equations that require a simultaneous coupled solve across sibling subsystems.
-
-So we will only use computation paths that can be decomposed into independent child-system evaluations and ordinary parent equations.
+The requests below can be decomposed into independent child-system evaluations and ordinary parent equations. Other requests may require a simultaneous solve; the default causalization analyser supports coupled linear blocks across subsystem boundaries.
 
 ```python exec="on" session="springs"
 from io import StringIO
@@ -445,23 +441,27 @@ double_spring = model_module.double_spring
 
 ## 7. Evaluate a compatible spring state
 
-Start by supplying the individual spring extensions and stiffnesses.
+Start by supplying both stiffnesses and the first spring's extension. The shared force then determines the second extension:
 
-We deliberately choose compatible values:
+```text
+known: first stiffness, second stiffness, first extension
+want:  common force, total extension
+```
+
+The resulting compatible state is:
 
 ```text
 Spring 1: 100 N/m × 0.075 m = 7.5 N
 Spring 2: 300 N/m × 0.025 m = 7.5 N
 ```
 
-so both springs carry the same series force.
+so both springs carry the same series force. We calculate the second extension rather than supply it as an additional constraint; specifying both extensions and both stiffnesses would overconstrain this model under structural validation.
 
 ```python exec="on" source="above" session="springs"
 forward_case = DoubleSpring(
     first_stiffness=100.0 * newton / meter,
     second_stiffness=300.0 * newton / meter,
     first_extension=0.075 * meter,
-    second_extension=0.025 * meter,
 )
 
 with double_spring:
@@ -574,7 +574,7 @@ The model is still describing the same two springs in series. Bilt is simply usi
 
 The component equations have not changed. Only the known values and requested values have.
 
-## 9. What we cannot ask yet
+## 9. A request that requires a coupled solve
 
 A tempting query is:
 
@@ -592,9 +592,7 @@ For two springs in series, that requires Bilt to determine the shared force and 
 
 That is a genuinely coupled solve across the two child systems.
 
-This example deliberately does **not** rely on that capability.
-
-Instead, it demonstrates the acausal behaviour Bilt already supports when the computation can be decomposed into independent subsystem routes.
+The default causalization analyser supports this linear coupled formulation. The worked calculations above use decomposable routes, demonstrating that the same modelling API supports both kinds of request.
 
 ## 10. Explore the model yourself
 
@@ -624,7 +622,7 @@ with double_spring:
     total_extension = spring_system.total_extension
 ```
 
-You can also go back to the forward form and provide the individual extensions instead of the force.
+You can also go back to the forward form and provide the first spring's extension instead of the force.
 
 To explore locally, edit the values while `zensical serve` is running and save the Markdown file. Zensical will rebuild the page and rerun the executable blocks.
 

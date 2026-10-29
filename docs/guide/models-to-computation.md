@@ -200,6 +200,12 @@ computation plan
 execution
 ```
 
+Bilt uses the **causalization analyser**, also called the SCC analyser, by default.
+
+It can order independent calculations and group equations that must be solved together. Supported coupled linear groups are evaluated as simultaneous systems, including groups that cross subsystem boundaries. This does not provide a general nonlinear solver.
+
+The Python and JAX backends determine how the resulting plan executes. Choosing a backend does not change the structural analyser.
+
 First decide **what needs to be done**.
 
 Then do it.

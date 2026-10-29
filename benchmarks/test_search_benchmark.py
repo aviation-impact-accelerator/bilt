@@ -33,7 +33,7 @@ def test_trials_use_fresh_models_and_contexts(
     solver: str,
 ) -> None:
     case = search.SearchCase(solver=solver, layout="siblings", coupled=False, depth=1, rectangular=False)
-    original_factory = implementation_module.ExhaustiveStructuralAnalyser
+    original_factory = implementation_module.CausalizationStructuralAnalyzer
     first = prepare_trial(case)
     first_context = current_evaluation()
     first.analyse()
@@ -45,7 +45,7 @@ def test_trials_use_fresh_models_and_contexts(
     second.analyse()
     assert second.check()["value"] == first.check()["value"]
     second.close()
-    assert implementation_module.ExhaustiveStructuralAnalyser is original_factory
+    assert implementation_module.CausalizationStructuralAnalyzer is original_factory
     with pytest.raises(BiltNoActiveEvaluationError):
         current_evaluation()
 
@@ -151,7 +151,7 @@ def test_numerical_success_is_not_a_coupled_pass(
 
 
 def test_setup_failure_restores_solver_selection(monkeypatch: pytest.MonkeyPatch) -> None:
-    original_factory = implementation_module.ExhaustiveStructuralAnalyser
+    original_factory = implementation_module.CausalizationStructuralAnalyzer
 
     def broken(**_: object) -> typing.Never:
         msg = "Model setup failed"
@@ -162,14 +162,14 @@ def test_setup_failure_restores_solver_selection(monkeypatch: pytest.MonkeyPatch
         search.SearchTrial.prepare(
             search.SearchCase(solver="scc", layout="links", coupled=False, depth=0, rectangular=False)
         )
-    assert implementation_module.ExhaustiveStructuralAnalyser is original_factory
+    assert implementation_module.CausalizationStructuralAnalyzer is original_factory
     with pytest.raises(BiltNoActiveEvaluationError):
         current_evaluation()
 
 
 @pytest.mark.parametrize("solver", ("exhaustive", "scc"))
 def test_counter_trial_checks_answer_and_restores_patches(solver: str) -> None:
-    original_factory = implementation_module.ExhaustiveStructuralAnalyser
+    original_factory = implementation_module.CausalizationStructuralAnalyzer
     original_matching = search.scc_search.find_matching
     original_plan = search.scc_planning.plan_blocks
     original_settlement = search.scc_planning.settle_assignments
@@ -184,7 +184,7 @@ def test_counter_trial_checks_answer_and_restores_patches(solver: str) -> None:
         assert counts["execution_matching_calls"] > 0
         assert counts["settlement_calls"] > 0
         assert counts["candidate_checks"] > 0
-    assert implementation_module.ExhaustiveStructuralAnalyser is original_factory
+    assert implementation_module.CausalizationStructuralAnalyzer is original_factory
     assert search.scc_search.find_matching is original_matching
     assert search.scc_planning.plan_blocks is original_plan
     assert search.scc_planning.settle_assignments is original_settlement
@@ -193,14 +193,14 @@ def test_counter_trial_checks_answer_and_restores_patches(solver: str) -> None:
 
 
 def test_counter_failure_restores_patches(monkeypatch: pytest.MonkeyPatch) -> None:
-    original_factory = implementation_module.ExhaustiveStructuralAnalyser
+    original_factory = implementation_module.CausalizationStructuralAnalyzer
     original_matching = search.scc_search.find_matching
     original_plan = search.scc_planning.plan_blocks
     original_settlement = search.scc_planning.settle_assignments
     monkeypatch.setattr(search, "expected_value", lambda **_: -1.0)
     with pytest.raises(AssertionError, match="Expected -1"):
         search.count_search(search.SearchCase(solver="scc", layout="links", coupled=False, depth=0, rectangular=False))
-    assert implementation_module.ExhaustiveStructuralAnalyser is original_factory
+    assert implementation_module.CausalizationStructuralAnalyzer is original_factory
     assert search.scc_search.find_matching is original_matching
     assert search.scc_planning.plan_blocks is original_plan
     assert search.scc_planning.settle_assignments is original_settlement

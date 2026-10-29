@@ -53,6 +53,24 @@ and caches requested outputs. Use a fresh instance when comparing implementation
 inputs or backends. Registering an implementation alone does not activate it.
 Component order does not prescribe execution order.
 
+## Evaluation and structural analysis
+
+`Implementation.evaluate` and instance evaluation use the causalization (SCC)
+structural analyser by default, with either the Python or JAX backend. It orders
+ordinary calculations and solves supported coupled linear blocks, including
+blocks spanning parent and child equations. There is no separate public solver
+selection argument. Exhaustive analysis remains available internally for
+comparison tests and benchmarks.
+
+Instance results are cached, but only constructor-supplied values are boundary
+inputs for subsequent requests. Reading one calculated output does not add an
+extra supplied constraint when another output of the same block is requested.
+
+SCC validates simultaneous constraints in the relevant scope. Two equations
+that independently determine the same unknown from supplied values can therefore
+be rejected as overconstrained rather than treated as alternative routes. A
+square structural plan still does not guarantee a numerically nonsingular solve.
+
 ## Subsystems
 
 Pass `internal_implementations={"child": child_model}`, then reference that

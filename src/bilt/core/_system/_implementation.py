@@ -11,8 +11,8 @@ from bilt.core._equation import BasicEquation
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
+from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralAnalysis
-from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._system._dimensional_unification import check_dimensional_consistency
 from bilt.core._system._errors import (
@@ -101,7 +101,7 @@ class Implementation:
         """The structural analyser for this implementation's components under ``backend``."""
         analyser = self._analysers.get(backend)
         if analyser is None:
-            analyser = ExhaustiveStructuralAnalyser(tuple(self._components.values()), backend)
+            analyser = CausalizationStructuralAnalyzer(tuple(self._components.values()), backend)
             self._analysers[backend] = analyser
         return analyser
 
@@ -111,6 +111,7 @@ class Implementation:
         output: str,
         backend: Backend,
     ) -> object:
+        """Evaluate one output from supplied boundary values using the selected backend."""
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
 
         with EvaluationContext() as evaluation:

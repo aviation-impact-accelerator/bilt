@@ -277,7 +277,7 @@ def test_rectangular_surplus_does_not_prevent_a_local_linear_solution() -> None:
 def test_quantities_are_solved_in_coherent_units(backend: Backend, monkeypatch: pytest.MonkeyPatch) -> None:
     from bilt.core._system import _implementation as implementation_module  # noqa: PLC0415
 
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
     with backend, Implementation(CoupledLengths, [length_total, length_difference]):
         value = CoupledLengths(p=0.01 * kilometer, q=2.0 * meter).x
 

@@ -132,7 +132,9 @@ def test_rectangular_nested_coupling_uses_child_capability(
     supported: bool,
 ) -> None:
     implementation = _nested(depth, siblings=siblings, supported=supported)
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", solver.CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(
+        implementation_module, "CausalizationStructuralAnalyzer", solver.CausalizationStructuralAnalyzer
+    )
     request = EvaluationRequest(output="x", input_domains=dict.fromkeys({"a", "b"}, Domain.scalar()))
     if not supported:
         for owner, name in ((search, "find_matching"), (planning, "settle_assignments"), (solver, "realize_plan")):

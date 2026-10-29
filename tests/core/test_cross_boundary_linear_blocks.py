@@ -26,7 +26,7 @@ Length = typing.Annotated[Quantity, LENGTH]
 
 @pytest.fixture(autouse=True)
 def _use_scc(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
 
 
 @pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))

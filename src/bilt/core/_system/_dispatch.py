@@ -26,9 +26,7 @@ def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -
             raise BiltUnknownSystemAttributeError(attribute.name, instance)
         implementation = cls.__bilt_system_implementation_default__[-1]
         instance.__bilt_system_implementation__ = implementation
-    inputs = {
-        name: value for name, value in instance.__bilt_system_instance_variables__.items() if value is not MISSING
-    }
+    inputs = {name: value for name, value in instance.__bilt_system_instance_inputs__.items() if value is not MISSING}
     output = attribute.name
     backend = _backend_stack[-1] if _backend_stack else PYTHON_BACKEND
     result = typing.cast("T", implementation.evaluate(inputs=inputs, output=output, backend=backend))
