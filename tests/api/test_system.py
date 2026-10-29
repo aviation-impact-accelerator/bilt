@@ -1,13 +1,17 @@
 import contextlib
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pytest
 
 from bilt import (
     Implementation,
     Interface,
+    Tensor,
+    dim,
     field,
     system,
+    tensor,
     transform,
 )
 from bilt._backend._jax._backend import JAX_BACKEND
@@ -431,3 +435,66 @@ def test_repeated_evaluation_reuses_one_cache_entry(
                 assert Demo(a=float(value), b=2.0).c == value + 2.0
 
     assert len(implementation._evaluation_cache) == 1  # noqa: SLF001
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+@pytest.mark.parametrize("order", (("x", "y"), ("y", "x")), ids=("x_first", "y_first"))
+@pytest.mark.parametrize("batched", (False, True), ids=("scalar", "tensor"))
+@pytest.mark.parametrize("nested", (False, True), ids=("flat", "child"))
+def test_default_causalization_keeps_supplied_inputs_separate_from_cached_outputs(
+    backend: Backend, order: tuple[str, str], *, batched: bool, nested: bool
+) -> None:
+    @system
+    class Pair(metaclass=Interface):
+        x: float = field()
+        y: float = field()
+        p: float | Tensor = field()
+        q: float = field()
+
+    @equation
+    def total(x: float, y: float, p: float) -> bool:
+        return x + y == p
+
+    @equation
+    def difference(x: float, y: float, q: float) -> bool:
+        return x - y == q
+
+    @equation
+    def supply_p(p: float, inner: Pair) -> bool:
+        return inner.p == p
+
+    @equation
+    def supply_q(q: float, inner: Pair) -> bool:
+        return inner.q == q
+
+    @equation
+    def expose_x(x: float, inner: Pair) -> bool:
+        return x == inner.x
+
+    @equation
+    def expose_y(y: float, inner: Pair) -> bool:
+        return y == inner.y
+
+    model = (
+        Implementation(
+            Pair,
+            [supply_p, supply_q, expose_x, expose_y],
+            internal_implementations={"inner": Implementation(Pair, [total, difference])},
+        )
+        if nested
+        else Implementation(Pair, [total, difference])
+    )
+    axis = dim("operating_point")
+    p = tensor([10.0, 14.0], over=axis) if batched else 10.0
+    expected = {"x": [6.0, 8.0] if batched else 6.0, "y": [4.0, 6.0] if batched else 4.0}
+    with backend, model:
+        instance = Pair(p=p, q=2.0)
+        for name in order:
+            result = getattr(instance, name)
+            if batched:
+                assert isinstance(result, Tensor)
+                assert result.domain.dims == (axis,)
+                np.testing.assert_allclose(result.values, expected[name], atol=1e-5)
+            else:
+                assert result == pytest.approx(expected[name], abs=1e-5)
+            assert getattr(instance, name) is result

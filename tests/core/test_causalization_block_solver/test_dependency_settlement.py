@@ -48,7 +48,7 @@ def combined(answer: float, child: Ports) -> bool:
 
 @pytest.fixture(autouse=True)
 def _causalization_children(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
 
 
 def _run(analyser: CausalizationStructuralAnalyzer, inputs: dict[str, float], output: str) -> object:

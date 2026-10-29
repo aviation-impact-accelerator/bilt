@@ -47,7 +47,7 @@ class ScaleTrial(SearchTrial):
             factory = (
                 ExhaustiveStructuralAnalyser if case.solver == "exhaustive" else scc.CausalizationStructuralAnalyzer
             )
-            resources.enter_context(patch.object(implementation_module, "ExhaustiveStructuralAnalyser", factory))
+            resources.enter_context(patch.object(implementation_module, "CausalizationStructuralAnalyzer", factory))
             if case.topology in {"chain", "tree"}:
                 layout = "links" if case.topology == "chain" else "siblings"
                 implementation = build_model(coupled=False, depth=case.depth, layout=layout)

@@ -85,7 +85,7 @@ RHS = dim("right_hand_side")
 @pytest.fixture(autouse=True)
 def _use_scc(monkeypatch: pytest.MonkeyPatch) -> None:
     # Same scoped selection used by existing SCC API tests; no new public selector.
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
 
 
 @pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))

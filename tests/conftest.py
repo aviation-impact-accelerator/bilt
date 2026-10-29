@@ -32,7 +32,7 @@ def analyser_factory(
 
     monkeypatch.setattr(
         implementation_module,
-        "ExhaustiveStructuralAnalyser",
+        "CausalizationStructuralAnalyzer",
         factory,
     )
     return factory

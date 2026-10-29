@@ -97,7 +97,7 @@ def test_composed_reductions_still_reject_inconsistent_units() -> None:
 def test_weighted_reduction_of_unknowns_uses_joint_solve(
     backend: Backend, monkeypatch: pytest.MonkeyPatch, output: str
 ) -> None:
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
 
     @equation
     def balance(x: OverTime, y: Shared, p: Tensor) -> bool:
@@ -119,7 +119,7 @@ def test_weighted_reduction_of_unknowns_uses_joint_solve(
 
 
 def test_chained_reductions_of_unknowns_use_joint_solve(backend: Backend, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
 
     @equation
     def balance(x: Grid, y: Shared, p: Tensor) -> bool:
@@ -139,7 +139,7 @@ def test_chained_reductions_of_unknowns_use_joint_solve(backend: Backend, monkey
 def test_selection_of_composed_unknown_expression_keeps_constant_terms(
     backend: Backend, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
 
     @system
     class Model(metaclass=Interface):
@@ -167,7 +167,7 @@ def test_selection_of_composed_unknown_expression_keeps_constant_terms(
 def test_nonlinear_composition_does_not_become_a_linear_block(
     backend: Backend, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", CausalizationStructuralAnalyzer)
+    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
 
     @equation
     def balance(x: OverTime, y: Shared, p: Tensor) -> bool:

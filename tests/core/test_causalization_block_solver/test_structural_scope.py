@@ -200,7 +200,7 @@ def test_inspection_is_unchanged_after_failed_isolation(analyser_type: type, mon
     def square(a: float, b: float) -> bool:
         return a == b * b
 
-    monkeypatch.setattr(implementation_module, "ExhaustiveStructuralAnalyser", analyser_type)
+    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", analyser_type)
     implementation = Implementation(Ports, [square])
     before = implementation.structural_analysis().inspect({"a"}, {"b"})
     analyser = implementation.analyser_for(PYTHON_BACKEND)

@@ -300,9 +300,9 @@ Circuit
     └── Resistor
 ```
 
-With the current systems-of-systems API, equations should not directly couple multiple child interfaces.
+One useful modelling pattern is to connect each child to values on the parent and relate those values there. This makes intermediate boundary quantities easy to inspect.
 
-Instead, connect each child independently to values on the parent.
+This is not a restriction on which child interfaces an equation may mention. The default causalization analyser can solve supported coupled linear equations across parent and child boundaries.
 
 For example:
 
@@ -351,7 +351,7 @@ first_resistor.voltage
 second_resistor.voltage
 ```
 
-This keeps each child independently analysable while still allowing the parent to describe relationships between them.
+When the boundary inputs can be established independently, each child can be evaluated on its own. Parent aliases do not remove mathematical coupling; a linear feedback loop may require the equations to be solved together.
 
 ### Put it together
 
@@ -462,7 +462,7 @@ def voltage_connection(
     return supply_voltage == resistor.voltage
 ```
 
-When several children need to interact, use parent values as the coupling layer:
+Parent values can provide a convenient coupling layer when several children interact:
 
 ```text
 child

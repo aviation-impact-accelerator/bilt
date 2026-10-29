@@ -1,5 +1,10 @@
 # Structural search and coupled linear benchmarks
 
+Production evaluation now defaults to the causalization (SCC) analyser. Search
+comparisons still explicitly select exhaustive or SCC for each fresh trial,
+including nested child evaluations; changing the default does not change the
+meaning of the solver labels.
+
 The linear cases exercise the existing optional JAX backend. Use `--all-extras`
 to include it; no new dependency group is added.
 

@@ -12,6 +12,7 @@ from bilt import (
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
+from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.errors import (
     BiltAnalysisError,
@@ -1149,8 +1150,8 @@ def test_a_query_that_walks_the_hierarchy_analyses_what_it_walks(
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
-def test_a_model_with_two_reachable_routes_reads_the_same_every_time(backend: Backend) -> None:
-    """Which route wins is bilt's business; that identical code keeps picking it is not."""
+def test_two_reachable_routes_follow_the_selected_analyser_policy(backend: Backend, analyser_factory: object) -> None:
+    """Exhaustive chooses a route; SCC validates the simultaneous constraints."""
 
     def build_panel() -> tuple[Interface, Implementation]:
         @system
@@ -1198,9 +1199,14 @@ def test_a_model_with_two_reachable_routes_reads_the_same_every_time(backend: Ba
         panel_system, panel = build_panel()
         instance = panel_system(first=CURRENT, second=RESISTANCE)
         with backend, panel:
-            readings.append(instance.reading)
+            if analyser_factory is ExhaustiveStructuralAnalyser:
+                readings.append(instance.reading)
+            else:
+                with pytest.raises(BiltAnalysisError, match="Overconstrained"):
+                    _ = instance.reading
 
-    assert readings[0] == readings[1]
+    if analyser_factory is ExhaustiveStructuralAnalyser:
+        assert readings[0] == readings[1]
 
 
 # --- refusing to guess ---------------------------------------------------------------------------
