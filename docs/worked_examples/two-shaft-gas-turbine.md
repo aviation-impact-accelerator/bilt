@@ -1785,8 +1785,10 @@ expected_exit = expected_inlet - drop
 expected_preheat = compressor_exit + 0.6 * (expected_exit - compressor_exit)
 
 np.testing.assert_allclose(
-    [recuperated_results[name].convert_to(absolute_kelvin).value for name in
-     ("turbine_inlet_temperature", "exit_temperature", "recuperator.cold_out")],
+    [
+        recuperated_results[name].convert_to(absolute_kelvin).value
+        for name in ("turbine_inlet_temperature", "exit_temperature", "recuperator.cold_out")
+    ],
     [expected_inlet, expected_exit, expected_preheat],
     rtol=2e-5,
     atol=2e-3,
