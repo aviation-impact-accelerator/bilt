@@ -8,6 +8,7 @@ So far, the values in our models have mostly been plain numbers:
 distance: float = field()
 ```
 
+
 But what does a distance of `5.0` mean?
 
 Five metres? Five kilometres? Five miles?
@@ -24,9 +25,9 @@ First, let's make a quantity:
 from bilt import Quantity
 from bilt.units import kilometer, meter
 
-
 distance = 5.0 * kilometer
 ```
+
 
 A **quantity** combines a numerical value with a unit. We can also construct one explicitly:
 
@@ -34,16 +35,17 @@ A **quantity** combines a numerical value with a unit. We can also construct one
 distance = Quantity(5.0, kilometer)
 ```
 
+
 Both expressions describe the same distance.
 
 To express it in another unit, use `convert_to()`:
 
 ```python exec="on" session="units-models"
 in_metres = distance.convert_to(meter)
-
 assert in_metres.value == 5000.0
 assert in_metres.unit == meter
 ```
+
 
 The distance has not changed. Its numerical representation has.
 
@@ -65,10 +67,8 @@ Let's declare our motion system again:
 
 ```python exec="on" session="units-models"
 from typing import Annotated
-
 from bilt import Implementation, Interface, equation, field, system, transform
 from bilt.units.dimensions import LENGTH, TIME
-
 
 Length = Annotated[Quantity, LENGTH]
 Duration = Annotated[Quantity, TIME]
@@ -82,11 +82,13 @@ class Motion(metaclass=Interface):
     duration: Duration = field()
 ```
 
+
 There is one new piece of Python here:
 
 ```python exec="on" session="units-models"
 Annotated[Quantity, LENGTH]
 ```
+
 
 `Annotated` lets us attach extra information to a type. Here, the type is `Quantity` and the extra information is its dimension.
 
@@ -105,6 +107,7 @@ Use a dimension in the annotation, rather than a unit:
 ```python exec="on" session="units-models"
 Length = Annotated[Quantity, LENGTH]  # A valid declaration.
 ```
+
 
 `Annotated[Quantity, meter]` raises `BiltPortDeclarationError`. So does a bare `Quantity` annotation: it says that a value carries units, but leaves its dimension unspecified.
 
@@ -125,13 +128,16 @@ def kinematic_relation(
 motion_model = Implementation(Motion, [kinematic_relation])
 ```
 
+
 We have changed the annotations, but the equation still says that distance equals speed multiplied by duration.
 
 Bilt checks the dimensions when `@equation` runs. On the right, speed multiplied by duration has dimension:
 
-\[
+\\[
+
 \frac{\text{length}}{\text{time}} \times \text{time} = \text{length}.
-\]
+
+\\]
 
 That agrees with the left side.
 
@@ -146,16 +152,15 @@ Now we can use whichever compatible units are convenient:
 ```python exec="on" session="units-models"
 from bilt.units import hour, second
 
-
 with motion_model:
     journey = Motion(
         speed=36.0 * kilometer / hour,
         duration=5.0 * second,
     )
     travelled = journey.distance
-
 assert travelled == 50.0 * meter
 ```
+
 
 Thirty-six kilometres per hour is ten metres per second. After five seconds, we have travelled fifty metres.
 
@@ -167,6 +172,7 @@ For display, we can choose another unit:
 assert travelled.convert_to(kilometer).value == 0.05
 ```
 
+
 Units also work when the equation is used in another direction:
 
 ```python exec="on" session="units-models"
@@ -176,10 +182,10 @@ with motion_model:
         duration=100.0 * second,
     )
     required_speed = journey.speed
-
 assert required_speed == 10.0 * meter / second
 assert required_speed.convert_to(kilometer / hour).value == 36.0
 ```
+
 
 We still have one equation. Bilt rearranges it as needed, and the requested value keeps its own declared dimension.
 
@@ -190,6 +196,7 @@ A declared field requires a quantity of the right dimension:
 ```python exec="on" session="units-models"
 Motion(distance=5.0 * kilometer)  # A length: accepted.
 ```
+
 
 Supplying `Motion(distance=5.0)` raises `BiltInputDimensionalityError`. Bilt does not assume that an unlabelled number means metres.
 
@@ -224,6 +231,7 @@ def allowance(distance: Length) -> Length:
 motion_model = Implementation(Motion, [kinematic_relation, allowance])
 ```
 
+
 As with any transform, the function name identifies its output. Its return annotation declares the output's dimension.
 
 Now ask for the allowance:
@@ -231,9 +239,9 @@ Now ask for the allowance:
 ```python exec="off"
 with motion_model:
     result = Motion(distance=1.0 * kilometer).allowance
-
 assert result == 1500.0 * meter
 ```
+
 
 The constant means five hundred metres regardless of the unit used by the caller.
 
@@ -244,6 +252,7 @@ Quantity constructors work too:
 def allowance(distance: Length) -> Length:
     return distance + Quantity(0.5, kilometer)
 ```
+
 
 This describes the same calculation.
 
@@ -261,6 +270,7 @@ def distance_km(distance: Length) -> float:
     return distance.convert_to(kilometer).value
 ```
 
+
 For a distance of one thousand metres, this produces `1.0`.
 
 Add `distance_km: float = field()` to the interface and include the transform in its implementation to expose that result through a system.
@@ -272,6 +282,7 @@ The opposite bridge is just as explicit:
 def distance(distance_km: float) -> Length:
     return Quantity(distance_km, kilometer)
 ```
+
 
 This interprets a plain number as kilometres and produces a declared length. These two transforms illustrate opposite directions; use the one needed by the surrounding model.
 
@@ -295,6 +306,7 @@ def allowance(distance: float) -> float:
     return distance + 500.0
 ```
 
+
 It cannot be used with the unit-aware `Motion` interface above. Creating the implementation raises `BiltImplementationDimensionalityError`: the interface declares lengths, while the transform leaves those same values outside the unit system.
 
 Bilt does not copy missing declarations from the interface into a relationship. Declare the dimension everywhere the value is named.
@@ -311,6 +323,7 @@ A model can still contain plain numbers, flags and other values:
 enabled: bool = field()
 ```
 
+
 These values stand outside the unit system. Adding declared quantities elsewhere does not automatically give them dimensions.
 
 A dimensionless quantity is a different thing:
@@ -319,12 +332,11 @@ A dimensionless quantity is a different thing:
 from bilt.units import UNITLESS, percent
 from bilt.units.dimensions import DIMENSIONLESS
 
-
 Ratio = Annotated[Quantity, DIMENSIONLESS]
-
 half = 50.0 * percent
 assert half.convert_to(UNITLESS).value == 0.5
 ```
+
 
 A field annotated `Ratio` requires a dimensionless quantity, such as `Quantity(0.5, UNITLESS)`. A bare `0.5` is still refused.
 
@@ -341,7 +353,6 @@ Units are useful for fixed physical constants as well as inputs:
 ```python exec="on" session="units-models"
 from bilt.units.dimensions import FORCE, MASS
 
-
 Force = Annotated[Quantity, FORCE]
 Mass = Annotated[Quantity, MASS]
 
@@ -350,6 +361,7 @@ Mass = Annotated[Quantity, MASS]
 def weight(force: Force, mass: Mass) -> bool:
     return force == mass * (9.81 * meter / second**2)
 ```
+
 
 The constant declares an acceleration. Multiplying it by a mass produces a force.
 
@@ -368,7 +380,6 @@ Bilt represents these as **absolute** and **relative** quantities:
 ```python exec="on" session="units-models"
 from bilt.units import absolute_celsius, absolute_kelvin, celsius, kelvin
 from bilt.units.dimensions import ABSOLUTE, TEMPERATURE
-
 
 AbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]
 TemperatureChange = Annotated[Quantity, TEMPERATURE]
@@ -395,10 +406,10 @@ with Implementation(Heater, [heating]):
         inlet=Quantity(20.0, absolute_celsius),
         rise=10.0 * celsius,
     ).outlet
-
 assert outlet.unit == absolute_kelvin
 assert abs(outlet.convert_to(absolute_celsius).value - 30.0) < 1e-10
 ```
+
 
 The inlet is an absolute reading. The rise is a relative change. Adding them produces another absolute reading.
 
@@ -420,6 +431,7 @@ An equation for the midpoint between two readings can use:
 return midpoint == cold + (hot - cold) / 2.0
 ```
 
+
 The difference is relative; adding half of it to `cold` produces an absolute reading.
 
 In a transform that receives a plain Celsius number, construct the reading explicitly with `Quantity(degrees, absolute_celsius)`. To extract Celsius degrees from an absolute quantity, use `reading.convert_to(absolute_celsius).value`.
@@ -432,7 +444,6 @@ Units also work with the tensors introduced in [Domains and tensors](dimensions-
 
 ```python exec="on" session="units-models"
 from bilt import Tensor, dim, tensor
-
 
 LengthSeries = Annotated[Tensor, LENGTH]
 sample = dim("sample")
@@ -453,11 +464,11 @@ with Implementation(Survey, [doubling]):
     doubled = Survey(
         distance=tensor([1.0, 2.0], over=sample, unit=kilometer),
     ).doubled
-
 assert doubled.unit == meter
 assert list(doubled.values) == [2000.0, 4000.0]
 assert list(doubled.convert_to(kilometer).values) == [2.0, 4.0]
 ```
+
 
 The domain says where the value varies. The unit says what its numbers represent.
 
@@ -476,10 +487,8 @@ Bilt's metadata tags can make that distinction part of the declaration:
 ```python exec="on" session="units-models"
 from bilt.units import Metadata, kilogram
 
-
 fuel = Metadata("fuel")
 co2 = Metadata("co2")
-
 FuelMass = Annotated[Quantity, MASS * fuel]
 Co2Mass = Annotated[Quantity, MASS * co2]
 
@@ -497,10 +506,10 @@ def emissions(emitted: Co2Mass, burned: FuelMass) -> bool:
 
 with Implementation(Burn, [emissions]):
     emitted = Burn(burned=2.0 * kilogram * fuel).emitted
-
 assert emitted.unit == kilogram * co2
 assert abs(emitted.value - 6.32) < 1e-10
 ```
+
 
 The emission factor carries both tags. Multiplication cancels the fuel tag and leaves a carbon dioxide mass.
 

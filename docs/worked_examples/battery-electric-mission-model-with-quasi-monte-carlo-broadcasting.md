@@ -5,6 +5,7 @@ This worked example uses independently scrambled Sobol designs to evaluate a sma
 The aircraft model is deliberately simple. The point is to show the separation between:
 
 - **engineering relationships**, written as ordinary scalar Bilt transforms; and
+
 - **evaluation domains**, carried by the values supplied to the model.
 
 We write one scalar model:
@@ -56,16 +57,13 @@ from io import StringIO
 import importlib.util
 from pathlib import Path
 import tempfile
-
 import matplotlib
 
 # markdown-exec runs Python in a worker thread. Use a non-interactive backend.
 matplotlib.use("Agg")
-
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import beta, lognorm, norm, qmc
-
 from bilt import Dim, Quantity, tensor
 from bilt.units import UNITLESS, kilogram, kilometer, kilowatthour, tonne
 
@@ -91,10 +89,8 @@ Each transform describes one scalar engineering relationship. Nothing in these f
 
 ```python exec="off"
 from typing import Annotated
-
 from bilt import Implementation, Interface, Quantity, field, system, transform
 from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
-
 
 Mass = Annotated[Quantity, MASS]
 Length = Annotated[Quantity, LENGTH]
@@ -109,15 +105,12 @@ class Mission(metaclass=Interface):
     specific_energy: SpecificEnergy = field()
     propulsive_efficiency: Ratio = field()
     energy_multiplier: Ratio = field()
-
     distance: Length = field()
     payload: Mass = field()
-
     empty_mass: Mass = field()
     energy_intensity: EnergyIntensity = field()
     usable_fraction: Ratio = field()
     max_battery_mass: Mass = field()
-
     gross_mass: Mass = field()
     shaft_energy: Energy = field()
     electrical_energy: Energy = field()
@@ -176,45 +169,33 @@ The model above is ordinary displayed Python. For this documentation build, the 
 ```python exec="on" session="qmc"
 model_source = """
 from typing import Annotated
-
 from bilt import Implementation, Interface, Quantity, field, system, transform
 from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
-
-
 Mass = Annotated[Quantity, MASS]
 Length = Annotated[Quantity, LENGTH]
 Energy = Annotated[Quantity, ENERGY]
 SpecificEnergy = Annotated[Quantity, ENERGY / MASS]
 EnergyIntensity = Annotated[Quantity, ENERGY / (LENGTH * MASS)]
 Ratio = Annotated[Quantity, DIMENSIONLESS]
-
-
 @system
 class Mission(metaclass=Interface):
     specific_energy: SpecificEnergy = field()
     propulsive_efficiency: Ratio = field()
     energy_multiplier: Ratio = field()
-
     distance: Length = field()
     payload: Mass = field()
-
     empty_mass: Mass = field()
     energy_intensity: EnergyIntensity = field()
     usable_fraction: Ratio = field()
     max_battery_mass: Mass = field()
-
     gross_mass: Mass = field()
     shaft_energy: Energy = field()
     electrical_energy: Energy = field()
     battery_mass: Mass = field()
     battery_margin: Mass = field()
-
-
 @transform
 def gross_mass(payload: Mass, empty_mass: Mass) -> Mass:
     return empty_mass + payload
-
-
 @transform
 def shaft_energy(
     energy_multiplier: Ratio,
@@ -223,16 +204,12 @@ def shaft_energy(
     energy_intensity: EnergyIntensity,
 ) -> Energy:
     return energy_multiplier * distance * gross_mass * energy_intensity
-
-
 @transform
 def electrical_energy(
     shaft_energy: Energy,
     propulsive_efficiency: Ratio,
 ) -> Energy:
     return shaft_energy / propulsive_efficiency
-
-
 @transform
 def battery_mass(
     electrical_energy: Energy,
@@ -240,32 +217,24 @@ def battery_mass(
     usable_fraction: Ratio,
 ) -> Mass:
     return electrical_energy / (specific_energy * usable_fraction)
-
-
 @transform
 def battery_margin(
     battery_mass: Mass,
     max_battery_mass: Mass,
 ) -> Mass:
     return max_battery_mass - battery_mass
-
-
 mission_model = Implementation(
     Mission,
     [gross_mass, shaft_energy, electrical_energy, battery_mass, battery_margin],
 )
 """
-
 model_path = Path(tempfile.gettempdir()) / "bilt_qmc_docs_model.py"
 model_path.write_text(model_source)
-
 spec = importlib.util.spec_from_file_location("_bilt_qmc_docs_model", model_path)
 assert spec is not None
 assert spec.loader is not None
-
 model_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(model_module)
-
 Mission = model_module.Mission
 mission_model = model_module.mission_model
 ```
@@ -279,7 +248,9 @@ A single scrambled Sobol design gives one randomized quasi-Monte Carlo estimate.
 Each Sobol point has three coordinates, mapped onto:
 
 - battery specific energy;
+
 - propulsive efficiency;
+
 - mission energy multiplier.
 
 The distribution choices below are illustrative rather than claims about a validated aircraft uncertainty model.
@@ -300,7 +271,6 @@ def scrambled_sobol_inputs(
 ) -> QMCInputs:
     samples = 2**power
     uniforms = np.empty((scrambles, samples, 3), dtype=float)
-
     # The loop creates independent randomized QMC replicates.
     # It is not a loop over model evaluations.
     for scramble_index in range(scrambles):
@@ -310,10 +280,8 @@ def scrambled_sobol_inputs(
             seed=seed + scramble_index,
         )
         uniforms[scramble_index] = engine.random_base2(power)
-
     eps = np.finfo(float).eps
     uniforms = np.clip(uniforms, eps, 1.0 - eps)
-
     return QMCInputs(
         specific_energy_kwh_per_t=norm.ppf(
             uniforms[..., 0],
@@ -384,10 +352,8 @@ scramble = Dim("scramble")
 sample = Dim("sample")
 route = Dim("route")
 payload_case = Dim("payload_case")
-
 distances_km = np.array([150.0, 250.0, 350.0, 450.0, 550.0, 650.0])
 payloads_t = np.array([2.0, 4.0, 6.0, 8.0])
-
 mission = Mission(
     specific_energy=tensor(
         draws.specific_energy_kwh_per_t,
@@ -438,10 +404,8 @@ configuration         scalar
 with mission_model:
     battery_mass = mission.battery_mass
     battery_margin = mission.battery_margin
-
 print(battery_mass.domain)
 print(battery_mass.values.shape)
-
 # Calculated masses are returned in the coherent SI unit: kilograms.
 assert battery_mass.unit == kilogram
 assert battery_margin.unit == kilogram
@@ -488,14 +452,12 @@ Below is the required battery mass for the 450 km route and 6 t payload case acr
 ```python exec="on" html="on" source="above" session="qmc"
 route_index = 3
 payload_index = 2
-
 selected_battery_mass = battery_mass_in_tonnes.values[
     :,
     :,
     route_index,
     payload_index,
 ].ravel()
-
 plt.hist(selected_battery_mass, bins=40)
 plt.axvline(
     mission.max_battery_mass.convert_to(tonne).value,
@@ -517,10 +479,8 @@ First reduce over `sample`, leaving one probability estimate per independently s
 
 ```python exec="on" source="above" session="qmc"
 probability_by_scramble = feasible.mean(axis=1)
-
 probability = probability_by_scramble.mean(axis=0)
 standard_error = probability_by_scramble.std(axis=0, ddof=1) / np.sqrt(probability_by_scramble.shape[0])
-
 print(probability.shape)
 print(
     probability[route_index, payload_index],
@@ -540,7 +500,6 @@ for payload_index, payload_t in enumerate(payloads_t):
         marker="o",
         label=f"{payload_t:g} t",
     )
-
 plt.xlabel("Route distance (km)")
 plt.ylabel("Estimated probability of feasibility")
 plt.ylim(0.0, 1.0)
@@ -577,7 +536,6 @@ for payload_index, payload_t in enumerate(payloads_t):
         marker="o",
         label=f"{payload_t:g} t",
     )
-
 plt.xlabel("Route distance (km)")
 plt.ylabel("Estimated RQMC standard error")
 plt.legend(title="Payload")
@@ -591,13 +549,10 @@ The independent scrambles let us check whether the selected 450 km / 6 t result 
 ```python exec="on" source="above" session="qmc"
 route_index = 3
 payload_index = 2
-
 powers = np.arange(5, 11)
 sample_counts = 2**powers
-
 convergence_probability = []
 convergence_standard_error = []
-
 for sample_count in sample_counts:
     estimates = feasible[
         :,
@@ -605,7 +560,6 @@ for sample_count in sample_counts:
         route_index,
         payload_index,
     ].mean(axis=1)
-
     convergence_probability.append(estimates.mean())
     convergence_standard_error.append(estimates.std(ddof=1) / np.sqrt(estimates.size))
 ```
@@ -704,11 +658,17 @@ The model does not need to know how the uncertain inputs were generated. The QMC
 Change one thing at a time:
 
 - increase `power` to add Sobol samples;
+
 - change the number of independent scrambles;
+
 - add route distances;
+
 - add payload cases;
+
 - change one of the illustrative uncertainty distributions;
+
 - change the battery-mass limit;
+
 - add another uncertain scalar input to the mission model.
 
 None of those changes requires adding a model loop over the new cases.

@@ -1,3 +1,4 @@
+
 # Equations and transforms API
 
 Import `equation` and `transform` from `bilt`.
@@ -40,7 +41,7 @@ reciprocals. Powers can appear in forward calculations, but Bilt does not
 generally invert powers, reductions or selections. For single-equation isolation, the requested variable must occur once in the
 simplified relation. The default causalization analyser can instead collect
 repeated unknowns inside supported coupled linear equalities and solve those
-blocks together. This is not a general nonlinear solver.
+blocks together. This is not a general nonlinear solver at present.
 
 ## Transforms
 
