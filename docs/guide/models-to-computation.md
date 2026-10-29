@@ -569,6 +569,8 @@ Separating the **model** from the **computation plan** lets the same model suppo
 
 > You describe the relationships once. Bilt works out how to use them for the problem at hand.
 
+Not every valid plan is a chain of single-output calculations. Some equations depend on one another and must be grouped into a coupled block. The SCC analyser can solve supported linear blocks together, including blocks spanning child systems. See [Coupled linear systems](coupled-linear-systems.md) for examples and current availability.
+
 So far, all of our values have been simple scalars.
 
 Real engineering models quickly need values that vary over time, location, operating point, or other dimensions.

@@ -50,7 +50,7 @@ We will:
 - connect each child to ordinary values on the parent;
 - ask the same equations for different quantities.
 
-The requests below can be decomposed into independent child-system evaluations and ordinary parent equations. Other requests may require a simultaneous solve; the default causalization analyser supports coupled linear blocks across subsystem boundaries.
+The first requests can be decomposed into independent child-system evaluations and ordinary parent equations. In section 9 we supply the total extension instead, requiring a simultaneous linear solve across both children. The same model supports both kinds of request.
 
 ```python exec="on" session="springs"
 from io import StringIO
@@ -576,7 +576,7 @@ The component equations have not changed. Only the known values and requested va
 
 ## 9. A request that requires a coupled solve
 
-A tempting query is:
+Now prescribe the total extension rather than the force or either individual extension:
 
 ```text
 known:
@@ -592,7 +592,58 @@ For two springs in series, that requires Bilt to determine the shared force and 
 
 That is a genuinely coupled solve across the two child systems.
 
-The default causalization analyser supports this linear coupled formulation. The worked calculations above use decomposable routes, demonstrating that the same modelling API supports both kinds of request.
+The default causalization analyser solves the parent extension balance and the two child spring laws together. No component equations need changing.
+
+```mermaid
+flowchart TD
+    given["Known: total extension and both stiffnesses"] --> balance["Parent: x_total = x₁ + x₂"]
+    balance <--> first["First child: F = k₁ x₁"]
+    balance <--> second["Second child: F = k₂ x₂"]
+    first --- force["One shared unknown force F"]
+    second --- force
+```
+
+These links show mathematical dependencies, rather than an execution order.
+
+```python exec="on" source="above" session="springs"
+coupled_case = DoubleSpring(
+    first_stiffness=100.0 * newton / meter,
+    second_stiffness=300.0 * newton / meter,
+    total_extension=0.1 * meter,
+)
+
+with double_spring:
+    coupled_force = coupled_case.force
+    coupled_first = coupled_case.first_extension
+    coupled_second = coupled_case.second_extension
+
+print(f"Force:            {coupled_force.convert_to(newton).value:.3f} N")
+print(f"First extension:  {coupled_first.convert_to(meter).value:.3f} m")
+print(f"Second extension: {coupled_second.convert_to(meter).value:.3f} m")
+```
+
+The answer is the same operating point as before: **7.5 N**, with extensions **0.075 m** and **0.025 m**. This time neither the force nor either child extension was supplied.
+
+We can check the answer independently using the equivalent series stiffness:
+
+\[
+F=\frac{x_{total}}{1/k_1+1/k_2},\qquad x_1=F/k_1,\qquad x_2=F/k_2
+\]
+
+```python exec="on" source="above" session="springs"
+expected_force = 0.1 / (1.0 / 100.0 + 1.0 / 300.0)
+np.testing.assert_allclose(coupled_force.convert_to(newton).value, expected_force, rtol=2e-5)
+np.testing.assert_allclose(
+    [coupled_first.convert_to(meter).value, coupled_second.convert_to(meter).value],
+    [expected_force / 100.0, expected_force / 300.0],
+    rtol=2e-5,
+)
+assert np.isclose((coupled_first + coupled_second).convert_to(meter).value, 0.1)
+```
+
+Positive, nonzero stiffnesses give this ideal linear model a unique solution. The relationships assume small deflections and a static load; the solve does not establish that a real spring remains within its elastic range.
+
+See [Coupled linear systems](../guide/coupled-linear-systems.md) for tensor and shared-unknown examples, or the [recuperated gas turbine](two-shaft-gas-turbine.md#14-close-the-loop-with-recuperation) for a larger feedback loop.
 
 ## 10. Explore the model yourself
 
