@@ -7,6 +7,7 @@ import typing
 import rustworkx as rx
 
 from bilt.core._equation import BasicEquation
+from bilt.core._errors import BiltAnalysisError
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._linear_operator import (
     extract_supported_linear_block,
@@ -14,6 +15,7 @@ from bilt.core._structural_analysis._linear_operator import (
 )
 from bilt.core._structural_analysis._plan import PlanBlock, PlanStep
 from bilt.core._structural_analysis._qualified_block import QualifiedBlock, QualifiedEquation
+from bilt.core._structural_analysis._realize_nonlinear import scalar_nonlinear_candidate
 from bilt.core._transform import BasicTransform
 
 if typing.TYPE_CHECKING:
@@ -29,6 +31,7 @@ def unavoidable_coupled_outputs(
     *,
     allow_local_linear: bool = False,
     allow_cross_boundary_linear: bool = False,
+    allow_local_nonlinear: bool = False,
 ) -> frozenset[str]:
     """Return coupled ancestors of the target in a complete square region.
 
@@ -43,6 +46,8 @@ def unavoidable_coupled_outputs(
 
     With ``allow_local_linear``, omit components whose primitive equations all
     belong to one implementation and can be extracted in its local namespace.
+    With ``allow_local_nonlinear``, also allow scalar primitive residuals at the
+    root implementation; configuration and backend support are checked later.
     A child plans and realises its own blocks. ``allow_cross_boundary_linear``
     also permits supported linear tensor blocks spanning implementation paths; their
     input domains and backend capabilities remain realisation-time checks.
@@ -88,23 +93,25 @@ def unavoidable_coupled_outputs(
         required,
         allow_local_linear=allow_local_linear,
         allow_cross_boundary_linear=allow_cross_boundary_linear,
+        allow_local_nonlinear=allow_local_nonlinear,
     )
 
 
-def _unsupported_outputs(
+def _unsupported_outputs(  # noqa: PLR0913 - independent supported-block capabilities
     dependencies: rx.PyDiGraph,
     assigned: dict[str, ExpandedConstraint],
     required: set[int],
     *,
     allow_local_linear: bool,
     allow_cross_boundary_linear: bool,
+    allow_local_nonlinear: bool,
 ) -> frozenset[str]:
     unsupported: set[str] = set()
     for component in rx.strongly_connected_components(dependencies):
         if len(component) <= 1 or not required.intersection(component):
             continue
         outputs = sorted(typing.cast("str", dependencies[node]) for node in component)
-        if allow_local_linear and _locally_supported(outputs, assigned):
+        if allow_local_linear and _locally_supported(outputs, assigned, allow_nonlinear=allow_local_nonlinear):
             continue
         if allow_cross_boundary_linear and _qualified_supported(outputs, assigned):
             continue
@@ -112,7 +119,7 @@ def _unsupported_outputs(
     return frozenset(unsupported)
 
 
-def _locally_supported(outputs: list[str], assigned: dict[str, ExpandedConstraint]) -> bool:
+def _locally_supported(outputs: list[str], assigned: dict[str, ExpandedConstraint], *, allow_nonlinear: bool) -> bool:
     """Check a single owner's equations using child-local output names."""
     path = assigned[outputs[0]].path
     if any(assigned[name].path != path for name in outputs):
@@ -127,7 +134,12 @@ def _locally_supported(outputs: list[str], assigned: dict[str, ExpandedConstrain
     try:
         extract_supported_linear_block(block)
     except BiltLinearBlockError:
-        return False
+        if not allow_nonlinear or path:
+            return False
+        try:
+            scalar_nonlinear_candidate(block)
+        except BiltAnalysisError:
+            return False
     return True
 
 

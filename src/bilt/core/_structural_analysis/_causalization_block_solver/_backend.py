@@ -2,7 +2,9 @@ __all__ = ["CausalizationStructuralAnalyzer"]
 
 import typing
 
+from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError
+from bilt.core._evaluation_options import current_root_options
 from bilt.core._structural_analysis._causalization_block_solver import _planning as planning
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
@@ -85,7 +87,7 @@ class CausalizationStructuralAnalyzer:
         block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
 
         for assignments in search.candidate_assignments(
-            graph, self._failures, output=None if request.output in available else request.output
+            graph, self._active_failures(), output=None if request.output in available else request.output
         ):
             attempted_routes: set[tuple[tuple[str, frozenset[str] | None], ...]] = set()
 
@@ -132,11 +134,20 @@ class CausalizationStructuralAnalyzer:
     def _preflight(self, request: EvaluationRequest, structure: ValidatedStructure | None) -> BackendCase | None:
         """Keep local requests on their existing path; expand execution only for cross-boundary coupling."""
         if structure is None or not (
-            coupled := unavoidable_coupled_outputs(structure.well_determined, request.output, allow_local_linear=True)
+            coupled := unavoidable_coupled_outputs(
+                structure.well_determined,
+                request.output,
+                allow_local_linear=True,
+                allow_local_nonlinear=current_root_options() is not None,
+            )
         ):
             return None
         if not unavoidable_coupled_outputs(
-            structure.well_determined, request.output, allow_local_linear=True, allow_cross_boundary_linear=True
+            structure.well_determined,
+            request.output,
+            allow_local_linear=True,
+            allow_cross_boundary_linear=True,
+            allow_local_nonlinear=current_root_options() is not None,
         ):
             return analyse_expanded(request, structure.well_determined, self.backend)
         msg = (
@@ -145,6 +156,14 @@ class CausalizationStructuralAnalyzer:
             f"Required coupled computations: {', '.join(sorted(coupled))}."
         )
         raise BiltExecutionPlanError(msg)
+
+    def _active_failures(self) -> dict[PlanStep, RealizationFailure]:
+        """An isolation failure does not exclude a newly configured root-solve route."""
+        if current_root_options() is None:
+            return self._failures
+        return {
+            step: failure for step, failure in self._failures.items() if not isinstance(step.operation, BasicEquation)
+        }
 
     def _retry_child(self, failure: RealizationFailure | BlockRealizationFailure) -> bool:
         """Retry child route discovery, or let matching advance to another candidate."""
@@ -179,7 +198,7 @@ class CausalizationStructuralAnalyzer:
         needs_expanded = False
 
         for assignments in search.candidate_assignments(
-            graph, self._failures, output=None if output in available else output
+            graph, self._active_failures(), output=None if output in available else output
         ):
             try:
                 blocks = planning.plan_blocks(assignments, available, output, backend=self.backend)
