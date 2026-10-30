@@ -70,6 +70,7 @@ class Implementation:
     ) -> None:
         self._system: Interface = system
         self._options: EvaluationOptions | None = None
+        self._evaluation_identity = object()
         self._base_implementation: Implementation | None = None
         named_components = {component.__bilt_name__: component for component in components}
 
@@ -118,6 +119,11 @@ class Implementation:
         view._options = options  # noqa: SLF001 - initialise a view of this class
         view._base_implementation = base  # noqa: SLF001 - initialise a view of this class
         return view
+
+    @property
+    def evaluation_identity(self) -> tuple[object, EvaluationOptions | None]:
+        """Identity of the owning model and policy, shared only by its views."""
+        return self._evaluation_identity, self.options
 
     def structural_analysis(self) -> StructuralAnalysis:
         """Return backend-independent analysis of this implementation's structure."""
@@ -201,6 +207,7 @@ class Implementation:
         request: EvaluationRequest,
         backend: Backend,
     ) -> BackendCallable:
+        self._validate_numerical_options()
         with _using_options(self.options):
             compiled = self._get_evaluation(request, backend)
         options = self.options

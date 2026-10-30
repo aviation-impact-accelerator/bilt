@@ -1,5 +1,8 @@
 import dataclasses
+import re
+import runpy
 import typing
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -20,6 +23,7 @@ from bilt import (
 from bilt.errors import BiltAnalysisError, BiltNonlinearBlockError, BiltNonlinearSolveError
 from bilt.numerics import (
     EvaluationOptions,
+    NonlinearResult,
     NonlinearSolver,
     RootControls,
     RootOptions,
@@ -511,3 +515,245 @@ def test_unconfigured_model_does_not_inherit_a_configured_implementations_settin
             _ = rectangle.height
         assert rectangle.height.value == pytest.approx(3)
     assert rectangle.width.value == pytest.approx(2)
+
+
+class _AlternatingRoots:
+    """Two valid rectangle roots, exposing accidental repeated numerical solves."""
+
+    name = "alternating-roots"
+    backend = "python"
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def solve(self, residual: object, initial_guess: object, *, controls: RootControls) -> NonlinearResult:
+        _ = residual, initial_guess, controls
+        self.calls += 1
+        # Unknowns are sorted height, width; both scales are one metre.
+        candidate = np.array([3.0, 2.0] if self.calls % 2 else [2.0, 3.0])
+        return NonlinearResult(solution=candidate, converged=True, message="valid rectangle root")
+
+
+def _alternating_options(solver: _AlternatingRoots) -> EvaluationOptions:
+    options = _options()
+    assert options.nonlinear is not None
+    return dataclasses.replace(options, nonlinear=dataclasses.replace(options.nonlinear, solver=solver))
+
+
+@pytest.mark.parametrize("order", (("width", "height"), ("height", "width")))
+def test_separate_output_reads_reuse_one_complete_nonlinear_solution(order: tuple[str, str]) -> None:
+    solver = _AlternatingRoots()
+    with _model().with_options(_alternating_options(solver)):
+        instance = _rectangle()
+        results = {name: getattr(instance, name).convert_to(meter).value for name in order}
+        assert results["width"] == pytest.approx(2)
+        assert results["height"] == pytest.approx(3)
+        assert instance.diagonal_squared.convert_to(meter**2).value == pytest.approx(13)
+    assert solver.calls == 1
+
+
+def test_distinct_base_owners_are_isolated_but_views_of_one_owner_share_answers() -> None:
+    solver = _AlternatingRoots()
+    options = _alternating_options(solver)
+    first_base = _model()
+    first = first_base.with_options(options)
+    second = _model().with_options(options)
+    instance = _rectangle()
+    with first:
+        assert instance.width.convert_to(meter).value == pytest.approx(2)
+    with second:
+        assert instance.width.convert_to(meter).value == pytest.approx(3)
+    with first_base.with_options(options):
+        assert instance.height.convert_to(meter).value == pytest.approx(3)
+    assert solver.calls == 2  # noqa: PLR2004 - two distinct owners or instances
+
+
+def _wrap_child(child: Implementation) -> Implementation:
+    @equation
+    def supply_area(area: Area, inner: Rectangle) -> bool:
+        return area == inner.area
+
+    @equation
+    def supply_perimeter(perimeter: Length, inner: Rectangle) -> bool:
+        return perimeter == inner.perimeter
+
+    @equation
+    def expose_width(width: Length, inner: Rectangle) -> bool:
+        return width == inner.width
+
+    @equation
+    def expose_height(height: Length, inner: Rectangle) -> bool:
+        return height == inner.height
+
+    return Implementation(
+        Rectangle,
+        [supply_area, supply_perimeter, expose_width, expose_height],
+        internal_implementations={"inner": child},
+    )
+
+
+@pytest.mark.parametrize("depth", (1, 2))
+def test_configured_child_solves_locally_under_unconfigured_parents(depth: int) -> None:
+    solver = _AlternatingRoots()
+    model = _model().with_options(_alternating_options(solver))
+    for _ in range(depth):
+        model = _wrap_child(model)
+    with model:
+        instance = _rectangle()
+        assert instance.width.convert_to(meter).value == pytest.approx(2)
+        assert instance.height.convert_to(meter).value == pytest.approx(3)
+    assert solver.calls == 1
+
+
+def test_parent_policy_does_not_replace_child_policy() -> None:
+    child_solver = _AlternatingRoots()
+    child = _model().with_options(_alternating_options(child_solver))
+    parent = _wrap_child(child).with_options(EvaluationOptions(nonlinear=RootOptions(variables={}, residual_scales={})))
+    with parent:
+        assert _rectangle().width.convert_to(meter).value == pytest.approx(2)
+    assert child_solver.calls == 1
+
+
+@pytest.mark.parametrize("invalid", ("port", "equation"))
+def test_child_preparation_validates_its_own_options(invalid: str) -> None:
+    options = _options()
+    assert options.nonlinear is not None
+    if invalid == "port":
+        roots = dataclasses.replace(
+            options.nonlinear, variables={**options.nonlinear.variables, "typo": VariableOptions(initial=1, scale=1)}
+        )
+        match = "typo"
+    else:
+
+        @equation
+        def unrelated(width: Length, height: Length) -> bool:
+            return width == height
+
+        roots = dataclasses.replace(
+            options.nonlinear, residual_scales={**options.nonlinear.residual_scales, unrelated: Quantity(1, meter)}
+        )
+        match = "Residual scales"
+    child = _model().with_options(dataclasses.replace(options, nonlinear=roots))
+    with _wrap_child(child), pytest.raises(BiltAnalysisError, match=match):
+        _ = _rectangle().width
+
+
+def test_repr_and_equality_use_selected_known_values_without_solving() -> None:
+    solver = _AlternatingRoots()
+    model = _model().with_options(_alternating_options(solver))
+    first = _rectangle()
+    second = _rectangle()
+    with model:
+        assert first == second
+        _ = first.width
+        assert "width=" in repr(first)
+        assert first != second
+        _ = second.width
+        assert first != second  # Same inputs, different known roots.
+    assert solver.calls == 2  # noqa: PLR2004 - two distinct owners or instances
+
+
+def test_repr_returns_to_outer_owner_on_a_cache_hit() -> None:
+    solver = _AlternatingRoots()
+    base = _model()
+    first = base.with_options(_alternating_options(solver))
+    second = base.with_options(_alternating_options(solver))
+    instance = _rectangle()
+    with first:
+        width = instance.width
+        outer_repr = repr(instance)
+        with second:
+            assert instance.width != width
+            assert repr(instance) != outer_repr
+        assert instance.width == width
+        assert repr(instance) == outer_repr
+    assert solver.calls == 2  # noqa: PLR2004 - two distinct owners or instances
+
+
+def test_documented_nonlinear_example_executes(tmp_path: Path) -> None:
+    document = Path(__file__).parents[2] / "docs/guide/nonlinear-solves.md"
+    snippets = re.findall(r"```python\n(.*?)```", document.read_text(), re.DOTALL)
+    script = tmp_path / "nonlinear_example.py"
+    script.write_text("\n\n".join(snippets))
+    namespace = runpy.run_path(str(script))
+    assert namespace["width"].convert_to(meter).value == pytest.approx(2)
+    assert namespace["height"].convert_to(meter).value == pytest.approx(3)
+    with namespace["alternative_model"]:
+        instance = namespace["Rectangle"](area=Quantity(6, meter**2), perimeter=Quantity(10, meter))
+        assert instance.width.convert_to(meter).value == pytest.approx(2)
+
+
+def test_sibling_children_keep_complete_solutions_separate() -> None:
+    solver = _AlternatingRoots()
+    child = _model().with_options(_alternating_options(solver))
+
+    @equation
+    def left_area(area: Area, left: Rectangle) -> bool:
+        return left.area == area
+
+    @equation
+    def right_area(area: Area, right: Rectangle) -> bool:
+        return right.area == area
+
+    @equation
+    def left_perimeter(perimeter: Length, left: Rectangle) -> bool:
+        return left.perimeter == perimeter
+
+    @equation
+    def right_perimeter(perimeter: Length, right: Rectangle) -> bool:
+        return right.perimeter == perimeter
+
+    @equation
+    def left_width(width: Length, left: Rectangle) -> bool:
+        return width == left.width
+
+    @equation
+    def right_width(height: Length, right: Rectangle) -> bool:
+        return height == right.width
+
+    @equation
+    def remaining_heights(diagonal_squared: Area, left: Rectangle, right: Rectangle) -> bool:
+        return diagonal_squared == left.height * right.height
+
+    parent = Implementation(
+        Rectangle,
+        [left_area, right_area, left_perimeter, right_perimeter, left_width, right_width, remaining_heights],
+        internal_implementations={"left": child, "right": child},
+    )
+    with parent:
+        instance = _rectangle()
+        assert instance.width.convert_to(meter).value == pytest.approx(2)
+        assert instance.height.convert_to(meter).value == pytest.approx(3)
+        assert instance.diagonal_squared.convert_to(meter**2).value == pytest.approx(6)
+    assert solver.calls == 2  # noqa: PLR2004 - one solve per child instance
+
+
+@pytest.mark.parametrize("configured", (False, True))
+def test_known_values_follow_ordinary_and_empty_configured_models(*, configured: bool) -> None:
+    @system
+    class Value(metaclass=Interface):
+        source: float = field()
+        answer: float = field()
+
+    @equation
+    def first(source: float, answer: float) -> bool:
+        return answer == source + 1
+
+    @equation
+    def second(source: float, answer: float) -> bool:
+        return answer == source + 2
+
+    outer = Implementation(Value, [first])
+    inner = Implementation(Value, [second])
+    if configured:
+        outer = outer.with_options(EvaluationOptions())
+        inner = inner.with_options(EvaluationOptions())
+    instance = Value(source=1.0)
+    with outer:
+        assert instance.answer == pytest.approx(2)
+        expected = repr(instance)
+        with inner:
+            assert instance.answer == pytest.approx(3)
+            assert repr(instance) != expected
+        assert instance.answer == pytest.approx(2)
+        assert repr(instance) == expected

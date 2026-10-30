@@ -38,19 +38,19 @@ configured_model = model.with_options(
     EvaluationOptions(
         nonlinear=RootOptions(
             variables={
-                "width": VariableOptions(initial=1 * m, scale=1 * m),
-                "height": VariableOptions(initial=4 * m, scale=1 * m),
+                "width": VariableOptions(initial=1.0 * m, scale=1.0 * m),
+                "height": VariableOptions(initial=4.0 * m, scale=1.0 * m),
             },
             residual_scales={
-                area_relation: 6 * m**2,
-                perimeter_relation: 10 * m,
+                area_relation: 6.0 * m**2,
+                perimeter_relation: 10.0 * m,
             },
         ),
     ),
 )
 
 with configured_model:
-    rectangle = Rectangle(area=6 * m**2, perimeter=10 * m)
+    rectangle = Rectangle(area=6.0 * m**2, perimeter=10.0 * m)
     width = rectangle.width  # approximately 2 m
     height = rectangle.height  # approximately 3 m
 ```
@@ -59,18 +59,31 @@ with configured_model:
 - **Variable scales** give typical magnitudes for the unknowns. **Residual scales** give typical magnitudes for each equation's error. Both must be positive and have the appropriate units.
 - The default solver is `ScipyHybrid`. Guesses can influence which root is found when several exist.
 
-To select a solver or change tolerances, add these settings to `RootOptions`:
+To select a solver or change tolerances, create another configuration:
 
 ```python
-solver = (ScipyLeastSquares(),)
-controls = (
-    RootControls(
-        max_evaluations=200,
-        residual_tolerance=1e-8,
+from dataclasses import replace
+
+from bilt.numerics import RootControls, ScipyLeastSquares
+
+settings = configured_model.options.nonlinear
+alternative_model = model.with_options(
+    EvaluationOptions(
+        nonlinear=replace(
+            settings,
+            solver=ScipyLeastSquares(),
+            controls=RootControls(
+                max_evaluations=200,
+                residual_tolerance=1e-8,
+            ),
+        ),
     ),
 )
 ```
 
-Import both from `bilt.numerics`.
+`with_options` leaves the original model unchanged. Successful block solutions are
+reused across output reads on the same instance, implementation, configuration and
+backend. A configured child can solve its own local block using its own options.
 
-`with_options` leaves the original model unchanged. This version supports local scalar nonlinear systems on the Python backend; nonlinear tensor and cross-subsystem solves are not yet supported.
+This version supports local scalar nonlinear systems on the Python backend;
+nonlinear tensor and cross-subsystem solves are not yet supported.

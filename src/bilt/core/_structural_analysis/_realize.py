@@ -15,6 +15,7 @@ from bilt.core._evaluation_options import current_root_options
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_name
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
+from bilt.core._structural_analysis._nonlinear_cache import nonlinear_subsystem
 from bilt.core._structural_analysis._realize_linear import realize_linear_block
 from bilt.core._structural_analysis._realize_nonlinear import realize_nonlinear_block
 from bilt.core._sub_system import SubSystemConstituent
@@ -296,10 +297,11 @@ def _sub_system_to_callable(
     parent_to_child = {mangle_name(sub_system.qualify(port)): mangle_name(port) for port in child_input_domains}
 
     def evaluate_child(*args: object, **kwargs: object) -> object:
-        return child_callable.callable(
-            *args,
-            **{parent_to_child[name]: value for name, value in kwargs.items()},
-        )
+        with nonlinear_subsystem(sub_system.__bilt_name__):
+            return child_callable.callable(
+                *args,
+                **{parent_to_child[name]: value for name, value in kwargs.items()},
+            )
 
     return BackendCallable(
         name=mangle_name(plan_step.output),

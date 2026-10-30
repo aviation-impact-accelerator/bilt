@@ -4,9 +4,11 @@ import ast
 import typing
 
 from bilt.core._errors import BiltNonlinearBlockError
-from bilt.core._evaluation_options import current_root_options
+from bilt.core._evaluation_options import current_options, current_root_options
 from bilt.core._port import mangle_name
+from bilt.core._structural_analysis._nonlinear_cache import current_nonlinear_cache
 from bilt.core._structural_analysis._prepare_nonlinear import (
+    _numeric,
     prepare_nonlinear_block,
     scalar_nonlinear_declarations,
 )
@@ -64,14 +66,28 @@ def realize_nonlinear_block(
         if options is None:
             message = "The nonlinear operation requires its implementation configuration at execution."
             raise BiltNonlinearBlockError(message)
-        result = prepared.solve_lowered(
-            dict(zip(parameters, values, strict=True)),
-            initial_guess={name: options.variables[name].initial for name in residual.unknowns},
-            variable_scales={name: options.variables[name].scale for name in residual.unknowns},
-            residual_scales=tuple(options.residual_scales[row.source] for row in residual.rows),
-            solver=options.solver,
-            controls=options.controls,
+        boundary = _numeric(dict(zip(parameters, values, strict=True)), {})
+        cache, path = current_nonlinear_cache()
+        key = (
+            path,
+            current_options(),
+            frozenset(residual.rows),
+            frozenset(residual.unknowns),
+            tuple(sorted(boundary.items())),
         )
+        result = None if cache is None else cache.get(key)
+        if result is None:
+            result = prepared.solve_lowered(
+                boundary,
+                initial_guess={name: options.variables[name].initial for name in residual.unknowns},
+                variable_scales={name: options.variables[name].scale for name in residual.unknowns},
+                residual_scales=tuple(options.residual_scales[row.source] for row in residual.rows),
+                solver=options.solver,
+                controls=options.controls,
+            )
+            if cache is not None:
+                cache[key] = result
+
         return tuple(result[name] for name in residual.unknowns)
 
     names = tuple(map(mangle_name, parameters))

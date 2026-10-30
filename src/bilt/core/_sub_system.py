@@ -55,6 +55,8 @@ class SubSystemConstituent:
         ``within`` restricts the child to those ports, named as the parent sees them; omitted, it
         may use any of its ports. Either way the output itself is not available as an input.
         """
+        from bilt.core._evaluation_options import _using_options  # noqa: PLC0415 - equation import cycle
+
         child_output = self.child_port(qualified_output)
 
         reachable = (
@@ -62,10 +64,11 @@ class SubSystemConstituent:
         )
         available = reachable - {child_output}
 
-        return self.implementation.analyser_for(backend).required_inputs_for_target(
-            available,
-            child_output,
-        )
+        with _using_options(self.implementation.options):
+            return self.implementation.analyser_for(backend).required_inputs_for_target(
+                available,
+                child_output,
+            )
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(name={self.__bilt_name__!r}, interface={self.interface.__bilt_name__!r})"

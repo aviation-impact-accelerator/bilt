@@ -25,13 +25,14 @@ if typing.TYPE_CHECKING:
     )
 
 
-def unavoidable_coupled_outputs(
+def unavoidable_coupled_outputs(  # noqa: PLR0913 - independent execution capabilities
     structure: ExpansionSnapshot,
     output: str,
     *,
     allow_local_linear: bool = False,
     allow_cross_boundary_linear: bool = False,
     allow_local_nonlinear: bool = False,
+    nonlinear_children: frozenset[tuple[str, ...]] = frozenset(),
 ) -> frozenset[str]:
     """Return coupled ancestors of the target in a complete square region.
 
@@ -94,6 +95,7 @@ def unavoidable_coupled_outputs(
         allow_local_linear=allow_local_linear,
         allow_cross_boundary_linear=allow_cross_boundary_linear,
         allow_local_nonlinear=allow_local_nonlinear,
+        nonlinear_children=nonlinear_children,
     )
 
 
@@ -105,13 +107,16 @@ def _unsupported_outputs(  # noqa: PLR0913 - independent supported-block capabil
     allow_local_linear: bool,
     allow_cross_boundary_linear: bool,
     allow_local_nonlinear: bool,
+    nonlinear_children: frozenset[tuple[str, ...]],
 ) -> frozenset[str]:
     unsupported: set[str] = set()
     for component in rx.strongly_connected_components(dependencies):
         if len(component) <= 1 or not required.intersection(component):
             continue
         outputs = sorted(typing.cast("str", dependencies[node]) for node in component)
-        if allow_local_linear and _locally_supported(outputs, assigned, allow_nonlinear=allow_local_nonlinear):
+        if allow_local_linear and _locally_supported(
+            outputs, assigned, allow_nonlinear=allow_local_nonlinear, nonlinear_children=nonlinear_children
+        ):
             continue
         if allow_cross_boundary_linear and _qualified_supported(outputs, assigned):
             continue
@@ -119,7 +124,13 @@ def _unsupported_outputs(  # noqa: PLR0913 - independent supported-block capabil
     return frozenset(unsupported)
 
 
-def _locally_supported(outputs: list[str], assigned: dict[str, ExpandedConstraint], *, allow_nonlinear: bool) -> bool:
+def _locally_supported(
+    outputs: list[str],
+    assigned: dict[str, ExpandedConstraint],
+    *,
+    allow_nonlinear: bool,
+    nonlinear_children: frozenset[tuple[str, ...]],
+) -> bool:
     """Check a single owner's equations using child-local output names."""
     path = assigned[outputs[0]].path
     if any(assigned[name].path != path for name in outputs):
@@ -134,7 +145,7 @@ def _locally_supported(outputs: list[str], assigned: dict[str, ExpandedConstrain
     try:
         extract_supported_linear_block(block)
     except BiltLinearBlockError:
-        if not allow_nonlinear or path:
+        if not ((allow_nonlinear and not path) or path in nonlinear_children):
             return False
         try:
             scalar_nonlinear_candidate(block)
