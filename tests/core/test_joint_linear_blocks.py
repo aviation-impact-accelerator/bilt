@@ -370,3 +370,31 @@ def test_declared_input_domains_must_match_actual_inputs(backend: Backend) -> No
 
     with pytest.raises(BiltExecutionPlanError, match="does not match its linear-block Domain hint"):
         _evaluate([first, aggregate], {"p": tensor([2.0, 4.0], over=TIME), "q": 1.0}, "x", backend)
+
+
+@pytest.mark.parametrize("output", ("x", "y"))
+def test_empty_retained_axis_returns_empty_joint_outputs(backend: Backend, output: str) -> None:
+    @equation
+    def first(x: Grid, y: PerSite, p: Grid) -> bool:
+        return x + y == p
+
+    @equation
+    def second(x: Grid, y: PerSite, q: PerSite) -> bool:
+        return x.sum(TIME) - y == q
+
+    @system
+    class EmptyPair(metaclass=Interface):
+        x: Grid = field()
+        y: PerSite = field()
+        p: Grid = field()
+        q: PerSite = field()
+
+    with backend, Implementation(EmptyPair, [first, second]):
+        instance = EmptyPair(
+            p=tensor(np.empty((0, 3)), over=(SITE, TIME)),
+            q=tensor(np.empty((0,)), over=SITE),
+        )
+        result = getattr(instance, output)
+    assert isinstance(result, Tensor)
+    assert result.domain == (domain(SITE, TIME) if output == "x" else domain(SITE))
+    assert result.values.shape == ((0, 3) if output == "x" else (0,))
