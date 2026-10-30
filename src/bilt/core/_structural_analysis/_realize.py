@@ -11,10 +11,13 @@ from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError
 from bilt.core._evaluation_context import current_evaluation
+from bilt.core._evaluation_options import current_root_options
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_name
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
+from bilt.core._structural_analysis._nonlinear_cache import nonlinear_subsystem
 from bilt.core._structural_analysis._realize_linear import realize_linear_block
+from bilt.core._structural_analysis._realize_nonlinear import realize_nonlinear_block
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._tensors._errors import BiltSymbolicLoweringError, BiltTensorDomainError
 from bilt.core._tensors._expression_lowering import lower_expression
@@ -43,7 +46,7 @@ def realize_plan(
     *,
     block_failures: dict[BlockRealizationKey, BlockRealizationFailure] | None = None,
 ) -> BackendCase | RealizationFailure | BlockRealizationFailure:
-    """Realise ordered direct steps and supported linear blocks."""
+    """Realise direct steps, then linear or independently eligible local nonlinear blocks."""
     symbol_domains = plan.request.input_domains.copy()
     intermediates = []
     for index, block in enumerate(plan.blocks):
@@ -59,8 +62,8 @@ def realize_plan(
             if block_failures is not None and key in block_failures:
                 return block_failures[key]
             try:
-                callables = realize_linear_block(block, backend, symbol_domains, solution_name=name)
-            except (BiltLinearBlockError, BiltSymbolicLoweringError, BiltTensorDomainError) as error:
+                callables = _realize_local_block(block, backend, symbol_domains, solution_name=name)
+            except (BiltAnalysisError, BiltBackendError, BiltSymbolicLoweringError, BiltTensorDomainError) as error:
                 failure = BlockRealizationFailure(failed_block=block, cause=error)
                 if block_failures is not None:
                     block_failures[key] = failure
@@ -77,7 +80,13 @@ def realize_plan(
             symbol_domains=symbol_domains,
         )
         if isinstance(result, RealizationFailure):
-            return result
+            fallback = _realize_equation_fallback(plan, index, backend, symbol_domains, result)
+            if isinstance(fallback, (RealizationFailure, BlockRealizationFailure)):
+                return fallback
+            callables = fallback
+            intermediates.extend(callables)
+            symbol_domains[step.output] = _output_domain(callables[1], step.output)
+            continue
         intermediates.append(result)
 
         symbol_domains[step.output] = _output_domain(result, step.output)
@@ -89,6 +98,38 @@ def realize_plan(
         intermediates=intermediates,
         return_name=output,
     )
+
+
+def _realize_equation_fallback(
+    plan: AnalysisPlan,
+    index: int,
+    backend: Backend,
+    symbol_domains: dict[str, Domain],
+    failure: RealizationFailure,
+) -> tuple[BackendCallable, ...] | RealizationFailure | BlockRealizationFailure:
+    if current_root_options() is None or not isinstance(failure.failed_plan_step.operation, BasicEquation):
+        return failure
+    name = f"__bilt_nonlinear_solution_{index}"
+    occupied = {mangle_name(item.output) for item in plan.steps} | set(map(mangle_name, plan.inputs))
+    while name in occupied:
+        name += "_"
+    block = plan.blocks[index]
+    try:
+        return _realize_local_block(block, backend, symbol_domains, solution_name=name)
+    except (BiltAnalysisError, BiltBackendError) as error:
+        return BlockRealizationFailure(failed_block=block, cause=error)
+
+
+def _realize_local_block(
+    block: PlanBlock, backend: Backend, symbol_domains: dict[str, Domain], *, solution_name: str
+) -> tuple[BackendCallable, ...]:
+    """Keep linear precedence; a rejected linear strategy is not a nonlinear eligibility check."""
+    try:
+        return realize_linear_block(block, backend, symbol_domains, solution_name=solution_name)
+    except BiltLinearBlockError, BiltSymbolicLoweringError, BiltTensorDomainError:
+        if current_root_options() is None:
+            raise
+    return realize_nonlinear_block(block, backend, symbol_domains, solution_name=solution_name)
 
 
 def _output_domain(callable_: BackendCallable, output: str) -> Domain:
@@ -256,10 +297,11 @@ def _sub_system_to_callable(
     parent_to_child = {mangle_name(sub_system.qualify(port)): mangle_name(port) for port in child_input_domains}
 
     def evaluate_child(*args: object, **kwargs: object) -> object:
-        return child_callable.callable(
-            *args,
-            **{parent_to_child[name]: value for name, value in kwargs.items()},
-        )
+        with nonlinear_subsystem(sub_system.__bilt_name__):
+            return child_callable.callable(
+                *args,
+                **{parent_to_child[name]: value for name, value in kwargs.items()},
+            )
 
     return BackendCallable(
         name=mangle_name(plan_step.output),

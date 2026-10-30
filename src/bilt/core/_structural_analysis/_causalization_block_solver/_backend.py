@@ -2,7 +2,9 @@ __all__ = ["CausalizationStructuralAnalyzer"]
 
 import typing
 
+from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError
+from bilt.core._evaluation_options import current_root_options, numerical_signature
 from bilt.core._structural_analysis._causalization_block_solver import _planning as planning
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
@@ -61,6 +63,7 @@ class CausalizationStructuralAnalyzer:
         self.backend = backend
         self.full_incidence_graph = FullIncidenceGraph(constituents)
         self._failures: dict[PlanStep, RealizationFailure] = {}
+        self._nonlinear_children = _configured_child_paths(constituents)
 
     def analyse(self, request: EvaluationRequest) -> BackendCase:
         """Find and realise a plan, sharing request caches across nested analysis."""
@@ -84,8 +87,9 @@ class CausalizationStructuralAnalyzer:
         last_error: Exception | None = None
         block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
 
+        active_failures = self._active_failures()
         for assignments in search.candidate_assignments(
-            graph, self._failures, output=None if request.output in available else request.output
+            graph, active_failures, output=None if request.output in available else request.output
         ):
             attempted_routes: set[tuple[tuple[str, frozenset[str] | None], ...]] = set()
 
@@ -118,7 +122,9 @@ class CausalizationStructuralAnalyzer:
                 # Invalidate dependent parent answers before the next route query.
                 invalidate_route_cache()
                 last_error = result.cause
-                if self._retry_child(result):
+                retry_child = self._retry_child(result)
+                active_failures.update(self._active_failures())
+                if retry_child:
                     continue
                 break
 
@@ -132,11 +138,22 @@ class CausalizationStructuralAnalyzer:
     def _preflight(self, request: EvaluationRequest, structure: ValidatedStructure | None) -> BackendCase | None:
         """Keep local requests on their existing path; expand execution only for cross-boundary coupling."""
         if structure is None or not (
-            coupled := unavoidable_coupled_outputs(structure.well_determined, request.output, allow_local_linear=True)
+            coupled := unavoidable_coupled_outputs(
+                structure.well_determined,
+                request.output,
+                allow_local_linear=True,
+                allow_local_nonlinear=current_root_options() is not None,
+                nonlinear_children=self._nonlinear_children,
+            )
         ):
             return None
         if not unavoidable_coupled_outputs(
-            structure.well_determined, request.output, allow_local_linear=True, allow_cross_boundary_linear=True
+            structure.well_determined,
+            request.output,
+            allow_local_linear=True,
+            allow_cross_boundary_linear=True,
+            allow_local_nonlinear=current_root_options() is not None,
+            nonlinear_children=self._nonlinear_children,
         ):
             return analyse_expanded(request, structure.well_determined, self.backend)
         msg = (
@@ -145,6 +162,14 @@ class CausalizationStructuralAnalyzer:
             f"Required coupled computations: {', '.join(sorted(coupled))}."
         )
         raise BiltExecutionPlanError(msg)
+
+    def _active_failures(self) -> dict[PlanStep, RealizationFailure]:
+        """An isolation failure does not exclude a newly configured root-solve route."""
+        if current_root_options() is None:
+            return self._failures
+        return {
+            step: failure for step, failure in self._failures.items() if not isinstance(step.operation, BasicEquation)
+        }
 
     def _retry_child(self, failure: RealizationFailure | BlockRealizationFailure) -> bool:
         """Retry child route discovery, or let matching advance to another candidate."""
@@ -167,7 +192,7 @@ class CausalizationStructuralAnalyzer:
     ) -> frozenset[str] | None:
         """Reuse an execution-route query within the current nested analysis."""
         with structural_cache_scope(), route_cache_scope() as cache:
-            key = self, frozenset(available), output
+            key = (self, numerical_signature()), frozenset(available), output
             if key not in cache:
                 cache[key] = self._required_inputs_for_target(available, output)
             return cache[key]
@@ -179,7 +204,7 @@ class CausalizationStructuralAnalyzer:
         needs_expanded = False
 
         for assignments in search.candidate_assignments(
-            graph, self._failures, output=None if output in available else output
+            graph, self._active_failures(), output=None if output in available else output
         ):
             try:
                 blocks = planning.plan_blocks(assignments, available, output, backend=self.backend)
@@ -247,3 +272,18 @@ class CausalizationStructuralAnalyzer:
                 return
             structure = expansion.snapshot()
         prefer_structural_producers(graph, structure)
+
+
+def _configured_child_paths(
+    constituents: typing.Collection[BiltModelConstituent], path: tuple[str, ...] = ()
+) -> frozenset[tuple[str, ...]]:
+    """Identify configured owners; no parent/child residual block is permitted."""
+    paths: set[tuple[str, ...]] = set()
+    for constituent in constituents:
+        if isinstance(constituent, SubSystemConstituent):
+            child_path = (*path, constituent.__bilt_name__)
+            implementation = constituent.implementation
+            if implementation.options is not None and implementation.options.nonlinear is not None:
+                paths.add(child_path)
+            paths.update(_configured_child_paths(tuple(implementation._components.values()), child_path))  # noqa: SLF001 - read child definitions without choosing an execution analyser
+    return frozenset(paths)

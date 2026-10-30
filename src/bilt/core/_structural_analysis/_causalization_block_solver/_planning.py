@@ -4,12 +4,15 @@ __all__ = ["plan_blocks"]
 
 import typing
 
+from bilt.core._errors import BiltAnalysisError
+from bilt.core._evaluation_options import current_root_options
 from bilt.core._structural_analysis._causalization_block_solver._blocks import ordered_blocks
 from bilt.core._structural_analysis._causalization_block_solver._dependency_graph import build_dependency_graph
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._structural_analysis._causalization_block_solver._settle_assignments import settle_assignments
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._linear_operator import extract_supported_linear_block
+from bilt.core._structural_analysis._realize_nonlinear import nonlinear_candidate
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -68,16 +71,29 @@ def plan_blocks(
 
     blocks = ordered_blocks(graph)
     for block in blocks:
-        if not block.is_cyclic:
-            continue
-        try:
-            extract_supported_linear_block(block)
-        except BiltLinearBlockError as error:
-            outputs = ", ".join(sorted(block.outputs))
-            msg = (
-                f"Execution of coupled blocks is not yet supported for this formulation. "
-                f"Required computations: {outputs}. {error}"
-            )
-            raise BiltExecutionPlanError(msg) from error
+        if block.is_cyclic:
+            _check_block(block)
 
     return blocks
+
+
+def _check_block(block: PlanBlock) -> None:
+    """Try independent strategies before declaring a formulation unsupported."""
+    try:
+        extract_supported_linear_block(block)
+    except BiltAnalysisError as linear_error:
+        reason = str(linear_error)
+        if isinstance(linear_error, BiltLinearBlockError) and current_root_options() is not None:
+            try:
+                nonlinear_candidate(block)
+            except BiltAnalysisError as nonlinear_error:
+                reason += f" Nonlinear execution was also rejected: {nonlinear_error}"
+            else:
+                return
+        outputs = ", ".join(sorted(block.outputs))
+        msg = (
+            f"Execution of coupled blocks is not yet supported for this formulation. "
+            f"Required computations: {outputs}. {reason}"
+        )
+        # Route discovery must still recognise the need for expanded linear planning.
+        raise BiltExecutionPlanError(msg) from linear_error

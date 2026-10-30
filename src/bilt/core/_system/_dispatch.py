@@ -4,6 +4,7 @@ import typing
 
 from bilt._backend._base_backend import _backend_stack
 from bilt._backend._python import PYTHON_BACKEND
+from bilt.core._structural_analysis._nonlinear_cache import using_nonlinear_cache
 from bilt.core._system._errors import BiltUnknownSystemAttributeError
 
 from ._sentinel import MISSING, _Missing
@@ -16,19 +17,40 @@ if typing.TYPE_CHECKING:
 
 
 def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -> T:
-    current = typing.cast("T | _Missing", instance.__bilt_system_instance_variables__.get(attribute.name, MISSING))
+    supplied = instance.__bilt_system_instance_inputs__.get(attribute.name, MISSING)
+    if not isinstance(supplied, _Missing):
+        return typing.cast("T", supplied)
+    backend = _backend_stack[-1] if _backend_stack else PYTHON_BACKEND
+    cls = typing.cast("Interface", instance.__class__)
+    bound = instance.__bilt_system_implementation__
+    active = cls.__bilt_system_implementation_default__
+    implementation = active[-1] if active else bound
+    if isinstance(implementation, _Missing):
+        raise BiltUnknownSystemAttributeError(attribute.name, instance)
+    key = (*implementation.evaluation_identity, backend)
+    values = instance.__bilt_system_instance_evaluation_cache__.setdefault(key, {})
+    current = typing.cast("T | _Missing", values.get(attribute.name, MISSING))
     if not isinstance(current, _Missing):
         return current
-    implementation = instance.__bilt_system_implementation__
-    cls = typing.cast("Interface", instance.__class__)
-    if isinstance(implementation, _Missing):
-        if len(cls.__bilt_system_implementation_default__) == 0:
-            raise BiltUnknownSystemAttributeError(attribute.name, instance)
-        implementation = cls.__bilt_system_implementation_default__[-1]
-        instance.__bilt_system_implementation__ = implementation
     inputs = {name: value for name, value in instance.__bilt_system_instance_inputs__.items() if value is not MISSING}
     output = attribute.name
-    backend = _backend_stack[-1] if _backend_stack else PYTHON_BACKEND
-    result = typing.cast("T", implementation.evaluate(inputs=inputs, output=output, backend=backend))
-    instance.__bilt_system_instance_variables__[attribute.name] = result
+    solutions = instance.__bilt_system_instance_nonlinear_cache__.setdefault(key, {})
+    with using_nonlinear_cache(solutions):
+        result = typing.cast("T", implementation.evaluate(inputs=inputs, output=output, backend=backend))
+    values[attribute.name] = result
+    if isinstance(bound, _Missing):
+        instance.__bilt_system_implementation__ = implementation
     return result
+
+
+def _known_values(instance: SystemInstance) -> dict[str, object]:
+    """Read the selected owner's known values for repr/equality without evaluating."""
+    cls = typing.cast("Interface", instance.__class__)
+    active = cls.__bilt_system_implementation_default__
+    implementation = active[-1] if active else instance.__bilt_system_implementation__
+    values = instance.__bilt_system_instance_inputs__.copy()
+    if not isinstance(implementation, _Missing):
+        backend = _backend_stack[-1] if _backend_stack else PYTHON_BACKEND
+        key = (*implementation.evaluation_identity, backend)
+        values.update(instance.__bilt_system_instance_evaluation_cache__.get(key, {}))
+    return values

@@ -58,6 +58,36 @@ class PreparedNonlinearBlock:
         solver: NonlinearSolver | None = None,
     ) -> dict[str, object]:
         """Solve one square scalar block and lift each result to its declared quantity."""
+        boundary = _numeric(inputs, self.declarations)
+        solution = self.solve_lowered(
+            boundary,
+            initial_guess=initial_guess,
+            variable_scales=variable_scales,
+            residual_scales=residual_scales,
+            controls=controls,
+            solver=solver,
+        )
+        with EvaluationContext():
+            return {
+                name: lift_output(value, generate_lifting_plan(Domain.scalar(), self.declarations.get(name)))
+                for name, value in solution.items()
+            }
+
+    def solve_lowered(  # noqa: PLR0913 - same options as physical solve
+        self,
+        inputs: Mapping[str, object],
+        *,
+        initial_guess: Mapping[str, object],
+        variable_scales: Mapping[str, object],
+        residual_scales: tuple[object, ...],
+        controls: NonlinearControls | None = None,
+        solver: NonlinearSolver | None = None,
+    ) -> dict[str, float]:
+        """Execute within a compiled case: inputs and results are coherent bare scalars.
+
+        Guesses and scales still carry physical units and are validated on every
+        execution, so compiled residuals do not capture numerical configuration.
+        """
         unknowns = self.block.unknowns
         _require_names(inputs, self.block.inputs, "external inputs")
         _require_names(initial_guess, unknowns, "initial guesses")
@@ -65,7 +95,7 @@ class PreparedNonlinearBlock:
         if len(residual_scales) != len(self.block.rows):
             message = "A residual scale is required for every equation row, in row order."
             raise BiltNonlinearBlockError(message)
-        boundary = _numeric(inputs, self.declarations)
+        boundary = _numeric(inputs, {})
         guess = _numeric(initial_guess, self.declarations)
         scale_declarations = {
             name: dataclasses.replace(declaration, absolute=False) for name, declaration in self.declarations.items()
@@ -90,11 +120,7 @@ class PreparedNonlinearBlock:
             raise
         except BiltBackendError as error:
             raise BiltNonlinearBlockError(str(error)) from error
-        with EvaluationContext():
-            return {
-                name: lift_output(value, generate_lifting_plan(Domain.scalar(), self.declarations.get(name)))
-                for name, value in zip(unknowns, solution, strict=True)
-            }
+        return dict(zip(unknowns, solution, strict=True))
 
 
 def prepare_nonlinear_block(block: ResidualBlock, backend: Backend) -> PreparedNonlinearBlock:
@@ -102,10 +128,7 @@ def prepare_nonlinear_block(block: ResidualBlock, backend: Backend) -> PreparedN
     if not isinstance(backend, NonlinearSolveBackend):
         message = "The selected backend does not support scalar nonlinear solves."
         raise BiltNonlinearBlockError(message)
-    if len(block.unknowns) != len(block.rows):
-        message = "A scalar nonlinear solve requires equally many residual rows and unknowns."
-        raise BiltNonlinearBlockError(message)
-    declarations = _declarations(block)
+    declarations = scalar_nonlinear_declarations(block)
     residual_declarations = {}
     dimensions = {
         name: declarations[name].dimensionality if name in declarations else DIMENSIONLESS
@@ -161,7 +184,11 @@ def _numeric(values: Mapping[str, object], declarations: dict[str, PortDeclarati
     return result
 
 
-def _declarations(block: ResidualBlock) -> dict[str, PortDeclaration]:
+def scalar_nonlinear_declarations(block: ResidualBlock) -> dict[str, PortDeclaration]:
+    """Check scalar eligibility without compiling residuals or executing a solver."""
+    if len(block.unknowns) != len(block.rows):
+        message = "A scalar nonlinear solve requires equally many residual rows and unknowns."
+        raise BiltNonlinearBlockError(message)
     declarations: dict[str, PortDeclaration] = {}
     seen: dict[str, PortDeclaration | None] = {}
     for row in block.rows:

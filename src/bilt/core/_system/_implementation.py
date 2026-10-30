@@ -3,12 +3,15 @@ from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 
 __all__ = ["Implementation"]
 
+import copy
 import dataclasses
 import types
 import typing
 
 from bilt.core._equation import BasicEquation
+from bilt.core._errors import BiltNonlinearBlockError
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
+from bilt.core._evaluation_options import EvaluationOptions, _using_options, numerical_signature
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
@@ -24,6 +27,7 @@ from bilt.core._system._errors import (
 )
 from bilt.core._system._input_validation import validate_inputs
 from bilt.core._tensors._tensors import Tensor
+from bilt.core._transform import BasicTransform
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
@@ -42,6 +46,7 @@ class _CompilationRequest:
     output: str
     input_domains: frozenset[tuple[str, Domain]]
     backend: Backend
+    numerical_signature: tuple[frozenset[str], frozenset[BasicEquation]] | None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -64,6 +69,9 @@ class Implementation:
         internal_implementations: collections.abc.Mapping[str, Implementation] | None = None,
     ) -> None:
         self._system: Interface = system
+        self._options: EvaluationOptions | None = None
+        self._evaluation_identity = object()
+        self._base_implementation: Implementation | None = None
         named_components = {component.__bilt_name__: component for component in components}
 
         internal = internal_implementations or {}
@@ -91,8 +99,36 @@ class Implementation:
     def system(self) -> Interface:
         return self._system
 
+    @property
+    def options(self) -> EvaluationOptions | None:
+        """The numerical policy bound to this view; None for an unconfigured implementation."""
+        return self._options
+
+    def with_options(self, options: EvaluationOptions) -> Implementation:
+        """Return a configured view, sharing model definitions and compilation caches.
+
+        The original implementation is unchanged. Creating a view does not add
+        another implementation to the system registry. Calling with_options on
+        a view replaces its policy rather than nesting configuration scopes.
+        """
+        if not isinstance(options, EvaluationOptions):
+            message = "with_options requires EvaluationOptions."
+            raise TypeError(message)
+        base = self if self._base_implementation is None else self._base_implementation
+        view = copy.copy(base)
+        view._options = options  # noqa: SLF001 - initialise a view of this class
+        view._base_implementation = base  # noqa: SLF001 - initialise a view of this class
+        return view
+
+    @property
+    def evaluation_identity(self) -> tuple[object, EvaluationOptions | None]:
+        """Identity of the owning model and policy, shared only by its views."""
+        return self._evaluation_identity, self.options
+
     def structural_analysis(self) -> StructuralAnalysis:
         """Return backend-independent analysis of this implementation's structure."""
+        if self._base_implementation is not None:
+            return self._base_implementation.structural_analysis()
         if self._structural_analysis is None:
             self._structural_analysis = StructuralAnalysis(tuple(self._components.values()))
         return self._structural_analysis
@@ -113,6 +149,7 @@ class Implementation:
     ) -> object:
         """Evaluate one output from supplied boundary values using the selected backend."""
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+        self._validate_numerical_options()
 
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
@@ -145,17 +182,50 @@ class Implementation:
 
         return output_value
 
+    def _validate_numerical_options(self) -> None:
+        options = None if self.options is None else self.options.nonlinear
+        if options is None:
+            return
+        attributes = set(self._system.__bilt_parameters__)
+        equations = set()
+        for component in self._components.values():
+            attributes.update(component.__bilt_parameters__)
+            if isinstance(component, BasicTransform):
+                attributes.add(component.__bilt_name__)
+            elif isinstance(component, BasicEquation):
+                equations.add(component)
+        unknown = options.variables.keys() - attributes
+        if unknown:
+            message = f"Root settings refer to unknown ports {sorted(unknown)!r}."
+            raise BiltNonlinearBlockError(message)
+        if set(options.residual_scales) - equations:
+            message = "Residual scales must reference local equations of this implementation."
+            raise BiltNonlinearBlockError(message)
+
     def get_evaluation(
         self,
         request: EvaluationRequest,
         backend: Backend,
     ) -> BackendCallable:
+        self._validate_numerical_options()
+        with _using_options(self.options):
+            compiled = self._get_evaluation(request, backend)
+        options = self.options
+
+        def execute(*args: object, **kwargs: object) -> object:
+            with _using_options(options):
+                return compiled.callable(*args, **kwargs)
+
+        return dataclasses.replace(compiled, callable=execute)
+
+    def _get_evaluation(self, request: EvaluationRequest, backend: Backend) -> BackendCallable:
         evaluation = current_evaluation()
 
         compilation_request = _CompilationRequest(
             output=request.output,
             input_domains=frozenset(request.input_domains.items()),
             backend=backend,
+            numerical_signature=numerical_signature(),
         )
         compilation_context = _CompilationContext(
             canonical_order=evaluation.canonical_order,
@@ -200,13 +270,14 @@ class Implementation:
         if not isinstance(other, Implementation):
             return NotImplemented
 
-        return self.system == other.system and self._components == other._components
+        return self.system == other.system and self._components == other._components and self.options is other.options
 
     def __hash__(self) -> int:
         return hash(
             (
                 self.system,
                 frozenset(self._components.items()),
+                self.options,
             )
         )
 

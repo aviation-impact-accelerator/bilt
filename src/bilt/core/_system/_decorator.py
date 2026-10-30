@@ -11,7 +11,7 @@ from bilt.core._port_declaration import port_declarations
 from bilt.core._system._errors import BiltSystemDefinitionError
 from bilt.core._system._input_validation import validate_inputs
 
-from ._dispatch import _dispatch_evaluation
+from ._dispatch import _dispatch_evaluation, _known_values
 from ._sentinel import MISSING
 
 if typing.TYPE_CHECKING:
@@ -71,6 +71,8 @@ def _create_initialize_method(cls: Interface) -> None:
         f"self.__bilt_system_instance_variables__ = {{{', '.join(f'"{parameter}": {parameter}' for parameter in parameters)}}}",
         "_check_inputs(type(self), self.__bilt_system_instance_variables__)",
         "self.__bilt_system_instance_inputs__ = self.__bilt_system_instance_variables__.copy()",
+        "self.__bilt_system_instance_evaluation_cache__ = {}",
+        "self.__bilt_system_instance_nonlinear_cache__ = {}",
     ]
     _create_method(
         cls,
@@ -111,8 +113,10 @@ def _create_eq_method(cls: Interface) -> None:
     body = [
         "if other.__class__ is not self.__class__:",
         "    return NotImplemented",
-        "return (tuple(self.__bilt_system_instance_variables__[name] for name in self.__bilt_system_attributes__)",
-        " == tuple(other.__bilt_system_instance_variables__[name] for name in other.__bilt_system_attributes__))",
+        "values = _known_values(self)",
+        "other_values = _known_values(other)",
+        "return (tuple(values[name] for name in self.__bilt_system_attributes__)",
+        " == tuple(other_values[name] for name in other.__bilt_system_attributes__))",
     ]
     _create_method(
         cls,
@@ -121,16 +125,17 @@ def _create_eq_method(cls: Interface) -> None:
         args=["self", "other"],
         body=body,
         global_namespace=globals(),
-        local_namespace={},
+        local_namespace={"_known_values": _known_values},
     )
 
 
 def _create_repr_method(cls: Interface) -> None:
     body = [
+        "values = _known_values(self)",
         "known_variables = {",
-        "    name: self.__bilt_system_instance_variables__[name]",
+        "    name: values[name]",
         "    for name in self.__bilt_system_attributes__",
-        "    if not self.__bilt_system_instance_variables__[name] is MISSING",
+        "    if not values[name] is MISSING",
         "}",
         "formatted_variables = ', '.join(f'{name}={value!r}' for name, value in known_variables.items())",
         "return f'{self.__class__.__name__}({formatted_variables})'",
