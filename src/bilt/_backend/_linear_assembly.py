@@ -69,7 +69,7 @@ def assemble_joint(
     constants = typing.cast("collections.abc.Sequence[object]", rhs)
     coefficients = xp.concatenate(
         [
-            xp.broadcast_to(xp.asarray(row), (*shape, width)).reshape((-1, width))
+            xp.broadcast_to(xp.asarray(row), (*shape, width)).reshape((math.prod(shape), width))
             for row, shape in zip(rows, row_shapes, strict=True)
         ],
         axis=0,

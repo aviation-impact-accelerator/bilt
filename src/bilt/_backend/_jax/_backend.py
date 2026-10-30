@@ -6,6 +6,7 @@ import jax
 import jax.numpy as jnp
 
 from bilt._backend._base_backend import ActivatableBackendMixin
+from bilt._backend._errors import BiltLinearSolveError
 from bilt._backend._in_process_python_mixin import InProcessPythonMixin, PythonIntrinsicBindings
 from bilt._backend._jax._ast import JAXASTTransformer
 from bilt._backend._jax._supports import _validate
@@ -18,7 +19,7 @@ from bilt._backend._linear_assembly import (
     linear_zero,
     project_joint,
 )
-from bilt._backend._linear_solve import validate_linear_shapes, validate_linear_solution
+from bilt._backend._linear_solve import validate_linear_shapes
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
 if typing.TYPE_CHECKING:
@@ -51,10 +52,21 @@ def _solve_linear(
     validate_linear_shapes(coefficients.shape, rhs_values.shape)
     dtype = jnp.result_type(coefficients, rhs_values, jnp.float32)
     solution = jnp.linalg.solve(coefficients.astype(dtype), rhs_values.astype(dtype)[..., None])[..., 0]
-    # Python exceptions cannot be raised from traced array predicates. A host
-    # callback validates actual values, also when the surrounding case is jitted.
-    jax.debug.callback(validate_linear_solution, coefficients, rhs_values, solution, ordered=True)
+    # Reduce on device; only two scalar flags cross the host callback boundary.
+    inputs_finite = jnp.all(jnp.isfinite(coefficients)) & jnp.all(jnp.isfinite(rhs_values))
+    solution_finite = jnp.all(jnp.isfinite(solution))
+    jax.debug.callback(_validate_linear_status, inputs_finite, solution_finite, ordered=True)
     return solution if layout is None else project_joint(solution, values, layout, xp=jnp)
+
+
+def _validate_linear_status(inputs_finite: object, solution_finite: object) -> None:
+    """Raise runtime errors from device-reduced scalar status flags."""
+    if not inputs_finite:
+        message = "coefficients and right-hand side must be finite"
+        raise BiltLinearSolveError(message)
+    if not solution_finite:
+        message = "the matrix is singular or the solution is non-finite"
+        raise BiltLinearSolveError(message)
 
 
 class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignmentMixin):
