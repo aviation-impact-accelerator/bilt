@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.15"
 dependencies = [
     "networkx>=3.6.1",
-    "rustworkx>=0.18.0"
+    "rustworkx>=0.18.0",
+    "scipy>=1.18.1",
 ]
 
 [project.optional-dependencies]

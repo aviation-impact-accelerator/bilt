@@ -1,6 +1,7 @@
 import ast
 import functools
 import inspect
+import typing
 
 import numpy as np
 
@@ -10,6 +11,12 @@ from bilt._backend._in_process_python_mixin import InProcessPythonMixin, PythonI
 from bilt._backend._linear_assembly import expand_linear_coefficient, linear_basis, linear_zero
 from bilt._backend._linear_solve import numpy_solve_linear
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
+from bilt._backend._python._nonlinear_solve import solve_nonlinear
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from bilt._backend._nonlinear_solve import NonlinearControls, NonlinearSolver
 
 
 def _isel(
@@ -40,6 +47,26 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
             linear_basis=functools.partial(linear_basis, xp=np),
             linear_expand=functools.partial(expand_linear_coefficient, xp=np),
             linear_zero=functools.partial(linear_zero, xp=np),
+        )
+
+    def solve_nonlinear(  # noqa: PLR0913 - explicit solver, scales and numerical controls
+        self,
+        residual: Callable[[tuple[float, ...]], object],
+        initial_guess: tuple[float, ...],
+        *,
+        variable_scales: tuple[float, ...],
+        residual_scales: tuple[float, ...],
+        controls: NonlinearControls,
+        solver: NonlinearSolver | None = None,
+    ) -> tuple[float, ...]:
+        """Execute the scalar nonlinear operation using the selected solver adapter."""
+        return solve_nonlinear(
+            residual,
+            initial_guess,
+            variable_scales=variable_scales,
+            residual_scales=residual_scales,
+            controls=controls,
+            solver=solver,
         )
 
     def chain_case(self, case: BackendCase) -> BackendCallable:

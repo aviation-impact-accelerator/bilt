@@ -36,6 +36,8 @@ __all__ = [
     "BiltMetadataError",
     "BiltNameError",
     "BiltNoActiveEvaluationError",
+    "BiltNonlinearBlockError",
+    "BiltNonlinearSolveError",
     "BiltPortDeclarationError",
     "BiltSubSystemConflictError",
     "BiltSubSystemError",
@@ -60,7 +62,13 @@ __all__ = [
     "BiltUnsupportedNodeError",
 ]
 
-from bilt._backend._errors import BiltBackendError, BiltCompilationError, BiltLinearSolveError, BiltUnsupportedNodeError
+from bilt._backend._errors import (
+    BiltBackendError,
+    BiltCompilationError,
+    BiltLinearSolveError,
+    BiltNonlinearSolveError,
+    BiltUnsupportedNodeError,
+)
 from bilt._base_error import BiltError
 from bilt.core._errors import (
     BiltAnalysisError,
@@ -75,6 +83,7 @@ from bilt.core._errors import (
     BiltImplementationDimensionalityError,
     BiltNameError,
     BiltNoActiveEvaluationError,
+    BiltNonlinearBlockError,
     BiltPortDeclarationError,
     BiltUnresolvedAnnotationError,
 )
