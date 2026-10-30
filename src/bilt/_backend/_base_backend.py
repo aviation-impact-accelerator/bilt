@@ -4,7 +4,9 @@ import typing
 
 if typing.TYPE_CHECKING:
     import ast
+    from collections.abc import Callable
 
+    from bilt._backend._nonlinear_solve import NonlinearControls, NonlinearSolver
     from bilt.core._tensors._tensor_alignment import AlignmentPlan
 
     from ._callable import BackendCallable
@@ -50,3 +52,19 @@ class ActivatableBackendMixin:
 
     def __exit__(self, *_: object) -> None:
         _backend_stack.pop()
+
+
+@typing.runtime_checkable
+class NonlinearSolveBackend(typing.Protocol):
+    """Optional direct execution capability for prepared scalar residuals."""
+
+    def solve_nonlinear(  # noqa: PLR0913 - explicit solver, scales and numerical controls
+        self,
+        residual: Callable[[tuple[float, ...]], object],
+        initial_guess: tuple[float, ...],
+        *,
+        variable_scales: tuple[float, ...],
+        residual_scales: tuple[float, ...],
+        controls: NonlinearControls,
+        solver: NonlinearSolver | None = None,
+    ) -> tuple[float, ...]: ...

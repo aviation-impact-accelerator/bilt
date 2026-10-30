@@ -13,6 +13,7 @@ __all__ = [
     "BiltImplementationDimensionalityError",
     "BiltNameError",
     "BiltNoActiveEvaluationError",
+    "BiltNonlinearBlockError",
     "BiltPortDeclarationError",
     "BiltUnresolvedAnnotationError",
 ]
@@ -95,3 +96,7 @@ class BiltDomainBindingError(BiltDomainRegistryError, ValueError):
 
 class BiltDomainRegistryLockedError(BiltDomainRegistryError, RuntimeError):
     """Raised when trying to bind a new dimension to a locked domain registry."""
+
+
+class BiltNonlinearBlockError(BiltAnalysisError):
+    """The selected block or backend cannot prepare a scalar nonlinear problem."""

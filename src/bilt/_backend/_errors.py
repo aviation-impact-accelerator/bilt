@@ -1,6 +1,12 @@
 """Errors for backend compilation and evaluation."""
 
-__all__ = ["BiltBackendError", "BiltCompilationError", "BiltLinearSolveError", "BiltUnsupportedNodeError"]
+__all__ = [
+    "BiltBackendError",
+    "BiltCompilationError",
+    "BiltLinearSolveError",
+    "BiltNonlinearSolveError",
+    "BiltUnsupportedNodeError",
+]
 
 from bilt._base_error import BiltError
 
@@ -23,3 +29,13 @@ class BiltLinearSolveError(BiltBackendError):
     def __init__(self, problem: str) -> None:
         self.problem = problem
         super().__init__(f"Cannot solve linear block: {problem}.")
+
+
+class BiltNonlinearSolveError(BiltBackendError):
+    """A scalar nonlinear solve failed without invalidating its prepared structure."""
+
+    def __init__(self, problem: str, *, evaluations: int = 0, residual_norm: float | None = None) -> None:
+        self.problem = problem
+        self.evaluations = evaluations
+        self.residual_norm = residual_norm
+        super().__init__(f"Cannot solve nonlinear block: {problem}.")

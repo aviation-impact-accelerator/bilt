@@ -19,6 +19,7 @@ source = { editable = "." }
 dependencies = [
     { name = "networkx" },
     { name = "rustworkx" },
+    { name = "scipy" },
 ]
 
 [package.optional-dependencies]
@@ -50,6 +51,7 @@ requires-dist = [
     { name = "jax", marker = "extra == 'jax'", specifier = ">=0.10.2" },
     { name = "networkx", specifier = ">=3.6.1" },
     { name = "rustworkx", specifier = ">=0.18.0" },
+    { name = "scipy", specifier = ">=1.18.1" },
 ]
 provides-extras = ["jax"]
 
