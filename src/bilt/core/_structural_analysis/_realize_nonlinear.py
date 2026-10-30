@@ -3,6 +3,8 @@
 import ast
 import typing
 
+import numpy as np
+
 from bilt.core._errors import BiltNonlinearBlockError
 from bilt.core._evaluation_options import current_options, current_root_options
 from bilt.core._port import mangle_name
@@ -66,7 +68,10 @@ def realize_nonlinear_block(
         if options is None:
             message = "The nonlinear operation requires its implementation configuration at execution."
             raise BiltNonlinearBlockError(message)
-        boundary = _numeric(dict(zip(parameters, values, strict=True)), {})
+        # Domain checks above distinguish aligned scalar representations from tensors.
+        boundary = _numeric(
+            {name: _scalar_input(name, value) for name, value in zip(parameters, values, strict=True)}, {}
+        )
         cache, path = current_nonlinear_cache()
         key = (
             path,
@@ -115,3 +120,13 @@ def realize_nonlinear_block(
         callable_.output_domain = Domain.scalar()
         callables.append(callable_)
     return tuple(callables)
+
+
+def _scalar_input(name: str, value: object) -> object:
+    """Unwrap scalar-domain results retaining singleton alignment axes."""
+    if not isinstance(value, np.ndarray):
+        return value
+    if value.size != 1:
+        message = f"Scalar nonlinear input {name!r} must contain exactly one value."
+        raise BiltNonlinearBlockError(message)
+    return value.item()

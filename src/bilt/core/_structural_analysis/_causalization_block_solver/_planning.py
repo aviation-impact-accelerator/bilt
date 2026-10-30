@@ -80,16 +80,20 @@ def plan_blocks(
 def _check_block(block: PlanBlock) -> None:
     """Try independent strategies before declaring a formulation unsupported."""
     try:
-        try:
-            extract_supported_linear_block(block)
-        except BiltLinearBlockError:
-            if current_root_options() is None:
-                raise
-            nonlinear_candidate(block)
-    except BiltAnalysisError as error:
+        extract_supported_linear_block(block)
+    except BiltAnalysisError as linear_error:
+        reason = str(linear_error)
+        if isinstance(linear_error, BiltLinearBlockError) and current_root_options() is not None:
+            try:
+                nonlinear_candidate(block)
+            except BiltAnalysisError as nonlinear_error:
+                reason += f" Nonlinear execution was also rejected: {nonlinear_error}"
+            else:
+                return
         outputs = ", ".join(sorted(block.outputs))
         msg = (
             f"Execution of coupled blocks is not yet supported for this formulation. "
-            f"Required computations: {outputs}. {error}"
+            f"Required computations: {outputs}. {reason}"
         )
-        raise BiltExecutionPlanError(msg) from error
+        # Route discovery must still recognise the need for expanded linear planning.
+        raise BiltExecutionPlanError(msg) from linear_error
