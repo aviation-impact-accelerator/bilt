@@ -51,7 +51,7 @@ configured_model = model.with_options(
 
 with configured_model:
     rectangle = Rectangle(area=6 * m**2, perimeter=10 * m)
-    width = rectangle.width    # approximately 2 m
+    width = rectangle.width  # approximately 2 m
     height = rectangle.height  # approximately 3 m
 ```
 
@@ -62,11 +62,13 @@ with configured_model:
 To select a solver or change tolerances, add these settings to `RootOptions`:
 
 ```python
-solver=ScipyLeastSquares(),
-controls=RootControls(
-    max_evaluations=200,
-    residual_tolerance=1e-8,
-),
+solver = (ScipyLeastSquares(),)
+controls = (
+    RootControls(
+        max_evaluations=200,
+        residual_tolerance=1e-8,
+    ),
+)
 ```
 
 Import both from `bilt.numerics`.
