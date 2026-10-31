@@ -156,12 +156,16 @@ class Expected:
 
 
 def _electrical(case: LinearCase) -> tuple[Implementation, dict[str, object], dict[str, Expected]]:
-    current_type = typing.Annotated[Tensor, CURRENT, domain(COORDINATE)] if case.hinted else Current
-    voltage_type = (
-        typing.Annotated[Tensor, VOLTAGE, Domain.scalar() if case.shared else domain(COORDINATE)]
-        if case.hinted
-        else Voltage
-    )
+    if typing.TYPE_CHECKING:
+        current_type = Current
+        voltage_type = Voltage
+    else:
+        current_type = typing.Annotated[Tensor, CURRENT, domain(COORDINATE)] if case.hinted else Current
+        voltage_type = (
+            typing.Annotated[Tensor, VOLTAGE, Domain.scalar() if case.shared else domain(COORDINATE)]
+            if case.hinted
+            else Voltage
+        )
 
     @equation
     def load(current: current_type, voltage: voltage_type, load: Resistance) -> bool:
@@ -207,13 +211,18 @@ def _electrical(case: LinearCase) -> tuple[Implementation, dict[str, object], di
 
 
 def _thermal(case: LinearCase) -> tuple[Implementation, dict[str, object], dict[str, Expected]]:
-    hot_type = typing.Annotated[Tensor, TEMPERATURE, domain(COORDINATE)] if case.hinted else Temperature
-    heat_type = typing.Annotated[Tensor, POWER, domain(COORDINATE)] if case.hinted else Heat
-    cold_type = (
-        typing.Annotated[Tensor, TEMPERATURE, Domain.scalar() if case.shared else domain(COORDINATE)]
-        if case.hinted
-        else Temperature
-    )
+    if typing.TYPE_CHECKING:
+        hot_type = Temperature
+        heat_type = Heat
+        cold_type = Temperature
+    else:
+        hot_type = typing.Annotated[Tensor, TEMPERATURE, domain(COORDINATE)] if case.hinted else Temperature
+        heat_type = typing.Annotated[Tensor, POWER, domain(COORDINATE)] if case.hinted else Heat
+        cold_type = (
+            typing.Annotated[Tensor, TEMPERATURE, Domain.scalar() if case.shared else domain(COORDINATE)]
+            if case.hinted
+            else Temperature
+        )
 
     @equation
     def contact(hot: hot_type, cold: cold_type, heat: heat_type, contact: Conductance) -> bool:
