@@ -93,7 +93,20 @@ def test_inferred_layout_matches_explicit_layout(backend: Backend, output: str, 
         np.testing.assert_allclose(actual.values, expected.values, atol=1e-5)
     else:
         assert not isinstance(actual, Tensor)
-        assert actual == pytest.approx(expected, abs=1e-5)
+        assert not isinstance(expected, Tensor)
+
+        actual_scalar = np.asarray(actual, dtype=float)
+        expected_scalar = np.asarray(expected, dtype=float)
+
+        assert actual_scalar.shape == ()
+        assert expected_scalar.shape == ()
+
+        np.testing.assert_allclose(
+            actual_scalar,
+            expected_scalar,
+            rtol=1e-6,
+            atol=1e-5,
+        )
 
 
 @pytest.mark.parametrize("reverse", (False, True))
