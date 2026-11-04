@@ -10,6 +10,8 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 BIN = Path(sys.executable).parent
 ENV = os.environ | {
+    "VIRTUAL_ENV": sys.prefix,
+    "PATH": str(BIN) + os.pathsep + os.environ.get("PATH", ""),
     "PYTHONPATH": os.pathsep.join((str(ROOT / "src"), str(HERE))),
     "MYPYPATH": os.pathsep.join((str(ROOT / "src"), str(HERE))),
 }
@@ -44,6 +46,8 @@ commands = {
         "check",
         "--preset",
         "strict",
+        "--python-interpreter-path",
+        sys.executable,
         "--search-path",
         str(HERE),
         "--search-path",
