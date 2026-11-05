@@ -1,4 +1,3 @@
-
 ## Equations and acausal models
 
 In the previous chapter, we saw that named values lie on the boundary of a system. The system itself, however, does not describe how those values are related.

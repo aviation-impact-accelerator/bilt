@@ -89,8 +89,10 @@ Each transform describes one scalar engineering relationship. Nothing in these f
 
 ```python exec="off"
 from typing import Annotated
+
 from bilt import Implementation, Interface, Quantity, field, system, transform
 from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
+
 
 Mass = Annotated[Quantity, MASS]
 Length = Annotated[Quantity, LENGTH]
@@ -169,33 +171,45 @@ The model above is ordinary displayed Python. For this documentation build, the 
 ```python exec="on" session="qmc"
 model_source = """
 from typing import Annotated
+
 from bilt import Implementation, Interface, Quantity, field, system, transform
 from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
+
+
 Mass = Annotated[Quantity, MASS]
 Length = Annotated[Quantity, LENGTH]
 Energy = Annotated[Quantity, ENERGY]
 SpecificEnergy = Annotated[Quantity, ENERGY / MASS]
 EnergyIntensity = Annotated[Quantity, ENERGY / (LENGTH * MASS)]
 Ratio = Annotated[Quantity, DIMENSIONLESS]
+
+
 @system
 class Mission(metaclass=Interface):
     specific_energy: SpecificEnergy = field()
     propulsive_efficiency: Ratio = field()
     energy_multiplier: Ratio = field()
+
     distance: Length = field()
     payload: Mass = field()
+
     empty_mass: Mass = field()
     energy_intensity: EnergyIntensity = field()
     usable_fraction: Ratio = field()
     max_battery_mass: Mass = field()
+
     gross_mass: Mass = field()
     shaft_energy: Energy = field()
     electrical_energy: Energy = field()
     battery_mass: Mass = field()
     battery_margin: Mass = field()
+
+
 @transform
 def gross_mass(payload: Mass, empty_mass: Mass) -> Mass:
     return empty_mass + payload
+
+
 @transform
 def shaft_energy(
     energy_multiplier: Ratio,
@@ -204,12 +218,16 @@ def shaft_energy(
     energy_intensity: EnergyIntensity,
 ) -> Energy:
     return energy_multiplier * distance * gross_mass * energy_intensity
+
+
 @transform
 def electrical_energy(
     shaft_energy: Energy,
     propulsive_efficiency: Ratio,
 ) -> Energy:
     return shaft_energy / propulsive_efficiency
+
+
 @transform
 def battery_mass(
     electrical_energy: Energy,
@@ -217,24 +235,32 @@ def battery_mass(
     usable_fraction: Ratio,
 ) -> Mass:
     return electrical_energy / (specific_energy * usable_fraction)
+
+
 @transform
 def battery_margin(
     battery_mass: Mass,
     max_battery_mass: Mass,
 ) -> Mass:
     return max_battery_mass - battery_mass
+
+
 mission_model = Implementation(
     Mission,
     [gross_mass, shaft_energy, electrical_energy, battery_mass, battery_margin],
 )
 """
+
 model_path = Path(tempfile.gettempdir()) / "bilt_qmc_docs_model.py"
 model_path.write_text(model_source)
+
 spec = importlib.util.spec_from_file_location("_bilt_qmc_docs_model", model_path)
 assert spec is not None
 assert spec.loader is not None
+
 model_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(model_module)
+
 Mission = model_module.Mission
 mission_model = model_module.mission_model
 ```

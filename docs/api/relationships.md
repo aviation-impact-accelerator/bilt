@@ -1,4 +1,3 @@
-
 # Equations and transforms API
 
 Import `equation` and `transform` from `bilt`.

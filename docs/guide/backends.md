@@ -1,4 +1,3 @@
-
 # Using different backends
 
 For backend selection and supported operations, see the [Backends API](../api/backends.md).

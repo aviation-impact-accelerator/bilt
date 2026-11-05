@@ -1,4 +1,3 @@
-
 # Tensor API
 
 Import tensor helpers from `bilt`. See [Domains and tensors](../guide/dimensions-domains-and-tensors.md)

@@ -16,7 +16,7 @@ distance = speed × time
 
 Neither tells Bilt which calculations should run for a particular analysis.
 
-Together, they describe computations that **might** be possible.
+Together, they describe computations that *might* be possible.
 
 A transform contributes one fixed direction.
 
@@ -158,7 +158,7 @@ with basic:
     assert demo.epsilon == 7.0
 ```
 
-This process of working out which relationships can satisfy a request is ****structural analysis****.
+This process of working out which relationships can satisfy a request is **structural analysis**.
 
 ### Structural analysis is about relationships
 
@@ -198,39 +198,27 @@ The overall process is:
 
 ```text
 model relationships
-
         │
-
         ▼
-
 request + known values
-
         │
-
         ▼
-
 structural analysis
-
         │
-
         ▼
-
 computation plan
-
         │
-
         ▼
-
 execution
 ```
 
-Bilt uses the ****causalization analyser****, also called the SCC analyser, by default.
+Bilt uses the **causalization analyser**, also called the SCC analyser, by default.
 
 It can order independent calculations and group equations that must be solved together. Supported coupled linear groups are evaluated as simultaneous systems, including groups that cross subsystem boundaries. This does not provide a general nonlinear solver.
 
 The Python and JAX backends determine how the resulting plan executes. Choosing a backend does not change the structural analyser.
 
-First decide ****what needs to be done****.
+First decide **what needs to be done**.
 
 Then do it.
 
@@ -286,7 +274,7 @@ Bilt can restrict the computation to the part of the model needed to produce `ep
 
 This is one reason the requested value matters.
 
-An implementation describes everything that **could** be calculated.
+An implementation describes everything that *could* be calculated.
 
 A particular evaluation only needs the relationships that lead to what was requested.
 
@@ -488,15 +476,13 @@ For example, imagine an implementation that contains:
 alpha, beta ─────────► gamma
 
 alpha ──► delta ──┐
-
                   ├──► gamma
-
 beta ─────────────┘
 ```
 
 Both routes eventually provide `gamma`.
 
-That means finding **a** valid route and deciding which route to use are separate questions.
+That means finding *a* valid route and deciding which route to use are separate questions.
 
 The same can happen when equations introduce alternative directions, or when several parts of a composed model can provide the same value.
 
@@ -608,7 +594,7 @@ There may be several possible routes to the same result.
 
 And composed models may offer routes through several constituent systems.
 
-Separating the ****model**** from the ****computation plan**** lets the same model support those different analyses.
+Separating the **model** from the **computation plan** lets the same model support those different analyses.
 
 > You describe the relationships once. Bilt works out how to use them for the problem at hand.
 
@@ -618,6 +604,6 @@ So far, all of our values have been simple scalars.
 
 Real engineering models quickly need values that vary over time, location, operating point, or other dimensions.
 
-The next chapter introduces ****dimensions, domains and tensors****, which let Bilt carry these same modelling ideas beyond scalar values.
+The next chapter introduces **dimensions, domains and tensors**, which let Bilt carry these same modelling ideas beyond scalar values.
 
 [← Transforms and implementations](transforms-and-implementations.md) · [Index](../index.md) · [Dimensions, domains and tensors →](dimensions-domains-and-tensors.md)

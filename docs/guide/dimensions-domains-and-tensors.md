@@ -56,6 +56,7 @@ In Bilt, we can give dimensions explicit names:
 ```python exec="on" session="domains-tensors"
 from bilt import dim
 
+
 location = dim("location")
 time = dim("time")
 ```
@@ -84,6 +85,7 @@ For example:
 
 ```python exec="on" session="domains-tensors"
 from bilt import tensor
+
 
 demand = tensor(
     [
@@ -212,7 +214,7 @@ There is one important restriction: if two values share a dimension, they must a
 
 For most model code, this means thinking about **which dimensions a value varies over**, rather than manually arranging array axes to make broadcasting work.
 
-\<!-- TODO: Link to the detailed domain and broadcasting reference. -->
+<!-- TODO: Link to the detailed domain and broadcasting reference. -->
 
 ### The relationship can stay simple
 
@@ -304,7 +306,9 @@ For example:
 
 ```python exec="on" session="domains-tensors"
 from datetime import datetime
+
 from bilt import coordinate_axis
+
 
 time_axis = coordinate_axis(
     time,

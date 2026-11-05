@@ -1,6 +1,6 @@
 # Two springs in series: a small acausal system of systems
 
-This worked example uses ****two linear springs connected in series**** to introduce acausal systems-of-systems modelling in Bilt.
+This worked example uses **two linear springs connected in series** to introduce acausal systems-of-systems modelling in Bilt.
 
 The physical arrangement is:
 
@@ -21,19 +21,16 @@ flowchart LR
     s2 --- load["Applied load: F"]
 ```
 
-Because the springs are in ****series****:
+Because the springs are in **series**:
 
 - the same force passes through both springs;
-
 - each spring can extend by a different amount;
-
 - the total extension is the sum of the two spring extensions.
 
 So:
 
 ```text
 F₁ = F₂ = F
-
 
 x_total = x₁ + x₂
 ```
@@ -49,11 +46,8 @@ The useful part of the example is how Bilt composes those relationships.
 We will:
 
 - define one reusable `Spring` model;
-
 - use it twice inside a larger `DoubleSpring` implementation;
-
 - connect each child to ordinary values on the parent;
-
 - ask the same equations for different quantities.
 
 The first requests can be decomposed into independent child-system evaluations and ordinary parent equations. In section 9 we supply the total extension instead, requiring a simultaneous linear solve across both children. The same model supports both kinds of request.
@@ -64,17 +58,13 @@ import importlib.util
 from pathlib import Path
 import tempfile
 
-
 import matplotlib
-
 
 # markdown-exec runs code in a worker thread.
 matplotlib.use("Agg")
 
-
 import matplotlib.pyplot as plt
 import numpy as np
-
 
 from bilt.units import meter, newton
 
@@ -89,22 +79,16 @@ def render_plot() -> None:
 ## 1. Start with one spring
 
 A spring has three boundary values: stiffness, extension, and force. We declare
-
 their dimensions rather than fixing particular units. Stiffness has dimension
-
 force per length, extension has dimension length, and force has dimension force.
 
 The system and equations use scalar quantity declarations. These accept scalar
-
 quantities or compatible unit-carrying tensors, allowing the same relationships
-
 to be reused over named domains. In this example we supply stiffness in N/m,
-
 extension in m, and force in N:
 
 ```python exec="off"
 from typing import Annotated
-
 
 from bilt import Implementation, Interface, Quantity, equation, field, system
 from bilt.units import meter, newton
@@ -251,10 +235,8 @@ flowchart LR
     force["Series force F"] --> s1["Spring 1: F = k₁ x₁"]
     force --> s2["Spring 2: F = k₂ x₂"]
 
-
     s1 --> x1["Extension x₁"]
     s2 --> x2["Extension x₂"]
-
 
     x1 --> sum["x_total = x₁ + x₂"]
     x2 --> sum
@@ -333,25 +315,20 @@ For the executable documentation below, the same model is loaded from a temporar
 model_source = """
 from typing import Annotated
 
-
 from bilt import Implementation, Interface, Quantity, equation, field, system
 from bilt.units import meter, newton
 from bilt.units.dimensions import FORCE, LENGTH
-
-
 
 
 Stiffness = Annotated[Quantity, FORCE / LENGTH]
 Length = Annotated[Quantity, LENGTH]
 Force = Annotated[Quantity, FORCE]
 
-
 @system
 class Spring(metaclass=Interface):
     stiffness: Stiffness = field()
     extension: Length = field()
     force: Force = field()
-
 
 @equation
 def hookes_law(
@@ -361,26 +338,21 @@ def hookes_law(
 ) -> bool:
     return force == stiffness * extension
 
-
 linear_spring = Implementation(
     Spring,
     [hookes_law],
 )
-
 
 @system
 class DoubleSpring(metaclass=Interface):
     first_stiffness: Stiffness = field()
     second_stiffness: Stiffness = field()
 
-
     first_extension: Length = field()
     second_extension: Length = field()
     total_extension: Length = field()
 
-
     force: Force = field()
-
 
 @equation
 def first_stiffness_connection(
@@ -389,14 +361,12 @@ def first_stiffness_connection(
 ) -> bool:
     return first_stiffness == first.stiffness
 
-
 @equation
 def first_extension_connection(
     first_extension: Length,
     first: Spring,
 ) -> bool:
     return first_extension == first.extension
-
 
 @equation
 def first_force_connection(
@@ -405,14 +375,12 @@ def first_force_connection(
 ) -> bool:
     return force == first.force
 
-
 @equation
 def second_stiffness_connection(
     second_stiffness: Stiffness,
     second: Spring,
 ) -> bool:
     return second_stiffness == second.stiffness
-
 
 @equation
 def second_extension_connection(
@@ -421,14 +389,12 @@ def second_extension_connection(
 ) -> bool:
     return second_extension == second.extension
 
-
 @equation
 def second_force_connection(
     force: Force,
     second: Spring,
 ) -> bool:
     return force == second.force
-
 
 @equation
 def total_extension_relation(
@@ -437,7 +403,6 @@ def total_extension_relation(
     total_extension: Length,
 ) -> bool:
     return total_extension == first_extension + second_extension
-
 
 double_spring = Implementation(
     DoubleSpring,
@@ -457,10 +422,8 @@ double_spring = Implementation(
 )
 """
 
-
 model_path = Path(tempfile.gettempdir()) / "bilt_two_springs.py"
 model_path.write_text(model_source)
-
 
 spec = importlib.util.spec_from_file_location(
     "_bilt_two_springs",
@@ -469,10 +432,8 @@ spec = importlib.util.spec_from_file_location(
 assert spec is not None
 assert spec.loader is not None
 
-
 model_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(model_module)
-
 
 DoubleSpring = model_module.DoubleSpring
 double_spring = model_module.double_spring
@@ -503,11 +464,9 @@ forward_case = DoubleSpring(
     first_extension=0.075 * meter,
 )
 
-
 with double_spring:
     force = forward_case.force
     total_extension = forward_case.total_extension
-
 
 print(f"Force:           {force.convert_to(newton).value:.3f} N")
 print(f"Total extension: {total_extension.convert_to(meter).value:.3f} m")
@@ -529,7 +488,6 @@ extension_m = np.linspace(0.0, 0.10, 100)
 first_stiffness_n_per_m = forward_case.first_stiffness.convert_to(newton / meter).value
 second_stiffness_n_per_m = forward_case.second_stiffness.convert_to(newton / meter).value
 
-
 plt.plot(
     extension_m,
     first_stiffness_n_per_m * extension_m,
@@ -541,7 +499,6 @@ plt.plot(
     label=f"Spring 2: k = {second_stiffness_n_per_m:g} N/m",
 )
 
-
 plt.scatter(
     [forward_case.first_extension.convert_to(meter).value],
     [force.convert_to(newton).value],
@@ -551,7 +508,6 @@ plt.scatter(
     [force.convert_to(newton).value],
 )
 
-
 plt.xlabel("Extension (m)")
 plt.ylabel("Force (N)")
 plt.title("Two spring force-extension relationships")
@@ -560,14 +516,12 @@ render_plot()
 ```
 
 The plot uses numerical values explicitly converted to N/m, m, and N, so
-
 they match the labels. The same force intersects the two spring curves at
-
 different extensions because their stiffnesses differ.
 
 ## 8. Use the same model in another direction
 
-Now supply the common force and the two stiffnesses, but ****do not**** supply either spring extension:
+Now supply the common force and the two stiffnesses, but **do not** supply either spring extension:
 
 ```python exec="on" source="above" session="springs"
 reverse_case = DoubleSpring(
@@ -576,12 +530,10 @@ reverse_case = DoubleSpring(
     force=7.5 * newton,
 )
 
-
 with double_spring:
     first_extension = reverse_case.first_extension
     second_extension = reverse_case.second_extension
     total_extension = reverse_case.total_extension
-
 
 print(f"First extension:  {first_extension.convert_to(meter).value:.3f} m")
 print(f"Second extension: {second_extension.convert_to(meter).value:.3f} m")
@@ -611,10 +563,8 @@ flowchart LR
     force["Known series force F"] --> spring1["Spring 1: known k₁"]
     force --> spring2["Spring 2: known k₂"]
 
-
     spring1 --> x1["Solve x₁ = F / k₁"]
     spring2 --> x2["Solve x₂ = F / k₂"]
-
 
     x1 --> total["Add extensions: x_total = x₁ + x₂"]
     x2 --> total
@@ -633,7 +583,6 @@ known:
     total extension
     first stiffness
     second stiffness
-
 
 requested:
     common force
@@ -723,7 +672,6 @@ spring_system = DoubleSpring(
     second_stiffness=second_stiffness,
     force=force,
 )
-
 
 with double_spring:
     total_extension = spring_system.total_extension

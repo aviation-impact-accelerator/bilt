@@ -1,4 +1,3 @@
-
 ## Systems and values
 
 For signatures and usage rules, see the [Systems and implementations API](../api/systems.md).
