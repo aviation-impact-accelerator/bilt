@@ -14,7 +14,7 @@ uv add "bilt[jax]"
 
 For an existing `model` implementation and an instance `sample`:
 
-```python
+```python exec="off"
 from bilt import JAX_BACKEND
 
 with JAX_BACKEND, model:
@@ -46,7 +46,7 @@ compatible with JAX tracing: AST acceptance alone does not guarantee execution.
 Python `if` statements, loops and imports are rejected by the current JAX validator.
 For example:
 
-```python
+```python exec="off"
 import jax.numpy as jnp
 from bilt import transform
 

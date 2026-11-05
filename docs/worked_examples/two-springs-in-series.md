@@ -87,7 +87,7 @@ quantities or compatible unit-carrying tensors, allowing the same relationships
 to be reused over named domains. In this example we supply stiffness in N/m,
 extension in m, and force in N:
 
-```python
+```python exec="off"
 from typing import Annotated
 
 from bilt import Implementation, Interface, Quantity, equation, field, system
@@ -109,7 +109,7 @@ class Spring(metaclass=Interface):
 
 Hooke's law is an equation:
 
-```python
+```python exec="off"
 @equation
 def hookes_law(
     stiffness: Stiffness,
@@ -145,7 +145,7 @@ That is the acausal part of the component model.
 
 The parent system exposes the values we want to use when working with two springs:
 
-```python
+```python exec="off"
 @system
 class DoubleSpring(metaclass=Interface):
     first_stiffness: Stiffness = field()
@@ -164,7 +164,7 @@ The two `Spring` occurrences are not public fields. They belong to this implemen
 
 Parent values are connected to the first child independently:
 
-```python
+```python exec="off"
 @equation
 def first_stiffness_connection(
     first_stiffness: Stiffness,
@@ -203,7 +203,7 @@ Each equation touches only one child system.
 
 The second spring uses the same pattern:
 
-```python
+```python exec="off"
 @equation
 def second_stiffness_connection(
     second_stiffness: Stiffness,
@@ -251,7 +251,7 @@ No equation directly contains both spring subsystems.
 
 The total extension is an ordinary parent equation:
 
-```python
+```python exec="off"
 @equation
 def total_extension_relation(
     first_extension: Length,
@@ -277,7 +277,7 @@ total extension + first extension → second extension
 
 ## 6. Put the implementation together
 
-```python
+```python exec="off"
 double_spring = Implementation(
     DoubleSpring,
     [
@@ -598,20 +598,20 @@ The default causalization analyser supports this linear coupled formulation. The
 
 Try changing the common force:
 
-```python
+```python exec="off"
 force = 10.0 * newton
 ```
 
 or either stiffness:
 
-```python
+```python exec="off"
 first_stiffness = 150.0 * newton / meter
 second_stiffness = 250.0 * newton / meter
 ```
 
 Then ask again for:
 
-```python
+```python exec="off"
 spring_system = DoubleSpring(
     first_stiffness=first_stiffness,
     second_stiffness=second_stiffness,

@@ -58,7 +58,7 @@ flowchart TD
 
 The full model contains a number of small transforms. For example:
 
-```python
+```python exec="off"
 from typing import Annotated
 
 from bilt import Quantity, transform
@@ -792,7 +792,7 @@ than physical quantities. Its plain values are separate from the
 unit-aware cruise model above. The JAX-compatible subproblem is an ordinary
 Bilt model:
 
-```python
+```python exec="off"
 @system
 class JaxSubproblem(metaclass=Interface):
     value: float = field()
@@ -812,7 +812,7 @@ jax_subproblem = Implementation(
 
 A Python transform can delegate to it:
 
-```python
+```python exec="off"
 @transform
 def output_value(input_value: float) -> float:
     from bilt import JAX_BACKEND

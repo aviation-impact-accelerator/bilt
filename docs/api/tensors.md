@@ -19,7 +19,7 @@ for an introduction and [Units API](units.md) for physical units.
 | `t.unit` | Physical unit, or `None`. |
 | `dimension.name` | Dimension name. |
 
-```python
+```python exec="on" session="tensor-api"
 from bilt import dim, domain, tensor
 
 time = dim("time")
@@ -67,7 +67,7 @@ scalars or declared quantities.
 **Transforms:** use a single return statement, applying reductions directly to
 named parameters with a dimension captured by a global or closure name:
 
-```python
+```python exec="off"
 from bilt import Tensor, transform
 
 
@@ -101,7 +101,7 @@ Both select one element along a dimension and remove that dimension from the res
 Creating an axis does not bind it. Currently, bind coordinates through the
 internal evaluation context **before requesting calculated outputs**:
 
-```python
+```python exec="on" session="tensor-api"
 from bilt import coordinate_axis
 from bilt.core._evaluation_context import EvaluationContext
 
@@ -120,7 +120,7 @@ Arithmetic and reduction/selection results are plain symbolic expressions
 without tensor methods. To apply another reduction or selection, expose the
 intermediate as a Tensor parameter in a separate relationship:
 
-```python
+```python exec="off"
 from bilt import Tensor, equation
 
 
