@@ -129,11 +129,9 @@ We have changed the annotations, but the equation still says that distance equal
 
 Bilt checks the dimensions when `@equation` runs. On the right, speed multiplied by duration has dimension:
 
-\\[
-
+\[
 \frac{\text{length}}{\text{time}} \times \text{time} = \text{length}.
-
-\\]
+\]
 
 That agrees with the left side.
 

@@ -16,6 +16,7 @@ A temperature may vary with time. Demand may vary with location. A quantity may 
 
 ```text
 temperature[time]
+
 demand[location, time]
 ```
 
@@ -113,6 +114,7 @@ So we can think of the tensor as:
 ```text
                  time
              ───────────►
+
 location      10  12  14
    │           8   9  11
    ▼

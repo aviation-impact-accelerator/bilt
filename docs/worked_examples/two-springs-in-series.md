@@ -624,14 +624,12 @@ print(f"First extension:  {coupled_first.convert_to(meter).value:.3f} m")
 print(f"Second extension: {coupled_second.convert_to(meter).value:.3f} m")
 ```
 
-The answer is the same operating point as before: ****7.5 N****, with extensions ****0.075 m**** and ****0.025 m****. This time neither the force nor either child extension was supplied.
+The answer is the same operating point as before: **7.5 N**, with extensions **0.075 m** and **0.025 m**. This time neither the force nor either child extension was supplied.
 
 We can check the answer independently using the equivalent series stiffness:
 
 \[
-
 F=\frac{x_{total}}{1/k_1+1/k_2},\qquad x_1=F/k_1,\qquad x_2=F/k_2
-
 \]
 
 ```python exec="on" source="above" session="springs"

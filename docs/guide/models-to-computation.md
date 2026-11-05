@@ -74,7 +74,6 @@ At this point, Bilt has two known values:
 
 ```text
 alpha = 1
-
 beta = 2
 ```
 
@@ -82,9 +81,7 @@ and three values that have not yet been calculated:
 
 ```text
 gamma
-
 delta
-
 epsilon
 ```
 
@@ -127,17 +124,11 @@ Since `alpha` and `beta` are already available, Bilt can assemble a complete rou
 
 ```text
 alpha ──┐
-
         ├──► gamma ──┐
-
 beta  ──┘            │
-
                      ├──► epsilon
-
 alpha ───────────────┤
-
                      │
-
 gamma ─────► delta ──┘
 ```
 
@@ -145,9 +136,7 @@ That gives a computation plan:
 
 ```text
 1. gamma from alpha and beta
-
 2. delta from alpha and gamma
-
 3. epsilon from gamma and delta
 ```
 
@@ -180,7 +169,6 @@ or, equivalently:
 
 ```text
 requires: alpha, beta
-
 provides: gamma
 ```
 
@@ -254,17 +242,11 @@ If we ask for `epsilon`, there is no reason to calculate `zeta`.
 alpha ─────────────────────► zeta
 
 alpha ──┐
-
         ├──► gamma ──┐
-
 beta  ──┘            │
-
                      ├──► epsilon
-
 alpha ───────────────┤
-
                      │
-
 gamma ─────► delta ──┘
 ```
 
@@ -446,7 +428,6 @@ Together, those relationships give a computation plan:
 
 ```text
 1. gamma from alpha and beta
-
 2. delta from gamma and epsilon
 ```
 
@@ -454,7 +435,6 @@ or, written more like a conventional program:
 
 ```text
 gamma = gamma(alpha, beta)
-
 delta = gamma / epsilon
 ```
 
@@ -546,23 +526,14 @@ You can think of Bilt as moving through increasingly concrete descriptions:
 
 ```text
 relationships
-
      │
-
      ▼
-
 request + known values
-
      │
-
      ▼
-
 computation plan
-
      │
-
      ▼
-
 executed values
 ```
 
