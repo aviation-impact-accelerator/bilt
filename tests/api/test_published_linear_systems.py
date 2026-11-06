@@ -179,9 +179,18 @@ def _assert_residual(a: np.ndarray, x: np.ndarray, b: np.ndarray) -> None:
     assert np.linalg.norm(a @ x - b, ord=np.inf) <= 5e-6 * scale
 
 
-@pytest.mark.parametrize("reference", ("dense", "structured"))
-@pytest.mark.parametrize("layout", ("flat", "parent_child"))
-@pytest.mark.parametrize("reverse", (False, True), ids=("declared_order", "reverse_order"))
+# Pairwise coverage of numerical reference, model layout and equation declaration order.
+# The full 2 × 2 × 2 product repeats expensive JAX compilation without
+# exercising additional two-factor interactions.
+@pytest.mark.parametrize(
+    ("reference", "layout", "reverse"),
+    (
+        ("dense", "flat", False),
+        ("dense", "parent_child", True),
+        ("structured", "flat", True),
+        ("structured", "parent_child", False),
+    ),
+)
 def test_scipy_published_three_by_three(backend: Backend, reference: str, layout: str, *, reverse: bool) -> None:
     a, b, expected = (DENSE_A, DENSE_B, DENSE_X) if reference == "dense" else (STRUCTURED_A, STRUCTURED_B, STRUCTURED_X)
     model = _three_model(reference, layout, reverse=reverse)

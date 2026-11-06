@@ -438,9 +438,16 @@ def test_repeated_evaluation_reuses_one_cache_entry(
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-@pytest.mark.parametrize("order", (("x", "y"), ("y", "x")), ids=("x_first", "y_first"))
-@pytest.mark.parametrize("batched", (False, True), ids=("scalar", "tensor"))
-@pytest.mark.parametrize("nested", (False, True), ids=("flat", "child"))
+# Each pair of output order, tensor/scalar input, and flat/nested model occurs.
+@pytest.mark.parametrize(
+    ("order", "batched", "nested"),
+    (
+        (("x", "y"), False, False),
+        (("y", "x"), True, False),
+        (("x", "y"), True, True),
+        (("y", "x"), False, True),
+    ),
+)
 def test_default_causalization_keeps_supplied_inputs_separate_from_cached_outputs(
     backend: Backend, order: tuple[str, str], *, batched: bool, nested: bool
 ) -> None:
