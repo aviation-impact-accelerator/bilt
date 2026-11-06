@@ -49,15 +49,11 @@ def profile_case(case: LinearCase, *, warm_runs: int) -> dict[str, object]:
     """Profile a fresh real Bilt model using JAX's explicit compilation stages."""
     trial = LinearTrial.prepare(case, "analysis")
     try:
-        backend_callable, bilt_ms = _timed(
-            lambda: trial.implementation.get_evaluation(trial.request, case.backend)
-        )
+        backend_callable, bilt_ms = _timed(lambda: trial.implementation.get_evaluation(trial.request, case.backend))
 
         # Input validation, units, alignment, transfer and dispatch are not
         # part of the trace/lower/compile/execute timings.
-        aligned = case.backend.apply_alignment(
-            lower_inputs(trial.inputs), generate_alignment_plan(trial.inputs)
-        )
+        aligned = case.backend.apply_alignment(lower_inputs(trial.inputs), generate_alignment_plan(trial.inputs))
         mangled = mangle_inputs(aligned)
         arguments = {name: jax.device_put(mangled[name]) for name in backend_callable.parameters}
         jax.block_until_ready(arguments)
