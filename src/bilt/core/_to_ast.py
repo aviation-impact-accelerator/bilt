@@ -72,6 +72,10 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
     if tree.is_relation:
         return _relation_to_ast(tree)
 
+    return _operation_to_ast(tree)
+
+
+def _operation_to_ast(tree: Tree) -> ast.expr:  # noqa: PLR0911
     match tree.head:
         case ops.CONDITIONAL:
             predicate, when_true, when_false = tree.args
@@ -116,6 +120,8 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
 
 
 
+_RELATION_ARITY = 2
+
 _RELATION_OPERATORS: dict[object, type[ast.cmpop]] = {
     ops.EQUALS: ast.Eq,
     ops.NOT_EQUALS: ast.NotEq,
@@ -127,7 +133,7 @@ _RELATION_OPERATORS: dict[object, type[ast.cmpop]] = {
 
 
 def _relation_to_ast(tree: Tree) -> ast.Compare:
-    if len(tree.args) != 2 or tree.head not in _RELATION_OPERATORS:
+    if len(tree.args) != _RELATION_ARITY or tree.head not in _RELATION_OPERATORS:
         message = f"Unsupported symbolic predicate {tree!s}."
         raise BiltUnsupportedIsolationError(message)
     return ast.Compare(
