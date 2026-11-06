@@ -59,7 +59,7 @@ jobs:
         run: uv run ty check
 
       - name: Test with pytest
-        run: uv run pytest
+        run: uv run pytest --durations=100 --durations-min=0.01
 
       - name: Format with rustfmt
         run: cargo fmt --all -- --check
