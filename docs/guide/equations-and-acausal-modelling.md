@@ -222,6 +222,84 @@ This symbolic representation is what allows Bilt to reason about different ways 
 
 It also means an equation is not simply an arbitrary Python function. The expression needs to consist of mathematical operations that Bilt can represent symbolically.
 
+### Writing equations
+
+Bilt checks the Python source of every `@equation` when it is defined. Equations use a deliberately restricted subset of Python, so that their mathematical structure is clear.
+
+An equation may introduce local values before returning a relationship:
+
+```python
+@equation
+def adjusted_distance(distance: float, speed: float, time: float) -> bool:
+    travelled = speed * time
+    adjusted = travelled + 1.0
+    return distance == adjusted
+```
+
+Each local name can be assigned **once**. The function must end with **one return statement**, returning a single relation rather than a tuple or list. Reassigning parameters or local names, mutating objects, and using loops or comprehensions are not supported. A docstring is allowed.
+
+For example, this is not a valid equation:
+
+```python
+@equation
+def invalid_relation(distance: float, speed: float, time: float) -> bool:
+    travelled = speed * time
+    travelled += 1.0
+    return distance == travelled
+```
+
+The second assignment to `travelled` is rejected. Intermediate calculations are fine, but equations should describe relationships rather than procedural algorithms.
+
+Function calls can be used when they produce supported symbolic expressions. Checking the syntax does not, however, prove that an arbitrary called function is free of side effects.
+
+Bilt must be able to inspect the function's source. Define equations in Python source files; dynamically generated functions without inspectable source are rejected. Source inspection may also be unreliable in some notebooks and interactive environments.
+
+### Conditional equations
+
+A simple `if/else` can describe a piecewise relationship:
+
+```python
+@system
+class Piecewise(metaclass=Interface):
+    x: float = field()
+    result: float = field()
+
+
+@equation
+def piecewise_relation(x: float, result: float) -> bool:
+    if x > 0:
+        selected = x**2
+    else:
+        selected = -x
+    return result == selected
+
+
+piecewise_model = Implementation(Piecewise, [piecewise_relation])
+```
+
+The two branches assign the same local name, `selected`, exactly once. Bilt represents the choice in the symbolic expression, rather than choosing one branch while defining the equation.
+
+As with any equation, the calculation happens when we request a value:
+
+```python
+with piecewise_model:
+    assert Piecewise(x=3.0).result == 9.0
+    assert Piecewise(x=-3.0).result == 3.0
+```
+
+The same equation can be evaluated with JAX:
+
+```python
+from bilt import JAX_BACKEND
+
+with JAX_BACKEND, piecewise_model:
+    assert Piecewise(x=-3.0).result == 3.0
+```
+
+For now, there can be **one** `if/else` statement, with a single comparison as its condition and one assignment to the same local name in each branch. Nested or sequential conditionals, returns inside branches, and tensor-valued predicates or branches are not supported. A Python ternary expression (`a if flag else b`) is allowed when its condition is an ordinary Python value known during tracing, but does not provide symbolic branching.
+
+A conditional equation is still an acausal relationship, but Bilt cannot currently rearrange an equation *through* a conditional. The example above can calculate `result` from `x`; it cannot generally calculate `x` from `result`.
+
 ### Not every equation can simply be rearranged
 
 Our kinematic equation is pleasantly straightforward:
@@ -254,9 +332,9 @@ Equations are a natural starting point for Bilt because many engineering models 
 
 But not every piece of a model is best described this way.
 
-Some operations have a natural direction of computation. Others may contain conditionals, lookups, calls to external software, or calculations that cannot be meaningfully rearranged.
+Some operations have a natural direction of computation. Others may involve more general control flow, lookups, calls to external software, or calculations that cannot be meaningfully represented as equations.
 
-For those cases, Bilt provides **transforms**.
+For those cases, Bilt provides **transforms**. Simple scalar conditionals can be part of an equation; more general procedural calculations are better expressed as transforms.
 
 A useful distinction is:
 

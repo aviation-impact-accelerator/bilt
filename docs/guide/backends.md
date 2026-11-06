@@ -175,12 +175,17 @@ def root(value: float) -> float:
 The JAX backend is well suited to array-based numerical calculations built from
 supported arithmetic and JAX operations.
 
+A simple scalar `if/else` inside an `@equation` is also supported by both
+backends. Bilt converts it into a symbolic conditional before execution;
+see [Conditional equations](equations-and-acausal-modelling.md#conditional-equations).
+
 Some ordinary Python behaviour is not suitable for JAX execution. Examples
 include file or network access, Python side effects, and calls to libraries that
 do not provide JAX-compatible operations.
 
-Bilt's current JAX backend also supports only a subset of Python syntax. For
-example, ordinary Python `if` statements are not currently supported:
+Bilt's current JAX backend also supports only a subset of Python syntax in
+transforms. For example, ordinary Python `if` statements inside a `@transform`
+are not currently supported:
 
 ```python
 @transform

@@ -33,7 +33,51 @@ the returned symbolic relation is what Bilt checks.
 | Tensor reductions and selection | See [Tensor API](tensors.md#reductions). |
 
 Use named parameters; positional-only parameters, `*args` and `**kwargs` are
-refused. Symbolic conditions cannot control Python `if`, `and` or `or`.
+refused. Equations require inspectable Python source: Bilt validates their
+syntax when `@equation` is applied. Define equations in source files rather
+than generating them with `exec`. Source inspection may fail in notebooks or
+interactive sessions.
+
+### Supported equation syntax
+
+| Construct | Rule |
+| --- | --- |
+| Return | Exactly one final `return`, containing one symbolic relation. No tuple/list returns or early returns. |
+| Local bindings | Simple assignments are allowed, including annotations, but each name is assigned once. Parameters cannot be rebound. |
+| Mutation | Assignment to attributes/items, augmented assignment and other procedural statements are rejected. |
+| Control flow | No `for`/`while` loops or comprehensions. A single supported `if/else` is allowed as below. |
+| Function calls | Allowed when they construct supported symbolic expressions; AST validation cannot prove that arbitrary calls are pure. |
+| Captured values | Constants and closures work with ordinary equations. The conditional tracing path does not yet support captured closures. |
+| Ternary expressions | Python `a if flag else b` is permitted when `flag` is concrete during symbolic tracing; symbolic ternary branching is not supported. |
+
+An ordinary equation is traced using its original function after validation.
+A supported statement-level conditional is translated into a symbolic
+conditional before tracing. The same symbolic analysis and execution pipeline
+then applies to both.
+
+### Conditional equations
+
+```python
+@equation
+def piecewise(x: float, result: float) -> bool:
+    if x > 0:
+        selected = x**2
+    else:
+        selected = -x
+    return result == selected
+```
+
+The conditional must use a single comparison, with one assignment to the
+**same local name** in each branch. Nested and multiple conditionals are not
+yet supported. Conditions and both branch values must be **scalar**; tensor
+predicates and tensor-valued branches are not supported.
+
+The conditional is part of the symbolic expression, so all the dependencies
+in the predicate and both branches are available to structural analysis.
+Both Python and JAX can evaluate supported scalar conditional equations.
+Bilt can isolate values outside the conditional, but cannot currently invert
+through the conditional itself. See [Conditional equations](../guide/equations-and-acausal-modelling.md#conditional-equations)
+for a complete example using `Implementation` and system attributes.
 
 Rearrangement currently handles addition, multiplication, negation and
 reciprocals. Powers can appear in forward calculations, but Bilt does not
@@ -85,5 +129,5 @@ Import exceptions from `bilt.errors`.
 | `BiltEquationDimensionalityError` | Inconsistent units, tags or absolute/relative arithmetic. |
 | `BiltPortDeclarationError` | Invalid quantity/tensor annotation. |
 | `BiltUnresolvedAnnotationError` | An annotation name is unavailable at decoration time. |
-| `BiltDefinitionError` | Unsupported transform unit operation or other invalid definition. |
+| `BiltDefinitionError` | Unsupported equation syntax, unavailable equation source, unsupported transform unit operation, or other invalid definition. |
 | `BiltIsolationError` | Base for failed rearrangement, including missing/repeated targets and unsupported inversions; may surface through `BiltAnalysisError` when no route works. |
