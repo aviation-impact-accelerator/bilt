@@ -101,6 +101,7 @@ def test_tensor_predicate_failure_is_reported_as_analysis_failure(backend: Abstr
         _ = Piecewise(x=tensor([1.0, -1.0], over=dim("site"))).value  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
     assert "scalar" in str(raised.value)
 
+
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 @pytest.mark.parametrize("branch", ("positive", "negative"))
 def test_tensor_valued_conditional_branch_is_rejected(backend: AbstractContextManager[object], branch: str) -> None:
