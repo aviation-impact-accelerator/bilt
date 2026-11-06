@@ -1,14 +1,10 @@
 # ruff: noqa: SIM108
-import typing
+from contextlib import AbstractContextManager
 
 import pytest
 
 from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, dim, equation, field, system, tensor
-from bilt.errors import BiltAnalysisError, BiltTensorDomainError
-from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
-
-if typing.TYPE_CHECKING:
-    from bilt._backend._base_backend import Backend
+from bilt.errors import BiltAnalysisError
 
 
 @system
@@ -53,7 +49,7 @@ def selected_value(selector: float, threshold: float, positive: float, negative:
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 @pytest.mark.parametrize(("x", "expected"), ((3.0, 9.0), (-3.0, 3.0), (0.0, 0.0)))
-def test_piecewise_equation_through_public_implementation(backend: Backend, x: float, expected: float) -> None:
+def test_piecewise_equation_through_public_implementation(backend: AbstractContextManager[object], x: float, expected: float) -> None:
     implementation = Implementation(Piecewise, [piecewise_value])
     with backend, implementation:
         model = Piecewise(x=x)
@@ -61,7 +57,7 @@ def test_piecewise_equation_through_public_implementation(backend: Backend, x: f
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_conditional_equation_participates_in_multi_equation_plan(backend: Backend) -> None:
+def test_conditional_equation_participates_in_multi_equation_plan(backend: AbstractContextManager[object]) -> None:
     implementation = Implementation(Piecewise, [piecewise_value, total_from_value])
     with backend, implementation:
         positive = Piecewise(x=3.0, bias=10.0)
@@ -73,7 +69,7 @@ def test_conditional_equation_participates_in_multi_equation_plan(backend: Backe
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 @pytest.mark.parametrize(("selector", "expected"), ((2.0, 6.0), (-2.0, 9.0)))
 def test_implementation_tracks_inputs_from_both_conditional_branches(
-    backend: Backend, selector: float, expected: float
+    backend: AbstractContextManager[object], selector: float, expected: float
 ) -> None:
     implementation = Implementation(SelectedValue, [selected_value])
     with backend, implementation:
@@ -82,28 +78,23 @@ def test_implementation_tracks_inputs_from_both_conditional_branches(
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_missing_other_branch_input_has_no_supported_execution_plan(backend: Backend) -> None:
+def test_missing_other_branch_input_has_no_supported_execution_plan(backend: AbstractContextManager[object]) -> None:
     implementation = Implementation(SelectedValue, [selected_value])
-    with pytest.raises(BiltAnalysisError):
-        implementation.evaluate(
-            {"selector": 2.0, "threshold": 0.0, "positive": 6.0},
-            "result",
-            backend,
-        )
+    with backend, implementation, pytest.raises(BiltAnalysisError):
+        _ = SelectedValue(selector=2.0, threshold=0.0, positive=6.0).result
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_inverse_through_conditional_is_reported_as_analysis_failure(backend: Backend) -> None:
+def test_inverse_through_conditional_is_reported_as_analysis_failure(backend: AbstractContextManager[object]) -> None:
     implementation = Implementation(Piecewise, [piecewise_value])
-    with pytest.raises(BiltAnalysisError, match="Cannot compute x") as raised:
-        implementation.evaluate({"value": 4.0}, "x", backend)
-    assert isinstance(raised.value.__cause__, BiltUnsupportedIsolationError)
+    with backend, implementation, pytest.raises(BiltAnalysisError, match="Cannot compute x") as raised:
+        _ = Piecewise(value=4.0).x
+    assert "through a conditional" in str(raised.value)
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_tensor_predicate_failure_is_reported_as_analysis_failure(backend: Backend) -> None:
+def test_tensor_predicate_failure_is_reported_as_analysis_failure(backend: AbstractContextManager[object]) -> None:
     implementation = Implementation(Piecewise, [piecewise_value])
-    with pytest.raises(BiltAnalysisError, match="Cannot compute value") as raised:
-        implementation.evaluate({"x": tensor([1.0, -1.0], over=dim("site"))}, "value", backend)
-    assert isinstance(raised.value.__cause__, BiltTensorDomainError)
-    assert "scalar" in str(raised.value.__cause__)
+    with backend, implementation, pytest.raises(BiltAnalysisError, match="Cannot compute value") as raised:
+        _ = Piecewise(x=tensor([1.0, -1.0], over=dim("site"))).value
+    assert "scalar" in str(raised.value)
