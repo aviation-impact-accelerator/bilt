@@ -10,7 +10,7 @@ import types
 import typing
 
 from bilt.core._dimensional_analysis import absoluteness_of, dimensionality_of
-from bilt.core._equation_tracing import select_symbolic_tracing_function
+from bilt.core._equation_tracing import validated_symbolic_function
 from bilt.core._errors import (
     BiltEquationDimensionalityError,
     BiltEquationReturnError,
@@ -66,7 +66,7 @@ class BasicEquation[R, **P]:
 
         sub_systems = _sub_system_parameters(signature)
         symbols = _build_symbols(signature, sub_systems)
-        traced_function = select_symbolic_tracing_function(function)
+        traced_function = validated_symbolic_function(function)
         tree = _build_equation_tree(name, traced_function, symbols)
         occurring = subtrees(tree)
         equation_symbols, referenced_sub_systems, sub_system_declarations = _expand_sub_system_parameters(
