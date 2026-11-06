@@ -1,3 +1,4 @@
+# ruff: noqa: SIM108
 import pytest
 
 from bilt.core._equation import equation
