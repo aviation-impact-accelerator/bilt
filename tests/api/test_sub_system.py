@@ -185,9 +185,7 @@ def test_repr_names_the_reference_and_its_interface(sub_system: SubSystemConstit
 def test_a_parent_solves_a_child_port_and_reuses_its_route(board: Implementation) -> None:
     """A cached child route must use the current input values on each evaluation."""
     first = board.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}, "resistor.v", PYTHON_BACKEND)
-    second = board.evaluate(
-        {"resistor.i": CURRENT + 1, "resistor.r": RESISTANCE + 1}, "resistor.v", PYTHON_BACKEND
-    )
+    second = board.evaluate({"resistor.i": CURRENT + 1, "resistor.r": RESISTANCE + 1}, "resistor.v", PYTHON_BACKEND)
 
     assert first == VOLTAGE
     assert second == (CURRENT + 1) * (RESISTANCE + 1)

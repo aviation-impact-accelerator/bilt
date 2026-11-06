@@ -247,6 +247,7 @@ def test_qualified_outputs_are_mangled_for_backend_execution() -> None:
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 def test_two_linear_blocks_propagate_domains_and_values(backend: Backend) -> None:
     """Separate coupled regions remain distinct solve steps, not merely the right final value."""
+
     @equation
     def next_total(u: float, v: float, x: float) -> bool:
         return u + v == x
