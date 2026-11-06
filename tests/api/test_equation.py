@@ -6,6 +6,7 @@ import pytest
 from bilt import Interface, field, system
 from bilt.core._equation import equation
 from bilt.errors import (
+    BiltDefinitionError,
     BiltEquationReturnError,
     BiltEquationSignatureError,
     BiltNameError,
@@ -50,19 +51,17 @@ def test_equation_builds_tree_from_function() -> None:
     assert tree.head is EQUALS
 
 
-def test_equation_passes_expr_symbols_to_function() -> None:
+def test_equation_rejects_procedural_symbol_capture() -> None:
     seen: dict[str, Expr] = {}
 
-    @equation
-    def model(a: float, b: float, c: float) -> bool:
-        seen["a"] = typing.cast("Expr", a)
-        seen["b"] = typing.cast("Expr", b)
-        seen["c"] = typing.cast("Expr", c)
-        return a == b + c
+    with pytest.raises(BiltDefinitionError, match="assignment target must be a local name"):
 
-    assert model.__bilt_equation_symbols__["a"] is seen["a"]
-    assert model.__bilt_equation_symbols__["b"] is seen["b"]
-    assert model.__bilt_equation_symbols__["c"] is seen["c"]
+        @equation
+        def model(a: float, b: float, c: float) -> bool:
+            seen["a"] = typing.cast("Expr", a)
+            return a == b + c
+
+    assert seen == {}
 
 
 def test_equation_tree_uses_generated_symbols() -> None:
