@@ -39,8 +39,13 @@ docs = [
 ]
 
 [tool.pyrefly]
+# The experimental package has its own positive and intentionally negative checks.
+project_excludes = ["prototypes/quantity_typing/**"]
 python_version = "3.15"
 search_path = ["src", "benchmarks"]
+
+[tool.ty.src]
+exclude = ["prototypes/quantity_typing"]
 
 [tool.ty.environment]
 extra-paths = ["benchmarks"]

@@ -1,0 +1,5 @@
+target-version = "py315"
+line-length = 120
+extend-exclude = ["dimension_types.py", "quantities.py", "units.py", "_values.pyi"]
+[lint]
+select = ["E4", "E7", "E9", "F"]
