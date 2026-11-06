@@ -248,9 +248,7 @@ class _EquationDecorator(typing.Protocol):
 
 
 @typing.overload
-def equation[R, **P](
-    function: collections.abc.Callable[P, R], *, conditional: bool = False
-) -> BasicEquation[R, P]: ...
+def equation[R, **P](function: collections.abc.Callable[P, R], *, conditional: bool = False) -> BasicEquation[R, P]: ...
 
 
 @typing.overload
