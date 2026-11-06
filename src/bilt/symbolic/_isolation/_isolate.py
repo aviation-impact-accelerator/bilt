@@ -14,7 +14,7 @@ from bilt.symbolic._algebra._expr_ops import (
     simplify,
     zero,
 )
-from bilt.symbolic._atoms import SymbolType
+from bilt.symbolic._atoms import CONDITIONAL, SymbolType
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltTargetNotFoundError, BiltUnsupportedIsolationError
 from bilt.symbolic._isolation._rules import isolate_by_inverse_rules
@@ -26,7 +26,7 @@ from bilt.symbolic._isolation._types import (
     SimplifiedTree,
 )
 from bilt.symbolic._tree import Tree
-from bilt.symbolic._walk import count_occurrences
+from bilt.symbolic._walk import contains, count_occurrences, subtrees
 
 
 def isolate(
@@ -34,6 +34,9 @@ def isolate(
     target: Expr,
 ) -> IsolatedTree:
     """Return ``equation`` with ``target`` isolated on the left."""
+    if any(node.head is CONDITIONAL and contains(node, target.rep) for node in subtrees(equation)):
+        msg = f"Cannot isolate {target!r} through a conditional expression."
+        raise BiltUnsupportedIsolationError(msg)
     simplified = simplify_tree(equation)
     profile = occurrence_profile(simplified, target)
 

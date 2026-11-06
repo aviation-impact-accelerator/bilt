@@ -11,6 +11,7 @@ if typing.TYPE_CHECKING:
 
 __all__ = [
     "ADD",
+    "CONDITIONAL",
     "EQUALS",
     "GREATER_THAN",
     "GREATER_THAN_OR_EQUALS",
@@ -186,6 +187,7 @@ MUL = Atom(OpType, "mul")
 POW = Atom(OpType, "pow")
 NEG = Atom(OpType, "neg")
 INV = Atom(OpType, "inv")
+CONDITIONAL = Atom(OpType, "conditional")
 
 MEAN = Atom(ReductionOpType, "mean")
 SUM = Atom(ReductionOpType, "sum")
