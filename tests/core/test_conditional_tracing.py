@@ -47,7 +47,7 @@ def test_symbolic_tree_is_not_truthy() -> None:
 
 def test_dynamic_symbolic_branch_without_source_fails_safely() -> None:
     namespace: dict[str, object] = {}
-    exec(
+    exec(  # noqa: S102
         "def generated(x, y):\n"
         "    if x > 0:\n"
         "        value = x\n"
@@ -55,7 +55,7 @@ def test_dynamic_symbolic_branch_without_source_fails_safely() -> None:
         "        value = -x\n"
         "    return y == value\n",
         namespace,
-    )  # noqa: S102
+    )
     generated = namespace["generated"]
     assert callable(generated)
     with pytest.raises(TypeError, match="Symbolic trees cannot be used as Python booleans"):
