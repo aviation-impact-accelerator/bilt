@@ -3,7 +3,7 @@ import typing
 import pytest
 
 from bilt import equation
-from bilt.errors import BiltDimensionalityError, BiltEquationDimensionalityError
+from bilt.errors import BiltDimensionalityError, BiltEquationDimensionalityError, BiltUnitsError
 from bilt.units import Quantity
 from bilt.units.dimensions import AREA, DIMENSIONLESS, ENERGY, FORCE, LENGTH, MASS, PRESSURE, TIME
 
@@ -77,3 +77,15 @@ def test_fully_unannotated_equation_decorates() -> None:
     @equation
     def summation(a: float, b: float, c: float) -> bool:
         return a == b + c
+
+
+def test_equation_contradicting_declared_ports_raises() -> None:
+    with pytest.raises(BiltUnitsError, match="squares") as raised:
+
+        @equation
+        def squares(a: Mass, b: Length) -> bool:
+            return a**2 == b**2
+
+    message = str(raised.value)
+    assert "[Mass]^2" in message
+    assert "[Length]^2" in message

@@ -12,7 +12,6 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
-from bilt.core._system import _implementation as implementation_module
 from bilt.core._system._lowering_and_lifting import lower_inputs
 from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 from bilt.errors import BiltLinearSolveError
@@ -29,11 +28,6 @@ if typing.TYPE_CHECKING:
 TIME = dim("time")
 SITE = dim("site")
 LengthArray = typing.Annotated[Tensor, LENGTH]
-
-
-@pytest.fixture(autouse=True)
-def _use_scc(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
 
 
 @pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
