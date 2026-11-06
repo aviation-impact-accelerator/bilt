@@ -33,11 +33,6 @@ LengthScalar = typing.Annotated[Quantity, LENGTH]
 RatioArray = typing.Annotated[Tensor, DIMENSIONLESS]
 
 
-@pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def backend(request: pytest.FixtureRequest) -> Backend:
-    return request.param
-
-
 @system
 class Pair(metaclass=Interface):
     x: float | Tensor = field()

@@ -4,8 +4,6 @@ import numpy as np
 import pytest
 
 from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
-from bilt._backend._jax._backend import JAX_BACKEND
-from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._system import _implementation as implementation_module
@@ -26,11 +24,6 @@ RatioArray = typing.Annotated[Tensor, DIMENSIONLESS]
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 Grid = typing.Annotated[Tensor, domain(TIME, BRANCH)]
 Shared = typing.Annotated[float, Domain.scalar()]
-
-
-@pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def backend(request: pytest.FixtureRequest) -> Backend:
-    return request.param
 
 
 @system

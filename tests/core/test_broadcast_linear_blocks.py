@@ -30,11 +30,6 @@ SITE = dim("site")
 LengthArray = typing.Annotated[Tensor, LENGTH]
 
 
-@pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def backend(request: pytest.FixtureRequest) -> Backend:
-    return request.param
-
-
 @equation
 def total(x: float, y: float, p: float, a: float) -> bool:
     return a * x + y == p

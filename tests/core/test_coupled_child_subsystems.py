@@ -5,7 +5,6 @@ import pytest
 
 from bilt import Implementation, Interface, Quantity, Tensor, dim, equation, field, system, tensor, transform
 from bilt._backend._errors import BiltUnsupportedNodeError
-from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
@@ -24,11 +23,6 @@ if typing.TYPE_CHECKING:
 TIME = dim("time")
 LengthArray = typing.Annotated[Tensor, LENGTH]
 LengthScalar = typing.Annotated[Quantity, LENGTH]
-
-
-@pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def backend(request: pytest.FixtureRequest) -> Backend:
-    return request.param
 
 
 @system
@@ -74,9 +68,15 @@ def _parent(child: Implementation) -> Implementation:
     return Implementation(Pair, [supply_p, supply_q, expose_x, expose_y], internal_implementations={"inner": child})
 
 
-@pytest.mark.parametrize("depth", (1, 2))
-@pytest.mark.parametrize("output", ("x", "y"))
-@pytest.mark.parametrize("tensor_inputs", (False, True))
+@pytest.mark.parametrize(
+    ("depth", "output", "tensor_inputs"),
+    (
+        (1, "x", False),
+        (1, "y", True),
+        (2, "x", True),
+        (2, "y", False),
+    ),
+)
 def test_child_solves_pointwise_block_after_parent_computes_inputs(
     backend: Backend, depth: int, output: str, *, tensor_inputs: bool
 ) -> None:

@@ -4,8 +4,6 @@ import numpy as np
 import pytest
 
 from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
-from bilt._backend._jax._backend import JAX_BACKEND
-from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.symbolic._dimensions import coordinate_axis
@@ -26,11 +24,6 @@ CurrentArray = typing.Annotated[Tensor, CURRENT]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
 VoltageArray = typing.Annotated[Tensor, VOLTAGE]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
-
-
-@pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def backend(request: pytest.FixtureRequest) -> Backend:
-    return request.param
 
 
 @system
