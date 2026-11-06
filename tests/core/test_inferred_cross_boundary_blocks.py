@@ -9,7 +9,6 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
-from bilt.core._system import _implementation as implementation_module
 from bilt.symbolic._dimensions import coordinate_axis
 
 if typing.TYPE_CHECKING:
@@ -20,11 +19,6 @@ SITE = dim("site")
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
 Shared = typing.Annotated[Tensor, Domain.scalar()]
-
-
-@pytest.fixture(autouse=True)
-def _use_scc(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
 
 
 @pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))

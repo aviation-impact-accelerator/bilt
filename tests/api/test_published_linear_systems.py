@@ -33,7 +33,6 @@ from bilt import (
     tensor,
 )
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
-from bilt.core._system import _implementation as implementation_module
 
 if typing.TYPE_CHECKING:
     from bilt._backend import Backend
@@ -80,12 +79,6 @@ INTEL_X = np.array(
 )
 BATCH = dim("reference_case")
 RHS = dim("right_hand_side")
-
-
-@pytest.fixture(autouse=True)
-def _use_scc(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Same scoped selection used by existing SCC API tests; no new public selector.
-    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
 
 
 @pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
