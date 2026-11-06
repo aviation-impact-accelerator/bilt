@@ -32,9 +32,10 @@ from bilt import (
     system,
     tensor,
 )
+from bilt.core._evaluation_request import EvaluationRequest
 
 if typing.TYPE_CHECKING:
-    from bilt._backend import Backend
+    from bilt._backend import Backend, BackendCallable, BackendCase
     from bilt.symbolic._dimensions import Dim
 
 # Tutorial publishes the exact rational result (-232, 129, 19)/25.
@@ -308,7 +309,9 @@ def intel_boundary(b0: float, inner: Five) -> bool:
 
 @pytest.mark.parametrize("layout", ("flat", "parent_child"))
 @pytest.mark.parametrize("representation", ("scalar_columns", "tensor_columns"))
-def test_intel_published_dgesv_multiple_right_hand_sides(backend: Backend, layout: str, representation: str) -> None:
+def test_intel_published_dgesv_multiple_right_hand_sides(
+    backend: Backend, layout: str, representation: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     prefix = "inner." if layout == "parent_child" else ""
     remaining = (intel_second, intel_third, intel_fourth, intel_fifth)
     model = (
@@ -317,14 +320,43 @@ def test_intel_published_dgesv_multiple_right_hand_sides(backend: Backend, layou
         else Implementation(Five, (intel_first, *remaining))
     )
     outputs = tuple(prefix + f"x{i}" for i in range(5))
+    analysed_outputs: list[str] = []
+    compilations = 0
+    if representation == "scalar_columns":
+        # Each output needs its own plan, but all three RHS columns must reuse
+        # that plan and its backend callable rather than compile it again.
+        analyser = model.analyser_for(backend)
+        original_analyse = analyser.analyse
+        original_chain_case = backend.chain_case
+
+        def count_analyse(request: EvaluationRequest) -> BackendCase:
+            analysed_outputs.append(request.output)
+            return original_analyse(request)
+
+        def count_compile(case: BackendCase) -> BackendCallable:
+            nonlocal compilations
+            compilations += 1
+            return original_chain_case(case)
+
+        monkeypatch.setattr(analyser, "analyse", count_analyse)
+        monkeypatch.setattr(backend, "chain_case", count_compile)
+
     if representation == "tensor_columns":
         inputs: dict[str, object] = {(prefix if i else "") + f"b{i}": tensor(INTEL_B[i], over=RHS) for i in range(5)}
         actual = _evaluate(model, inputs, outputs, backend, axis=RHS)
     else:
         columns = []
+        first_column_compilations: int | None = None
         for column in INTEL_B.T:
             inputs = {(prefix if i else "") + f"b{i}": value for i, value in enumerate(column)}
             columns.append(_evaluate(model, inputs, outputs, backend))
+            if first_column_compilations is None:
+                first_column_compilations = compilations
+            else:
+                assert compilations == first_column_compilations
+        assert analysed_outputs == list(outputs)
+        assert first_column_compilations is not None
+        assert first_column_compilations >= len(outputs)
         actual = np.stack(columns, axis=1)
     assert actual.shape == INTEL_X.shape
     # Match Intel's two-decimal printed answer, not invented extra digits.
