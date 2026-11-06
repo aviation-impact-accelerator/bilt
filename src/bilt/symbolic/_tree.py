@@ -2,6 +2,7 @@ import typing
 import weakref
 
 from bilt.symbolic._atoms import (
+    CONDITIONAL,
     EQUALS,
     ISEL,
     MAX,
@@ -37,6 +38,7 @@ _tree_cache: weakref.WeakValueDictionary[
 __all__ = [
     "Tree",
     "axis_tree",
+    "conditional_tree",
     "coordinate_tree",
     "dimension_tree",
     "equality_tree",
@@ -288,6 +290,16 @@ def relation_tree(operator: Atom | str, left: Tree, right: Tree) -> Tree:
         raise TypeError(msg)
 
     return Tree(operator, (left, right))
+
+
+def conditional_tree(predicate: Tree, when_true: Tree, when_false: Tree) -> Tree:
+    if not predicate.is_relation or len(predicate.args) != _NUMBER_OF_SUB_TREES:
+        msg = "A symbolic conditional requires a binary relation predicate."
+        raise TypeError(msg)
+    if when_true.is_relation or when_false.is_relation:
+        msg = "Conditional branches must be expressions, not relations."
+        raise TypeError(msg)
+    return Tree(CONDITIONAL, (predicate, when_true, when_false))
 
 
 def equality_tree(left: Tree, right: Tree) -> Tree:

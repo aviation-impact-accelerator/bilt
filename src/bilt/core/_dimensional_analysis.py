@@ -62,6 +62,8 @@ def _dimensionality_at(tree: Tree, operands: list[Dimension | None]) -> Dimensio
         _shared(operands)
         return DIMENSIONLESS
     match tree.head:
+        case ops.CONDITIONAL:
+            return _shared(operands[1:])
         case ops.ADD | ops.NEG | ops.MEAN | ops.SUM | ops.MIN | ops.MAX:
             return _shared(operands)
         case ops.ISEL | ops.SEL:
@@ -154,6 +156,12 @@ def absoluteness_of(  # noqa: PLR0911
             raise BiltEquationDimensionalityError(equation_name, msg)
         return frozenset({0})
     match tree.head:
+        case ops.CONDITIONAL:
+            compatible = operands[1] & operands[2]
+            if not compatible:
+                msg = "conditional branches have incompatible absolute/relative kinds."
+                raise BiltEquationDimensionalityError(equation_name, msg)
+            return compatible
         case ops.NEG:
             return frozenset(-zeros for zeros in operands[0])
         case ops.ADD:

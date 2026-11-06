@@ -284,7 +284,12 @@ def _carried_under(
         return frozenset(), frozenset()
 
     under = [_carried_under(equation_name, operand, dimensionalities) for operand in tree.args]
-    carried = under[:1] if tree.head in (ops.POW, ops.ISEL) else under
+    if tree.head is ops.CONDITIONAL:
+        carried = under[1:]
+    elif tree.head in (ops.POW, ops.ISEL):
+        carried = under[:1]
+    else:
+        carried = under
     ports = frozenset().union(*(ports for ports, _ in carried))
     constants = frozenset().union(*(constants for _, constants in carried))
     plain = ports - dimensionalities.keys()
