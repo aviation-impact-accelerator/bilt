@@ -7,7 +7,6 @@ from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domai
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
-from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.symbolic._dimensions import coordinate_axis
 from bilt.units.dimensions import CURRENT, RESISTANCE, VOLTAGE

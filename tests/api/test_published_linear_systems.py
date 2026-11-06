@@ -32,7 +32,6 @@ from bilt import (
     system,
     tensor,
 )
-from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 
 if typing.TYPE_CHECKING:
     from bilt._backend import Backend
