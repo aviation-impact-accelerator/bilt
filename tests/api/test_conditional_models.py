@@ -98,5 +98,5 @@ def test_inverse_through_conditional_is_reported_as_analysis_failure(backend: Ab
 def test_tensor_predicate_failure_is_reported_as_analysis_failure(backend: AbstractContextManager[object]) -> None:
     implementation = Implementation(Piecewise, [piecewise_value])
     with backend, implementation, pytest.raises(BiltAnalysisError, match="Cannot compute value") as raised:
-        _ = Piecewise(x=tensor([1.0, -1.0], over=dim("site"))).value
+        _ = Piecewise(x=tensor([1.0, -1.0], over=dim("site"))).value  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
     assert "scalar" in str(raised.value)
