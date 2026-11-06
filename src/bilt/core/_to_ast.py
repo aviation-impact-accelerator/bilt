@@ -119,7 +119,6 @@ def _operation_to_ast(tree: Tree) -> ast.expr:  # noqa: PLR0911
             raise BiltUnsupportedIsolationError(message)
 
 
-
 _RELATION_ARITY = 2
 
 _RELATION_OPERATORS: dict[object, type[ast.cmpop]] = {
