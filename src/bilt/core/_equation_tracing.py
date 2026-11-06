@@ -1,5 +1,4 @@
 import ast
-import inspect
 import types
 import typing
 
