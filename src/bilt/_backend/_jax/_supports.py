@@ -18,6 +18,7 @@ _SUPPORTED_NODES = frozenset(
         ast.UnaryOp,
         ast.BoolOp,
         ast.Compare,
+        ast.IfExp,
         ast.Call,
         ast.Constant,
         ast.Name,

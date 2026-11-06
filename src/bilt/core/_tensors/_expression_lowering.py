@@ -12,6 +12,7 @@ from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors._errors import BiltSymbolicLoweringError, BiltTensorDomainError
 from bilt.symbolic._atoms import (
     ADD,
+    CONDITIONAL,
     INV,
     ISEL,
     MUL,
@@ -26,6 +27,7 @@ from bilt.symbolic._atoms import (
     IntType,
     QuantityType,
     ReductionOpType,
+    RelationOpType,
     SymbolType,
 )
 from bilt.symbolic._domains import Domain, union
@@ -113,6 +115,12 @@ def _lower_tree(
     if tree.is_leaf:
         return _lower_leaf(tree, symbol_domains)
 
+    if tree.head is CONDITIONAL:
+        return _lower_conditional(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+
+    if tree.head.atom_type is RelationOpType:
+        return _lower_relation(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+
     if tree.head.atom_type is ReductionOpType:
         return _lower_reduction(
             tree,
@@ -164,6 +172,43 @@ def _lower_tree(
 
     message = f"Cannot lower symbolic operation {tree.head!r}."
     raise NotImplementedError(message)
+
+
+
+def _lower_relation(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    operands = tuple(
+        _lower_tree(child, symbol_domains=symbol_domains, canonical_order=canonical_order) for child in tree.args
+    )
+    if len(operands) != 2 or any(not operand.domain.is_scalar for operand in operands):
+        message = "Conditional predicates require scalar comparison operands."
+        raise BiltTensorDomainError(message)
+    return LoweredExpression(Tree(tree.head, tuple(operand.tree for operand in operands)), Domain.scalar())
+
+
+def _lower_conditional(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    predicate, when_true, when_false = (
+        _lower_tree(child, symbol_domains=symbol_domains, canonical_order=canonical_order) for child in tree.args
+    )
+    if not tree.args[0].is_relation or not predicate.domain.is_scalar:
+        message = "Conditional predicates must be scalar relations."
+        raise BiltTensorDomainError(message)
+    if not when_true.domain.is_scalar or not when_false.domain.is_scalar:
+        message = "Conditional branches must both be scalar expressions."
+        raise BiltTensorDomainError(message)
+    return LoweredExpression(
+        Tree(CONDITIONAL, (predicate.tree, when_true.tree, when_false.tree)),
+        Domain.scalar(),
+    )
 
 
 def _lower_leaf(

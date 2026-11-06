@@ -69,7 +69,18 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
     if tree.head in _REDUCTION_INTRINSICS:
         return _reduction_to_ast(tree, _REDUCTION_INTRINSICS[tree.head])
 
+    if tree.is_relation:
+        return _relation_to_ast(tree)
+
     match tree.head:
+        case ops.CONDITIONAL:
+            predicate, when_true, when_false = tree.args
+            return ast.IfExp(
+                test=_tree_to_ast_expr(predicate),
+                body=_tree_to_ast_expr(when_true),
+                orelse=_tree_to_ast_expr(when_false),
+            )
+
         case ops.ADD:
             return _fold_binop(tree.args, ast.Add)
 
@@ -102,6 +113,28 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
         case _:
             message = f"Unsupported symbolic head {tree.head!r} in AST conversion."
             raise BiltUnsupportedIsolationError(message)
+
+
+
+_RELATION_OPERATORS: dict[object, type[ast.cmpop]] = {
+    ops.EQUALS: ast.Eq,
+    ops.NOT_EQUALS: ast.NotEq,
+    ops.LESS_THAN: ast.Lt,
+    ops.LESS_THAN_OR_EQUALS: ast.LtE,
+    ops.GREATER_THAN: ast.Gt,
+    ops.GREATER_THAN_OR_EQUALS: ast.GtE,
+}
+
+
+def _relation_to_ast(tree: Tree) -> ast.Compare:
+    if len(tree.args) != 2 or tree.head not in _RELATION_OPERATORS:
+        message = f"Unsupported symbolic predicate {tree!s}."
+        raise BiltUnsupportedIsolationError(message)
+    return ast.Compare(
+        left=_tree_to_ast_expr(tree.args[0]),
+        ops=[_RELATION_OPERATORS[tree.head]()],
+        comparators=[_tree_to_ast_expr(tree.args[1])],
+    )
 
 
 def _leaf_to_ast(tree: Tree) -> ast.expr:
