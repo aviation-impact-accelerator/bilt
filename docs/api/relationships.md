@@ -11,7 +11,7 @@ See [Equations](../guide/equations-and-acausal-modelling.md) and
 
 ## Equations
 
-```python
+```python exec="on" id="wkyq36"
 from bilt import equation
 
 
@@ -44,7 +44,7 @@ blocks together. This is not a general nonlinear solver.
 
 ## Transforms
 
-```python
+```python exec="off" id="dqxv2h"
 from bilt import transform
 
 

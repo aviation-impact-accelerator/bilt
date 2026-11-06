@@ -8,7 +8,7 @@ A system describes the values that make up the boundary of a model. It tells Bil
 
 Here is a small example using Newtons second law, `F = m*a`.
 
-```python
+```python exec="on" session="systems-values"
 from bilt import Interface, field, system
 
 
@@ -27,7 +27,7 @@ There are three Bilt-specific pieces here.
 
 Finally, `field()` declares a value on the system boundary:
 
-```python
+```python exec="off"
 force: float = field()
 ```
 
@@ -46,7 +46,7 @@ Notice that we still haven't said how any of them are related. Declaring `accele
 
 We can create an instance by supplying values that we already know:
 
-```python
+```python exec="on" session="systems-values"
 mass = 1.0
 acceleration = 2.0
 

@@ -4,7 +4,7 @@ See the [Equations and transforms API](../api/relationships.md) and [Systems and
 
 In the previous chapter, we used an equation to describe a mathematical relationship:
 
-```python
+```python exec="off"
 @equation
 def kinematic_relation(distance: float, speed: float, time: float) -> bool:
     return distance == speed * time
@@ -24,7 +24,7 @@ For that, Bilt provides **transforms**.
 
 Consider a small system:
 
-```python
+```python exec="on"
 from bilt import Interface, field, system
 
 
@@ -37,7 +37,7 @@ class Demo(metaclass=Interface):
 
 We can define a transform that calculates `total` from `base` and `increment`:
 
-```python
+```python exec="off"
 from bilt import transform
 
 
@@ -60,7 +60,7 @@ The parameter names identify the values it requires, while the function name ide
 
 So:
 
-```python
+```python exec="off"
 @transform
 def total(base: float, increment: float) -> float:
     return base + increment
@@ -81,7 +81,7 @@ A transform contains ordinary Python code.
 
 For example:
 
-```python
+```python exec="off"
 @transform
 def magnitude(value: float) -> float:
     return abs(value)
@@ -107,7 +107,7 @@ We used an implementation in the previous chapter to connect an equation to a sy
 
 Now we can look at its role more closely.
 
-```python
+```python exec="off"
 from bilt import Implementation
 
 
@@ -139,7 +139,7 @@ Keeping the system boundary separate from its implementation also allows the sam
 
 Create an instance with the values we already know:
 
-```python
+```python exec="off"
 demo = Demo(
     base=1.0,
     increment=2.0,
@@ -148,7 +148,7 @@ demo = Demo(
 
 Then make the implementation active while requesting `total`:
 
-```python
+```python exec="off"
 with basic:
     assert demo.total == 3.0
 ```
@@ -184,13 +184,13 @@ total(base, increment)
 
 The important point is that we did not call the transform ourselves:
 
-```python
+```python exec="off"
 total(1.0, 2.0)
 ```
 
 Instead, we asked the system for:
 
-```python
+```python exec="off"
 demo.total
 ```
 
@@ -202,7 +202,7 @@ A real implementation will usually contain more than one relationship.
 
 Let's extend our system:
 
-```python
+```python exec="off"
 @system
 class Demo(metaclass=Interface):
     base: float = field()
@@ -214,7 +214,7 @@ class Demo(metaclass=Interface):
 
 and define three transforms:
 
-```python
+```python exec="off"
 @transform
 def total(base: float, increment: float) -> float:
     return base + increment
@@ -232,7 +232,7 @@ def result(total: float, adjusted: float) -> float:
 
 We can collect them into one implementation:
 
-```python
+```python exec="off"
 basic = Implementation(Demo, [total, adjusted, result])
 ```
 
@@ -246,7 +246,7 @@ total, adjusted ──► result
 
 Now create an instance with just `base` and `increment` known:
 
-```python
+```python exec="off"
 demo = Demo(
     base=1.0,
     increment=2.0,
@@ -255,7 +255,7 @@ demo = Demo(
 
 and ask for `result`:
 
-```python
+```python exec="off"
 with basic:
     assert demo.result == 7.0
 ```
@@ -282,7 +282,7 @@ base ─────────► adjusted ──┘
 
 We never wrote:
 
-```python
+```python exec="off"
 total_value = total(base, increment)
 adjusted_value = adjusted(base, total_value)
 result_value = result(total_value, adjusted_value)
@@ -294,7 +294,7 @@ The implementation describes which relationships are available. It does not pres
 
 Nor does the order in:
 
-```python
+```python exec="off"
 Implementation(Demo, [total, adjusted, result])
 ```
 

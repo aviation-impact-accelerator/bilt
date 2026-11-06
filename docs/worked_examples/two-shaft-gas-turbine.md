@@ -132,7 +132,7 @@ dimensionless quantities, supplied using `UNITLESS`.
 Port names describe physical quantities. Units are carried by values rather
 than encoded in names such as `_k` or `_kj_per_kg`.
 
-```python
+```python exec="off"
 from typing import Annotated
 
 from bilt import Implementation, Interface, Quantity, equation, field, system
@@ -209,7 +209,7 @@ does not permanently designate specific work as the output. With a different set
 
 The turbine is similarly small:
 
-```python
+```python exec="off"
 @system
 class Turbine(metaclass=Interface):
     inlet_temperature: AbsoluteTemperature = field()
@@ -238,7 +238,7 @@ turbine_model = Implementation(
 
 The parent system contains the values needed to connect the four child systems.
 
-```python
+```python exec="off"
 @system
 class TwoShaftCore(metaclass=Interface):
     # Gas-path temperatures.
@@ -293,7 +293,7 @@ The two equations on either side each touch only one child.
 
 The parent inlet is connected to the LP compressor inlet:
 
-```python
+```python exec="off"
 @equation
 def low_pressure_compressor_inlet_connection(
     inlet_temperature: AbsoluteTemperature,
@@ -304,7 +304,7 @@ def low_pressure_compressor_inlet_connection(
 
 The compressor exit is exposed on the parent:
 
-```python
+```python exec="off"
 @equation
 def low_pressure_compressor_exit_connection(
     low_pressure_compressor_exit_temperature: AbsoluteTemperature,
@@ -315,7 +315,7 @@ def low_pressure_compressor_exit_connection(
 
 and the parent supplies its pressure ratio, efficiency, and fluid properties:
 
-```python
+```python exec="off"
 @equation
 def low_pressure_compressor_pressure_ratio_connection(
     low_pressure_compressor_pressure_ratio: Ratio,
@@ -350,7 +350,7 @@ def low_pressure_compressor_specific_heat_connection(
 
 Finally, its specific work is copied onto the parent:
 
-```python
+```python exec="off"
 @equation
 def low_pressure_compressor_work_connection(
     low_pressure_compressor_work: SpecificWork,
@@ -363,7 +363,7 @@ def low_pressure_compressor_work_connection(
 
 The LP compressor exit temperature now acts as the HP compressor inlet temperature:
 
-```python
+```python exec="off"
 @equation
 def high_pressure_compressor_inlet_connection(
     low_pressure_compressor_exit_temperature: AbsoluteTemperature,
@@ -374,7 +374,7 @@ def high_pressure_compressor_inlet_connection(
 
 The HP compressor is otherwise connected in the same way:
 
-```python
+```python exec="off"
 @equation
 def high_pressure_compressor_exit_connection(
     high_pressure_compressor_exit_temperature: AbsoluteTemperature,
@@ -431,7 +431,7 @@ The shared parent temperature is the hand-off point.
 
 The turbine inlet temperature is connected to the HP turbine:
 
-```python
+```python exec="off"
 @equation
 def high_pressure_turbine_inlet_connection(
     turbine_inlet_temperature: AbsoluteTemperature,
@@ -442,7 +442,7 @@ def high_pressure_turbine_inlet_connection(
 
 The HP turbine exit is exposed on the parent:
 
-```python
+```python exec="off"
 @equation
 def high_pressure_turbine_exit_connection(
     high_pressure_turbine_exit_temperature: AbsoluteTemperature,
@@ -453,7 +453,7 @@ def high_pressure_turbine_exit_connection(
 
 and the same parent value independently feeds the LP turbine:
 
-```python
+```python exec="off"
 @equation
 def low_pressure_turbine_inlet_connection(
     high_pressure_turbine_exit_temperature: AbsoluteTemperature,
@@ -464,7 +464,7 @@ def low_pressure_turbine_inlet_connection(
 
 The remaining turbine connections are:
 
-```python
+```python exec="off"
 @equation
 def core_exit_connection(
     exit_temperature: AbsoluteTemperature,
@@ -523,7 +523,7 @@ HP shaft efficiency × HP turbine work
 
 In Bilt:
 
-```python
+```python exec="off"
 @equation
 def high_pressure_shaft_balance(
     high_pressure_compressor_work: SpecificWork,
@@ -557,7 +557,7 @@ useful output work
 
 or:
 
-```python
+```python exec="off"
 @equation
 def low_pressure_shaft_balance(
     low_pressure_compressor_work: SpecificWork,
@@ -570,7 +570,7 @@ def low_pressure_shaft_balance(
 
 Finally, mass flow converts specific output work into shaft power:
 
-```python
+```python exec="off"
 @equation
 def shaft_power_relation(
     shaft_output_work: SpecificWork,
@@ -600,7 +600,7 @@ That second direction will be useful in the inverse-design example.
 
 The four component occurrences are internal implementations:
 
-```python
+```python exec="off"
 core_model = Implementation(
     TwoShaftCore,
     [
@@ -1450,19 +1450,19 @@ The easiest experiments are changes to the operating assumptions.
 
 For example, change mass flow:
 
-```python
+```python exec="off"
 mass_flow = 25.0 * kilogram / second
 ```
 
 or change the maximum turbine inlet temperature:
 
-```python
+```python exec="off"
 turbine_inlet_temperature = Quantity(1500.0, absolute_kelvin)
 ```
 
 You can also change the compressor pressure-ratio target:
 
-```python
+```python exec="off"
 high_pressure_compressor_pressure_ratio = Quantity(7.0, UNITLESS)
 ```
 
@@ -1470,7 +1470,7 @@ and ask again what compressor efficiency is required for a specified shaft power
 
 Another useful experiment is to change the core exit boundary:
 
-```python
+```python exec="off"
 exit_temperature = Quantity(950.0, absolute_kelvin)
 ```
 
