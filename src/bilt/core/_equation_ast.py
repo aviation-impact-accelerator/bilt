@@ -93,7 +93,6 @@ def _assignment_value(statement: ast.stmt) -> ast.expr:
 def _validate_expression(expression: ast.expr) -> None:
     forbidden = (
         ast.NamedExpr,
-        ast.IfExp,
         ast.Yield,
         ast.YieldFrom,
         ast.Await,
