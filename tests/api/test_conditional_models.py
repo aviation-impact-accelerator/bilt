@@ -69,7 +69,7 @@ def test_conditional_equation_participates_in_multi_equation_plan(backend: Abstr
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-@pytest.mark.parametrize(("selector", "expected"), ((2.0, 6.0), (-2.0, 9.0)))
+@pytest.mark.parametrize(("selector", "expected"), ((2.0, 6.0), (-2.0, 9.0), (0.0, 9.0)))
 def test_implementation_tracks_inputs_from_both_conditional_branches(
     backend: AbstractContextManager[object], selector: float, expected: float
 ) -> None:
@@ -99,4 +99,16 @@ def test_tensor_predicate_failure_is_reported_as_analysis_failure(backend: Abstr
     implementation = Implementation(Piecewise, [piecewise_value])
     with backend, implementation, pytest.raises(BiltAnalysisError, match="Cannot compute value") as raised:
         _ = Piecewise(x=tensor([1.0, -1.0], over=dim("site"))).value  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+    assert "scalar" in str(raised.value)
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+@pytest.mark.parametrize("branch", ("positive", "negative"))
+def test_tensor_valued_conditional_branch_is_rejected(backend: AbstractContextManager[object], branch: str) -> None:
+    implementation = Implementation(SelectedValue, [selected_value])
+    values = tensor([6.0, 7.0], over=dim("site"))
+    with backend, implementation, pytest.raises(BiltAnalysisError, match="Cannot compute result") as raised:
+        if branch == "positive":
+            _ = SelectedValue(selector=2.0, threshold=0.0, positive=values, negative=9.0).result  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        else:
+            _ = SelectedValue(selector=2.0, threshold=0.0, positive=6.0, negative=values).result  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
     assert "scalar" in str(raised.value)
