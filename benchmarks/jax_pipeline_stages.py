@@ -14,21 +14,21 @@ import typing
 from pathlib import Path
 
 import jax
+from linear_models import LinearCase, LinearTrial
 
 from bilt.core._port import mangle_inputs
 from bilt.core._system._lowering_and_lifting import lower_inputs
 from bilt.core._tensors._tensor_alignment import generate_alignment_plan
-from linear_models import LinearCase, LinearTrial
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
 
 
 CASES = {
-    "electrical-shared": LinearCase("electrical", True, False, "jax"),
-    "electrical-pointwise": LinearCase("electrical", False, False, "jax"),
-    "thermal-shared": LinearCase("thermal", True, False, "jax"),
-    "thermal-pointwise": LinearCase("thermal", False, False, "jax"),
+    "electrical-shared": LinearCase(family="electrical", shared=True, hinted=False, backend_name="jax"),
+    "electrical-pointwise": LinearCase(family="electrical", shared=False, hinted=False, backend_name="jax"),
+    "thermal-shared": LinearCase(family="thermal", shared=True, hinted=False, backend_name="jax"),
+    "thermal-pointwise": LinearCase(family="thermal", shared=False, hinted=False, backend_name="jax"),
 }
 
 
