@@ -52,12 +52,13 @@ def test_docstring_is_allowed_before_an_equation_return() -> None:
     assert ast.get_docstring(node) == "A mathematical relation."
 
 
-def test_inline_conditional_is_rejected_until_it_can_be_normalised() -> None:
-    with pytest.raises(BiltEquationSyntaxError, match="IfExp"):
-        _normalise("""
-            def equation(x, y):
-                return y == (x if x > 0 else -x)
-        """)
+def test_static_ternary_is_retained_as_a_functional_expression() -> None:
+    node = _normalise("""
+        def equation(x, y):
+            return y == (x + 1 if True else x - 1)
+    """)
+    assert isinstance(node.body[-1], ast.Return)
+    assert any(isinstance(child, ast.IfExp) for child in ast.walk(node))
 
 
 def test_plain_equation_ast_is_unchanged() -> None:
