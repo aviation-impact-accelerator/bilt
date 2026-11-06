@@ -49,7 +49,9 @@ def selected_value(selector: float, threshold: float, positive: float, negative:
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 @pytest.mark.parametrize(("x", "expected"), ((3.0, 9.0), (-3.0, 3.0), (0.0, 0.0)))
-def test_piecewise_equation_through_public_implementation(backend: AbstractContextManager[object], x: float, expected: float) -> None:
+def test_piecewise_equation_through_public_implementation(
+    backend: AbstractContextManager[object], x: float, expected: float
+) -> None:
     implementation = Implementation(Piecewise, [piecewise_value])
     with backend, implementation:
         model = Piecewise(x=x)
