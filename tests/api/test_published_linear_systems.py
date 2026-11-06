@@ -32,10 +32,9 @@ from bilt import (
     system,
     tensor,
 )
-from bilt.core._evaluation_request import EvaluationRequest
-
 if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable, BackendCase
+    from bilt.core._evaluation_request import EvaluationRequest
     from bilt.symbolic._dimensions import Dim
 
 # Tutorial publishes the exact rational result (-232, 129, 19)/25.
