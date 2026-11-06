@@ -1,5 +1,5 @@
 # ruff: noqa: SIM108
-from contextlib import AbstractContextManager
+lazy from contextlib import AbstractContextManager
 
 import pytest
 
