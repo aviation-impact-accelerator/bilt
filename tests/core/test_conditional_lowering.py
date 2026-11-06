@@ -84,7 +84,7 @@ def test_python_conditional_only_evaluates_selected_branch() -> None:
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 def test_conditional_equation_executes_in_both_backends(backend: Backend) -> None:
-    @equation(conditional=True)
+    @equation
     def relation(x: float, y: float) -> bool:
         if x > 0:
             result = x**2
@@ -117,7 +117,7 @@ def test_jax_compilation_uses_lazy_conditional() -> None:
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 def test_conditional_equation_model_evaluation(backend: Backend) -> None:
-    @equation(conditional=True)
+    @equation
     def relation(x: float, y: float) -> bool:
         if x > 0:
             value = x**2

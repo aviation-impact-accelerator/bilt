@@ -9,18 +9,30 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
 
-def conditional_symbolic_function(
+def validated_symbolic_function(
     function: collections.abc.Callable[..., object],
 ) -> collections.abc.Callable[..., object]:
     if not isinstance(function, types.FunctionType):
-        msg = "Conditional equations require a Python function."
+        msg = "Equations require an inspectable Python function."
         raise BiltEquationSyntaxError(msg)
+
+    source = extract_equation_ast(function)
+    has_conditional = any(isinstance(statement, ast.If) for statement in source.body)
+    validated = normalise_equation_ast(source)
+
+    if not has_conditional:
+        return function
+    return conditional_symbolic_function(function, validated)
+
+
+def conditional_symbolic_function(
+    function: types.FunctionType,
+    node: ast.FunctionDef,
+) -> collections.abc.Callable[..., object]:
     if function.__code__.co_freevars:
         names = ", ".join(function.__code__.co_freevars)
         msg = f"Conditional equation {function.__name__!r} captures closure variables: {names}."
         raise BiltEquationSyntaxError(msg)
-
-    node = normalise_equation_ast(extract_equation_ast(function))
 
     # These are already resolved from the original signature. Do not execute
     # annotations or defaults when reconstructing the temporary tracing callable.

@@ -10,7 +10,7 @@ import types
 import typing
 
 from bilt.core._dimensional_analysis import absoluteness_of, dimensionality_of
-from bilt.core._equation_tracing import conditional_symbolic_function
+from bilt.core._equation_tracing import validated_symbolic_function
 from bilt.core._errors import (
     BiltEquationDimensionalityError,
     BiltEquationReturnError,
@@ -55,7 +55,7 @@ class BasicEquation[R, **P]:
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
     _function: collections.abc.Callable[P, R]
 
-    def __init__(self, function: collections.abc.Callable[P, R], *, conditional: bool = False) -> None:
+    def __init__(self, function: collections.abc.Callable[P, R]) -> None:
         name = _function_name(function)
         try:
             signature = inspect.signature(function, eval_str=True)
@@ -66,7 +66,7 @@ class BasicEquation[R, **P]:
 
         sub_systems = _sub_system_parameters(signature)
         symbols = _build_symbols(signature, sub_systems)
-        traced_function = conditional_symbolic_function(function) if conditional else function
+        traced_function = validated_symbolic_function(function)
         tree = _build_equation_tree(name, traced_function, symbols)
         occurring = subtrees(tree)
         equation_symbols, referenced_sub_systems, sub_system_declarations = _expand_sub_system_parameters(
@@ -248,23 +248,21 @@ class _EquationDecorator(typing.Protocol):
 
 
 @typing.overload
-def equation[R, **P](function: collections.abc.Callable[P, R], *, conditional: bool = False) -> BasicEquation[R, P]: ...
+def equation[R, **P](function: collections.abc.Callable[P, R]) -> BasicEquation[R, P]: ...
 
 
 @typing.overload
-def equation(*, conditional: bool = False) -> _EquationDecorator: ...
+def equation() -> _EquationDecorator: ...
 
 
 def equation[R, **P](
     function: collections.abc.Callable[P, R] | None = None,
-    *,
-    conditional: bool = False,
 ) -> BasicEquation[R, P] | _EquationDecorator:
     if function is not None:
-        return BasicEquation(function, conditional=conditional)
+        return BasicEquation(function)
 
     def decorate[T, **Q](wrapped: collections.abc.Callable[Q, T]) -> BasicEquation[T, Q]:
-        return BasicEquation(wrapped, conditional=conditional)
+        return BasicEquation(wrapped)
 
     return decorate
 

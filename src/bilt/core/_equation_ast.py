@@ -15,10 +15,7 @@ class BiltEquationSyntaxError(BiltDefinitionError, SyntaxError):
 
 
 def extract_equation_ast(function: collections.abc.Callable[..., object]) -> ast.FunctionDef:
-    """Extract a detached function AST, leaving the original callable unchanged.
-
-    This is opt-in: existing @equation definitions do not depend on inspect.getsource.
-    """
+    """Extract a detached function AST, leaving the original callable unchanged."""
     name = getattr(function, "__name__", type(function).__name__)
     try:
         source = textwrap.dedent(inspect.getsource(function))
@@ -38,12 +35,7 @@ def extract_equation_ast(function: collections.abc.Callable[..., object]) -> ast
 
 
 def normalise_equation_ast(function: ast.FunctionDef) -> ast.FunctionDef:
-    """Validate and rewrite the supported single-if/single-assignment subset.
-
-    Input and output are Python ASTs. The placeholder ``_bilt_conditional``
-    is deliberately unresolved in this milestone; it will be linked to a
-    symbolic operation in a subsequent PR.
-    """
+    """Validate and rewrite the supported single-if/single-assignment subset."""
     node = copy.deepcopy(function)
     node.decorator_list = []
     _validate_function(node)
@@ -148,6 +140,12 @@ def _parameter_names(function: ast.FunctionDef) -> set[str]:
 
 def _validate_branch(statement: ast.If, params: set[str], assigned: set[str]) -> str:
     _validate_expression(statement.test)
+    if (
+        not isinstance(statement.test, ast.Compare)
+        or len(statement.test.ops) != 1
+        or not isinstance(statement.test.ops[0], (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE))
+    ):
+        _reject(statement.test, "conditional predicate must be one symbolic comparison")
     if len(statement.body) != 1 or len(statement.orelse) != 1:
         _reject(statement, "each branch must contain exactly one assignment")
     left = _assignment_name(statement.body[0])
@@ -163,7 +161,14 @@ def _validate_branch(statement: ast.If, params: set[str], assigned: set[str]) ->
 def _validate_bindings(function: ast.FunctionDef, params: set[str]) -> set[str]:
     assigned: set[str] = set()
     if_count = 0
-    for statement in function.body[:-1]:
+    for index, statement in enumerate(function.body[:-1]):
+        if (
+            index == 0
+            and isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Constant)
+            and isinstance(statement.value.value, str)
+        ):
+            continue
         if isinstance(statement, (ast.Assign, ast.AnnAssign)):
             name = _assignment_name(statement)
             _validate_expression(_assignment_value(statement))

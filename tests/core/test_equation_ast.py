@@ -1,4 +1,4 @@
-"""Contract tests for the optional equation AST preprocessing milestone."""
+"""Contract tests for equation AST validation and normalisation."""
 
 import ast
 import textwrap
@@ -41,6 +41,24 @@ def test_simple_if_else_normalises_to_a_conditional_call() -> None:
     assert not any(isinstance(item, ast.If) for item in ast.walk(node))
     assert isinstance(node.body[-1], ast.Return)
     assert all(hasattr(item, "lineno") for item in ast.walk(node) if isinstance(item, ast.stmt))
+
+
+def test_docstring_is_allowed_before_an_equation_return() -> None:
+    node = _normalise('''
+        def equation(x, y):
+            """A mathematical relation."""
+            return y == x + 1
+    ''')
+    assert ast.get_docstring(node) == "A mathematical relation."
+
+
+def test_static_ternary_is_retained_as_a_functional_expression() -> None:
+    node = _normalise("""
+        def equation(x, y):
+            return y == (x + 1 if True else x - 1)
+    """)
+    assert isinstance(node.body[-1], ast.Return)
+    assert any(isinstance(child, ast.IfExp) for child in ast.walk(node))
 
 
 def test_plain_equation_ast_is_unchanged() -> None:
