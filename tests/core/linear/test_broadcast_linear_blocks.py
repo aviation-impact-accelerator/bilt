@@ -90,6 +90,7 @@ def test_pointwise_block_aligns_independent_and_reordered_dimensions(backend: Ba
 
 
 def test_pointwise_block_uses_one_batched_solve(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A tensor batch should use one batched solve, not a solve per coordinate."""
     original = np.linalg.solve
     shapes = []
 

@@ -99,6 +99,7 @@ def test_linear_block_exposes_every_output_to_downstream_steps(backend: Backend,
 
 
 def test_one_runtime_solve_per_block_even_when_both_outputs_are_consumed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One coupled block is evaluated once even when downstream steps use both outputs."""
     calls = 0
     original = typing.cast("typing.Callable[..., object]", np.linalg.solve)
 
@@ -245,6 +246,7 @@ def test_qualified_outputs_are_mangled_for_backend_execution() -> None:
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 def test_two_linear_blocks_propagate_domains_and_values(backend: Backend) -> None:
+    """Separate coupled regions remain distinct solve steps, not merely the right final value."""
     @equation
     def next_total(u: float, v: float, x: float) -> bool:
         return u + v == x
@@ -274,10 +276,7 @@ def test_rectangular_surplus_does_not_prevent_a_local_linear_solution() -> None:
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_quantities_are_solved_in_coherent_units(backend: Backend, monkeypatch: pytest.MonkeyPatch) -> None:
-    from bilt.core._system import _implementation as implementation_module  # noqa: PLC0415
-
-    monkeypatch.setattr(implementation_module, "CausalizationStructuralAnalyzer", CausalizationStructuralAnalyzer)
+def test_quantities_are_solved_in_coherent_units(backend: Backend) -> None:
     with backend, Implementation(CoupledLengths, [length_total, length_difference]):
         value = CoupledLengths(p=0.01 * kilometer, q=2.0 * meter).x
 

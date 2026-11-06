@@ -244,9 +244,10 @@ def test_a_child_implementation_shared_by_two_references_is_compiled_once(
 
     instance = series_circuit_over_resistors.system(i=CURRENT, r1=RESISTANCE, r2=RESISTANCE + 1)
     with backend, series_circuit_over_resistors:
-        _ = instance.v1
-        _ = instance.v2
+        assert instance.v1 == VOLTAGE
+        assert instance.v2 == CURRENT * (RESISTANCE + 1)
 
+    # Compilation reuse is intentional: the child is shared across two instance paths.
     assert len(resistor._evaluation_cache) == 1  # noqa: SLF001
 
 
@@ -254,12 +255,17 @@ def test_a_child_implementation_shared_by_two_references_is_compiled_once(
 def test_a_repeated_evaluation_reuses_the_parents_one_cache_entry(
     backend: Backend, component_over_resistor: Implementation
 ) -> None:
+    """Repeated access and new input values reuse the route, not stale results."""
     instance = component_over_resistor.system(current=CURRENT, resistance=RESISTANCE)
+    changed = component_over_resistor.system(current=CURRENT + 1, resistance=RESISTANCE + 1)
+
     with backend, component_over_resistor:
         first = instance.voltage
-        second = instance.voltage
+        repeated = instance.voltage
+        second = changed.voltage
 
-    assert first == second == VOLTAGE
+    assert first == repeated == VOLTAGE
+    assert second == (CURRENT + 1) * (RESISTANCE + 1)
     assert len(component_over_resistor._evaluation_cache) == 1  # noqa: SLF001
 
 

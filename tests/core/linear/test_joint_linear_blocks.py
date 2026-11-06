@@ -93,6 +93,7 @@ def test_shared_scalar_and_tensor_unknown_form_one_joint_block(backend: Backend,
 
 
 def test_joint_matrix_has_one_column_for_the_shared_scalar(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A shared unknown requires one matrix column, not one column per coordinate."""
     original = np.linalg.solve
     shapes = []
 

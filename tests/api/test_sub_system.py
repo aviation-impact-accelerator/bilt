@@ -182,10 +182,16 @@ def test_repr_names_the_reference_and_its_interface(sub_system: SubSystemConstit
     assert repr(sub_system) == "SubSystemConstituent(name='resistor', interface='Resistor')"
 
 
-def test_a_parent_solves_a_child_port_through_the_sub_system(board: Implementation) -> None:
-    result = board.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}, "resistor.v", PYTHON_BACKEND)
+def test_a_parent_solves_a_child_port_and_reuses_its_route(board: Implementation) -> None:
+    """A cached child route must use the current input values on each evaluation."""
+    first = board.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}, "resistor.v", PYTHON_BACKEND)
+    second = board.evaluate(
+        {"resistor.i": CURRENT + 1, "resistor.r": RESISTANCE + 1}, "resistor.v", PYTHON_BACKEND
+    )
 
-    assert result == VOLTAGE
+    assert first == VOLTAGE
+    assert second == (CURRENT + 1) * (RESISTANCE + 1)
+    assert len(board._evaluation_cache) == 1  # noqa: SLF001 - deliberate compiled-route reuse contract
 
 
 def test_a_parent_solves_a_child_port_in_the_inward_direction(board: Implementation) -> None:
@@ -213,6 +219,7 @@ def test_the_realized_callable_speaks_mangled_names(board: Implementation) -> No
 
 
 def test_nothing_a_backend_compiles_carries_a_dotted_name(board: Implementation) -> None:
+    """Compiler boundary contract: backend identifiers must be valid, undotted names."""
     request = EvaluationRequest(
         output="resistor.v",
         input_domains={
@@ -228,15 +235,6 @@ def test_nothing_a_backend_compiles_carries_a_dotted_name(board: Implementation)
     assert "." not in case.return_name
     assert not any("." in name for name in case.parameters)
     assert not any("." in name for intermediate in case.intermediates for name in intermediate.parameters)
-
-
-def test_a_parent_reuses_one_cache_entry_across_repeated_evaluations(board: Implementation) -> None:
-    backend = PYTHON_BACKEND
-
-    board.evaluate({"resistor.i": CURRENT, "resistor.r": RESISTANCE}, "resistor.v", backend)
-    board.evaluate({"resistor.i": CURRENT + 1, "resistor.r": RESISTANCE + 1}, "resistor.v", backend)
-
-    assert len(board._evaluation_cache) == 1  # noqa: SLF001
 
 
 def test_two_parents_can_share_one_sub_system(sub_system: SubSystemConstituent) -> None:
