@@ -33,27 +33,28 @@ the returned symbolic relation is what Bilt checks.
 | Tensor reductions and selection | See [Tensor API](tensors.md#reductions). |
 
 Use named parameters; positional-only parameters, `*args` and `**kwargs` are
-refused. Equations require inspectable Python source: Bilt validates their
-syntax when `@equation` is applied. Define equations in source files rather
-than generating them with `exec`. Source inspection may fail in notebooks or
-interactive sessions.
+refused.
+
+Bilt needs to read the Python code for each equation when `@equation` is applied.
+Define equations in Python files rather than creating functions with `exec`.
+Some notebooks and interactive environments may not make the source available.
 
 ### Supported equation syntax
 
 | Construct | Rule |
 | --- | --- |
-| Return | Exactly one final `return`, containing one symbolic relation. No tuple/list returns or early returns. |
-| Local bindings | Simple assignments are allowed, including annotations, but each name is assigned once. Parameters cannot be rebound. |
-| Mutation | Assignment to attributes/items, augmented assignment and other procedural statements are rejected. |
-| Control flow | No `for`/`while` loops or comprehensions. A single supported `if/else` is allowed as below. |
-| Function calls | Allowed when they construct supported symbolic expressions; AST validation cannot prove that arbitrary calls are pure. |
-| Captured values | Constants and closures work with ordinary equations. The conditional tracing path does not yet support captured closures. |
-| Ternary expressions | Python `a if flag else b` is permitted when `flag` is concrete during symbolic tracing; symbolic ternary branching is not supported. |
+| `return` | One `return` at the end, containing one relationship such as `a == b`. No early returns or tuples/lists of results. |
+| Local variables | You can assign names to intermediate values, but only once per name. You cannot reassign function parameters. |
+| Changing values | Do not modify object attributes, list/dictionary entries, or use `+=` and similar assignments. |
+| Loops | `for`, `while` and comprehensions are not supported. |
+| Function calls | Allowed when Bilt understands the mathematical result. Bilt cannot detect every side effect inside a called function. |
+| Python `if/else` | One simple `if/else` is supported, as described below. |
+| Inline `if` | Expressions such as `a if flag else b` work when `flag` is an ordinary Python value known when Bilt reads the equation, not a value being solved for. |
 
-An ordinary equation is traced using its original function after validation.
-A supported statement-level conditional is translated into a symbolic
-conditional before tracing. The same symbolic analysis and execution pipeline
-then applies to both.
+Ordinary equations can use constants from outside the function, including
+values from an enclosing function. With `if/else`, constants defined at
+module level work, but values captured from an enclosing function are not
+currently supported.
 
 ### Conditional equations
 
@@ -67,17 +68,19 @@ def piecewise(x: float, result: float) -> bool:
     return result == selected
 ```
 
-The conditional must use a single comparison, with one assignment to the
-**same local name** in each branch. Nested and multiple conditionals are not
-yet supported. Conditions and both branch values must be **scalar**; tensor
-predicates and tensor-valued branches are not supported.
+The condition must be a single comparison, such as `x > 0`. Both branches
+must assign to the **same name** exactly once, with the final `return` outside
+the branches. Multiple or nested `if/else` statements are not supported.
 
-The conditional is part of the symbolic expression, so all the dependencies
-in the predicate and both branches are available to structural analysis.
-Both Python and JAX can evaluate supported scalar conditional equations.
-Bilt can isolate values outside the conditional, but cannot currently invert
-through the conditional itself. See [Conditional equations](../guide/equations-and-acausal-modelling.md#conditional-equations)
-for a complete example using `Implementation` and system attributes.
+The condition and both possible results must be **single numbers, not tensors
+(arrays of values)**. Bilt keeps track of the values used by both branches,
+and supports this kind of equation with Python and JAX.
+
+Bilt can calculate `result` when `x` is known, but cannot currently work
+backwards through the `if/else` to find `x` from `result`.
+
+See [Using `if/else` in an equation](../guide/equations-and-acausal-modelling.md#using-ifelse-in-an-equation)
+for a worked example.
 
 Rearrangement currently handles addition, multiplication, negation and
 reciprocals. Powers can appear in forward calculations, but Bilt does not

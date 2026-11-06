@@ -224,9 +224,9 @@ It also means an equation is not simply an arbitrary Python function. The expres
 
 ### Writing equations
 
-Bilt checks the Python source of every `@equation` when it is defined. Equations use a deliberately restricted subset of Python, so that their mathematical structure is clear.
+An equation should describe a mathematical relationship, rather than a series of instructions.
 
-An equation may introduce local values before returning a relationship:
+You can give parts of the calculation names to make it easier to read:
 
 ```python
 @equation
@@ -236,9 +236,14 @@ def adjusted_distance(distance: float, speed: float, time: float) -> bool:
     return distance == adjusted
 ```
 
-Each local name can be assigned **once**. The function must end with **one return statement**, returning a single relation rather than a tuple or list. Reassigning parameters or local names, mutating objects, and using loops or comprehensions are not supported. A docstring is allowed.
+There are a few rules to follow:
 
-For example, this is not a valid equation:
+- End with **one `return` statement** that gives a relationship, such as `distance == adjusted`.
+- Assign each name **only once**. You cannot change the value of a name later in the function.
+- Do not change the contents of objects, lists or dictionaries.
+- Do not use loops or comprehensions.
+
+For example, the following will not work:
 
 ```python
 @equation
@@ -248,15 +253,15 @@ def invalid_relation(distance: float, speed: float, time: float) -> bool:
     return distance == travelled
 ```
 
-The second assignment to `travelled` is rejected. Intermediate calculations are fine, but equations should describe relationships rather than procedural algorithms.
+Here, `travelled` is changed after its first assignment. Instead, give the new value a different name, as in the previous example.
 
-Function calls can be used when they produce supported symbolic expressions. Checking the syntax does not, however, prove that an arbitrary called function is free of side effects.
+You can call other functions, provided Bilt understands the mathematical operations they produce. Avoid functions that change files or other values outside the equation.
 
-Bilt must be able to inspect the function's source. Define equations in Python source files; dynamically generated functions without inspectable source are rejected. Source inspection may also be unreliable in some notebooks and interactive environments.
+Bilt also needs to read your function's original Python code. For this reason, define equations in Python files. Functions created dynamically, such as with `exec`, will not work, and some notebook environments may have difficulty providing the source code.
 
-### Conditional equations
+### Using `if/else` in an equation
 
-A simple `if/else` can describe a piecewise relationship:
+Sometimes a relationship depends on a condition. For example, we might want to square positive values but change the sign of negative ones:
 
 ```python
 @system
@@ -277,9 +282,7 @@ def piecewise_relation(x: float, result: float) -> bool:
 piecewise_model = Implementation(Piecewise, [piecewise_relation])
 ```
 
-The two branches assign the same local name, `selected`, exactly once. Bilt represents the choice in the symbolic expression, rather than choosing one branch while defining the equation.
-
-As with any equation, the calculation happens when we request a value:
+Both branches use the name `selected`. Bilt understands both possibilities, so it can choose the right one when a value is requested:
 
 ```python
 with piecewise_model:
@@ -287,7 +290,7 @@ with piecewise_model:
     assert Piecewise(x=-3.0).result == 3.0
 ```
 
-The same equation can be evaluated with JAX:
+The same equation works with the JAX backend:
 
 ```python
 from bilt import JAX_BACKEND
@@ -296,9 +299,9 @@ with JAX_BACKEND, piecewise_model:
     assert Piecewise(x=-3.0).result == 3.0
 ```
 
-For now, there can be **one** `if/else` statement, with a single comparison as its condition and one assignment to the same local name in each branch. Nested or sequential conditionals, returns inside branches, and tensor-valued predicates or branches are not supported. A Python ternary expression (`a if flag else b`) is allowed when its condition is an ordinary Python value known during tracing, but does not provide symbolic branching.
+For now, there are some limits. An equation can contain only **one `if/else`**, testing a single comparison such as `x > 0`. Both branches must assign a value to the same name, and the `return` must come afterwards. The condition and the values chosen must be **single numbers, not tensors (arrays of values)**.
 
-A conditional equation is still an acausal relationship, but Bilt cannot currently rearrange an equation *through* a conditional. The example above can calculate `result` from `x`; it cannot generally calculate `x` from `result`.
+Bilt can calculate `result` from `x` in this example. It cannot currently work backwards through the `if/else` to calculate `x` from `result`.
 
 ### Not every equation can simply be rearranged
 
@@ -332,9 +335,9 @@ Equations are a natural starting point for Bilt because many engineering models 
 
 But not every piece of a model is best described this way.
 
-Some operations have a natural direction of computation. Others may involve more general control flow, lookups, calls to external software, or calculations that cannot be meaningfully represented as equations.
+Some operations have a natural direction of computation. Others involve more complicated instructions or calculations that Bilt cannot treat as equations.
 
-For those cases, Bilt provides **transforms**. Simple scalar conditionals can be part of an equation; more general procedural calculations are better expressed as transforms.
+For those cases, Bilt provides **transforms**. Equations can include a simple `if/else`, but transforms are better suited to calculations that do not describe a mathematical relationship.
 
 A useful distinction is:
 
