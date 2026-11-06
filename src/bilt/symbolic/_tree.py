@@ -156,7 +156,7 @@ class Tree:
         return id(self)
 
     def __bool__(self) -> typing.NoReturn:
-        msg = "Symbolic trees cannot be used as Python booleans. Use @equation(conditional=True) for conditionals."
+        msg = "Symbolic trees cannot be used as Python booleans. Use a supported if/else in a source-inspectable @equation."
         raise TypeError(msg)
 
     def __eq__(self, other: object) -> bool:

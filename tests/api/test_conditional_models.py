@@ -15,7 +15,7 @@ class Piecewise(metaclass=Interface):
     total: float = field()
 
 
-@equation(conditional=True)
+@equation
 def piecewise_value(x: float, value: float) -> bool:
     if x > 0:
         selected = x**2
@@ -38,7 +38,7 @@ class SelectedValue(metaclass=Interface):
     result: float = field()
 
 
-@equation(conditional=True)
+@equation
 def selected_value(selector: float, threshold: float, positive: float, negative: float, result: float) -> bool:
     if selector > threshold:
         selected = positive

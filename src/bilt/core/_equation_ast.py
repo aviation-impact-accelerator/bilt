@@ -15,10 +15,7 @@ class BiltEquationSyntaxError(BiltDefinitionError, SyntaxError):
 
 
 def extract_equation_ast(function: collections.abc.Callable[..., object]) -> ast.FunctionDef:
-    """Extract a detached function AST, leaving the original callable unchanged.
-
-    This is opt-in: existing @equation definitions do not depend on inspect.getsource.
-    """
+    """Extract a detached function AST, leaving the original callable unchanged."""
     name = getattr(function, "__name__", type(function).__name__)
     try:
         source = textwrap.dedent(inspect.getsource(function))
@@ -38,12 +35,7 @@ def extract_equation_ast(function: collections.abc.Callable[..., object]) -> ast
 
 
 def normalise_equation_ast(function: ast.FunctionDef) -> ast.FunctionDef:
-    """Validate and rewrite the supported single-if/single-assignment subset.
-
-    Input and output are Python ASTs. The placeholder ``_bilt_conditional``
-    is deliberately unresolved in this milestone; it will be linked to a
-    symbolic operation in a subsequent PR.
-    """
+    """Validate and rewrite the supported single-if/single-assignment subset."""
     node = copy.deepcopy(function)
     node.decorator_list = []
     _validate_function(node)
