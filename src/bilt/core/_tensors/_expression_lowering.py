@@ -171,7 +171,6 @@ def _lower_tree(
     raise NotImplementedError(message)
 
 
-
 _RELATION_ARITY = 2
 
 
