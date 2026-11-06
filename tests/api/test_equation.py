@@ -1,5 +1,4 @@
 import types
-import typing
 
 import pytest
 
@@ -52,13 +51,13 @@ def test_equation_builds_tree_from_function() -> None:
 
 
 def test_equation_rejects_procedural_symbol_capture() -> None:
-    seen: dict[str, Expr] = {}
+    seen: dict[str, float] = {}
 
     with pytest.raises(BiltDefinitionError, match="assignment target must be a local name"):
 
         @equation
         def model(a: float, b: float, c: float) -> bool:
-            seen["a"] = typing.cast("Expr", a)
+            seen["a"] = a
             return a == b + c
 
     assert seen == {}
