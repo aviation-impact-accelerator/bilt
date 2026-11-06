@@ -1,4 +1,3 @@
-# ruff: noqa: SIM108
 import ast
 
 import jax
