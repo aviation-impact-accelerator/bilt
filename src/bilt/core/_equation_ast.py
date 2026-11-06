@@ -140,6 +140,12 @@ def _parameter_names(function: ast.FunctionDef) -> set[str]:
 
 def _validate_branch(statement: ast.If, params: set[str], assigned: set[str]) -> str:
     _validate_expression(statement.test)
+    if (
+        not isinstance(statement.test, ast.Compare)
+        or len(statement.test.ops) != 1
+        or not isinstance(statement.test.ops[0], (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE))
+    ):
+        _reject(statement.test, "conditional predicate must be one symbolic comparison")
     if len(statement.body) != 1 or len(statement.orelse) != 1:
         _reject(statement, "each branch must contain exactly one assignment")
     left = _assignment_name(statement.body[0])
