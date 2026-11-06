@@ -61,6 +61,9 @@ jobs:
       - name: Test with pytest
         run: uv run pytest --durations=100 --durations-min=0.01
 
+      - name: Profile JAX compilation stages (informational)
+        run: uv run --all-extras python benchmarks/jax_pipeline_stages.py --case electrical-shared --warm-runs 3
+
       - name: Format with rustfmt
         run: cargo fmt --all -- --check
 

@@ -486,3 +486,41 @@ hint policy, coordinate count, wrapper depth, target and timing scope.
 
 No existing benchmark models, outcomes or timing boundaries change. No solver,
 backend, dependency configuration or default analyser changes are required.
+
+
+## JAX tracing, lowering, compilation and device execution
+
+The cold and warm evaluation benchmarks above intentionally measure Bilt's
+planning and its public evaluation path. To find out where JAX time is spent,
+run the opt-in staged profile:
+
+```sh
+uv run --all-extras python benchmarks/jax_pipeline_stages.py
+uv run --all-extras python benchmarks/jax_pipeline_stages.py --case electrical-shared --warm-runs 10 --json jax-stages.json
+```
+
+The script reuses the same electrical and thermal physical models and independent
+analytic references as the coupled-linear benchmarks. It reports, in milliseconds:
+
+- **Bilt planning:** `Implementation.get_evaluation`, including structural
+  analysis and creation of a JAX-jitted callable, but not JAX execution.
+- **JAX trace:** `jit_callable.trace(...)`, producing a staged jaxpr.
+- **JAX lowering:** `traced.lower()`, producing compiler input.
+- **XLA compilation:** `lowered.compile()`, producing an executable.
+- **First execution:** invoke the compiled executable and wait for completion.
+- **Warm execution:** median and individual timings for repeated compiled
+  executable calls using the same device-resident input shapes and dtypes.
+
+Input conversion, tensor alignment and host-to-device transfer are excluded from
+the JAX phase timings. All execution timings use `jax.block_until_ready` and
+`jax.effects_barrier` to include ordered validation callbacks. Each result
+is checked against independent analytic references **outside** the timed
+sections. The CI smoke run reports one case without enforcing performance
+thresholds; the full profile is opt-in.
+
+These are **stage-level wall times**, not exclusive CPU times or proof of a
+compilation-cache miss. XLA may reuse caches, and timings can be affected by
+JAX initialization, device availability, thread scheduling and previous
+compilation. Running a different model or process order may produce different
+numbers. Compare repeated runs on the same machine and JAX version. To inspect
+individual device kernels, use JAX's profiler separately.
