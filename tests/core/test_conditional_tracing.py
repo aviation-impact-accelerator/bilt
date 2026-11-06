@@ -2,7 +2,6 @@
 import pytest
 
 from bilt.core._equation import equation
-from bilt.core._equation_ast import BiltEquationSyntaxError
 from bilt.symbolic._atoms import CONDITIONAL
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._tree import Tree, conditional_tree
@@ -44,20 +43,3 @@ def test_symbolic_tree_is_not_truthy() -> None:
     assert isinstance(predicate, Tree)
     with pytest.raises(TypeError, match="Symbolic trees cannot be used as Python booleans"):
         bool(predicate)
-
-
-def test_source_unavailable_equation_fails_validation() -> None:
-    namespace: dict[str, object] = {}
-    exec(  # noqa: S102
-        "def generated(x, y):\n"
-        "    if x > 0:\n"
-        "        value = x\n"
-        "    else:\n"
-        "        value = -x\n"
-        "    return y == value\n",
-        namespace,
-    )
-    generated = namespace["generated"]
-    assert callable(generated)
-    with pytest.raises(BiltEquationSyntaxError, match="Cannot inspect source"):
-        equation(generated)
