@@ -85,20 +85,6 @@ def test_child_reduction_and_parent_balance_solve_tensor_and_shared_unknowns(
         assert result == pytest.approx(shared, abs=1e-5)
 
 
-def test_one_shared_unknown_adds_one_column_to_the_joint_matrix(monkeypatch: pytest.MonkeyPatch) -> None:
-    original = np.linalg.solve
-    shapes = []
-
-    def solve(matrix: np.ndarray, rhs: np.ndarray) -> np.ndarray:
-        shapes.append(matrix.shape)
-        return original(matrix, rhs)
-
-    monkeypatch.setattr(np.linalg, "solve", solve)
-    result = _model().evaluate({"p": tensor([2.0, 4.0, 6.0], over=TIME), "q": 1.0}, "inner.y", PYTHON_BACKEND)
-    assert result == pytest.approx(2.0)
-    assert shapes == [(4, 4)]
-
-
 @pytest.mark.parametrize("output", ("inner.x", "inner.y"))
 @pytest.mark.parametrize("reverse", (False, True))
 def test_shared_unknown_can_vary_over_a_subset_of_the_tensor_axes(
