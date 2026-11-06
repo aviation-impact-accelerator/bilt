@@ -115,11 +115,8 @@ def _lower_tree(
     if tree.is_leaf:
         return _lower_leaf(tree, symbol_domains)
 
-    if tree.head is CONDITIONAL:
-        return _lower_conditional(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
-
-    if tree.head.atom_type is RelationOpType:
-        return _lower_relation(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+    if tree.head is CONDITIONAL or tree.head.atom_type is RelationOpType:
+        return _lower_predicate_or_conditional(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
 
     if tree.head.atom_type is ReductionOpType:
         return _lower_reduction(
@@ -175,6 +172,20 @@ def _lower_tree(
 
 
 
+_RELATION_ARITY = 2
+
+
+def _lower_predicate_or_conditional(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    if tree.head is CONDITIONAL:
+        return _lower_conditional(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+    return _lower_relation(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+
+
 def _lower_relation(
     tree: Tree,
     *,
@@ -184,7 +195,7 @@ def _lower_relation(
     operands = tuple(
         _lower_tree(child, symbol_domains=symbol_domains, canonical_order=canonical_order) for child in tree.args
     )
-    if len(operands) != 2 or any(not operand.domain.is_scalar for operand in operands):
+    if len(operands) != _RELATION_ARITY or any(not operand.domain.is_scalar for operand in operands):
         message = "Conditional predicates require scalar comparison operands."
         raise BiltTensorDomainError(message)
     return LoweredExpression(Tree(tree.head, tuple(operand.tree for operand in operands)), Domain.scalar())
