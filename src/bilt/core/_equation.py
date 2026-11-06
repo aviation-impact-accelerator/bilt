@@ -244,7 +244,7 @@ def _equation_return_error_message(name: str, result: object) -> str:
 
 
 class _EquationDecorator(typing.Protocol):
-    def __call__[R, **P](self, function: collections.abc.Callable[P, R]) -> BasicEquation[R, P]: ...
+    def __call__[R, **P](self, function: collections.abc.Callable[P, R], /) -> BasicEquation[R, P]: ...
 
 
 @typing.overload
