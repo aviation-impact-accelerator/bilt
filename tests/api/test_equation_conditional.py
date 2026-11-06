@@ -85,45 +85,39 @@ def test_sequential_conditionals_are_not_supported() -> None:
             return y == second
 
 
-def test_equations_without_inspectable_source_still_work() -> None:
+def test_equation_without_inspectable_source_is_rejected() -> None:
     namespace: dict[str, object] = {}
     exec("def generated(x, y):\n    return y == x + 1\n", namespace)  # noqa: S102
     generated = namespace["generated"]
     assert callable(generated)
 
-    with Implementation(Shifted, [equation(generated)]):
-        assert Shifted(x=2.0).y == pytest.approx(3.0)
+    with pytest.raises(BiltDefinitionError, match="Cannot inspect source"):
+        equation(generated)
 
 
-def test_ordinary_equation_is_only_traced_once() -> None:
+def test_procedural_statements_are_rejected_without_executing_them() -> None:
     calls: list[str] = []
+    with pytest.raises(BiltDefinitionError, match="Expr is not supported"):
 
-    @equation
-    def relation(x: float, y: float) -> bool:
-        calls.append("traced")
-        return y == x + 1
+        @equation
+        def relation(x: float, y: float) -> bool:
+            calls.append("traced")
+            return y == x + 1
 
-    assert calls == ["traced"]
-    with Implementation(Shifted, [relation]):
-        assert Shifted(x=3.0).y == pytest.approx(4.0)
+    assert calls == []
 
 
-def test_static_python_branch_remains_compatible() -> None:
-    calls: list[str] = []
+def test_static_python_branch_is_rejected() -> None:
     enabled = True
+    with pytest.raises(BiltDefinitionError, match="symbolic comparison"):
 
-    @equation
-    def relation(x: float, y: float) -> bool:
-        calls.append("traced")
-        if enabled:
-            value = x + 1
-        else:
-            value = x + 2
-        return y == value
-
-    assert calls == ["traced"]
-    with Implementation(Shifted, [relation]):
-        assert Shifted(x=3.0).y == pytest.approx(4.0)
+        @equation
+        def relation(x: float, y: float) -> bool:
+            if enabled:
+                value = x + 1
+            else:
+                value = x + 2
+            return y == value
 
 
 def test_decorator_parentheses_remain_supported() -> None:
