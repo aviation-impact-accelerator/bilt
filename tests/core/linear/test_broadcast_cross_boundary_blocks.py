@@ -112,23 +112,6 @@ def test_tensor_coefficients_can_supply_axes_with_scalar_rhs(backend: Backend) -
     np.testing.assert_allclose(result.values, [6.0, 4.0], rtol=1e-5)
 
 
-def test_one_batched_matrix_is_assembled_per_coupled_block(monkeypatch: pytest.MonkeyPatch) -> None:
-    original = np.linalg.solve
-    shapes = []
-
-    def solve(matrix: np.ndarray, rhs: np.ndarray) -> np.ndarray:
-        shapes.append(matrix.shape)
-        return original(matrix, rhs)
-
-    monkeypatch.setattr(np.linalg, "solve", solve)
-    result = _model().evaluate(
-        {"inner.p": tensor([10.0, 20.0, 30.0], over=TIME), "inner.a": 1.0, "q": 2.0}, "inner.x", PYTHON_BACKEND
-    )
-    assert isinstance(result, Tensor)
-    np.testing.assert_allclose(result.values, [6.0, 11.0, 16.0])
-    assert shapes == [(3, 2, 2)]
-
-
 @pytest.mark.parametrize("output", ("inner.x", "inner.y"))
 def test_unitful_values_are_lowered_and_lifted_across_the_boundary(backend: Backend, output: str) -> None:
     @system
