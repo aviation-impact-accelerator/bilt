@@ -93,6 +93,7 @@ def _assignment_value(statement: ast.stmt) -> ast.expr:
 def _validate_expression(expression: ast.expr) -> None:
     forbidden = (
         ast.NamedExpr,
+        ast.IfExp,
         ast.Yield,
         ast.YieldFrom,
         ast.Await,
@@ -161,7 +162,9 @@ def _validate_branch(statement: ast.If, params: set[str], assigned: set[str]) ->
 def _validate_bindings(function: ast.FunctionDef, params: set[str]) -> set[str]:
     assigned: set[str] = set()
     if_count = 0
-    for statement in function.body[:-1]:
+    for index, statement in enumerate(function.body[:-1]):
+        if index == 0 and isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Constant) and isinstance(statement.value.value, str):
+            continue
         if isinstance(statement, (ast.Assign, ast.AnnAssign)):
             name = _assignment_name(statement)
             _validate_expression(_assignment_value(statement))
