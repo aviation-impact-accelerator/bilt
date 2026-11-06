@@ -180,7 +180,7 @@ def _assert_residual(a: np.ndarray, x: np.ndarray, b: np.ndarray) -> None:
 
 
 # Pairwise coverage of numerical reference, model layout and equation declaration order.
-# The full 2 × 2 × 2 product repeats expensive JAX compilation without
+# The full Cartesian product repeats expensive JAX compilation without
 # exercising additional two-factor interactions.
 @pytest.mark.parametrize(
     ("reference", "layout", "reverse"),
