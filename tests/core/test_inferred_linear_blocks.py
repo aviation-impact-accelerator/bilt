@@ -28,11 +28,6 @@ VoltageArray = typing.Annotated[Tensor, VOLTAGE]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
 
 
-@pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def backend(request: pytest.FixtureRequest) -> Backend:
-    return request.param
-
-
 @system
 class Pair(metaclass=Interface):
     x: Tensor = field()

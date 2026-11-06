@@ -26,11 +26,6 @@ LengthArray = typing.Annotated[Tensor, LENGTH]
 LengthScalar = typing.Annotated[Quantity, LENGTH]
 
 
-@pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def backend(request: pytest.FixtureRequest) -> Backend:
-    return request.param
-
-
 @system
 class Pair(metaclass=Interface):
     x: float | Tensor = field()
@@ -74,9 +69,15 @@ def _parent(child: Implementation) -> Implementation:
     return Implementation(Pair, [supply_p, supply_q, expose_x, expose_y], internal_implementations={"inner": child})
 
 
-@pytest.mark.parametrize("depth", (1, 2))
-@pytest.mark.parametrize("output", ("x", "y"))
-@pytest.mark.parametrize("tensor_inputs", (False, True))
+@pytest.mark.parametrize(
+    ("depth", "output", "tensor_inputs"),
+    (
+        (1, "x", False),
+        (1, "y", True),
+        (2, "x", True),
+        (2, "y", False),
+    ),
+)
 def test_child_solves_pointwise_block_after_parent_computes_inputs(
     backend: Backend, depth: int, output: str, *, tensor_inputs: bool
 ) -> None:

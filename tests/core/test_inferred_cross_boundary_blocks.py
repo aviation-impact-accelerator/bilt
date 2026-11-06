@@ -20,11 +20,6 @@ PerSite = typing.Annotated[Tensor, domain(SITE)]
 Shared = typing.Annotated[Tensor, Domain.scalar()]
 
 
-@pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def backend(request: pytest.FixtureRequest) -> Backend:
-    return request.param
-
-
 @system
 class Ports(metaclass=Interface):
     x: Tensor = field()

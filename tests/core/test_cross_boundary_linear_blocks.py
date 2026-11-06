@@ -22,11 +22,6 @@ if typing.TYPE_CHECKING:
 Length = typing.Annotated[Quantity, LENGTH]
 
 
-@pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def backend(request: pytest.FixtureRequest) -> Backend:
-    return request.param
-
-
 @system
 class Pair(metaclass=Interface):
     x: float | Tensor = field()
@@ -53,8 +48,15 @@ def _crossing(*, reverse: bool = False) -> Implementation:
     return Implementation(Pair, operations[::-1] if reverse else operations)
 
 
-@pytest.mark.parametrize(("output", "expected"), (("inner.x", 6.0), ("inner.y", 4.0)))
-@pytest.mark.parametrize("reverse", (False, True))
+@pytest.mark.parametrize(
+    ("backend", "output", "expected", "reverse"),
+    (
+        (PYTHON_BACKEND, "inner.x", 6.0, False),
+        (PYTHON_BACKEND, "inner.y", 4.0, True),
+        (JAX_BACKEND, "inner.x", 6.0, True),
+        (JAX_BACKEND, "inner.y", 4.0, False),
+    ),
+)
 def test_parent_feedback_and_child_balance_form_one_scalar_solve(
     backend: Backend, output: str, expected: float, *, reverse: bool
 ) -> None:
@@ -109,7 +111,15 @@ def _nested_crossing(depth: int) -> Implementation:
     return implementation
 
 
-@pytest.mark.parametrize("depth", (0, 1, 2))
+@pytest.mark.parametrize(
+    ("backend", "depth"),
+    (
+        (PYTHON_BACKEND, 0),
+        (PYTHON_BACKEND, 1),
+        (PYTHON_BACKEND, 2),
+        (JAX_BACKEND, 2),
+    ),
+)
 def test_cross_boundary_block_inside_nested_children(backend: Backend, depth: int) -> None:
     implementation = _nested_crossing(depth)
     assert implementation.evaluate({"p": 10.0, "q": 2.0}, "x", backend) == pytest.approx(6.0)

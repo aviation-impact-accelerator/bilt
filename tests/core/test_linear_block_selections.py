@@ -35,11 +35,6 @@ LengthOverTime = typing.Annotated[Tensor, LENGTH, domain(TIME)]
 LengthScalar = typing.Annotated[Quantity, LENGTH]
 
 
-@pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def backend(request: pytest.FixtureRequest) -> Backend:
-    return request.param
-
-
 @equation
 def balance(x: OverTime, y: OverTime, p: Tensor) -> bool:
     return x + y == p

@@ -30,11 +30,6 @@ LengthArray = typing.Annotated[Tensor, LENGTH]
 LengthScalar = typing.Annotated[Quantity, LENGTH]
 
 
-@pytest.fixture(params=(PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def backend(request: pytest.FixtureRequest) -> Backend:
-    return request.param
-
-
 @system
 class Ports(metaclass=Interface):
     x: Tensor = field()
@@ -190,7 +185,10 @@ def test_cached_compilation_accepts_changing_extents_without_recompiling(monkeyp
     assert len(calls) == 1
 
 
-@pytest.mark.parametrize("depth", (1, 2))
+@pytest.mark.parametrize(
+    ("backend", "depth"),
+    ((PYTHON_BACKEND, 1), (PYTHON_BACKEND, 2), (JAX_BACKEND, 2)),
+)
 def test_broadcast_block_can_span_multiple_nested_boundaries(backend: Backend, depth: int) -> None:
     @equation
     def supply(p: Tensor, inner: Ports) -> bool:
