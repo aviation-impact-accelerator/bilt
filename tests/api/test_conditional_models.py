@@ -106,9 +106,10 @@ def test_tensor_predicate_failure_is_reported_as_analysis_failure(backend: Abstr
 def test_tensor_valued_conditional_branch_is_rejected(backend: AbstractContextManager[object], branch: str) -> None:
     implementation = Implementation(SelectedValue, [selected_value])
     values = tensor([6.0, 7.0], over=dim("site"))
+    if branch == "positive":
+        model = SelectedValue(selector=2.0, threshold=0.0, positive=values, negative=9.0)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+    else:
+        model = SelectedValue(selector=2.0, threshold=0.0, positive=6.0, negative=values)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
     with backend, implementation, pytest.raises(BiltAnalysisError, match="Cannot compute result") as raised:
-        if branch == "positive":
-            _ = SelectedValue(selector=2.0, threshold=0.0, positive=values, negative=9.0).result  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
-        else:
-            _ = SelectedValue(selector=2.0, threshold=0.0, positive=6.0, negative=values).result  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        _ = model.result
     assert "scalar" in str(raised.value)
