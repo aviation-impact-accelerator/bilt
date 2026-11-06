@@ -44,11 +44,11 @@ def test_simple_if_else_normalises_to_a_conditional_call() -> None:
 
 
 def test_docstring_is_allowed_before_an_equation_return() -> None:
-    node = _normalise("""
+    node = _normalise('''
         def equation(x, y):
-            """ + '"""A mathematical relation."""' + """
+            """A mathematical relation."""
             return y == x + 1
-    """)
+    ''')
     assert ast.get_docstring(node) == "A mathematical relation."
 
 
