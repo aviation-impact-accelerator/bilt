@@ -3,7 +3,7 @@ import typing
 
 import pytest
 
-from bilt import Implementation, Interface, JAX_BACKEND, PYTHON_BACKEND, dim, equation, field, system, tensor
+from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, dim, equation, field, system, tensor
 from bilt.errors import BiltAnalysisError, BiltTensorDomainError
 from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
 
