@@ -5,7 +5,6 @@ import pytest
 
 from bilt import Implementation, Interface, Quantity, Tensor, dim, equation, field, system, tensor, transform
 from bilt._backend._errors import BiltUnsupportedNodeError
-from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
