@@ -163,7 +163,12 @@ def _validate_bindings(function: ast.FunctionDef, params: set[str]) -> set[str]:
     assigned: set[str] = set()
     if_count = 0
     for index, statement in enumerate(function.body[:-1]):
-        if index == 0 and isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Constant) and isinstance(statement.value.value, str):
+        if (
+            index == 0
+            and isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Constant)
+            and isinstance(statement.value.value, str)
+        ):
             continue
         if isinstance(statement, (ast.Assign, ast.AnnAssign)):
             name = _assignment_name(statement)
