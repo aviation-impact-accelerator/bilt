@@ -1,30 +1,52 @@
-# Bilt to GT4Py field mapping prototype
+# Bilt to GT4Py: Cartesian grid subsystem prototype
 
-This experiment keeps GT4Py outside Bilt core. `CartesianFieldMapping`
-maps Bilt named dimensions to GT4Py Next field dimensions and reorders arrays
-when the source domain differs from the kernel's axis order.
+This example keeps GT4Py outside Bilt core. It uses ordinary Bilt
+`@system`, `@equation`, `@transform`, and `Implementation` APIs.
 
-Install a compatible GT4Py Next release separately (GT4Py is **not** a Bilt
-dependency), then run:
+The grid is a real Bilt subsystem:
+
+```python
+@system
+class CartesianGrid2D(metaclass=Interface):
+    dx: float = field()
+    dy: float = field()
+    inv_dx2: float = field()
+    inv_dy2: float = field()
+```
+
+Its implementation computes `inv_dx2 = 1/dx**2` and
+`inv_dy2 = 1/dy**2` with ordinary transforms. The `Diffusion` parent
+connects its spacing ports and the grid's derived coefficients with
+ordinary equations, and registers the child using
+`internal_implementations={"grid": grid_implementation}`.
+
+The diffusion transform receives the aligned input array and derived
+coefficients, uses `CartesianFieldMapping` to map `(x, y)` to GT4Py
+`(I, J)`, pads a periodic one-cell halo temporarily, evaluates a
+five-point Laplacian on every physical cell and strips the halo before
+returning data to Bilt.
+
+Run with a compatible GT4Py Next installation:
 
 ```sh
 python -m examples.gt4py.diffusion_example
 ```
 
-The example supplies a Bilt tensor ordered `(y, x)` to a GT4Py kernel
-expecting `(I, J)`, and restores the result to Bilt's evaluation-wide order.
-It computes the interior of a five-point stencil with zero-filled outer cells;
-the latter are placeholders, **not** physical boundary conditions.
+The example deliberately supplies a temperature tensor in reversed
+`(y, x)` order to exercise the adapter.
 
-Direct conversion is also possible using
-`mapping.to_field(bilt_tensor)` and
-`mapping.to_tensor(gt4py_field, domain=bilt_tensor.domain)`.
-For raw arrays, supply the actual Bilt domain explicitly.
+The grid subsystem defines physical grid spacing. Periodic boundary
+handling and the one-cell halo remain **implementation choices**, not
+Bilt ports. Halos never change the Bilt tensor's physical extents.
+A future interface could expose boundary data as actual model values,
+if different model instances need different physical conditions.
 
-The `to_runtime_field` and `to_runtime_array` helpers use Bilt's **private**
-evaluation context to recover its canonical axis order. They are a temporary
-proof of concept, not a stable public integration API.
+`to_runtime_field` and `to_runtime_array` currently use Bilt's
+**private** evaluation context to recover canonical axis order. This
+is a temporary prototype detail rather than a stable public API.
 
-Current limitations: strict one-to-one dimension mapping; no halo handling,
-batch dimensions, staggered grids, unit conversion, zero-copy guarantees,
-JAX tracing or differentiation. All field axes need to be explicitly mapped.
+Current limitations: only exact two-dimensional field mapping in the
+diffusion example; no staggered grids, batch dimensions, unit-aware grid
+spacing, zero-copy guarantees, JAX tracing or differentiation. The
+separate axis-mapping tests do not require GT4Py; the integration tests
+require a working GT4Py installation.
