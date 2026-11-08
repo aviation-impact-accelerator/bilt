@@ -6,15 +6,14 @@ __all__ = [
 
 import collections.abc
 import dataclasses
-import typing
 
 import numpy as np
 
 from bilt.core._tensors._errors import BiltTensorDomainError
 from bilt.symbolic._dimensions import Coordinate, Dim
 from bilt.symbolic._domains import Domain
-from bilt.units._errors import BiltUnitError
 from bilt.units._conversion import conversion_between
+from bilt.units._errors import BiltUnitError
 from bilt.units._units import Unit
 
 OverArg = Dim | collections.abc.Iterable[Dim]
