@@ -9,7 +9,7 @@ from bilt.core._errors import BiltPortDeclarationError
 from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.units import Dimension, Metadata, Quantity, Unit
 from bilt.units._errors import BiltUnitError
-from bilt.units._quantity_protocol import QuantityLike, ScalarQuantityLike, TensorQuantityLike
+from bilt.units._quantity_protocol import QuantityLike
 from bilt.units._units import BASE_UNIT_SYSTEM
 from bilt.units.dimensions import ABSOLUTE
 
@@ -58,8 +58,6 @@ def quantity_magnitude_kind(base_type: object) -> typing.Literal["scalar", "tens
     float specialisation means scalar *values* at system boundaries, but a
     scalar-local symbolic expression when used by an equation.
     """
-    if base_type in (ScalarQuantityLike, TensorQuantityLike):
-        return "scalar" if base_type is ScalarQuantityLike else "tensor"
     if base_type is QuantityLike:
         return "either"
     if typing.get_origin(base_type) is not QuantityLike:
