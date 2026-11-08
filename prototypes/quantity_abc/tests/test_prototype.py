@@ -4,7 +4,7 @@ from typing import Annotated, get_args, get_origin
 
 import numpy as np
 import pytest
-from prototypes.quantity_abc.prototype import Quantity, QuantityTensor, ScalarQuantity
+from ..prototype import Quantity, QuantityTensor, ScalarQuantity
 
 from bilt import Tensor, dim, tensor
 from bilt.units import Quantity as NativeQuantity
@@ -53,6 +53,6 @@ def test_existing_bilt_quantities_unchanged() -> None:
 
 
 def test_system_implementation_example() -> None:
-    from prototypes.quantity_abc.typing_examples import run_mass_scale
+    from ..typing_examples import run_mass_scale
 
     assert run_mass_scale() == 4.0 * kilogram
