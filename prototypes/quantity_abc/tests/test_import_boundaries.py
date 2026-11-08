@@ -5,7 +5,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ARCH = Path(__file__).resolve().parents[1] / "architecture"
 REPO = ARCH.parents[2]
 
