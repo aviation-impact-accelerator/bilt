@@ -14,7 +14,7 @@ from bilt.core._tensors._errors import BiltTensorDomainError
 from bilt.symbolic._dimensions import Coordinate, Dim
 from bilt.symbolic._domains import Domain
 from bilt.units._errors import BiltUnitError
-from bilt.units._quantities import Quantity
+from bilt.units._conversion import conversion_between
 from bilt.units._units import Unit
 
 OverArg = Dim | collections.abc.Iterable[Dim]
@@ -133,9 +133,9 @@ class Tensor:
                 f"Label it with `tensor(..., unit=...)` or by multiplying it by a unit."
             )
             raise BiltUnitError(message)
-        converted = Quantity(typing.cast("float", self.values), self.unit).convert_to(unit)
+        conversion = conversion_between(self.unit, unit)
 
-        return dataclasses.replace(self, values=typing.cast("np.ndarray", converted.value), unit=unit)
+        return dataclasses.replace(self, values=self.values * conversion.scale + conversion.offset, unit=unit)
 
     def _labelled(self, unit: Unit) -> Tensor:
         return dataclasses.replace(self, unit=unit)
