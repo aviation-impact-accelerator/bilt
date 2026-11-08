@@ -61,7 +61,8 @@ def _marked_lines(source: str) -> dict[int, str]:
         for number, line in enumerate(source.splitlines(), start=1)
         if (match := MARKER.search(line)) is not None
     }
-    assert marked and set(marked.values()) == EXPECTED_CODES.keys()
+    assert marked
+    assert set(marked.values()) == EXPECTED_CODES.keys()
     return marked
 
 
@@ -95,7 +96,7 @@ def test_invalid_quantities_are_rejected_with_expected_diagnostics(checker: str)
         target = pathlib.Path(directory) / "cases.py"
         target.write_text(source, encoding="utf-8")
         output_format = "concise" if checker == "ty" else "min-text"
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603 - known installed checkers; no shell
             [executable, "check", "--output-format", output_format, str(target)],
             cwd=ROOT,
             check=False,
