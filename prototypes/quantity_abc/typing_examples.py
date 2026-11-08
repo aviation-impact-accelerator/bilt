@@ -6,11 +6,12 @@ system uses *existing* Bilt annotations until the compiler supports the ABC.
 
 from typing import Annotated
 
+from prototypes.quantity_abc.prototype import Quantity, QuantityTensor, ScalarQuantity
+
 from bilt import Implementation, Interface, Tensor, equation, field, system
 from bilt.units import Quantity as NativeQuantity
 from bilt.units import kilogram
 from bilt.units.dimensions import MASS
-from prototypes.quantity_abc.prototype import Quantity, QuantityTensor, ScalarQuantity
 
 type Mass = Annotated[Quantity, MASS]
 type TensorMass = Annotated[Quantity[Tensor], MASS]
