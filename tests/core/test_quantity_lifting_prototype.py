@@ -204,7 +204,7 @@ def test_tensor_specific_equation_gets_tensor_symbol_and_domain_declaration() ->
 def test_scalar_quantity_input_uses_real_bilt_compiler() -> None:
     """A scalar result should remain a native Bilt Quantity."""
     with Implementation(Scale, [double_mass]):
-        result = Scale(m=2.0 * kilogram).doubled
+        result = Scale(m=2.0 * kilogram).doubled  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
     assert result == 4.0 * kilogram
 
 
@@ -224,7 +224,7 @@ def test_scalar_and_tensor_quantities_mix_in_one_scalar_local_equation() -> None
     with Implementation(AddMass, [add_mass]):
         result = AddMass(
             m=tensor([1.0, 2.0], over=time, unit=kilogram),  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
-            extra=500.0 * gram,
+            extra=500.0 * gram,  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
         ).total
     assert isinstance(result, Tensor)
     assert result.unit is kilogram
