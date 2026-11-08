@@ -53,8 +53,10 @@ Examples of calls **the static checkers should reject**:
 def scalar_only(mass: ScalarQuantityLike) -> None:
     mass.sum(time)  # No tensor reduction on scalar quantity
 
+
 def tensor_only(mass: TensorQuantityLike) -> None:
     2.0 * mass  # No concrete scalar multiplication guaranteed on tensors
+
 
 def generic_only(mass: QuantityLike) -> None:
     mass.sum(time)  # Unavailable without narrowing to tensor capability
