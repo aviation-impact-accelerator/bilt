@@ -8,8 +8,10 @@ import pytest
 
 from bilt import Implementation, Interface, QuantityTensor, Tensor, dim, equation, field, system, tensor
 from bilt.units import Quantity, Unit, absolute_celsius, absolute_kelvin, gram, kilogram, meter
-from bilt.units._quantity_protocol import QuantityLike
 from bilt.units.dimensions import MASS
+
+if typing.TYPE_CHECKING:
+    from bilt.units._quantity_protocol import QuantityLike
 
 
 def _unit_of(quantity: QuantityLike) -> Unit:
@@ -100,10 +102,11 @@ def test_absolute_conversion_and_identity_preserve_quantity_tensor() -> None:
 
 def test_quantity_tensor_rejects_missing_unit() -> None:
     with pytest.raises(Exception, match="requires a physical unit"):
-        QuantityTensor(values=np.asarray([1.0]), domain=tensor([1.0], over=dim("time")).domain, unit=None)  # type: ignore[arg-type]
+        dataclasses.replace(tensor([1.0], over=dim("time"), unit=gram), unit=None)
 
 
-type Mass = typing.Annotated[Quantity, MASS]
+type Mass = typing.Annotated[Tensor, MASS]
+type ScalarMass = typing.Annotated[Quantity, MASS]
 
 
 @system
@@ -113,7 +116,7 @@ class MassScale(metaclass=Interface):
 
 
 @equation
-def double_mass(mass: Mass, doubled: Mass) -> bool:
+def double_mass(mass: ScalarMass, doubled: ScalarMass) -> bool:
     return doubled == mass * 2.0
 
 
@@ -121,7 +124,7 @@ def test_concrete_quantity_tensor_lifts_in_real_bilt_system() -> None:
     time = dim("time")
     original = tensor([1.0, 2.0, 3.0], over=time, unit=kilogram)
     with Implementation(MassScale, [double_mass]):
-        result = MassScale(mass=original).doubled  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        result = MassScale(mass=original).doubled
     assert isinstance(result, Tensor)
     assert result.unit is kilogram
     np.testing.assert_allclose(result.values, [2.0, 4.0, 6.0])
