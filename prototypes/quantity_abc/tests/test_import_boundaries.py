@@ -14,9 +14,7 @@ def test_tensor_foundation_has_no_unit_or_quantity_imports() -> None:
     tree = ast.parse((ARCH / "_tensor.py").read_text())
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
-            assert node.module is None or not (
-                node.module.startswith("bilt.units") or "quantity" in node.module
-            )
+            assert node.module is None or not (node.module.startswith("bilt.units") or "quantity" in node.module)
         if isinstance(node, ast.Import):
             assert all(not (alias.name.startswith("bilt.units") or "quantity" in alias.name) for alias in node.names)
 
