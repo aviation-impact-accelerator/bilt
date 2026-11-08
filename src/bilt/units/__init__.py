@@ -11,6 +11,8 @@ __all__ = [
     "Prefix",
     "Quantity",
     "QuantityLike",
+    "ScalarQuantityLike",
+    "TensorQuantityLike",
     "Unit",
     "absolute_celsius",
     "absolute_fahrenheit",
@@ -102,6 +104,8 @@ from ._metadata import Metadata as Metadata
 from ._prefix import Prefix as Prefix
 from ._quantities import Quantity as Quantity
 from ._quantity_protocol import QuantityLike as QuantityLike
+from ._quantity_protocol import ScalarQuantityLike as ScalarQuantityLike
+from ._quantity_protocol import TensorQuantityLike as TensorQuantityLike
 from ._units import Unit as Unit
 from .dimensions._dimensions import Dimension as Dimension
 from .units import UNITLESS as UNITLESS
