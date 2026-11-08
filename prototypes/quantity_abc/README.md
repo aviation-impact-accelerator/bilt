@@ -34,6 +34,30 @@ uv run pyrefly check prototypes/quantity_abc
 
 This experiment uses Bilt's existing library, without adding runtime dependencies. The type-checking examples are deliberately limited to the API contract. They do not claim that a decorated Bilt equation accepts the new annotations today.
 
+
+## System and implementation example
+
+`typing_examples.py` now contains a complete, executable `MassScale` model,
+its `double_mass` equation, an `Implementation`, and an evaluation through
+the public system API:
+
+```python
+from prototypes.quantity_abc.typing_examples import run_mass_scale
+from bilt.units import kilogram
+
+assert run_mass_scale() == 4.0 * kilogram
+```
+
+This model currently uses `Annotated[bilt.Quantity, MASS]` because Bilt's
+compiler does **not** yet parse the experimental `Quantity[M]` ABC. The
+other typing examples exercise the proposed `Mass` and `TensorMass` aliases.
+
+The intended migration is to let the same model use `Mass` on its system
+fields and scalar equation ports without changing its equation or
+`Implementation` call. An equation that needs tensor methods would instead
+request `TensorMass`, explicitly communicating that requirement. This is a
+future API, **not** functionality implemented by this prototype.
+
 ## Decisions before a production PR
 
 1. How to migrate the existing scalar `Quantity` and unit-bearing `Tensor` without changing their external behaviour, including `Quantity.value`, tensor reductions and arithmetic.
