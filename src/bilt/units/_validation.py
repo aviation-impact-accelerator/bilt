@@ -4,7 +4,7 @@ from bilt.units._category import UnitCategory
 from bilt.units._errors import BiltDimensionalityError, BiltUnitError
 
 if typing.TYPE_CHECKING:
-    from bilt.units._conversion import QuantityLike
+    from bilt.units._quantity_protocol import QuantityLike
     from bilt.units._units import Unit
 
 
