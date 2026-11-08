@@ -71,8 +71,9 @@ def _native_annotation(annotation: object) -> object:
         return annotation
 
     _, metadata = annotated_parts(annotation)
-    native = Tensor if kind == "tensor" else NativeQuantity
-    return typing.Annotated[native, *metadata] if metadata else native
+    if kind == "tensor":
+        return typing.Annotated[Tensor, *metadata] if metadata else Tensor
+    return typing.Annotated[NativeQuantity, *metadata] if metadata else NativeQuantity
 
 
 def prototype_equation[R, **P](function: typing.Callable[P, R]) -> BasicEquation[R, P]:
