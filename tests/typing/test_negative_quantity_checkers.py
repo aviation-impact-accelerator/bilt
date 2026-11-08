@@ -40,9 +40,9 @@ EXPECTED_CODES: dict[str, dict[str, frozenset[str]]] = {
         "ty": frozenset({"unsupported-operator"}),
         "pyrefly": frozenset({"unsupported-operation"}),
     },
-    "tensor-contract-does-not-promise-scaling": {
-        "ty": frozenset({"unsupported-operator"}),
-        "pyrefly": frozenset({"unsupported-operation"}),
+    "unitless-tensor-is-not-quantity-tensor": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
     },
     "scalar-system-rejects-tensor": {
         "ty": frozenset({"invalid-argument-type"}),
