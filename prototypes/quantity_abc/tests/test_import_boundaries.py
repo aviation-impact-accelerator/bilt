@@ -1,9 +1,9 @@
 """Confirm the foundation's dependencies rather than just its import order."""
 
 import ast
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 
 ARCH = Path(__file__).resolve().parents[1] / "architecture"
