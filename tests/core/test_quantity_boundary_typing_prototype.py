@@ -161,7 +161,11 @@ def test_mixed_scalar_tensor_inputs_still_lift() -> None:
         total: Mass = field()
 
     @equation
-    def total(\n        mass: Annotated[NativeQuantity, MASS],\n        extra: Annotated[NativeQuantity, MASS],\n        total: Annotated[NativeQuantity, MASS],\n    ) -> bool:
+    def total(
+        mass: Annotated[NativeQuantity, MASS],
+        extra: Annotated[NativeQuantity, MASS],
+        total: Annotated[NativeQuantity, MASS],
+    ) -> bool:
         return total == mass + extra
 
     with Implementation(AddedMass, [total]):
