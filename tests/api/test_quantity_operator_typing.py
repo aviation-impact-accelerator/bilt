@@ -30,7 +30,6 @@ from bilt.symbolic._expressions import Expr, TensorExpr
 from bilt.units import kilogram
 from bilt.units.dimensions import MASS
 
-
 type ScalarMass = typing.Annotated[ScalarQuantityLike, MASS]
 type TensorMass = typing.Annotated[TensorQuantityLike, MASS]
 type Mass = typing.Annotated[QuantityLike, MASS]
