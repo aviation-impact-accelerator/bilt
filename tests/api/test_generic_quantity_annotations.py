@@ -150,6 +150,7 @@ def test_tensor_only_boundary_rejects_scalar_at_runtime() -> None:
 
 def test_legacy_scalar_quantity_remains_liftable() -> None:
     """The existing annotations keep their permissive lifting semantics."""
+
     @system
     class Legacy(metaclass=Interface):
         m: LegacyMass = field()
