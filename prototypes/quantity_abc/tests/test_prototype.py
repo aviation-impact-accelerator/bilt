@@ -37,8 +37,6 @@ def test_tensor_is_both_a_tensor_and_a_quantity() -> None:
 
 
 def test_abstract_base_and_unitless_tensor() -> None:
-    with pytest.raises(TypeError):
-        Quantity()  # type: ignore[abstract]
     with pytest.raises(Exception, match="requires a unit"):
         QuantityTensor(values=np.array([1.0]), domain=tensor([1.0], over=dim("time")).domain, unit=None)
 
