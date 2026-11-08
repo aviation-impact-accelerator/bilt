@@ -14,6 +14,7 @@ from bilt import (
     Implementation,
     Interface,
     Quantity,
+    QuantityLike,
     QuantityTensor,
     ScalarQuantityLike,
     Tensor,
@@ -32,7 +33,7 @@ from bilt.units.dimensions import MASS
 
 type ScalarMass = typing.Annotated[ScalarQuantityLike, MASS]
 type TensorMass = typing.Annotated[TensorQuantityLike, MASS]
-type Mass = typing.Annotated[ScalarQuantityLike | TensorQuantityLike, MASS]
+type Mass = typing.Annotated[QuantityLike, MASS]
 
 time = dim("time")
 scenario = dim("scenario")
@@ -40,8 +41,8 @@ scenario = dim("scenario")
 
 @system
 class Scale(metaclass=Interface):
-    mass: typing.Annotated[ScalarQuantityLike | TensorQuantityLike, MASS] = field()
-    doubled: typing.Annotated[ScalarQuantityLike | TensorQuantityLike, MASS] = field()
+    mass: Mass = field()
+    doubled: Mass = field()
 
 
 @equation
@@ -53,7 +54,7 @@ def double_mass(mass: ScalarMass, doubled: ScalarMass) -> bool:
 @system
 class Totals(metaclass=Interface):
     masses: TensorMass = field()
-    total: typing.Annotated[ScalarQuantityLike | TensorQuantityLike, MASS] = field()
+    total: Mass = field()
 
 
 @equation
