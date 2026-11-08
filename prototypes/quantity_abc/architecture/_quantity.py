@@ -36,11 +36,11 @@ class Quantity[M: float | Tensor = float | Tensor]:
         """Return the physical unit."""
         return self._unit
 
-    def _with_magnitude(self, magnitude: M, unit: Unit) -> Self:
+    def _with_magnitude(self, magnitude: float | Tensor, unit: Unit) -> Self:
         if isinstance(magnitude, Tensor):
             message = "Use QuantityTensor for tensor-valued quantities"
             raise TypeError(message)
-        return self.__class__(magnitude, unit)
+        return self.__class__(float(magnitude), unit)
 
     def cast_to(self, unit: Unit) -> Self:
         """Change only compatible unit labels."""
@@ -56,10 +56,10 @@ class Quantity[M: float | Tensor = float | Tensor]:
         if isinstance(magnitude, Tensor):
             converted = Tensor(magnitude.values * conversion.scale + conversion.offset, magnitude.domain)
         else:
-            converted = magnitude * conversion.scale + conversion.offset
-        return self._with_magnitude(cast("M", converted), unit)
+            converted = float(magnitude) * conversion.scale + conversion.offset
+        return self._with_magnitude(converted, unit)
 
-    def __add__(self, other: Quantity) -> Quantity:
+    def __add__(self, other: Quantity) -> Self:
         """Demonstrate basic unit-checked arithmetic on a shared contract.
 
         Only equal units and matching tensor domains are supported here. The
@@ -78,13 +78,13 @@ class Quantity[M: float | Tensor = float | Tensor]:
                 raise ValueError(message)
             result: float | Tensor = Tensor(left.values + right.values, left.domain)
         elif not isinstance(left, Tensor) and not isinstance(right, Tensor):
-            result = left + right
+            result = float(left) + float(right)
         else:
             message = "Mixed scalar/tensor arithmetic belongs to Bilt's lifting machinery"
             raise NotImplementedError(message)
-        return self._with_magnitude(cast("M", result), self.unit)
+        return self._with_magnitude(result, self.unit)
 
-    def __mul__(self, other: float) -> Quantity:
+    def __mul__(self, other: float) -> Self:
         """Scale a quantity without changing its physical unit."""
         if not isinstance(other, float | int):
             return NotImplemented
@@ -92,10 +92,10 @@ class Quantity[M: float | Tensor = float | Tensor]:
         if isinstance(magnitude, Tensor):
             result: float | Tensor = Tensor(magnitude.values * other, magnitude.domain)
         else:
-            result = magnitude * other
-        return self._with_magnitude(cast("M", result), self.unit)
+            result = float(magnitude) * other
+        return self._with_magnitude(result, self.unit)
 
-    def __rmul__(self, other: float) -> Quantity:
+    def __rmul__(self, other: float) -> Self:
         """Support a scalar multiplied by a quantity."""
         return self * other
 
