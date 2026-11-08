@@ -91,6 +91,10 @@ class QuantityTensor(Tensor, Quantity[Tensor]):
     def magnitude(self) -> Tensor:
         return Tensor(values=self.values, domain=self.domain)
 
+    def convert_to(self, unit: Unit) -> Self:
+        """Disambiguate Tensor and Quantity conversion return types."""
+        return Quantity.convert_to(self, unit)
+
     def _with_unit(self, unit: Unit) -> Self:
         return self.__class__(values=self.values, domain=self.domain, unit=unit)
 
