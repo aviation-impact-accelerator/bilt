@@ -1,0 +1,1 @@
+"""Quantity ABC prototype fixtures."""
