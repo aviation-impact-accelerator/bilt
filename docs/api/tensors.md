@@ -1,7 +1,8 @@
 # Tensor API
 
 Import tensor helpers from `bilt`. See [Domains and tensors](../guide/dimensions-domains-and-tensors.md)
-for an introduction and [Units API](units.md) for physical units.
+for an introduction, [Units API](units.md) for physical units, and
+[Quantity annotations and typing](quantity-annotations.md) for scalar/tensor system fields.
 
 ## Construction and inspection
 
@@ -42,7 +43,9 @@ align by name. Result axes follow the evaluation's dimension binding order.
 | `unit * t`, `t / unit` | Compose units on an already labelled tensor. |
 
 Use `Annotated[Tensor, LENGTH]`, for example, for a unit-aware tensor port.
-Bare `Tensor` ports are outside the physical unit system. Computed declared
+Bare `Tensor` ports are outside the physical unit system. With a non-optional
+unit, `tensor(..., unit=...)` returns `QuantityTensor`; without one it returns
+`Tensor`. Computed declared
 quantities use coherent units; convert returned tensors for display.
 
 ## Reductions

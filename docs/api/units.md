@@ -2,6 +2,7 @@
 
 Reference for `bilt.units`, `bilt.units.dimensions` and unit-related exceptions in
 `bilt.errors`. For model declarations and a guided example, see [Units in models](../guide/units.md).
+For static scalar/tensor typing and migration guidance, see [Quantity annotations and typing](quantity-annotations.md).
 
 ## Imports and declarations
 
@@ -219,6 +220,10 @@ Import `tensor` and `Tensor` from `bilt`.
 | `t.convert_to(unit)` | Convert all values, retaining the domain. Requires an existing compatible unit. |
 | `t * unit` | Label an unlabelled tensor, or compose with its existing unit, without rescaling its values. |
 | `t / unit` | Divide an existing tensor unit by another unit, without rescaling values. |
+
+With an explicit non-optional unit, `tensor(..., unit=...)` returns a `QuantityTensor`.
+Without a unit it returns a `Tensor`. See [Quantity annotations and typing](quantity-annotations.md)
+for the shared `QuantityLike` contract and typed model fields.
 
 Unit multiplication labels values; `convert_to()` rescales them. Concrete tensor
 arithmetic is otherwise dispatched through Bilt models. Tensors do not expose

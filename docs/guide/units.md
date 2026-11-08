@@ -1,6 +1,8 @@
 ## Units in models
 
 For a catalogue of built-in units, helpers and errors, see the [Units API reference](../api/units.md).
+For flexible unit-bearing scalar/tensor fields and equation annotations, see
+[Quantity annotations and typing](../api/quantity-annotations.md).
 
 So far, the values in our models have mostly been plain numbers:
 

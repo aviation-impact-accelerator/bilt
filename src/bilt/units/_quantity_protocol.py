@@ -16,8 +16,8 @@ class QuantityLike[M = object](typing.Protocol):
 
     The default is `object` for now because it accepts both scalar and
     tensor magnitudes without importing Tensor into the units layer.
-    A production tensor quantity and richer arithmetic protocol can follow
-    independently.
+    The concrete scalar Quantity and tensor QuantityTensor implementations
+    supply arithmetic and tensor operations separately.
     """
 
     @property
