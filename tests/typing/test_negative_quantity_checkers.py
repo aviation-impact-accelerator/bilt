@@ -70,15 +70,11 @@ def _diagnostics(output: str, checker: str, filename: str) -> dict[int, set[str]
     found: dict[int, set[str]] = {}
     if checker == "ty":
         # ty --output-format concise: path:line:column: error[rule] ...
-        regex = re.compile(
-            rf"(?m)^.*{re.escape(filename)}:(\d+):\d+: error\[([a-z-]+)\]"
-        )
+        regex = re.compile(rf"(?m)^.*{re.escape(filename)}:(\d+):\d+: error\[([a-z-]+)\]")
         matches = ((int(m.group(1)), m.group(2)) for m in regex.finditer(output))
     else:
         # pyrefly --output-format min-text: ERROR path:line:column-... [rule]
-        regex = re.compile(
-            rf"(?m)^ERROR .*{re.escape(filename)}:(\d+):\d+[^\n]*\[([a-z-]+)\]"
-        )
+        regex = re.compile(rf"(?m)^ERROR .*{re.escape(filename)}:(\d+):\d+[^\n]*\[([a-z-]+)\]")
         matches = ((int(m.group(1)), m.group(2)) for m in regex.finditer(output))
     for line, code in matches:
         found.setdefault(line, set()).add(code)
@@ -116,6 +112,5 @@ def test_invalid_quantities_are_rejected_with_expected_diagnostics(checker: str)
     )
     for line, label in expected.items():
         assert actual[line] & EXPECTED_CODES[label][checker], (
-            f"{checker}: unexpected diagnostic for {label} at line {line}: "
-            f"{actual[line]}\n{output}"
+            f"{checker}: unexpected diagnostic for {label} at line {line}: {actual[line]}\n{output}"
         )
