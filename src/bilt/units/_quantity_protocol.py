@@ -8,6 +8,8 @@ do not need to inherit from a common runtime implementation.
 import typing
 
 if typing.TYPE_CHECKING:
+    from bilt.core._tensors._tensors import Tensor
+    from bilt.symbolic._dimensions import Coordinate, Dim
     from bilt.units._units import Unit
 
 
@@ -66,4 +68,41 @@ class ScalarQuantityLike(QuantityLike[float], typing.Protocol):
 
     def __neg__(self) -> typing.Self:
         """Negate the quantity."""
+        ...
+
+
+class TensorQuantityLike(QuantityLike["Tensor"], typing.Protocol):
+    """Tensor-specific operations also exposed by concrete QuantityTensor.
+
+    These operations are symbolic when executed inside a Bilt equation. Their
+    declared result is Tensor, matching today's concrete Tensor API; Bilt's
+    symbolic analysis determines which axes survive a reduction.
+    """
+
+    def sum(self, dim: Dim) -> Tensor:
+        """Reduce over a named axis in an equation."""
+        ...
+
+    def mean(self, dim: Dim) -> Tensor:
+        """Take a mean over a named axis in an equation."""
+        ...
+
+    def min(self, dim: Dim) -> Tensor:
+        """Take a minimum over a named axis in an equation."""
+        ...
+
+    def max(self, dim: Dim) -> Tensor:
+        """Take a maximum over a named axis in an equation."""
+        ...
+
+    def prod(self, dim: Dim) -> Tensor:
+        """Multiply values along a named axis in an equation."""
+        ...
+
+    def isel(self, dim: Dim, index: int) -> Tensor:
+        """Select an integer position along an axis in an equation."""
+        ...
+
+    def sel(self, dim: Dim, coordinate: Coordinate) -> Tensor:
+        """Select a coordinate along an axis in an equation."""
         ...
