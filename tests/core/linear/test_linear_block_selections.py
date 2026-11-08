@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, Tensor, dim, equation, field, system, tensor
+from bilt import Implementation, Interface, QuantityLike, QuantityTensor, Tensor, dim, equation, field, system, tensor
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
@@ -29,9 +29,11 @@ TIME = dim("time")
 SITE = dim("site")
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 Grid = typing.Annotated[Tensor, domain(TIME, SITE)]
-LengthArray = typing.Annotated[Tensor, LENGTH]
-LengthOverTime = typing.Annotated[Tensor, LENGTH, domain(TIME)]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
+LengthArrayField = typing.Annotated[QuantityLike[Tensor], LENGTH]
+LengthOverTime = typing.Annotated[QuantityTensor, LENGTH, domain(TIME)]
 LengthScalar = typing.Annotated[Quantity, LENGTH]
+LengthScalarField = typing.Annotated[QuantityLike, LENGTH]
 
 
 @equation
@@ -122,11 +124,11 @@ def test_selection_respects_named_axes_and_domain_order(backend: Backend, select
 def test_selection_outputs_keep_units_through_downstream_reduction(backend: Backend) -> None:
     @system
     class Lengths(metaclass=Interface):
-        x: LengthArray = field()
-        y: LengthArray = field()
-        p: LengthArray = field()
-        q: LengthArray = field()
-        answer: LengthScalar = field()
+        x: LengthArrayField = field()
+        y: LengthArrayField = field()
+        p: LengthArrayField = field()
+        q: LengthArrayField = field()
+        answer: LengthScalarField = field()
 
     @equation
     def first(x: LengthOverTime, y: LengthOverTime, p: LengthArray) -> bool:
@@ -147,6 +149,7 @@ def test_selection_outputs_keep_units_through_downstream_reduction(backend: Back
         )
         x = model.x
         answer = model.answer
+    assert isinstance(x, QuantityTensor)
     assert x.domain == domain(TIME)
     assert x.unit == meter
     np.testing.assert_allclose(x.values, [3.6, 5.6, 7.6], atol=1e-5)

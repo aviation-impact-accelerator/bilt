@@ -40,7 +40,7 @@ Declare **distance = speed × time**, then ask for either distance or speed:
 ```python
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, equation, field, system
+from bilt import Implementation, Interface, Quantity, QuantityLike, equation, field, system
 from bilt.units import hour, kilometer, meter, second
 from bilt.units.dimensions import LENGTH, TIME
 
@@ -52,9 +52,9 @@ Speed = Annotated[Quantity, LENGTH / TIME]
 
 @system
 class Motion(metaclass=Interface):
-    distance: Length = field()
-    speed: Speed = field()
-    time: Duration = field()
+    distance: Annotated[QuantityLike, LENGTH] = field()
+    speed: Annotated[QuantityLike, LENGTH / TIME] = field()
+    time: Annotated[QuantityLike, TIME] = field()
 
 
 @equation

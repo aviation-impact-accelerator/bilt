@@ -4,7 +4,19 @@ import jax
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, Quantity, Tensor, dim, equation, field, system, tensor, transform
+from bilt import (
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityLike,
+    Tensor,
+    dim,
+    equation,
+    field,
+    system,
+    tensor,
+    transform,
+)
 from bilt._backend._errors import BiltUnsupportedNodeError
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
@@ -20,6 +32,7 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable
 
 Length = typing.Annotated[Quantity, LENGTH]
+LengthField = typing.Annotated[QuantityLike, LENGTH]
 
 
 @system
@@ -133,13 +146,13 @@ def test_required_input_query_reaches_a_cross_boundary_child_block(backend: Back
 def test_parent_and_child_unit_declarations_and_quantity_constants_survive_the_joint_solve(backend: Backend) -> None:
     @system
     class Lengths(metaclass=Interface):
-        x: Length = field()
-        y: Length = field()
-        p: Length = field()
+        x: LengthField = field()
+        y: LengthField = field()
+        p: LengthField = field()
 
     @system
     class Parent(metaclass=Interface):
-        q: Length = field()
+        q: LengthField = field()
 
     @equation
     def total(x: Length, y: Length, p: Length) -> bool:
@@ -147,7 +160,7 @@ def test_parent_and_child_unit_declarations_and_quantity_constants_survive_the_j
 
     @equation
     def relation(inner: Lengths, q: Length) -> bool:
-        return inner.x - inner.y == q
+        return inner.x - inner.y == q  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
 
     parent = Implementation(Parent, [relation], internal_implementations={"inner": Implementation(Lengths, [total])})
     result = parent.evaluate({"inner.p": 0.010 * kilometer, "q": 2.0 * meter}, "inner.x", backend)

@@ -10,7 +10,21 @@ from unittest.mock import patch
 import jax
 import numpy as np
 
-from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
+from bilt import (
+    Domain,
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityLike,
+    QuantityTensor,
+    Tensor,
+    dim,
+    domain,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
@@ -25,13 +39,20 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable
 
 COORDINATE = dim("branch")
-Current = typing.Annotated[Tensor, CURRENT]
+Current = typing.Annotated[QuantityTensor, CURRENT]
+CurrentField = typing.Annotated[QuantityLike[Tensor], CURRENT]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
+VoltageField = typing.Annotated[QuantityLike, VOLTAGE]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
+ResistanceField = typing.Annotated[QuantityLike, RESISTANCE]
 Temperature = typing.Annotated[Quantity, TEMPERATURE]
-Heat = typing.Annotated[Tensor, POWER]
+TemperatureField = typing.Annotated[QuantityLike, TEMPERATURE]
+Heat = typing.Annotated[QuantityTensor, POWER]
+HeatField = typing.Annotated[QuantityLike[Tensor], POWER]
 Conductance = typing.Annotated[Quantity, POWER / TEMPERATURE]
+ConductanceField = typing.Annotated[QuantityLike, POWER / TEMPERATURE]
 ThermalResistance = typing.Annotated[Quantity, TEMPERATURE / POWER]
+ThermalResistanceField = typing.Annotated[QuantityLike, TEMPERATURE / POWER]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -76,48 +97,48 @@ def linear_cases(*, extended: bool) -> tuple[LinearCase, ...]:
 class ElectricalPorts(metaclass=Interface):
     """Branch current and terminal load voltage."""
 
-    current: Current = field()
-    voltage: Voltage = field()
-    load: Resistance = field()
+    current: CurrentField = field()
+    voltage: VoltageField = field()
+    load: ResistanceField = field()
 
 
 @system
 class ElectricalSource(metaclass=Interface):
     """Source voltage and series resistance."""
 
-    emf: Voltage = field()
-    resistance: Resistance = field()
+    emf: VoltageField = field()
+    resistance: ResistanceField = field()
 
 
 @equation
 def electrical_supply(emf: Voltage, resistance: Resistance, inner: ElectricalPorts) -> bool:
     """Kirchhoff voltage balance across each source branch."""
-    return emf == resistance * inner.current + inner.voltage
+    return emf == resistance * inner.current + inner.voltage  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
 
 
 @system
 class ThermalPorts(metaclass=Interface):
     """Two thermal nodes joined by a contact resistance."""
 
-    hot: Temperature = field()
-    cold: Temperature = field()
-    heat: Heat = field()
-    contact: Conductance = field()
-    sink: ThermalResistance = field()
+    hot: TemperatureField = field()
+    cold: TemperatureField = field()
+    heat: HeatField = field()
+    contact: ConductanceField = field()
+    sink: ThermalResistanceField = field()
 
 
 @system
 class ThermalSource(metaclass=Interface):
     """Prescribed source temperature rise and series thermal resistance."""
 
-    source: Temperature = field()
-    resistance: ThermalResistance = field()
+    source: TemperatureField = field()
+    resistance: ThermalResistanceField = field()
 
 
 @equation
 def thermal_supply(source: Temperature, resistance: ThermalResistance, inner: ThermalPorts) -> bool:
     """Thermal drop between source and hot contact node."""
-    return source == inner.hot + resistance * inner.heat
+    return source == inner.hot + resistance * inner.heat  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
 
 
 @dataclasses.dataclass(frozen=True)

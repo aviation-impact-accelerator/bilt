@@ -22,7 +22,7 @@ if typing.TYPE_CHECKING:
 class PortDeclaration:
     """What a declared port holds: a quantity of its dimensionality, absolute if marked and relative otherwise.
 
-    `over_a_domain` records that the port was annotated `Tensor` rather than `Quantity`. It says what a caller may
+    `over_a_domain` records that the port accepts a tensor quantity. It says what a caller may
     pass at this port, not what the port measures, so it takes no part in a declaration's identity: a constituent
     written over scalars is reusable in a tensor system under the same port name.
     """
@@ -54,7 +54,7 @@ def annotated_parts(annotation: object) -> tuple[object, list[object]]:
 
 
 def quantity_magnitude_kind(base_type: object) -> typing.Literal["scalar", "tensor", "either"] | None:
-    """Identify a shared quantity contract without changing legacy Quantity semantics.
+    """Identify a shared quantity contract for scalar/tensor system boundaries.
 
     Bare QuantityLike is intentionally liftable at system boundaries. Its
     float specialisation means scalar *values* at system boundaries, but a
@@ -83,10 +83,9 @@ def _required_domain(
     base_type: object,
     dimensionality: Dimension | None,
 ) -> Domain | None:
-    """Read the new tensor quantity minimum-domain constraint, preserving legacy hints."""
-    # Existing Quantity/Tensor Domain metadata is used by structural analysis
-    # as a hint. Keep those annotations unchanged, including scalar Domain().
-    if dimensionality is None or base_type in (Quantity, Tensor):
+    """Read the tensor quantity minimum-domain constraint, keeping exact scalar equation hints."""
+    # Scalar equation Domain hints remain exact linear-solver hints.
+    if dimensionality is None or base_type is Quantity:
         return None
 
     domains = [item for item in metadata if isinstance(item, Domain)]
@@ -104,13 +103,43 @@ def _required_domain(
 def port_declarations(
     owner_name: str,
     port_annotations: collections.abc.Mapping[str, object],
+    *,
+    system_boundary: bool = False,
 ) -> dict[str, PortDeclaration]:
     """Read the value off each port's annotation to keep information about the port."""
-    declarations = {port: _declaration(owner_name, port, annotation) for port, annotation in port_annotations.items()}
+    declarations = {
+        port: _declaration(owner_name, port, annotation, system_boundary=system_boundary)
+        for port, annotation in port_annotations.items()
+    }
     return {port: declaration for port, declaration in declarations.items() if declaration is not None}
 
 
-def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclaration | None:
+def _reject_legacy_annotation(
+    owner_name: str,
+    port: str,
+    base_type: object,
+    dimensionality: Dimension | None,
+    *,
+    system_boundary: bool,
+) -> None:
+    if dimensionality is not None and base_type is Tensor:
+        msg = (
+            "uses the old dimensioned Tensor annotation. "
+            "Use Annotated[QuantityLike[Tensor], DIM] on system fields or "
+            "Annotated[QuantityTensor, DIM] in equations and transforms."
+        )
+        raise BiltPortDeclarationError(owner_name, port, msg)
+    if dimensionality is not None and system_boundary and base_type is Quantity:
+        msg = (
+            "uses the old Quantity system-field annotation. "
+            "Use Annotated[QuantityLike, DIM] or Annotated[QuantityLike[float], DIM]."
+        )
+        raise BiltPortDeclarationError(owner_name, port, msg)
+
+
+def _declaration(
+    owner_name: str, port: str, annotation: object, *, system_boundary: bool = False
+) -> PortDeclaration | None:
     """Classify one annotation, ignoring `Annotated` metadata that is neither a dimensionality nor the absolute marker."""
     base_type, metadata = annotated_parts(annotation)
     unit = next((item for item in metadata if isinstance(item, Unit)), None)
@@ -125,7 +154,7 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
     if tag is not None:
         msg = (
             f"declares tag {tag} on its own, but a tag is a factor of a dimensionality. "
-            "Multiply the dimensionality by it, as in `typing.Annotated[Quantity, DIM * tag]`."
+            "Multiply the dimensionality by it, as in `typing.Annotated[QuantityLike, DIM * tag]`."
         )
         raise BiltPortDeclarationError(owner_name, port, msg)
 
@@ -135,6 +164,8 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
         raise BiltPortDeclarationError(owner_name, port, msg)
 
     dimensionality = dimensionalities[0] if dimensionalities else None
+    _reject_legacy_annotation(owner_name, port, base_type, dimensionality, system_boundary=system_boundary)
+
     magnitude_kind = quantity_magnitude_kind(base_type)
     carries_quantity = base_type is Quantity or magnitude_kind is not None
     over_a_domain = base_type in (Tensor, QuantityTensor) or magnitude_kind == "tensor"
@@ -149,9 +180,9 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
     if dimensionality is not None and not (carries_quantity or over_a_domain):
         msg = (
             f"declares {dimensionality} on {getattr(base_type, '__name__', repr(base_type))}, "
-            "but a dimensionality can only annotate Quantity or Tensor. "
-            "Use `typing.Annotated[Quantity, ...]`, or `typing.Annotated[Tensor, ...]` if the port varies "
-            "over a domain."
+            "but a dimensionality requires a quantity annotation. "
+            "Use `typing.Annotated[QuantityLike, ...]` on system fields or a concrete "
+            "Quantity / QuantityTensor annotation for equations."
         )
         raise BiltPortDeclarationError(owner_name, port, msg)
 

@@ -3,7 +3,21 @@ import typing
 import numpy as np
 import pytest
 
-from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
+from bilt import (
+    Domain,
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityLike,
+    QuantityTensor,
+    Tensor,
+    dim,
+    domain,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.symbolic._dimensions import coordinate_axis
@@ -20,10 +34,14 @@ BRANCH = dim("branch")
 Shared = typing.Annotated[float, Domain.scalar()]
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
-CurrentArray = typing.Annotated[Tensor, CURRENT]
+CurrentArray = typing.Annotated[QuantityTensor, CURRENT]
+CurrentArrayField = typing.Annotated[QuantityLike[Tensor], CURRENT]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
-VoltageArray = typing.Annotated[Tensor, VOLTAGE]
+VoltageField = typing.Annotated[QuantityLike, VOLTAGE]
+VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
+VoltageArrayField = typing.Annotated[QuantityLike[Tensor], VOLTAGE]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
+ResistanceField = typing.Annotated[QuantityLike, RESISTANCE]
 
 
 @system
@@ -168,11 +186,11 @@ def test_reduction_cannot_invent_axes_absent_from_known_inputs(backend: Backend)
 def test_circuit_infers_current_and_voltage_domains_from_unit_only_annotations(backend: Backend, output: str) -> None:
     @system
     class Circuit(metaclass=Interface):
-        current: CurrentArray = field()
-        bus_voltage: Voltage = field()
-        source_voltage: VoltageArray = field()
-        branch_resistance: Resistance = field()
-        load_resistance: Resistance = field()
+        current: CurrentArrayField = field()
+        bus_voltage: VoltageField = field()
+        source_voltage: VoltageArrayField = field()
+        branch_resistance: ResistanceField = field()
+        load_resistance: ResistanceField = field()
 
     @equation
     def branch_balance(

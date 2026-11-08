@@ -30,21 +30,27 @@ if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
 
 Mass = typing.Annotated[Quantity, MASS]
-MassOverADomain = typing.Annotated[Tensor, MASS]
+MassField = typing.Annotated[QuantityLike, MASS]
+MassOverADomain = typing.Annotated[QuantityTensor, MASS]
+MassOverADomainField = typing.Annotated[QuantityLike[Tensor], MASS]
 Force = typing.Annotated[Quantity, FORCE]
+ForceField = typing.Annotated[QuantityLike, FORCE]
 Acceleration = typing.Annotated[Quantity, LENGTH / TIME**2]
+AccelerationField = typing.Annotated[QuantityLike, LENGTH / TIME**2]
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
+AbsoluteTemperatureField = typing.Annotated[QuantityLike, TEMPERATURE, ABSOLUTE]
 co2 = Metadata("co2")
 TaggedMass = typing.Annotated[Quantity, MASS * co2]
+TaggedMassField = typing.Annotated[QuantityLike, MASS * co2]
 time = dim("time")
 
 
 @system
 class Scale(metaclass=Interface):
-    m: Mass = field()
-    k: Mass = field()
-    doubled: Mass = field()
-    total: Mass = field()
+    m: MassField = field()
+    k: MassField = field()
+    doubled: MassField = field()
+    total: MassField = field()
 
 
 @equation
@@ -59,8 +65,8 @@ def totalling(total: Mass, m: Mass, k: Mass) -> bool:
 
 @system
 class TaggedScale(metaclass=Interface):
-    m: TaggedMass = field()
-    doubled: TaggedMass = field()
+    m: TaggedMassField = field()
+    doubled: TaggedMassField = field()
 
 
 @equation
@@ -70,8 +76,8 @@ def tagged_doubling(doubled: TaggedMass, m: TaggedMass) -> bool:
 
 @system
 class TensorScale(metaclass=Interface):
-    m: MassOverADomain = field()
-    doubled: Mass = field()
+    m: MassOverADomainField = field()
+    doubled: MassField = field()
 
 
 @equation
@@ -92,8 +98,8 @@ def plain_doubling(doubled: Tensor, x: Tensor) -> bool:
 
 @system
 class AbsoluteThermometer(metaclass=Interface):
-    t: AbsoluteTemperature = field()
-    same: AbsoluteTemperature = field()
+    t: AbsoluteTemperatureField = field()
+    same: AbsoluteTemperatureField = field()
 
 
 @equation
@@ -123,7 +129,7 @@ def test_a_declared_answer_over_a_domain_converts() -> None:
 
 def test_an_answer_fed_back_in_as_an_input_is_read_in_its_own_unit() -> None:
     with Implementation(Scale, [doubling]):
-        scale = Scale(m=tensor([1.0, 2.0], over=time, unit=tonne))  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        scale = Scale(m=tensor([1.0, 2.0], over=time, unit=tonne))
         first = scale.doubled
         second = scale.doubled
 
@@ -135,7 +141,7 @@ def test_an_answer_fed_back_in_as_an_input_is_read_in_its_own_unit() -> None:
 def test_a_tensor_and_a_scalar_quantity_may_meet_in_one_equation() -> None:
     masses = tensor([1.0, 2.0], over=time, unit=kilogram)
     with Implementation(Scale, [totalling]):
-        result = Scale(m=masses, k=Quantity(500.0, gram)).total  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        result = Scale(m=masses, k=Quantity(500.0, gram)).total
 
     assert isinstance(result, Tensor)
     assert result.unit is kilogram
@@ -158,7 +164,7 @@ def test_a_scalar_declared_answer_is_a_quantity_holding_a_float() -> None:
         return m.sum(time)  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
 
     with Implementation(Scale, [total]):
-        result = Scale(m=tensor([1.0, 2.0], over=time, unit=kilogram)).total  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        result = Scale(m=tensor([1.0, 2.0], over=time, unit=kilogram)).total
 
     assert isinstance(result, Quantity)
     assert type(result.value) is float
@@ -169,8 +175,8 @@ def test_a_transform_bridges_a_plain_tensor_into_a_declared_port() -> None:
     @system
     class Rig(metaclass=Interface):
         masses_g: Tensor = field()
-        a: Acceleration = field()
-        force: Force = field()
+        a: AccelerationField = field()
+        force: ForceField = field()
 
     @transform
     def force(masses_g: Tensor, a: Acceleration) -> Force:
@@ -190,7 +196,7 @@ def test_a_declared_tensor_parameter_is_erased_in_a_transform_body_as_a_scalar_i
         return Quantity(m.convert_to(gram).value * 2.0, gram)
 
     with Implementation(Scale, [doubled]):
-        result = Scale(m=tensor([1.0, 2.0], over=time, unit=kilogram)).doubled  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        result = Scale(m=tensor([1.0, 2.0], over=time, unit=kilogram)).doubled
 
     assert isinstance(result, Tensor)
     assert result.unit is kilogram
@@ -200,8 +206,8 @@ def test_a_declared_tensor_parameter_is_erased_in_a_transform_body_as_a_scalar_i
 def test_an_absolute_declared_tensor_parameter_is_erased_with_its_offset() -> None:
     @system
     class Rig(metaclass=Interface):
-        t: AbsoluteTemperature = field()
-        in_celsius: AbsoluteTemperature = field()
+        t: AbsoluteTemperatureField = field()
+        in_celsius: AbsoluteTemperatureField = field()
 
     @transform
     def in_celsius(t: AbsoluteTemperature) -> AbsoluteTemperature:
@@ -209,7 +215,7 @@ def test_an_absolute_declared_tensor_parameter_is_erased_with_its_offset() -> No
 
     temperatures = tensor([273.15, 373.15], over=time, unit=abs(kelvin))
     with Implementation(Rig, [in_celsius]):
-        result = Rig(t=temperatures).in_celsius  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        result = Rig(t=temperatures).in_celsius
 
     assert isinstance(result, Tensor)
     assert result.unit is abs(kelvin)
@@ -219,7 +225,7 @@ def test_an_absolute_declared_tensor_parameter_is_erased_with_its_offset() -> No
 def test_a_tagged_tensor_answers_in_its_tagged_coherent_unit() -> None:
     masses = tensor([1.0, 2.0], over=time, unit=kilogram * co2)
     with Implementation(TaggedScale, [tagged_doubling]):
-        result = TaggedScale(m=masses).doubled  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        result = TaggedScale(m=masses).doubled
 
     assert isinstance(result, Tensor)
     assert result.unit == kilogram * co2
@@ -228,14 +234,14 @@ def test_a_tagged_tensor_answers_in_its_tagged_coherent_unit() -> None:
 
 def test_an_untagged_tensor_at_a_tagged_port_raises() -> None:
     with pytest.raises(BiltInputDimensionalityError, match="'m'"):
-        TaggedScale(m=tensor([1.0, 2.0], over=time, unit=kilogram))  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        TaggedScale(m=tensor([1.0, 2.0], over=time, unit=kilogram))
 
 
 def test_stripping_a_tag_in_a_transform_body_passes_a_tensor_through() -> None:
     @system
     class Rig(metaclass=Interface):
-        m: TaggedMass = field()
-        plain: Mass = field()
+        m: TaggedMassField = field()
+        plain: MassField = field()
 
     @transform
     def plain(m: TaggedMass) -> Mass:
@@ -243,7 +249,7 @@ def test_stripping_a_tag_in_a_transform_body_passes_a_tensor_through() -> None:
 
     masses = tensor([1.0, 2.0], over=time, unit=kilogram * co2)
     with Implementation(Rig, [plain]):
-        result = Rig(m=masses).plain  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        result = Rig(m=masses).plain
 
     assert isinstance(result, Tensor)
     assert result.unit is kilogram
@@ -253,8 +259,8 @@ def test_stripping_a_tag_in_a_transform_body_passes_a_tensor_through() -> None:
 def test_multiplying_by_a_tag_in_a_transform_body_passes_a_tensor_through() -> None:
     @system
     class Rig(metaclass=Interface):
-        m: Mass = field()
-        tagged: TaggedMass = field()
+        m: MassField = field()
+        tagged: TaggedMassField = field()
 
     @transform
     def tagged(m: Mass) -> TaggedMass:
@@ -262,7 +268,7 @@ def test_multiplying_by_a_tag_in_a_transform_body_passes_a_tensor_through() -> N
 
     masses = tensor([1.0, 2.0], over=time, unit=kilogram)
     with Implementation(Rig, [tagged]):
-        result = Rig(m=masses).tagged  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        result = Rig(m=masses).tagged
 
     assert isinstance(result, Tensor)
     assert result.unit == kilogram * co2
@@ -296,7 +302,7 @@ def test_a_tensor_with_no_unit_at_a_plain_port_stays_bare() -> None:
 def test_an_absolute_tensor_answers_in_the_absolute_coherent_unit() -> None:
     temperatures = tensor([0.0, 100.0], over=time, unit=absolute_celsius)
     with Implementation(AbsoluteThermometer, [same_temperature]):
-        result = AbsoluteThermometer(t=temperatures).same  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        result = AbsoluteThermometer(t=temperatures).same
 
     assert isinstance(result, Tensor)
     assert result.unit is abs(kelvin)
@@ -306,8 +312,8 @@ def test_an_absolute_tensor_answers_in_the_absolute_coherent_unit() -> None:
 def test_a_dimensionality_differing_under_one_port_name_is_still_a_conflict() -> None:
     @system
     class Rig(metaclass=Interface):
-        m: MassOverADomain = field()
-        doubled: typing.Annotated[Tensor, FORCE] = field()
+        m: MassOverADomainField = field()
+        doubled: typing.Annotated[QuantityLike[Tensor], FORCE] = field()
 
     @equation
     def doubling(doubled: Mass, m: Mass) -> bool:
@@ -321,9 +327,9 @@ def test_a_dimensionality_differing_under_one_port_name_is_still_a_conflict() ->
 def test_rank_zero_tensor_outputs_can_be_reused(backend: Backend) -> None:
     @system
     class Chain(metaclass=Interface):
-        x: MassOverADomain = field()
-        y: MassOverADomain = field()
-        z: MassOverADomain = field()
+        x: MassOverADomainField = field()
+        y: MassOverADomainField = field()
+        z: MassOverADomainField = field()
 
     @equation
     def twice(y: Mass, x: Mass) -> bool:

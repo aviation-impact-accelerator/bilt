@@ -58,7 +58,7 @@ objects is supported outside a Bilt model.
 | `QuantityLike` | Unit-bearing scalar **or** tensor, with `.unit` and `.value` | Flexible quantity boundary |
 | `QuantityLike[float]` | Scalar magnitude | Strict scalar quantity at a system boundary; scalar-local in an equation |
 | `QuantityLike[Tensor]` | Tensor magnitude | Tensor quantity at a system boundary; tensor expression in an equation |
-| `Quantity` | Concrete scalar `Quantity`, with its arithmetic methods | Existing legacy quantity semantics; liftable inside equations |
+| `Quantity` | Concrete scalar `Quantity`, with its arithmetic methods | Scalar quantity arithmetic; lifted inside equations |
 | `QuantityTensor` | Concrete unit-bearing tensor, including tensor methods | Tensor quantity with a non-optional unit |
 | `Tensor` | Tensor with or without a unit | Plain `Tensor` fields remain outside the unit system unless given dimensionality metadata |
 | `float | Tensor` | Plain scalar or tensor | Unitless system boundary |
@@ -133,22 +133,23 @@ equations against the inferred domains of the values those equations use
 or produce. Requirements on equations that are not selected do not
 constrain that evaluation.
 
-Existing `Annotated[Quantity, DIM, Domain(...)]` and
-`Annotated[Tensor, DIM, Domain(...)]` retain their previous **domain hint**
-semantics for structural/linear-block analysis. These hints can describe
-exact layouts and are **not** silently reinterpreted as minimum requirements.
+`Annotated[Quantity, DIM, Domain(...)]` remains an exact **scalar equation**
+domain hint for structural/linear-block analysis. It is not a system-field
+annotation, and is not reinterpreted as a minimum-domain requirement.
+Dimensioned `Annotated[Tensor, DIM]` declarations are no longer supported;
+use `QuantityTensor` for tensor equations and `QuantityLike[Tensor]` for
+system boundaries.
 Domain constraints in `Annotated` are validated by Bilt, not statically
 interpreted by ty or Pyrefly.
 
-## Compatibility and limitations
+## Limitations
 
-- Existing `Quantity(value, unit)`, `Annotated[Quantity, DIM]`, and
-  `Annotated[Tensor, DIM]` usages continue to work. This change does
-  not rename `Quantity` or make it generic.
-- Old `Quantity`-annotated system fields can still accept tensor
-  quantities **at runtime** for backwards compatibility. Static typing
-  regards `Quantity` as scalar, so use `QuantityLike` on new flexible
-  system boundaries instead of relying on that legacy behaviour.
+`Quantity(value, unit)` remains the concrete scalar quantity constructor.
+For dimensioned system fields, use `QuantityLike` or one of its magnitude
+specialisations; `Annotated[Quantity, DIM]` and `Annotated[Tensor, DIM]`
+are rejected at system boundaries. Equations and transforms may still
+annotate scalar quantities as `Annotated[Quantity, DIM]` for arithmetic.
+
 - A `float | Tensor` system field accepts scalar or unitless tensor
   values. `QuantityTensor` subclasses `Tensor`, so ty and Pyrefly
   cannot reject unit-bearing tensors for this union; Bilt rejects those

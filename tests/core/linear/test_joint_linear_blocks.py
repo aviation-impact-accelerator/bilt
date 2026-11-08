@@ -6,7 +6,19 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, Tensor, dim, equation, field, system, tensor, transform
+from bilt import (
+    Implementation,
+    Interface,
+    QuantityLike,
+    QuantityTensor,
+    Tensor,
+    dim,
+    equation,
+    field,
+    system,
+    tensor,
+    transform,
+)
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
@@ -33,15 +45,21 @@ X = typing.Annotated[Tensor, domain(TIME)]
 Scalar = typing.Annotated[Tensor, Domain.scalar()]
 Grid = typing.Annotated[Tensor, domain(SITE, TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
-LengthArray = typing.Annotated[Tensor, LENGTH]
-LengthGrid = typing.Annotated[Tensor, LENGTH, domain(TIME)]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
+LengthArrayField = typing.Annotated[QuantityLike[Tensor], LENGTH]
+LengthGrid = typing.Annotated[QuantityTensor, LENGTH, domain(TIME)]
 LengthScalar = typing.Annotated[Quantity, LENGTH, Domain.scalar()]
+LengthScalarField = typing.Annotated[QuantityLike[float], LENGTH]
 ReverseGrid = typing.Annotated[Tensor, domain(TIME, SITE)]
-CurrentArray = typing.Annotated[Tensor, CURRENT]
-BranchCurrent = typing.Annotated[Tensor, CURRENT, domain(BRANCH)]
+CurrentArray = typing.Annotated[QuantityTensor, CURRENT]
+CurrentArrayField = typing.Annotated[QuantityLike[Tensor], CURRENT]
+BranchCurrent = typing.Annotated[QuantityTensor, CURRENT, domain(BRANCH)]
 SharedVoltage = typing.Annotated[Quantity, VOLTAGE, Domain.scalar()]
-VoltageArray = typing.Annotated[Tensor, VOLTAGE]
+SharedVoltageField = typing.Annotated[QuantityLike[float], VOLTAGE]
+VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
+VoltageArrayField = typing.Annotated[QuantityLike[Tensor], VOLTAGE]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
+ResistanceField = typing.Annotated[QuantityLike, RESISTANCE]
 
 
 @equation
@@ -203,10 +221,10 @@ def test_nonlinear_reductions_of_unknowns_remain_unsupported(backend: Backend, o
 def test_joint_solve_retains_units_and_distinct_output_domains(backend: Backend, output: str) -> None:
     @system
     class Lengths(metaclass=Interface):
-        x: LengthArray = field()
-        y: LengthScalar = field()
-        p: LengthArray = field()
-        q: LengthScalar = field()
+        x: LengthArrayField = field()
+        y: LengthScalarField = field()
+        p: LengthArrayField = field()
+        q: LengthScalarField = field()
 
     @equation
     def first(x: LengthGrid, y: LengthScalar, p: LengthArray) -> bool:
@@ -287,11 +305,11 @@ def test_joint_and_batched_blocks_fit_between_ordinary_plan_steps(backend: Backe
 def test_parallel_sources_share_one_bus_voltage(backend: Backend, output: str) -> None:
     @system
     class Circuit(metaclass=Interface):
-        current: CurrentArray = field()
-        bus_voltage: SharedVoltage = field()
-        source_voltage: VoltageArray = field()
-        branch_resistance: Resistance = field()
-        load_resistance: Resistance = field()
+        current: CurrentArrayField = field()
+        bus_voltage: SharedVoltageField = field()
+        source_voltage: VoltageArrayField = field()
+        branch_resistance: ResistanceField = field()
+        load_resistance: ResistanceField = field()
 
     @equation
     def branch_balance(

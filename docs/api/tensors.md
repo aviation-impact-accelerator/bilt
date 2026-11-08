@@ -42,7 +42,8 @@ align by name. Result axes follow the evaluation's dimension binding order.
 | `t * unit` | Label an unlabelled tensor or compose its unit; values are unchanged. |
 | `unit * t`, `t / unit` | Compose units on an already labelled tensor. |
 
-Use `Annotated[Tensor, LENGTH]`, for example, for a unit-aware tensor port.
+Use `Annotated[QuantityLike[Tensor], LENGTH]` for a tensor-only unit-bearing system field, or
+`Annotated[QuantityTensor, LENGTH]` for a tensor-quantity equation parameter. Dimensioned `Annotated[Tensor, LENGTH]` declarations are no longer supported.
 Bare `Tensor` ports are outside the physical unit system. With a non-optional
 unit, `tensor(..., unit=...)` returns `QuantityTensor`; without one it returns
 `Tensor`. Computed declared

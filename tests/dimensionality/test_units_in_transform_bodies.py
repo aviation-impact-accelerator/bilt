@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, field, system, transform
+from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, QuantityLike, field, system, transform
 from bilt.errors import BiltDefinitionError
 from bilt.units import Quantity, meter, units
 from bilt.units.dimensions import LENGTH
@@ -16,16 +16,17 @@ if typing.TYPE_CHECKING:
     from bilt.core._transform import BasicTransform
 
 Length = typing.Annotated[Quantity, LENGTH]
+LengthField = typing.Annotated[QuantityLike, LENGTH]
 
 
 @system
 class Stretch(metaclass=Interface):
-    length: Length = field()
-    stretched: Length = field()
+    length: LengthField = field()
+    stretched: LengthField = field()
     span_km: float = field()
 
 
-def _stretch(stretched: BasicTransform) -> Quantity:
+def _stretch(stretched: BasicTransform) -> QuantityLike:
     with Implementation(Stretch, [stretched]):
         return Stretch(length=1.0 * kilometer).stretched
 

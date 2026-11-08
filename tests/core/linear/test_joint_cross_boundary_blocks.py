@@ -6,7 +6,21 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
+from bilt import (
+    Domain,
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityLike,
+    QuantityTensor,
+    Tensor,
+    dim,
+    domain,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt._backend._errors import BiltUnsupportedNodeError
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
@@ -31,11 +45,16 @@ OverTime = typing.Annotated[Tensor, domain(TIME)]
 Shared = typing.Annotated[Tensor, Domain.scalar()]
 Grid = typing.Annotated[Tensor, domain(SITE, TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
-BranchCurrent = typing.Annotated[Tensor, CURRENT, domain(BRANCH)]
+BranchCurrent = typing.Annotated[QuantityTensor, CURRENT, domain(BRANCH)]
+BranchCurrentField = typing.Annotated[QuantityLike[Tensor], CURRENT, domain(BRANCH)]
 SharedVoltage = typing.Annotated[Quantity, VOLTAGE, Domain.scalar()]
-VoltageArray = typing.Annotated[Tensor, VOLTAGE]
-ResistanceArray = typing.Annotated[Tensor, RESISTANCE]
+SharedVoltageField = typing.Annotated[QuantityLike[float], VOLTAGE]
+VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
+VoltageArrayField = typing.Annotated[QuantityLike[Tensor], VOLTAGE]
+ResistanceArray = typing.Annotated[QuantityTensor, RESISTANCE]
+ResistanceArrayField = typing.Annotated[QuantityLike[Tensor], RESISTANCE]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
+ResistanceField = typing.Annotated[QuantityLike, RESISTANCE]
 
 
 @system
@@ -139,14 +158,14 @@ def test_broadcasting_inside_a_reduction_is_preserved_across_qualified_rows(back
 def test_shared_bus_voltage_and_branch_currents_retain_units(backend: Backend, output: str) -> None:
     @system
     class Bus(metaclass=Interface):
-        current: BranchCurrent = field()
-        voltage: SharedVoltage = field()
-        resistance: ResistanceArray = field()
-        load: Resistance = field()
+        current: BranchCurrentField = field()
+        voltage: SharedVoltageField = field()
+        resistance: ResistanceArrayField = field()
+        load: ResistanceField = field()
 
     @system
     class Sources(metaclass=Interface):
-        emf: VoltageArray = field()
+        emf: VoltageArrayField = field()
 
     @equation
     def load_balance(current: BranchCurrent, voltage: SharedVoltage, load: Resistance) -> bool:
@@ -154,7 +173,7 @@ def test_shared_bus_voltage_and_branch_currents_retain_units(backend: Backend, o
 
     @equation
     def branch_balance(emf: VoltageArray, inner: Bus) -> bool:
-        return inner.resistance * inner.current + inner.voltage == emf
+        return inner.resistance * inner.current + inner.voltage == emf  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
 
     parent = Implementation(
         Sources, [branch_balance], internal_implementations={"inner": Implementation(Bus, [load_balance])}

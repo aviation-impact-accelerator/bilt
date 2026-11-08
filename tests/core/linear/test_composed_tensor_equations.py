@@ -3,7 +3,21 @@ import typing
 import numpy as np
 import pytest
 
-from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
+from bilt import (
+    Domain,
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityLike,
+    QuantityTensor,
+    Tensor,
+    dim,
+    domain,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._system import _implementation as implementation_module
@@ -17,10 +31,13 @@ if typing.TYPE_CHECKING:
 
 TIME = dim("time")
 BRANCH = dim("branch")
-LengthArray = typing.Annotated[Tensor, LENGTH]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
+LengthArrayField = typing.Annotated[QuantityLike[Tensor], LENGTH]
 LengthScalar = typing.Annotated[Quantity, LENGTH]
+LengthScalarField = typing.Annotated[QuantityLike, LENGTH]
 MassScalar = typing.Annotated[Quantity, MASS]
-RatioArray = typing.Annotated[Tensor, DIMENSIONLESS]
+RatioArray = typing.Annotated[QuantityTensor, DIMENSIONLESS]
+RatioArrayField = typing.Annotated[QuantityLike[Tensor], DIMENSIONLESS]
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 Grid = typing.Annotated[Tensor, domain(TIME, BRANCH)]
 Shared = typing.Annotated[float, Domain.scalar()]
@@ -60,9 +77,9 @@ def test_composed_reductions_preserve_coherent_units(backend: Backend, analyser_
 
     @system
     class Lengths(metaclass=Interface):
-        value: LengthArray = field()
-        weights: RatioArray = field()
-        answer: LengthScalar = field()
+        value: LengthArrayField = field()
+        weights: RatioArrayField = field()
+        answer: LengthScalarField = field()
 
     @equation
     def weighted(answer: LengthScalar, value: LengthArray, weights: RatioArray) -> bool:

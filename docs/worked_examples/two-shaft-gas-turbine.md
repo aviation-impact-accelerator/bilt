@@ -135,7 +135,7 @@ than encoded in names such as `_k` or `_kj_per_kg`.
 ```python
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, equation, field, system
+from bilt import Implementation, Interface, Quantity, QuantityLike, equation, field, system
 from bilt.units import UNITLESS, absolute_kelvin, kelvin, kilogram, kilojoule, kilowatt, megawatt, second
 from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, MASS, TEMPERATURE, TIME
 
@@ -150,13 +150,13 @@ Ratio = Annotated[Quantity, DIMENSIONLESS]
 
 @system
 class Compressor(metaclass=Interface):
-    inlet_temperature: AbsoluteTemperature = field()
-    outlet_temperature: AbsoluteTemperature = field()
-    pressure_ratio: Ratio = field()
-    isentropic_efficiency: Ratio = field()
-    gamma: Ratio = field()
-    specific_heat: SpecificHeat = field()
-    specific_work: SpecificWork = field()
+    inlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    outlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    pressure_ratio: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    isentropic_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    gamma: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    specific_heat: Annotated[QuantityLike, ENERGY / (MASS * TEMPERATURE)] = field()
+    specific_work: Annotated[QuantityLike, ENERGY / MASS] = field()
 
 
 @equation
@@ -210,12 +210,15 @@ does not permanently designate specific work as the output. With a different set
 The turbine is similarly small:
 
 ```python
+from bilt import QuantityLike
+
+
 @system
 class Turbine(metaclass=Interface):
-    inlet_temperature: AbsoluteTemperature = field()
-    outlet_temperature: AbsoluteTemperature = field()
-    specific_heat: SpecificHeat = field()
-    specific_work: SpecificWork = field()
+    inlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    outlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    specific_heat: Annotated[QuantityLike, ENERGY / (MASS * TEMPERATURE)] = field()
+    specific_work: Annotated[QuantityLike, ENERGY / MASS] = field()
 
 
 @equation
@@ -239,40 +242,43 @@ turbine_model = Implementation(
 The parent system contains the values needed to connect the four child systems.
 
 ```python
+from bilt import QuantityLike
+
+
 @system
 class TwoShaftCore(metaclass=Interface):
     # Gas-path temperatures.
-    inlet_temperature: AbsoluteTemperature = field()
-    low_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
-    high_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
-    turbine_inlet_temperature: AbsoluteTemperature = field()
-    high_pressure_turbine_exit_temperature: AbsoluteTemperature = field()
-    exit_temperature: AbsoluteTemperature = field()
+    inlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    low_pressure_compressor_exit_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    high_pressure_compressor_exit_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    turbine_inlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    high_pressure_turbine_exit_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    exit_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
 
     # Compressor design assumptions.
-    low_pressure_compressor_pressure_ratio: Ratio = field()
-    high_pressure_compressor_pressure_ratio: Ratio = field()
-    low_pressure_compressor_efficiency: Ratio = field()
-    high_pressure_compressor_efficiency: Ratio = field()
+    low_pressure_compressor_pressure_ratio: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    high_pressure_compressor_pressure_ratio: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    low_pressure_compressor_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    high_pressure_compressor_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
 
     # Shared fluid properties.
-    gamma: Ratio = field()
-    specific_heat: SpecificHeat = field()
+    gamma: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    specific_heat: Annotated[QuantityLike, ENERGY / (MASS * TEMPERATURE)] = field()
 
     # Shaft efficiencies.
-    low_pressure_shaft_efficiency: Ratio = field()
-    high_pressure_shaft_efficiency: Ratio = field()
+    low_pressure_shaft_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    high_pressure_shaft_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
 
     # Coupling values used by the two shaft balances.
-    low_pressure_compressor_work: SpecificWork = field()
-    high_pressure_compressor_work: SpecificWork = field()
-    high_pressure_turbine_work: SpecificWork = field()
-    low_pressure_turbine_work: SpecificWork = field()
+    low_pressure_compressor_work: Annotated[QuantityLike, ENERGY / MASS] = field()
+    high_pressure_compressor_work: Annotated[QuantityLike, ENERGY / MASS] = field()
+    high_pressure_turbine_work: Annotated[QuantityLike, ENERGY / MASS] = field()
+    low_pressure_turbine_work: Annotated[QuantityLike, ENERGY / MASS] = field()
 
     # Useful LP-shaft output.
-    shaft_output_work: SpecificWork = field()
-    mass_flow: MassFlow = field()
-    shaft_power: Power = field()
+    shaft_output_work: Annotated[QuantityLike, ENERGY / MASS] = field()
+    mass_flow: Annotated[QuantityLike, MASS / TIME] = field()
+    shaft_power: Annotated[QuantityLike, ENERGY / TIME] = field()
 ```
 
 Some of these values exist mainly to provide an explicit hand-off between child systems.
@@ -651,7 +657,7 @@ For the executable documentation below, the same model is loaded from a temporar
 model_source = """
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, equation, field, system
+from bilt import Implementation, Interface, Quantity, QuantityLike, equation, field, system
 from bilt.units import UNITLESS, absolute_kelvin, kelvin, kilogram, kilojoule, kilowatt, megawatt, second
 from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, MASS, TEMPERATURE, TIME
 
@@ -665,13 +671,13 @@ Ratio = Annotated[Quantity, DIMENSIONLESS]
 
 @system
 class Compressor(metaclass=Interface):
-    inlet_temperature: AbsoluteTemperature = field()
-    outlet_temperature: AbsoluteTemperature = field()
-    pressure_ratio: Ratio = field()
-    isentropic_efficiency: Ratio = field()
-    gamma: Ratio = field()
-    specific_heat: SpecificHeat = field()
-    specific_work: SpecificWork = field()
+    inlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    outlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    pressure_ratio: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    isentropic_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    gamma: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    specific_heat: Annotated[QuantityLike, ENERGY / (MASS * TEMPERATURE)] = field()
+    specific_work: Annotated[QuantityLike, ENERGY / MASS] = field()
 
 @equation
 def compressor_temperature_relation(
@@ -714,10 +720,10 @@ compressor_model = Implementation(
 
 @system
 class Turbine(metaclass=Interface):
-    inlet_temperature: AbsoluteTemperature = field()
-    outlet_temperature: AbsoluteTemperature = field()
-    specific_heat: SpecificHeat = field()
-    specific_work: SpecificWork = field()
+    inlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    outlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    specific_heat: Annotated[QuantityLike, ENERGY / (MASS * TEMPERATURE)] = field()
+    specific_work: Annotated[QuantityLike, ENERGY / MASS] = field()
 
 @equation
 def turbine_work_relation(
@@ -739,33 +745,33 @@ turbine_model = Implementation(
 
 @system
 class TwoShaftCore(metaclass=Interface):
-    inlet_temperature: AbsoluteTemperature = field()
-    low_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
-    high_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
-    turbine_inlet_temperature: AbsoluteTemperature = field()
-    high_pressure_turbine_exit_temperature: AbsoluteTemperature = field()
-    exit_temperature: AbsoluteTemperature = field()
+    inlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    low_pressure_compressor_exit_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    high_pressure_compressor_exit_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    turbine_inlet_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    high_pressure_turbine_exit_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
+    exit_temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()
 
-    low_pressure_compressor_pressure_ratio: Ratio = field()
-    high_pressure_compressor_pressure_ratio: Ratio = field()
-    low_pressure_compressor_efficiency: Ratio = field()
-    high_pressure_compressor_efficiency: Ratio = field()
+    low_pressure_compressor_pressure_ratio: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    high_pressure_compressor_pressure_ratio: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    low_pressure_compressor_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    high_pressure_compressor_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
 
-    gamma: Ratio = field()
-    specific_heat: SpecificHeat = field()
+    gamma: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    specific_heat: Annotated[QuantityLike, ENERGY / (MASS * TEMPERATURE)] = field()
 
-    low_pressure_shaft_efficiency: Ratio = field()
-    high_pressure_shaft_efficiency: Ratio = field()
+    low_pressure_shaft_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    high_pressure_shaft_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
 
-    low_pressure_compressor_work: SpecificWork = field()
-    high_pressure_compressor_work: SpecificWork = field()
-    high_pressure_turbine_work: SpecificWork = field()
-    low_pressure_turbine_work: SpecificWork = field()
+    low_pressure_compressor_work: Annotated[QuantityLike, ENERGY / MASS] = field()
+    high_pressure_compressor_work: Annotated[QuantityLike, ENERGY / MASS] = field()
+    high_pressure_turbine_work: Annotated[QuantityLike, ENERGY / MASS] = field()
+    low_pressure_turbine_work: Annotated[QuantityLike, ENERGY / MASS] = field()
 
     # Useful LP-shaft output.
-    shaft_output_work: SpecificWork = field()
-    mass_flow: MassFlow = field()
-    shaft_power: Power = field()
+    shaft_output_work: Annotated[QuantityLike, ENERGY / MASS] = field()
+    mass_flow: Annotated[QuantityLike, MASS / TIME] = field()
+    shaft_power: Annotated[QuantityLike, ENERGY / TIME] = field()
 
 @equation
 def low_pressure_compressor_inlet_connection(

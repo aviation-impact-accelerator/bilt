@@ -3,7 +3,20 @@ import typing
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, Quantity, Tensor, dim, equation, field, system, tensor, transform
+from bilt import (
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityLike,
+    QuantityTensor,
+    Tensor,
+    dim,
+    equation,
+    field,
+    system,
+    tensor,
+    transform,
+)
 from bilt._backend._errors import BiltUnsupportedNodeError
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
@@ -21,8 +34,10 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable
 
 TIME = dim("time")
-LengthArray = typing.Annotated[Tensor, LENGTH]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
+LengthArrayField = typing.Annotated[QuantityLike[Tensor], LENGTH]
 LengthScalar = typing.Annotated[Quantity, LENGTH]
+LengthScalarField = typing.Annotated[QuantityLike, LENGTH]
 
 
 @system
@@ -122,10 +137,10 @@ def test_child_route_query_exposes_only_required_boundary_inputs(backend: Backen
 def test_child_units_survive_shared_and_tensor_output_lifting(backend: Backend, output: str) -> None:
     @system
     class Lengths(metaclass=Interface):
-        x: LengthArray = field()
-        y: LengthScalar = field()
-        p: LengthArray = field()
-        q: LengthScalar = field()
+        x: LengthArrayField = field()
+        y: LengthScalarField = field()
+        p: LengthArrayField = field()
+        q: LengthScalarField = field()
 
     @equation
     def total(x: LengthArray, y: LengthScalar, p: LengthArray) -> bool:

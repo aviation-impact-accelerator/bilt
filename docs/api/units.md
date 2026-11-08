@@ -9,16 +9,17 @@ For static scalar/tensor typing and migration guidance, see [Quantity annotation
 ```python
 from typing import Annotated
 
-from bilt import Quantity, Tensor, tensor
+from bilt import Quantity, QuantityLike, Tensor, tensor
 from bilt.units import Metadata, Prefix, Unit, kilometer, meter
 from bilt.units.dimensions import ABSOLUTE, LENGTH, TEMPERATURE
 
-Length = Annotated[Quantity, LENGTH]
-LengthSeries = Annotated[Tensor, LENGTH]
-AbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]
+Length = Annotated[QuantityLike, LENGTH]  # Flexible system boundary
+LengthSeries = Annotated[QuantityLike[Tensor], LENGTH]  # Tensor-only system boundary
+ScalarLength = Annotated[Quantity, LENGTH]  # Scalar equation operations
+AbsoluteTemperature = Annotated[QuantityLike, TEMPERATURE, ABSOLUTE]
 ```
 
-Declare dimensions, not units, on model ports. A bare `Quantity` is refused;
+Declare dimensions, not units, on model ports. Bare `Quantity` and `QuantityLike` annotations are refused without a dimension;
 a bare `Tensor` declares no physical dimension. A declared quantity port can accept a compatible
 unit-carrying tensor; a declared tensor port requires a tensor.
 Plain ports, such as `float`, stand outside the unit system.

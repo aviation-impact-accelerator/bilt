@@ -92,7 +92,7 @@ Each transform describes one scalar engineering relationship. Nothing in these f
 ```python
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, field, system, transform
+from bilt import Implementation, Interface, Quantity, QuantityLike, field, system, transform
 from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
 
 
@@ -106,23 +106,23 @@ Ratio = Annotated[Quantity, DIMENSIONLESS]
 
 @system
 class Mission(metaclass=Interface):
-    specific_energy: SpecificEnergy = field()
-    propulsive_efficiency: Ratio = field()
-    energy_multiplier: Ratio = field()
+    specific_energy: Annotated[QuantityLike, ENERGY / MASS] = field()
+    propulsive_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    energy_multiplier: Annotated[QuantityLike, DIMENSIONLESS] = field()
 
-    distance: Length = field()
-    payload: Mass = field()
+    distance: Annotated[QuantityLike, LENGTH] = field()
+    payload: Annotated[QuantityLike, MASS] = field()
 
-    empty_mass: Mass = field()
-    energy_intensity: EnergyIntensity = field()
-    usable_fraction: Ratio = field()
-    max_battery_mass: Mass = field()
+    empty_mass: Annotated[QuantityLike, MASS] = field()
+    energy_intensity: Annotated[QuantityLike, ENERGY / (LENGTH * MASS)] = field()
+    usable_fraction: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    max_battery_mass: Annotated[QuantityLike, MASS] = field()
 
-    gross_mass: Mass = field()
-    shaft_energy: Energy = field()
-    electrical_energy: Energy = field()
-    battery_mass: Mass = field()
-    battery_margin: Mass = field()
+    gross_mass: Annotated[QuantityLike, MASS] = field()
+    shaft_energy: Annotated[QuantityLike, ENERGY] = field()
+    electrical_energy: Annotated[QuantityLike, ENERGY] = field()
+    battery_mass: Annotated[QuantityLike, MASS] = field()
+    battery_margin: Annotated[QuantityLike, MASS] = field()
 
 
 @transform
@@ -177,7 +177,7 @@ The model above is ordinary displayed Python. For this documentation build, the 
 model_source = """
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, field, system, transform
+from bilt import Implementation, Interface, Quantity, QuantityLike, field, system, transform
 from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
 
 
@@ -191,23 +191,23 @@ Ratio = Annotated[Quantity, DIMENSIONLESS]
 
 @system
 class Mission(metaclass=Interface):
-    specific_energy: SpecificEnergy = field()
-    propulsive_efficiency: Ratio = field()
-    energy_multiplier: Ratio = field()
+    specific_energy: Annotated[QuantityLike, ENERGY / MASS] = field()
+    propulsive_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    energy_multiplier: Annotated[QuantityLike, DIMENSIONLESS] = field()
 
-    distance: Length = field()
-    payload: Mass = field()
+    distance: Annotated[QuantityLike, LENGTH] = field()
+    payload: Annotated[QuantityLike, MASS] = field()
 
-    empty_mass: Mass = field()
-    energy_intensity: EnergyIntensity = field()
-    usable_fraction: Ratio = field()
-    max_battery_mass: Mass = field()
+    empty_mass: Annotated[QuantityLike, MASS] = field()
+    energy_intensity: Annotated[QuantityLike, ENERGY / (LENGTH * MASS)] = field()
+    usable_fraction: Annotated[QuantityLike, DIMENSIONLESS] = field()
+    max_battery_mass: Annotated[QuantityLike, MASS] = field()
 
-    gross_mass: Mass = field()
-    shaft_energy: Energy = field()
-    electrical_energy: Energy = field()
-    battery_mass: Mass = field()
-    battery_margin: Mass = field()
+    gross_mass: Annotated[QuantityLike, MASS] = field()
+    shaft_energy: Annotated[QuantityLike, ENERGY] = field()
+    electrical_energy: Annotated[QuantityLike, ENERGY] = field()
+    battery_mass: Annotated[QuantityLike, MASS] = field()
+    battery_margin: Annotated[QuantityLike, MASS] = field()
 
 
 @transform

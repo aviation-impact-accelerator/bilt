@@ -4,7 +4,17 @@ import typing
 
 import pytest
 
-from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, equation, field, system, transform
+from bilt import (
+    JAX_BACKEND,
+    PYTHON_BACKEND,
+    Implementation,
+    Interface,
+    QuantityLike,
+    equation,
+    field,
+    system,
+    transform,
+)
 from bilt.errors import (
     BiltDefinitionError,
     BiltEquationDimensionalityError,
@@ -29,21 +39,30 @@ carbon_monoxide = Metadata("carbon_monoxide")
 mass_fraction = fraction * mass
 
 Mass = typing.Annotated[Quantity, MASS]
+MassField = typing.Annotated[QuantityLike, MASS]
 FuelMass = typing.Annotated[Quantity, MASS * fuel]
+FuelMassField = typing.Annotated[QuantityLike, MASS * fuel]
 Co2Mass = typing.Annotated[Quantity, MASS * co2]
+Co2MassField = typing.Annotated[QuantityLike, MASS * co2]
 EmissionIndex = typing.Annotated[Quantity, (MASS * co2) / (MASS * fuel)]
+EmissionIndexField = typing.Annotated[QuantityLike, (MASS * co2) / (MASS * fuel)]
 MassFraction = typing.Annotated[Quantity, DIMENSIONLESS * mass]
+MassFractionField = typing.Annotated[QuantityLike, DIMENSIONLESS * mass]
 Hydrogen = typing.Annotated[Quantity, AMOUNT * hydrogen]
+HydrogenField = typing.Annotated[QuantityLike, AMOUNT * hydrogen]
 CarbonMonoxide = typing.Annotated[Quantity, AMOUNT * carbon_monoxide]
+CarbonMonoxideField = typing.Annotated[QuantityLike, AMOUNT * carbon_monoxide]
 SyngasRatio = typing.Annotated[Quantity, (AMOUNT * hydrogen) / (AMOUNT * carbon_monoxide)]
+SyngasRatioField = typing.Annotated[QuantityLike, (AMOUNT * hydrogen) / (AMOUNT * carbon_monoxide)]
 GasTemperature = typing.Annotated[Quantity, TEMPERATURE * gas]
+GasTemperatureField = typing.Annotated[QuantityLike, TEMPERATURE * gas]
 
 
 @system
 class Burn(metaclass=Interface):
-    burned: FuelMass = field()
-    index: EmissionIndex = field()
-    emitted: Co2Mass = field()
+    burned: FuelMassField = field()
+    index: EmissionIndexField = field()
+    emitted: Co2MassField = field()
 
 
 @equation
@@ -53,9 +72,9 @@ def emission(emitted: Co2Mass, burned: FuelMass, index: EmissionIndex) -> bool:
 
 @system
 class Split(metaclass=Interface):
-    total: Mass = field()
-    x: MassFraction = field()
-    part: Mass = field()
+    total: MassField = field()
+    x: MassFractionField = field()
+    part: MassField = field()
 
 
 @equation
@@ -65,15 +84,15 @@ def split(part: Mass, total: Mass, x: MassFraction) -> bool:
 
 @system
 class Fixed(metaclass=Interface):
-    burned: FuelMass = field()
-    emitted: Co2Mass = field()
+    burned: FuelMassField = field()
+    emitted: Co2MassField = field()
 
 
 @system
 class Weighed(metaclass=Interface):
-    burned: FuelMass = field()
+    burned: FuelMassField = field()
     grams: float = field()
-    emitted: Co2Mass = field()
+    emitted: Co2MassField = field()
 
 
 def test_a_tagged_port_answers_in_its_tagged_coherent_unit() -> None:
@@ -95,9 +114,9 @@ def test_an_equation_is_solved_for_a_tagged_port_it_multiplies() -> None:
 def test_a_quotient_of_tagged_ports_answers_with_each_tag() -> None:
     @system
     class Syngas(metaclass=Interface):
-        h2: Hydrogen = field()
-        co: CarbonMonoxide = field()
-        ratio: SyngasRatio = field()
+        h2: HydrogenField = field()
+        co: CarbonMonoxideField = field()
+        ratio: SyngasRatioField = field()
 
     @equation
     def syngas_ratio(ratio: SyngasRatio, h2: Hydrogen, co: CarbonMonoxide) -> bool:
@@ -148,7 +167,7 @@ def test_a_tagged_quantity_is_refused_at_an_untagged_port() -> None:
 def test_an_absolute_quantity_with_a_tag_is_refused() -> None:
     @system
     class Flue(metaclass=Interface):
-        temperature: GasTemperature = field()
+        temperature: GasTemperatureField = field()
 
     with pytest.raises(BiltInputDimensionalityError, match=r"Input 'temperature' of 'Flue'.*in a relative unit"):
         Flue(temperature=Quantity(20.0, absolute_celsius) * gas)
@@ -159,7 +178,7 @@ def test_absolute_on_a_tagged_dimensionality_raises() -> None:
 
         @system
         class Flue(metaclass=Interface):
-            temperature: typing.Annotated[Quantity, TEMPERATURE * gas, ABSOLUTE] = field()
+            temperature: typing.Annotated[QuantityLike, TEMPERATURE * gas, ABSOLUTE] = field()
 
     assert "cannot be absolute" in str(raised.value)
 

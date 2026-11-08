@@ -5,7 +5,21 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
+from bilt import (
+    Domain,
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityLike,
+    QuantityTensor,
+    Tensor,
+    dim,
+    domain,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt._backend._errors import BiltUnsupportedNodeError
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
@@ -26,8 +40,10 @@ TIME = dim("time")
 SITE = dim("site")
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 Shared = typing.Annotated[Tensor, Domain.scalar()]
-LengthArray = typing.Annotated[Tensor, LENGTH]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
+LengthArrayField = typing.Annotated[QuantityLike[Tensor], LENGTH]
 LengthScalar = typing.Annotated[Quantity, LENGTH]
+LengthScalarField = typing.Annotated[QuantityLike, LENGTH]
 
 
 @system
@@ -116,10 +132,10 @@ def test_tensor_coefficients_can_supply_axes_with_scalar_rhs(backend: Backend) -
 def test_unitful_values_are_lowered_and_lifted_across_the_boundary(backend: Backend, output: str) -> None:
     @system
     class Lengths(metaclass=Interface):
-        x: LengthArray = field()
-        y: LengthArray = field()
-        p: LengthArray = field()
-        q: LengthScalar = field()
+        x: LengthArrayField = field()
+        y: LengthArrayField = field()
+        p: LengthArrayField = field()
+        q: LengthScalarField = field()
 
     @equation
     def balance(x: LengthArray, y: LengthArray, p: LengthArray) -> bool:
@@ -127,7 +143,7 @@ def test_unitful_values_are_lowered_and_lifted_across_the_boundary(backend: Back
 
     @equation
     def relation(inner: Lengths, q: LengthScalar) -> bool:
-        return inner.x - inner.y == q
+        return inner.x - inner.y == q  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
 
     parent = Implementation(Lengths, [relation], internal_implementations={"inner": Implementation(Lengths, [balance])})
     result = parent.evaluate(

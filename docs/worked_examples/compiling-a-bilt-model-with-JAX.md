@@ -88,9 +88,9 @@ def induced_drag(
     return dynamic_pressure * wing_area * induced_drag_factor * lift_coefficient**2
 ```
 
-The system and transforms use scalar quantity declarations. They accept scalar
-quantities or compatible unit-carrying tensors, so the model does not prescribe
-the shape of the ensemble. Efficiencies, Mach number, aerodynamic coefficients,
+The system uses flexible `QuantityLike` declarations while transforms use
+concrete scalar `Quantity` annotations. The transforms lift over compatible
+unit-carrying tensors, so the model does not prescribe the shape of the ensemble. Efficiencies, Mach number, aerodynamic coefficients,
 and emission indices are dimensionless quantities supplied with `UNITLESS`.
 
 The atmosphere uses absolute temperatures and relative temperature offsets.
@@ -127,6 +127,7 @@ _model_source = (  # markdown-exec: hide
             "    Implementation,",  # markdown-exec: hide
             "    Interface,",  # markdown-exec: hide
             "    Quantity,",  # markdown-exec: hide
+            "    QuantityLike,",  # markdown-exec: hide
             "    field,",  # markdown-exec: hide
             "    system,",  # markdown-exec: hide
             "    transform,",  # markdown-exec: hide
@@ -156,52 +157,52 @@ _model_source = (  # markdown-exec: hide
             "@system",  # markdown-exec: hide
             "class CruiseImpact(metaclass=Interface):",  # markdown-exec: hide
             "    # Inputs",  # markdown-exec: hide
-            "    altitude: Length = field()",  # markdown-exec: hide
-            "    mach: Ratio = field()",  # markdown-exec: hide
-            "    mass: Mass = field()",  # markdown-exec: hide
-            "    temperature_offset: TemperatureChange = field()",  # markdown-exec: hide
-            "    wing_area: Area = field()",  # markdown-exec: hide
-            "    zero_lift_drag_coefficient: Ratio = field()",  # markdown-exec: hide
-            "    induced_drag_factor: Ratio = field()",  # markdown-exec: hide
-            "    propulsive_efficiency: Ratio = field()",  # markdown-exec: hide
-            "    nox_emission_index: Ratio = field()",  # markdown-exec: hide
-            "    soot_emission_index: Ratio = field()",  # markdown-exec: hide
+            "    altitude: Annotated[QuantityLike, LENGTH] = field()",  # markdown-exec: hide
+            "    mach: Annotated[QuantityLike, DIMENSIONLESS] = field()",  # markdown-exec: hide
+            "    mass: Annotated[QuantityLike, MASS] = field()",  # markdown-exec: hide
+            "    temperature_offset: Annotated[QuantityLike, TEMPERATURE] = field()",  # markdown-exec: hide
+            "    wing_area: Annotated[QuantityLike, LENGTH**2] = field()",  # markdown-exec: hide
+            "    zero_lift_drag_coefficient: Annotated[QuantityLike, DIMENSIONLESS] = field()",  # markdown-exec: hide
+            "    induced_drag_factor: Annotated[QuantityLike, DIMENSIONLESS] = field()",  # markdown-exec: hide
+            "    propulsive_efficiency: Annotated[QuantityLike, DIMENSIONLESS] = field()",  # markdown-exec: hide
+            "    nox_emission_index: Annotated[QuantityLike, DIMENSIONLESS] = field()",  # markdown-exec: hide
+            "    soot_emission_index: Annotated[QuantityLike, DIMENSIONLESS] = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "    # Atmosphere",  # markdown-exec: hide
-            "    temperature: AbsoluteTemperature = field()",  # markdown-exec: hide
-            "    pressure: Pressure = field()",  # markdown-exec: hide
-            "    density: Density = field()",  # markdown-exec: hide
-            "    speed_of_sound: Speed = field()",  # markdown-exec: hide
-            "    true_airspeed: Speed = field()",  # markdown-exec: hide
+            "    temperature: Annotated[QuantityLike, TEMPERATURE, ABSOLUTE] = field()",  # markdown-exec: hide
+            "    pressure: Annotated[QuantityLike, FORCE / LENGTH**2] = field()",  # markdown-exec: hide
+            "    density: Annotated[QuantityLike, MASS / LENGTH**3] = field()",  # markdown-exec: hide
+            "    speed_of_sound: Annotated[QuantityLike, LENGTH / TIME] = field()",  # markdown-exec: hide
+            "    true_airspeed: Annotated[QuantityLike, LENGTH / TIME] = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "    # Aerodynamics",  # markdown-exec: hide
-            "    weight: Force = field()",  # markdown-exec: hide
-            "    dynamic_pressure: Pressure = field()",  # markdown-exec: hide
-            "    lift_coefficient: Ratio = field()",  # markdown-exec: hide
-            "    parasite_drag: Force = field()",  # markdown-exec: hide
-            "    induced_drag: Force = field()",  # markdown-exec: hide
-            "    compressibility_drag: Force = field()",  # markdown-exec: hide
-            "    trim_drag: Force = field()",  # markdown-exec: hide
-            "    total_drag: Force = field()",  # markdown-exec: hide
+            "    weight: Annotated[QuantityLike, FORCE] = field()",  # markdown-exec: hide
+            "    dynamic_pressure: Annotated[QuantityLike, FORCE / LENGTH**2] = field()",  # markdown-exec: hide
+            "    lift_coefficient: Annotated[QuantityLike, DIMENSIONLESS] = field()",  # markdown-exec: hide
+            "    parasite_drag: Annotated[QuantityLike, FORCE] = field()",  # markdown-exec: hide
+            "    induced_drag: Annotated[QuantityLike, FORCE] = field()",  # markdown-exec: hide
+            "    compressibility_drag: Annotated[QuantityLike, FORCE] = field()",  # markdown-exec: hide
+            "    trim_drag: Annotated[QuantityLike, FORCE] = field()",  # markdown-exec: hide
+            "    total_drag: Annotated[QuantityLike, FORCE] = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "    # Propulsion",  # markdown-exec: hide
-            "    propulsive_power: Power = field()",  # markdown-exec: hide
-            "    fuel_power: Power = field()",  # markdown-exec: hide
-            "    fuel_flow: MassRate = field()",  # markdown-exec: hide
+            "    propulsive_power: Annotated[QuantityLike, ENERGY / TIME] = field()",  # markdown-exec: hide
+            "    fuel_power: Annotated[QuantityLike, ENERGY / TIME] = field()",  # markdown-exec: hide
+            "    fuel_flow: Annotated[QuantityLike, MASS / TIME] = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "    # Emissions",  # markdown-exec: hide
-            "    co2_rate: MassRate = field()",  # markdown-exec: hide
-            "    water_rate: MassRate = field()",  # markdown-exec: hide
-            "    nox_rate: MassRate = field()",  # markdown-exec: hide
-            "    soot_rate: MassRate = field()",  # markdown-exec: hide
+            "    co2_rate: Annotated[QuantityLike, MASS / TIME] = field()",  # markdown-exec: hide
+            "    water_rate: Annotated[QuantityLike, MASS / TIME] = field()",  # markdown-exec: hide
+            "    nox_rate: Annotated[QuantityLike, MASS / TIME] = field()",  # markdown-exec: hide
+            "    soot_rate: Annotated[QuantityLike, MASS / TIME] = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "    # Illustrative climate-effect outputs",  # markdown-exec: hide
-            "    co2_effect: MassRate = field()",  # markdown-exec: hide
-            "    water_effect: MassRate = field()",  # markdown-exec: hide
-            "    nox_effect: MassRate = field()",  # markdown-exec: hide
-            "    soot_effect: MassRate = field()",  # markdown-exec: hide
-            "    contrail_effect: MassRate = field()",  # markdown-exec: hide
-            "    total_climate_effect: MassRate = field()",  # markdown-exec: hide
+            "    co2_effect: Annotated[QuantityLike, MASS / TIME] = field()",  # markdown-exec: hide
+            "    water_effect: Annotated[QuantityLike, MASS / TIME] = field()",  # markdown-exec: hide
+            "    nox_effect: Annotated[QuantityLike, MASS / TIME] = field()",  # markdown-exec: hide
+            "    soot_effect: Annotated[QuantityLike, MASS / TIME] = field()",  # markdown-exec: hide
+            "    contrail_effect: Annotated[QuantityLike, MASS / TIME] = field()",  # markdown-exec: hide
+            "    total_climate_effect: Annotated[QuantityLike, MASS / TIME] = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "# Atmosphere -----------------------------------------------------------------",  # markdown-exec: hide

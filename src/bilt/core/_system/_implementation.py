@@ -113,6 +113,7 @@ class Implementation:
     ) -> object:
         """Evaluate one output from supplied boundary values using the selected backend."""
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+        output_declaration = self._port_declarations.get(output)
 
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
@@ -130,8 +131,6 @@ class Implementation:
 
                 backend_callable = self.get_evaluation(request, backend)
 
-                output_declaration = self._port_declarations.get(output)
-
                 lowered_inputs = lower_inputs(inputs)
                 alignment_plan = generate_alignment_plan(inputs)
                 aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
@@ -141,7 +140,6 @@ class Implementation:
                 lifting_plan = generate_lifting_plan(output_domain, output_declaration)
                 output_value = lift_output(raw_output_value, lifting_plan)
 
-            output_declaration = self._port_declarations.get(output)
             if output_declaration is not None and output_declaration.required_domain is not None:
                 validate_inputs(self._system.__bilt_name__, {output: output_declaration}, {output: output_value})
             evaluation.domains.bind(output_value)

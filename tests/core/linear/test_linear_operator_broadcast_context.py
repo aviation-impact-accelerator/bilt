@@ -6,7 +6,21 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
+from bilt import (
+    Domain,
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityLike,
+    QuantityTensor,
+    Tensor,
+    dim,
+    domain,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
@@ -27,10 +41,14 @@ SITE = dim("site")
 Shared = typing.Annotated[Tensor, Domain.scalar()]
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
-LengthArray = typing.Annotated[Tensor, LENGTH]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
+LengthArrayField = typing.Annotated[QuantityLike[Tensor], LENGTH]
 SharedLength = typing.Annotated[Quantity, LENGTH, Domain.scalar()]
+SharedLengthField = typing.Annotated[QuantityLike[float], LENGTH]
 LengthScalar = typing.Annotated[Quantity, LENGTH]
-RatioArray = typing.Annotated[Tensor, DIMENSIONLESS]
+LengthScalarField = typing.Annotated[QuantityLike, LENGTH]
+RatioArray = typing.Annotated[QuantityTensor, DIMENSIONLESS]
+RatioArrayField = typing.Annotated[QuantityLike[Tensor], DIMENSIONLESS]
 
 
 @system
@@ -219,12 +237,12 @@ def test_known_tensor_supplies_the_axis_for_selecting_a_shared_scalar(backend: B
 def test_broadcast_context_preserves_units(backend: Backend, output: str) -> None:
     @system
     class Lengths(metaclass=Interface):
-        x: LengthArray = field()
-        y: SharedLength = field()
-        p: LengthArray = field()
-        q: LengthScalar = field()
-        weights: RatioArray = field()
-        offset: LengthScalar = field()
+        x: LengthArrayField = field()
+        y: SharedLengthField = field()
+        p: LengthArrayField = field()
+        q: LengthScalarField = field()
+        weights: RatioArrayField = field()
+        offset: LengthScalarField = field()
 
     @equation
     def first(x: LengthArray, y: SharedLength, p: LengthArray) -> bool:

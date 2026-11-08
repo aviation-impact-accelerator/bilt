@@ -4,28 +4,37 @@ import typing
 
 import pytest
 
-from bilt import Implementation, Interface, Tensor, dim, equation, field, system, tensor
+from bilt import Implementation, Interface, QuantityLike, QuantityTensor, Tensor, dim, equation, field, system, tensor
 from bilt.errors import BiltInputDimensionalityError
 from bilt.units import UNITLESS, Quantity
 from bilt.units.dimensions import ABSOLUTE, CURRENT, DIMENSIONLESS, LENGTH, MASS, RESISTANCE, TEMPERATURE, VOLTAGE
 from bilt.units.units import absolute_celsius, ampere, kelvin, kilogram, kilometer, meter, ohm
 
 Current = typing.Annotated[Quantity, CURRENT]
+CurrentField = typing.Annotated[QuantityLike, CURRENT]
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
+DimensionlessField = typing.Annotated[QuantityLike, DIMENSIONLESS]
 Length = typing.Annotated[Quantity, LENGTH]
+LengthField = typing.Annotated[QuantityLike, LENGTH]
 Mass = typing.Annotated[Quantity, MASS]
+MassField = typing.Annotated[QuantityLike, MASS]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
+ResistanceField = typing.Annotated[QuantityLike, RESISTANCE]
 Temperature = typing.Annotated[Quantity, TEMPERATURE]
+TemperatureField = typing.Annotated[QuantityLike, TEMPERATURE]
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
-MassOverADomain = typing.Annotated[Tensor, MASS]
+AbsoluteTemperatureField = typing.Annotated[QuantityLike, TEMPERATURE, ABSOLUTE]
+MassOverADomain = typing.Annotated[QuantityTensor, MASS]
+MassOverADomainField = typing.Annotated[QuantityLike[Tensor], MASS]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
+VoltageField = typing.Annotated[QuantityLike, VOLTAGE]
 
 
 @system
 class Resistor(metaclass=Interface):
-    v: Voltage = field()
-    i: Current = field()
-    r: Resistance = field()
+    v: VoltageField = field()
+    i: CurrentField = field()
+    r: ResistanceField = field()
 
 
 @equation
@@ -35,9 +44,9 @@ def ohms_law(v: Voltage, i: Current, r: Resistance) -> bool:
 
 @system
 class Amplifier(metaclass=Interface):
-    gain: Dimensionless = field()
-    x: Length = field()
-    amplified: Length = field()
+    gain: DimensionlessField = field()
+    x: LengthField = field()
+    amplified: LengthField = field()
 
 
 @equation
@@ -47,14 +56,14 @@ def amplifying(amplified: Length, gain: Dimensionless, x: Length) -> bool:
 
 @system
 class MassScale(metaclass=Interface):
-    m: Mass = field()
-    doubled: Mass = field()
+    m: MassField = field()
+    doubled: MassField = field()
 
 
 @system
 class TensorScale(metaclass=Interface):
-    m: MassOverADomain = field()
-    doubled: Mass = field()
+    m: MassOverADomainField = field()
+    doubled: MassField = field()
 
 
 @system
@@ -65,14 +74,14 @@ class PlainScale(metaclass=Interface):
 
 @system
 class Thermometer(metaclass=Interface):
-    t: Temperature = field()
-    same: Temperature = field()
+    t: TemperatureField = field()
+    same: TemperatureField = field()
 
 
 @system
 class AbsoluteThermometer(metaclass=Interface):
-    t: AbsoluteTemperature = field()
-    same: AbsoluteTemperature = field()
+    t: AbsoluteTemperatureField = field()
+    same: AbsoluteTemperatureField = field()
 
 
 def test_a_bare_float_at_an_annotated_port_raises() -> None:
@@ -133,7 +142,7 @@ def test_a_tensor_with_no_unit_at_an_annotated_port_raises_and_names_the_label()
 def test_a_tensor_is_checked_for_dimensionality() -> None:
     lengths = tensor([1.0, 2.0], over=dim("time"), unit=meter)
     with pytest.raises(BiltInputDimensionalityError, match="'m'") as raised:
-        MassScale(m=lengths)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        MassScale(m=lengths)
 
     message = str(raised.value)
     assert str(MASS) in message
@@ -143,13 +152,13 @@ def test_a_tensor_is_checked_for_dimensionality() -> None:
 def test_an_absolute_tensor_at_a_relative_port_raises() -> None:
     temperatures = tensor([1.0, 2.0], over=dim("time"), unit=absolute_celsius)
     with pytest.raises(BiltInputDimensionalityError, match="'t'"):
-        Thermometer(t=temperatures)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        Thermometer(t=temperatures)
 
 
 def test_a_relative_tensor_at_an_absolute_port_raises() -> None:
     temperatures = tensor([1.0, 2.0], over=dim("time"), unit=kelvin)
     with pytest.raises(BiltInputDimensionalityError, match="'t'"):
-        AbsoluteThermometer(t=temperatures)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        AbsoluteThermometer(t=temperatures)
 
 
 def test_a_unit_carrying_tensor_at_a_plain_port_raises() -> None:
@@ -174,8 +183,8 @@ def test_a_scalar_quantity_at_a_tensor_annotated_port_raises() -> None:
 def test_a_quantity_of_the_wrong_dimensionality_at_a_port_only_a_constituent_reads_raises() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: Voltage = field()
-        scaled: Voltage = field()
+        v: VoltageField = field()
+        scaled: VoltageField = field()
 
     @equation
     def doubling(scaled: Voltage, v: Voltage) -> bool:

@@ -7,7 +7,7 @@ import jax
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, equation, field, system, transform
+from bilt import Implementation, Interface, QuantityLike, equation, field, system, transform
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
@@ -27,14 +27,15 @@ if typing.TYPE_CHECKING:
     from bilt.core._model_constituent import BiltModelConstituent
 
 Length = typing.Annotated[Quantity, LENGTH]
+LengthField = typing.Annotated[QuantityLike, LENGTH]
 
 
 @system
 class CoupledLengths(metaclass=Interface):
-    x: Length = field()
-    y: Length = field()
-    p: Length = field()
-    q: Length = field()
+    x: LengthField = field()
+    y: LengthField = field()
+    p: LengthField = field()
+    q: LengthField = field()
 
 
 @equation

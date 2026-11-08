@@ -5,7 +5,19 @@ import typing
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, Quantity, Tensor, dim, equation, field, system, tensor
+from bilt import (
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityLike,
+    QuantityTensor,
+    Tensor,
+    dim,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.errors import BiltEquationDimensionalityError
 from bilt.symbolic._dimensions import coordinate_axis
@@ -13,25 +25,31 @@ from bilt.units import fraction, kelvin, kilogram
 from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, FORCE, MASS, TEMPERATURE
 
 Mass = typing.Annotated[Quantity, MASS]
-MassOverADomain = typing.Annotated[Tensor, MASS]
+MassField = typing.Annotated[QuantityLike, MASS]
+MassOverADomain = typing.Annotated[QuantityTensor, MASS]
+MassOverADomainField = typing.Annotated[QuantityLike[Tensor], MASS]
 Force = typing.Annotated[Quantity, FORCE]
 Ratio = typing.Annotated[Quantity, DIMENSIONLESS]
-RatioOverADomain = typing.Annotated[Tensor, DIMENSIONLESS]
+RatioField = typing.Annotated[QuantityLike, DIMENSIONLESS]
+RatioOverADomain = typing.Annotated[QuantityTensor, DIMENSIONLESS]
+RatioOverADomainField = typing.Annotated[QuantityLike[Tensor], DIMENSIONLESS]
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
-AbsoluteTemperatureOverADomain = typing.Annotated[Tensor, TEMPERATURE, ABSOLUTE]
+AbsoluteTemperatureField = typing.Annotated[QuantityLike, TEMPERATURE, ABSOLUTE]
+AbsoluteTemperatureOverADomain = typing.Annotated[QuantityTensor, TEMPERATURE, ABSOLUTE]
+AbsoluteTemperatureOverADomainField = typing.Annotated[QuantityLike[Tensor], TEMPERATURE, ABSOLUTE]
 time = dim("time")
 
 
 @system
 class Scale(metaclass=Interface):
-    m: MassOverADomain = field()
-    reduced: Mass = field()
+    m: MassOverADomainField = field()
+    reduced: MassField = field()
 
 
 @system
 class Thermometer(metaclass=Interface):
-    t: AbsoluteTemperatureOverADomain = field()
-    reduced: AbsoluteTemperature = field()
+    t: AbsoluteTemperatureOverADomainField = field()
+    reduced: AbsoluteTemperatureField = field()
 
 
 @pytest.mark.parametrize(
@@ -100,8 +118,8 @@ def test_a_product_along_an_axis_of_a_dimensional_port_raises() -> None:
 def test_a_product_along_an_axis_of_a_dimensionless_port_is_dimensionless() -> None:
     @system
     class Ratios(metaclass=Interface):
-        ratios: RatioOverADomain = field()
-        combined: Ratio = field()
+        ratios: RatioOverADomainField = field()
+        combined: RatioField = field()
 
     @equation
     def combining(combined: Ratio, ratios: RatioOverADomain) -> bool:
@@ -156,4 +174,5 @@ def test_a_mean_of_a_declared_tensor_port_in_a_sub_expression_solves() -> None:
     with Implementation(Scale, [doubled_mean]):
         result = Scale(m=tensor([1.0, 2.0], over=time, unit=kilogram)).reduced
 
+    assert isinstance(result.value, float)
     np.testing.assert_allclose(result.value, 3.0)

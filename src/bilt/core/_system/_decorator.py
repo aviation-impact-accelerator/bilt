@@ -59,7 +59,11 @@ def _create_bilt_system_class_attribute(cls: Interface) -> None:
     setattr(  # noqa: B010
         cls,
         "__bilt_port_declarations__",
-        port_declarations(cls.__name__, {name: attribute.annotation for name, attribute in attributes.items()}),
+        port_declarations(
+            cls.__name__,
+            {name: attribute.annotation for name, attribute in attributes.items()},
+            system_boundary=True,
+        ),
     )
 
 

@@ -236,13 +236,14 @@ Bilt checks it when values enter a system and when a computed system output
 has a declared minimum domain. Domain metadata is checked by Bilt at runtime;
 Python type checkers do not interpret the dimensions in `Annotated`.
 
-For now, this form applies to **new unit-bearing tensor annotations**
+This form applies to **unit-bearing tensor annotations**
 (`QuantityTensor` and `QuantityLike[Tensor]`). Bare
 `QuantityLike` permits scalar values and therefore cannot also declare a
 required tensor dimension. Existing unitless `Annotated[Tensor, Domain(...)]`
-annotations and existing `Quantity` or `Tensor` annotations with Domain metadata
-remain available as hints for structural domain inference; this new
-minimum-domain check does not reinterpret their existing behaviour.
+annotations remain available as exact hints for unitless structural domain
+inference. Scalar equation annotations may also use `Quantity` with
+`Domain.scalar()` as an exact linear-solver hint. Dimensioned `Tensor`
+annotations are no longer supported.
 Equation-local minimum requirements are checked on the route Bilt selects,
 as described below.
 
@@ -275,8 +276,8 @@ The `time` dimension must be present, but additional axes such as
 `scenario` are allowed. If the equation is not selected for a particular
 evaluation, its domain requirement does not constrain that evaluation.
 
-These are minimum-domain **requirements** rather than the existing exact
-`Domain` **hints** on legacy `Quantity` and `Tensor` annotations. In
+These are minimum-domain **requirements**, unlike exact `Domain` **hints**
+on scalar `Quantity` equation parameters or unitless `Tensor` parameters. In
 particular, they are not passed to the linear-block inference algorithm as
 exact layouts. A mismatch rejects the selected evaluation route with an
 explanation naming the equation, port and missing dimensions.

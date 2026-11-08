@@ -90,7 +90,7 @@ extension in m, and force in N:
 ```python
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, equation, field, system
+from bilt import Implementation, Interface, Quantity, QuantityLike, equation, field, system
 from bilt.units import meter, newton
 from bilt.units.dimensions import FORCE, LENGTH
 
@@ -102,9 +102,9 @@ Force = Annotated[Quantity, FORCE]
 
 @system
 class Spring(metaclass=Interface):
-    stiffness: Stiffness = field()
-    extension: Length = field()
-    force: Force = field()
+    stiffness: Annotated[QuantityLike, FORCE / LENGTH] = field()
+    extension: Annotated[QuantityLike, LENGTH] = field()
+    force: Annotated[QuantityLike, FORCE] = field()
 ```
 
 Hooke's law is an equation:
@@ -146,16 +146,19 @@ That is the acausal part of the component model.
 The parent system exposes the values we want to use when working with two springs:
 
 ```python
+from bilt import QuantityLike
+
+
 @system
 class DoubleSpring(metaclass=Interface):
-    first_stiffness: Stiffness = field()
-    second_stiffness: Stiffness = field()
+    first_stiffness: Annotated[QuantityLike, FORCE / LENGTH] = field()
+    second_stiffness: Annotated[QuantityLike, FORCE / LENGTH] = field()
 
-    first_extension: Length = field()
-    second_extension: Length = field()
-    total_extension: Length = field()
+    first_extension: Annotated[QuantityLike, LENGTH] = field()
+    second_extension: Annotated[QuantityLike, LENGTH] = field()
+    total_extension: Annotated[QuantityLike, LENGTH] = field()
 
-    force: Force = field()
+    force: Annotated[QuantityLike, FORCE] = field()
 ```
 
 The two `Spring` occurrences are not public fields. They belong to this implementation of `DoubleSpring`.
@@ -315,7 +318,7 @@ For the executable documentation below, the same model is loaded from a temporar
 model_source = """
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, equation, field, system
+from bilt import Implementation, Interface, Quantity, QuantityLike, equation, field, system
 from bilt.units import meter, newton
 from bilt.units.dimensions import FORCE, LENGTH
 
@@ -326,9 +329,9 @@ Force = Annotated[Quantity, FORCE]
 
 @system
 class Spring(metaclass=Interface):
-    stiffness: Stiffness = field()
-    extension: Length = field()
-    force: Force = field()
+    stiffness: Annotated[QuantityLike, FORCE / LENGTH] = field()
+    extension: Annotated[QuantityLike, LENGTH] = field()
+    force: Annotated[QuantityLike, FORCE] = field()
 
 @equation
 def hookes_law(
@@ -345,14 +348,14 @@ linear_spring = Implementation(
 
 @system
 class DoubleSpring(metaclass=Interface):
-    first_stiffness: Stiffness = field()
-    second_stiffness: Stiffness = field()
+    first_stiffness: Annotated[QuantityLike, FORCE / LENGTH] = field()
+    second_stiffness: Annotated[QuantityLike, FORCE / LENGTH] = field()
 
-    first_extension: Length = field()
-    second_extension: Length = field()
-    total_extension: Length = field()
+    first_extension: Annotated[QuantityLike, LENGTH] = field()
+    second_extension: Annotated[QuantityLike, LENGTH] = field()
+    total_extension: Annotated[QuantityLike, LENGTH] = field()
 
-    force: Force = field()
+    force: Annotated[QuantityLike, FORCE] = field()
 
 @equation
 def first_stiffness_connection(

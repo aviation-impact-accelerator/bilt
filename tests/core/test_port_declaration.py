@@ -14,32 +14,41 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
 Mass = typing.Annotated[Quantity, MASS]
+MassField = typing.Annotated[QuantityLike, MASS]
 Length = typing.Annotated[Quantity, LENGTH]
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
 Kilograms = typing.Annotated[Quantity, kilogram]
 MassAsFloat = typing.Annotated[float, MASS]
 MassAndLength = typing.Annotated[Quantity, MASS, LENGTH]
 type MassAlias = typing.Annotated[Quantity, MASS]
+type MassAliasField = typing.Annotated[QuantityLike, MASS]
 type MassAliasAlias = MassAlias
+type MassAliasAliasField = MassAliasField
 Temperature = typing.Annotated[Quantity, TEMPERATURE]
+TemperatureField = typing.Annotated[QuantityLike, TEMPERATURE]
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
+AbsoluteTemperatureField = typing.Annotated[QuantityLike, TEMPERATURE, ABSOLUTE]
 AbsoluteTime = typing.Annotated[Quantity, TIME, ABSOLUTE]
 AbsoluteTemperatureRate = typing.Annotated[Quantity, TEMPERATURE / TIME, ABSOLUTE]
 AbsoluteFloat = typing.Annotated[float, ABSOLUTE]
 TaggedMass = typing.Annotated[Quantity, MASS * Metadata("co2")]
+TaggedMassField = typing.Annotated[QuantityLike, MASS * Metadata("co2")]
 MassBesideTag = typing.Annotated[Quantity, MASS, Metadata("co2")]
-MassOverADomain = typing.Annotated[Tensor, MASS]
-AbsoluteTemperatureOverADomain = typing.Annotated[Tensor, TEMPERATURE, ABSOLUTE]
-TaggedMassOverADomain = typing.Annotated[Tensor, MASS * Metadata("co2")]
-KilogramsOverADomain = typing.Annotated[Tensor, kilogram]
-MassAndLengthOverADomain = typing.Annotated[Tensor, MASS, LENGTH]
+MassOverADomain = typing.Annotated[QuantityTensor, MASS]
+MassOverADomainField = typing.Annotated[QuantityLike[Tensor], MASS]
+AbsoluteTemperatureOverADomain = typing.Annotated[QuantityTensor, TEMPERATURE, ABSOLUTE]
+AbsoluteTemperatureOverADomainField = typing.Annotated[QuantityLike[Tensor], TEMPERATURE, ABSOLUTE]
+TaggedMassOverADomain = typing.Annotated[QuantityTensor, MASS * Metadata("co2")]
+TaggedMassOverADomainField = typing.Annotated[QuantityLike[Tensor], MASS * Metadata("co2")]
+KilogramsOverADomain = typing.Annotated[QuantityTensor, kilogram]
+MassAndLengthOverADomain = typing.Annotated[QuantityTensor, MASS, LENGTH]
 
 
 def test_system_records_only_the_declared_fields() -> None:
     @system
     class Rig(metaclass=Interface):
         plain: float = field()
-        mass: Mass = field()
+        mass: MassField = field()
 
     assert Rig.__bilt_port_declarations__ == {"mass": PortDeclaration(MASS)}
 
@@ -59,7 +68,7 @@ def test_equation_records_each_declared_parameter() -> None:
 def test_equation_records_the_child_dimensionality_of_each_referenced_sub_system_port() -> None:
     @system
     class Child(metaclass=Interface):
-        v: Mass = field()
+        v: MassField = field()
         unused: float = field()
 
     @equation
@@ -92,7 +101,7 @@ def test_transform_without_a_return_annotation_does_not_declare_its_output() -> 
 def test_quoted_annotations_are_resolved() -> None:
     @system
     class Rig(metaclass=Interface):
-        mass: "Mass" = field()  # noqa: UP037
+        mass: "MassField" = field()  # noqa: UP037
         limit: "typing.ClassVar[float]" = 1.0  # noqa: UP037
 
     @equation
@@ -111,8 +120,8 @@ def test_quoted_annotations_are_resolved() -> None:
 def test_type_statement_aliases_are_resolved() -> None:
     @system
     class Rig(metaclass=Interface):
-        mass: MassAlias = field()
-        nested: MassAliasAlias = field()
+        mass: MassAliasField = field()
+        nested: MassAliasAliasField = field()
 
     @equation
     def balance(m: MassAlias, n: MassAliasAlias) -> bool:
@@ -130,7 +139,7 @@ def test_type_statement_aliases_are_resolved() -> None:
 def test_foreign_metadata_is_ignored() -> None:
     @system
     class Rig(metaclass=Interface):
-        noted_mass: typing.Annotated[Quantity, "note", MASS] = field()
+        noted_mass: typing.Annotated[QuantityLike, "note", MASS] = field()
         noted_float: typing.Annotated[float, "note"] = field()
 
     assert Rig.__bilt_port_declarations__ == {"noted_mass": PortDeclaration(MASS)}
@@ -139,7 +148,7 @@ def test_foreign_metadata_is_ignored() -> None:
 def test_a_tagged_dimensionality_is_recorded() -> None:
     @system
     class Rig(metaclass=Interface):
-        emitted: TaggedMass = field()
+        emitted: TaggedMassField = field()
 
     assert Rig.__bilt_port_declarations__ == {"emitted": PortDeclaration(MASS * Metadata("co2"))}
 
@@ -147,8 +156,8 @@ def test_a_tagged_dimensionality_is_recorded() -> None:
 def test_an_absolute_marker_is_recorded_beside_the_dimensionality() -> None:
     @system
     class Engine(metaclass=Interface):
-        hot: AbsoluteTemperature = field()
-        drop: Temperature = field()
+        hot: AbsoluteTemperatureField = field()
+        drop: TemperatureField = field()
 
     @equation
     def cooling(hot: AbsoluteTemperature, cold: AbsoluteTemperature, drop: Temperature) -> bool:
@@ -208,7 +217,7 @@ def test_equation_relating_a_plain_port_to_a_declared_one_raises() -> None:
 def test_equation_whose_sub_system_declares_ports_cannot_relate_them_to_a_plain_port() -> None:
     @system
     class Child(metaclass=Interface):
-        v: Mass = field()
+        v: MassField = field()
 
     def link(child: Child, x: float) -> bool:
         return child.v == x
@@ -227,57 +236,6 @@ def test_equation_whose_sub_system_leaves_ports_plain_may_leave_its_own_plain() 
         return child.v == x
 
     assert link.__bilt_port_declarations__ == {}
-
-
-def _system_field(annotation: object) -> None:
-    namespace = {"__annotations__": {"m": annotation}, "m": field()}
-    system(Interface("Rig", (), namespace))
-
-
-def _equation_parameter(annotation: object) -> None:
-    def rig(m, n: Mass) -> bool:  # noqa: ANN001
-        return m == n
-
-    rig.__annotations__["m"] = annotation
-    equation(rig)
-
-
-def _transform_parameter(annotation: object) -> None:
-    def rig(m) -> Mass:  # noqa: ANN001
-        return m
-
-    rig.__annotations__["m"] = annotation
-    transform(rig)
-
-
-def _transform_return(annotation: object) -> None:
-    def rig(k: Mass):  # noqa: ANN202
-        return k
-
-    rig.__annotations__["return"] = annotation
-    transform(rig)
-
-
-SITES = (
-    pytest.param(_system_field, "Rig", "m", id="system field"),
-    pytest.param(_equation_parameter, "rig", "m", id="equation parameter"),
-    pytest.param(_transform_parameter, "rig", "m", id="transform parameter"),
-    pytest.param(_transform_return, "rig", "rig", id="transform return"),
-)
-
-
-@pytest.mark.parametrize(("declare", "owner", "port"), SITES)
-def test_a_bare_quantity_raises_and_points_both_ways_forward(
-    declare: collections.abc.Callable[[object], None],
-    owner: str,
-    port: str,
-) -> None:
-    with pytest.raises(BiltPortDeclarationError, match=f"Port '{port}' of '{owner}' is a Quantity without") as raised:
-        declare(Quantity)
-
-    message = str(raised.value)
-    assert "Annotated[Quantity, DIM]" in message
-    assert "write `float`" in message
 
 
 def _system_field(annotation: object) -> None:
@@ -315,6 +273,20 @@ SITES = (
     pytest.param(_transform_parameter, "rig", "m", id="transform parameter"),
     pytest.param(_transform_return, "rig", "rig", id="transform return"),
 )
+
+
+@pytest.mark.parametrize(("declare", "owner", "port"), SITES)
+def test_a_bare_quantity_raises_and_points_both_ways_forward(
+    declare: collections.abc.Callable[[object], None],
+    owner: str,
+    port: str,
+) -> None:
+    with pytest.raises(BiltPortDeclarationError, match=f"Port '{port}' of '{owner}' is a Quantity without") as raised:
+        declare(Quantity)
+
+    message = str(raised.value)
+    assert "Annotated[Quantity, DIM]" in message
+    assert "write `float`" in message
 
 
 @pytest.mark.parametrize(("declare", "owner", "port"), SITES)
@@ -405,6 +377,13 @@ def test_an_absolute_marker_where_the_coherent_unit_has_no_absolute_counterpart_
     port: str,
     annotation: object,
 ) -> None:
+    if declare is _system_field:
+        annotation = (
+            typing.Annotated[QuantityLike, TIME, ABSOLUTE]
+            if annotation == AbsoluteTime
+            else typing.Annotated[QuantityLike, TEMPERATURE / TIME, ABSOLUTE]
+        )
+
     with pytest.raises(BiltPortDeclarationError, match=f"Port '{port}' of '{owner}' is marked ABSOLUTE") as raised:
         declare(annotation)
 
@@ -424,8 +403,8 @@ def test_an_absolute_marker_without_a_dimensionality_raises(
 def test_a_dimensionality_on_a_tensor_is_the_same_declaration_as_on_a_quantity() -> None:
     @system
     class Rig(metaclass=Interface):
-        over_a_domain: MassOverADomain = field()
-        scalar: Mass = field()
+        over_a_domain: MassOverADomainField = field()
+        scalar: MassField = field()
 
     assert Rig.__bilt_port_declarations__ == {
         "over_a_domain": PortDeclaration(MASS),
@@ -436,8 +415,8 @@ def test_a_dimensionality_on_a_tensor_is_the_same_declaration_as_on_a_quantity()
 def test_a_tensor_port_records_that_it_varies_over_a_domain() -> None:
     @system
     class Rig(metaclass=Interface):
-        over_a_domain: MassOverADomain = field()
-        scalar: Mass = field()
+        over_a_domain: MassOverADomainField = field()
+        scalar: MassField = field()
 
     assert Rig.__bilt_port_declarations__["over_a_domain"].over_a_domain
     assert not Rig.__bilt_port_declarations__["scalar"].over_a_domain
@@ -458,7 +437,7 @@ def test_a_bare_tensor_is_still_a_plain_port() -> None:
 def test_the_absolute_marker_reads_on_a_tensor() -> None:
     @system
     class Rig(metaclass=Interface):
-        t: AbsoluteTemperatureOverADomain = field()
+        t: AbsoluteTemperatureOverADomainField = field()
 
     assert Rig.__bilt_port_declarations__ == {"t": PortDeclaration(TEMPERATURE, absolute=True)}
 
@@ -466,7 +445,7 @@ def test_the_absolute_marker_reads_on_a_tensor() -> None:
 def test_a_tag_reads_on_a_tensor() -> None:
     @system
     class Rig(metaclass=Interface):
-        m: TaggedMassOverADomain = field()
+        m: TaggedMassOverADomainField = field()
 
     assert Rig.__bilt_port_declarations__ == {"m": PortDeclaration(MASS * Metadata("co2"))}
 
@@ -478,7 +457,7 @@ def test_a_tensor_annotation_reads_at_an_equation_and_a_transform() -> None:
 
     @transform
     def doubled(m: MassOverADomain) -> MassOverADomain:
-        return m * 2.0
+        return m * 2.0  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
 
     assert balance.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "n": PortDeclaration(MASS)}
     assert doubled.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "doubled": PortDeclaration(MASS)}
@@ -544,15 +523,22 @@ def test_minimum_domain_metadata_rejects_duplicate_and_non_tensor_contracts() ->
             mass: typing.Annotated[QuantityLike, MASS, Domain((time,))] = field()
 
 
-def test_existing_tensor_domain_hints_are_not_minimum_requirements() -> None:
+def test_unitless_tensor_domain_hints_do_not_declare_physical_units() -> None:
     time = dim("time")
 
     @system
-    class Legacy(metaclass=Interface):
-        tensor: typing.Annotated[Tensor, MASS, Domain((time,))] = field()
-        scalar: typing.Annotated[Quantity, MASS, Domain.scalar()] = field()
+    class Plain(metaclass=Interface):
         unitless: typing.Annotated[Tensor, Domain((time,))] = field()
 
-    assert Legacy.__bilt_port_declarations__["tensor"].required_domain is None
-    assert Legacy.__bilt_port_declarations__["scalar"].required_domain is None
-    assert "unitless" not in Legacy.__bilt_port_declarations__
+    assert Plain.__bilt_port_declarations__ == {}
+
+
+def test_dimensioned_quantity_system_field_uses_new_api() -> None:
+    with pytest.raises(BiltPortDeclarationError, match="old Quantity system-field annotation"):
+        _system_field(typing.Annotated[Quantity, MASS])
+
+
+@pytest.mark.parametrize("declare", (_system_field, _equation_parameter, _transform_parameter, _transform_return))
+def test_dimensioned_tensor_annotation_uses_new_api(declare: collections.abc.Callable[[object], None]) -> None:
+    with pytest.raises(BiltPortDeclarationError, match="old dimensioned Tensor annotation"):
+        declare(typing.Annotated[Tensor, MASS])
