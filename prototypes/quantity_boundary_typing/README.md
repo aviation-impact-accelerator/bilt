@@ -76,9 +76,9 @@ unitless = tensor([1.0], over=time)
 scalar = NativeQuantity(1.0, kilogram)
 labelled = quantity_tensor([1.0], over=time, unit=kilogram)
 
-accepts_mass(unitless)        # Reject: unit may be None and no value property
-accepts_scalar(labelled)     # Reject: tensor magnitude is not float
-accepts_tensor(scalar)       # Reject: scalar magnitude is not Tensor
+accepts_mass(unitless)  # Reject: unit may be None and no value property
+accepts_scalar(labelled)  # Reject: tensor magnitude is not float
+accepts_tensor(scalar)  # Reject: scalar magnitude is not Tensor
 ```
 
 The next step is to wire those up as expected-failure fixture checks so a
