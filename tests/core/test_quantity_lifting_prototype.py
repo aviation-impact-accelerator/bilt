@@ -122,7 +122,7 @@ def prototype_instantiate(cls: Interface, **inputs: object) -> object:
         if kind == "tensor" and not isinstance(value, Tensor):
             msg = f"{name} requires a tensor quantity at the system boundary"
             raise TypeError(msg)
-    return typing.cast("Callable[..., object]", cls)(**inputs)
+    return typing.cast("typing.Callable[..., object]", cls)(**inputs)
 
 
 @prototype_system
