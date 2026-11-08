@@ -393,3 +393,35 @@ def test_scalar_and_tensor_quantity_protocol_boundaries_reject_wrong_carrier() -
         ScalarOnly(mass=typing.cast("QuantityLike[float]", tensor([1.0], over=time, unit=kilogram)))
     with pytest.raises(BiltInputDimensionalityError):
         TensorOnly(mass=typing.cast("QuantityLike[Tensor]", Quantity(2.0, kilogram)))
+
+
+type ConcreteTensorMass = typing.Annotated[QuantityTensor, MASS]
+
+
+@system
+class ConcreteTensorTotals(metaclass=Interface):
+    m: ConcreteTensorMass = field()
+    total: FlexibleMass = field()
+
+
+@equation
+def concrete_tensor_total(m: ConcreteTensorMass, total: Mass) -> bool:
+    return total == m.sum(time)
+
+
+def _typed_tensor_reduction(value: QuantityTensor) -> Tensor:
+    result = value.sum(time)
+    typing.assert_type(result, Tensor)
+    return result
+
+
+def test_concrete_quantity_tensor_reduction_preserves_outer_dimension() -> None:
+    scenario = dim("scenario")
+    masses = tensor([[1.0, 2.0], [3.0, 4.0]], over=(scenario, time), unit=kilogram)
+    with Implementation(ConcreteTensorTotals, [concrete_tensor_total]):
+        result = ConcreteTensorTotals(m=masses).total
+    assert isinstance(result, Tensor)
+    assert result.domain.dims == (scenario,)
+    np.testing.assert_array_equal(result.values, [3.0, 7.0])
+    if typing.TYPE_CHECKING:
+        _typed_tensor_reduction(masses)
