@@ -22,6 +22,6 @@ jobs:
       - run: uv sync --all-extras --all-groups
       - run: uv run pytest -q prototypes/quantity_abc/tests
       - run: uv run ty check prototypes/quantity_abc
-      - run: uv run pyrefly check prototypes/quantity_abc
+      - run: uv run pyrefly check --search-path . prototypes/quantity_abc
       - run: uv run ruff check prototypes/quantity_abc
       - run: uv run ruff format --check prototypes/quantity_abc
