@@ -1,0 +1,9 @@
+extend = "../../pyproject.toml"
+
+[lint]
+# Prototype implementations keep production checks, while exploratory
+# examples/tests follow the repo's existing relaxed test conventions.
+extend-ignore = ["D102", "D103", "D105", "D107", "TC001"]
+
+[lint.per-file-ignores]
+"tests/*.py" = ["S101", "PLC0415"]
