@@ -1,11 +1,14 @@
 """The common quantity contract does not require shared implementation inheritance."""
 
+import typing
 from dataclasses import dataclass
 from typing import assert_type
 
 from bilt import Tensor, dim, tensor
 from bilt.units import Quantity, Unit, kilogram
-from bilt.units._quantity_protocol import QuantityLike
+
+if typing.TYPE_CHECKING:
+    from bilt.units._quantity_protocol import QuantityLike
 
 
 @dataclass(frozen=True)
