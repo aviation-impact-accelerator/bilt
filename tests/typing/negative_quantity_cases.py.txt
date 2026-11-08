@@ -8,7 +8,7 @@ and then removes the file.
 
 from typing import Annotated
 
-from bilt import Interface, Quantity, QuantityLike, QuantityTensor, dim, field, system, tensor
+from bilt import Interface, Quantity, QuantityLike, QuantityTensor, Tensor, dim, field, system, tensor
 from bilt.units import kilogram
 from bilt.units.dimensions import MASS
 
@@ -56,3 +56,11 @@ class TensorOnly(metaclass=Interface):
 
 ScalarOnly(mass=labelled)  # expect: scalar-system-rejects-tensor
 TensorOnly(mass=scalar)  # expect: tensor-system-rejects-scalar
+
+
+@system
+class UnitlessFlexible(metaclass=Interface):
+    value: float | Tensor = field()
+
+
+UnitlessFlexible(value=scalar)  # expect: unitless-union-rejects-scalar-quantity

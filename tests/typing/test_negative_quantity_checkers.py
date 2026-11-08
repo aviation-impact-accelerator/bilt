@@ -52,6 +52,10 @@ EXPECTED_CODES: dict[str, dict[str, frozenset[str]]] = {
         "ty": frozenset({"invalid-argument-type"}),
         "pyrefly": frozenset({"bad-argument-type"}),
     },
+    "unitless-union-rejects-scalar-quantity": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
 }
 
 

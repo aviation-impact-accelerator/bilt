@@ -176,6 +176,35 @@ cost      (location, time)
 
 Bilt can align the values using the **names of their dimensions**, rather than requiring the user to arrange axes purely by position.
 
+### Scalar or tensor values at system boundaries
+
+When a system can accept either a plain scalar or a **unitless** tensor,
+a union is sufficient. There is no need for an additional Bilt protocol:
+
+```python
+from bilt import Interface, Tensor, field, system
+
+type Value = float | Tensor
+
+
+@system
+class Scale(metaclass=Interface):
+    x: Value = field()
+    doubled: Value = field()
+```
+
+Both `Scale(x=2.0)` and `Scale(x=tensor([1.0, 2.0], over=time))`
+are accepted. An equation can still use `float` annotations and Bilt will
+lift it over the input's named domain. This keeps the system's accepted
+value types separate from the local operations of the equation.
+
+**Limit of static typing:** The concrete `QuantityTensor` class currently
+inherits `Tensor`. Python type checkers therefore also consider a
+unit-bearing tensor valid wherever a `Tensor` is annotated. Bilt rejects
+it **at runtime** at a plain, unitless port. A static guarantee that the
+tensor has no unit would require a separate tensor typing design; a
+`float | Tensor` union cannot provide that guarantee.
+
 ### Requiring a minimum domain
 
 A system input can require a particular named dimension without fixing the
