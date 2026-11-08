@@ -58,6 +58,55 @@ fields and scalar equation ports without changing its equation or
 request `TensorMass`, explicitly communicating that requirement. This is a
 future API, **not** functionality implemented by this prototype.
 
+## Production-migration architecture experiment
+
+The additional `architecture/` package tests a proposed **one-way dependency**
+without changing any production classes. It intentionally uses a small,
+independent tensor foundation rather than inheriting from production
+`bilt.Tensor` (which still imports `bilt.units`).
+
+```mermaid
+flowchart TD
+    QT["QuantityTensor (composition layer)"] --> Q["Quantity[M] (unit-aware)"]
+    QT --> T["Tensor foundation (unit-free)"]
+    Q --> T
+    Q --> U["Existing Unit / conversion logic"]
+```
+
+The foundation cannot import `bilt.units` or any quantity implementation.
+Import-boundary tests parse its imports, import it in a fresh Python process
+and verify that `bilt.units` has **not** been initialised. Other tests
+check both import orders.
+
+`architecture/_quantity.py` tests the **alternative** of a concrete generic
+`Quantity` retaining `Quantity(2.0, kilogram)` and `.value` while
+`QuantityTensor` satisfies both `Tensor` and `Quantity[Tensor]` at runtime.
+This deliberately coexists with the original abstract-base-class experiment;
+it does not settle whether `ScalarQuantity` should be a separate production type.
+
+`architecture/typing_examples.py` contains an **executable miniature system
+and implementation** using `Annotated[Quantity, MASS]` fields, the same
+`double_mass` equation for scalar and tensor magnitudes, and a tensor-only
+reduction for `Quantity[Tensor]`. This is a lightweight model fixture, not
+Bilt's real `@system`/`Implementation` compiler. The existing
+`typing_examples.py` continues to exercise a real production Bilt model.
+
+The unit adapter `typed(kilogram)` demonstrates the intended return
+types from `float * Unit` and `Tensor * Unit` without monkeypatching
+production `Unit`. The common quantity arithmetic is intentionally limited:
+it does not reimplement Bilt broadcasting, absolute-temperature arithmetic,
+symbolic lowering, backend dispatch or complete tensor reductions. A future
+production PR should preserve those behaviours instead of simply replacing
+the production Tensor with this deliberately small example.
+
+Run the focused tests alongside the existing prototype checks:
+
+```sh
+PYTHONPATH=.:src uv run pytest -q prototypes/quantity_abc/tests
+uv run ty check prototypes/quantity_abc
+uv run pyrefly check --search-path . prototypes/quantity_abc
+```
+
 ## Decisions before a production PR
 
 1. How to migrate the existing scalar `Quantity` and unit-bearing `Tensor` without changing their external behaviour, including `Quantity.value`, tensor reductions and arithmetic.
