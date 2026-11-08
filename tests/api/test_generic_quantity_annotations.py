@@ -65,7 +65,7 @@ def reduce_mass(mass: TensorMass, total: ScalarMass) -> bool:
     The generic protocol does not yet declare tensor-specific operators;
     adding their static signatures is a separate API decision.
     """
-    return total == getattr(mass, "sum")(time)
+    return total == getattr(mass, "sum")(time)  # noqa: B009
 
 
 def test_generic_quantity_declarations_distinguish_boundaries() -> None:
