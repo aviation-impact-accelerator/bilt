@@ -11,6 +11,8 @@ from bilt import (
     Implementation,
     Interface,
     Quantity,
+    QuantityLike,
+    QuantityTensor,
     Tensor,
     dim,
     equation,
@@ -349,3 +351,45 @@ def test_rank_zero_tensor_outputs_can_be_reused(backend: Backend) -> None:
     np.testing.assert_allclose(intermediate.values, 2.0)
     np.testing.assert_allclose(direct.values, 6.0)
     np.testing.assert_allclose(sequential.values, direct.values)
+
+
+type FlexibleMass = typing.Annotated[QuantityLike, MASS]
+type ScalarContractMass = typing.Annotated[QuantityLike[float], MASS]
+type TensorContractMass = typing.Annotated[QuantityLike[Tensor], MASS]
+
+
+@system
+class GenericMassScale(metaclass=Interface):
+    m: FlexibleMass = field()
+    doubled: FlexibleMass = field()
+
+
+@equation
+def generic_mass_copy(m: ScalarContractMass, doubled: ScalarContractMass) -> bool:
+    return doubled == m
+
+
+def test_generic_quantity_boundary_accepts_scalar_and_tensor_without_ignores() -> None:
+    mass = Quantity(2.0, kilogram)
+    varied = tensor([1.0, 2.0], over=time, unit=kilogram)
+    typing.assert_type(varied, QuantityTensor)
+    with Implementation(GenericMassScale, [generic_mass_copy]):
+        assert GenericMassScale(m=mass).doubled == mass
+        answer = GenericMassScale(m=varied).doubled
+    assert isinstance(answer, Tensor)
+    np.testing.assert_array_equal(answer.values, [1.0, 2.0])
+
+
+def test_scalar_and_tensor_quantity_protocol_boundaries_reject_wrong_carrier() -> None:
+    @system
+    class ScalarOnly(metaclass=Interface):
+        mass: ScalarContractMass = field()
+
+    @system
+    class TensorOnly(metaclass=Interface):
+        mass: TensorContractMass = field()
+
+    with pytest.raises(BiltInputDimensionalityError):
+        ScalarOnly(mass=typing.cast("QuantityLike[float]", tensor([1.0], over=time, unit=kilogram)))
+    with pytest.raises(BiltInputDimensionalityError):
+        TensorOnly(mass=typing.cast("QuantityLike[Tensor]", Quantity(2.0, kilogram)))

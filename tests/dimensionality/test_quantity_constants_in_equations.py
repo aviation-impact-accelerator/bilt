@@ -4,24 +4,29 @@ import typing
 
 import pytest
 
-from bilt import Implementation, Interface, equation, field, system
+from bilt import Implementation, Interface, QuantityLike, equation, field, system
 from bilt.errors import BiltEquationDimensionalityError, BiltSymbolicConversionError
 from bilt.units import UNITLESS, Quantity
 from bilt.units.dimensions import DIMENSIONLESS, FORCE, LENGTH, MASS, TEMPERATURE, TIME
 from bilt.units.units import absolute_celsius, hour, kilogram, kilometer, meter, newton, second
 
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
+DimensionlessField = typing.Annotated[QuantityLike, DIMENSIONLESS]
 Force = typing.Annotated[Quantity, FORCE]
+ForceField = typing.Annotated[QuantityLike, FORCE]
 Length = typing.Annotated[Quantity, LENGTH]
+LengthField = typing.Annotated[QuantityLike, LENGTH]
 Mass = typing.Annotated[Quantity, MASS]
+MassField = typing.Annotated[QuantityLike, MASS]
 Temperature = typing.Annotated[Quantity, TEMPERATURE]
 Time = typing.Annotated[Quantity, TIME]
+TimeField = typing.Annotated[QuantityLike, TIME]
 
 
 @system
 class Body(metaclass=Interface):
-    force: Force = field()
-    mass: Mass = field()
+    force: ForceField = field()
+    mass: MassField = field()
 
 
 @equation
@@ -74,8 +79,8 @@ def test_a_quantity_constant_referred_to_by_name_means_the_same() -> None:
 def test_a_constant_in_another_unit_means_what_it_says() -> None:
     @system
     class Journey(metaclass=Interface):
-        distance: Length = field()
-        duration: Time = field()
+        distance: LengthField = field()
+        duration: TimeField = field()
 
     @equation
     def cruise(distance: Length, duration: Time) -> bool:
@@ -91,8 +96,8 @@ def test_a_constant_in_another_unit_means_what_it_says() -> None:
 def test_a_bare_unit_is_one_of_that_unit() -> None:
     @system
     class Route(metaclass=Interface):
-        distance: Length = field()
-        laps: Dimensionless = field()
+        distance: LengthField = field()
+        laps: DimensionlessField = field()
 
     @equation
     def lapping(distance: Length, laps: Dimensionless) -> bool:

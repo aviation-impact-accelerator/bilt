@@ -4,7 +4,7 @@ import typing
 
 import pytest
 
-from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, equation, field, system
+from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, QuantityLike, equation, field, system
 from bilt.errors import BiltInputDimensionalityError
 from bilt.units import Quantity
 from bilt.units.dimensions import AREA, FORCE, LENGTH, MASS, TIME
@@ -14,17 +14,22 @@ if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
 
 Acceleration = typing.Annotated[Quantity, LENGTH / TIME**2]
+AccelerationField = typing.Annotated[QuantityLike, LENGTH / TIME**2]
 Area = typing.Annotated[Quantity, AREA]
+AreaField = typing.Annotated[QuantityLike, AREA]
 Force = typing.Annotated[Quantity, FORCE]
+ForceField = typing.Annotated[QuantityLike, FORCE]
 Length = typing.Annotated[Quantity, LENGTH]
+LengthField = typing.Annotated[QuantityLike, LENGTH]
 Mass = typing.Annotated[Quantity, MASS]
+MassField = typing.Annotated[QuantityLike, MASS]
 
 
 @system
 class Route(metaclass=Interface):
-    outbound: Length = field()
-    inbound: Length = field()
-    total: Length = field()
+    outbound: LengthField = field()
+    inbound: LengthField = field()
+    total: LengthField = field()
 
 
 @equation
@@ -34,9 +39,9 @@ def journey(total: Length, outbound: Length, inbound: Length) -> bool:
 
 @system
 class Body(metaclass=Interface):
-    f: Force = field()
-    m: Mass = field()
-    a: Acceleration = field()
+    f: ForceField = field()
+    m: MassField = field()
+    a: AccelerationField = field()
 
 
 @equation
@@ -73,9 +78,9 @@ def test_a_rearranged_equation_answers_in_coherent_si_units() -> None:
 def test_quantities_that_contradict_a_declared_port_raise_at_instantiation() -> None:
     @system
     class Plot(metaclass=Interface):
-        width: Length = field()
-        depth: Length = field()
-        area: Area = field()
+        width: LengthField = field()
+        depth: LengthField = field()
+        area: AreaField = field()
 
     with pytest.raises(BiltInputDimensionalityError, match="'width'"):
         Plot(width=2.0 * kilogram, depth=3.0 * meter)

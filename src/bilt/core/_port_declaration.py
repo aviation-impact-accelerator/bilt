@@ -6,9 +6,10 @@ import dataclasses
 import typing
 
 from bilt.core._errors import BiltPortDeclarationError
-from bilt.core._tensors._tensors import Tensor
+from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.units import Dimension, Metadata, Quantity, Unit
 from bilt.units._errors import BiltUnitError
+from bilt.units._quantity_protocol import QuantityLike
 from bilt.units._units import BASE_UNIT_SYSTEM
 from bilt.units.dimensions import ABSOLUTE
 
@@ -28,6 +29,7 @@ class PortDeclaration:
     dimensionality: Dimension
     absolute: bool = False
     over_a_domain: bool = dataclasses.field(default=False, compare=False)
+    scalar_only: bool = dataclasses.field(default=False, compare=False)
 
     @property
     def coherent_unit(self) -> Unit:
@@ -47,6 +49,29 @@ def annotated_parts(annotation: object) -> tuple[object, list[object]]:
         base_type, *metadata = typing.get_args(annotation)
         return base_type, metadata
     return annotation, []
+
+
+def quantity_magnitude_kind(base_type: object) -> typing.Literal["scalar", "tensor", "either"] | None:
+    """Identify a shared quantity contract without changing legacy Quantity semantics.
+
+    Bare QuantityLike is intentionally liftable at system boundaries. Its
+    float specialisation means scalar *values* at system boundaries, but a
+    scalar-local symbolic expression when used by an equation.
+    """
+    if base_type is QuantityLike:
+        return "either"
+    if typing.get_origin(base_type) is not QuantityLike:
+        return None
+
+    args = typing.get_args(base_type)
+    if args == (float,):
+        return "scalar"
+    if args == (Tensor,):
+        return "tensor"
+    if args == (object,):
+        return "either"
+    msg = f"Unsupported QuantityLike magnitude argument {args!r}; use float or Tensor."
+    raise TypeError(msg)
 
 
 def port_declarations(
@@ -83,8 +108,9 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
         raise BiltPortDeclarationError(owner_name, port, msg)
 
     dimensionality = dimensionalities[0] if dimensionalities else None
-    carries_quantity = base_type is Quantity
-    over_a_domain = base_type is Tensor
+    magnitude_kind = quantity_magnitude_kind(base_type)
+    carries_quantity = base_type is Quantity or magnitude_kind is not None
+    over_a_domain = base_type in (Tensor, QuantityTensor) or magnitude_kind == "tensor"
     absolute = any(item is ABSOLUTE for item in metadata)
     if dimensionality is None and (carries_quantity or absolute):
         msg = (
@@ -104,7 +130,12 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
     if dimensionality is None:
         return None
 
-    declaration = PortDeclaration(dimensionality, absolute=absolute, over_a_domain=over_a_domain)
+    declaration = PortDeclaration(
+        dimensionality,
+        absolute=absolute,
+        over_a_domain=over_a_domain,
+        scalar_only=magnitude_kind == "scalar",
+    )
     if absolute:
         try:
             _ = declaration.coherent_unit

@@ -2,9 +2,9 @@ import typing
 
 import pytest
 
-from bilt import Interface, equation, field, system, transform
+from bilt import Interface, QuantityLike, equation, field, system, transform
 from bilt.core._port_declaration import PortDeclaration
-from bilt.core._tensors._tensors import Tensor
+from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.errors import BiltEquationDimensionalityError, BiltPortDeclarationError
 from bilt.units import Metadata, Quantity, kilogram
 from bilt.units.dimensions import ABSOLUTE, AREA, DIMENSIONLESS, LENGTH, MASS, TEMPERATURE, TIME
@@ -481,3 +481,27 @@ def test_a_tensor_annotation_reads_at_an_equation_and_a_transform() -> None:
 
     assert balance.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "n": PortDeclaration(MASS)}
     assert doubled.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "doubled": PortDeclaration(MASS)}
+
+
+def test_generic_quantity_annotation_distinguishes_scalar_and_tensor_ports() -> None:
+    @system
+    class Variants(metaclass=Interface):
+        flexible: typing.Annotated[QuantityLike, MASS] = field()
+        scalar: typing.Annotated[QuantityLike[float], MASS] = field()
+        tensor: typing.Annotated[QuantityLike[Tensor], MASS] = field()
+        concrete: typing.Annotated[QuantityTensor, MASS] = field()
+
+    declarations = Variants.__bilt_port_declarations__
+    assert not declarations["flexible"].scalar_only
+    assert declarations["scalar"].scalar_only
+    assert declarations["tensor"].over_a_domain
+    assert declarations["concrete"].over_a_domain
+    assert all(declaration == PortDeclaration(MASS) for declaration in declarations.values())
+
+
+def test_bare_generic_quantity_still_requires_physical_dimension() -> None:
+    with pytest.raises(BiltPortDeclarationError, match="without a dimensionality"):
+
+        @system
+        class MissingDimension(metaclass=Interface):
+            mass: QuantityLike = field()

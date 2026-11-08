@@ -4,17 +4,22 @@ import typing
 
 import pytest
 
-from bilt import Implementation, Interface, equation, field, system, transform
+from bilt import Implementation, Interface, QuantityLike, equation, field, system, transform
 from bilt.errors import BiltImplementationDimensionalityError, BiltUnitsError
 from bilt.units import Quantity
 from bilt.units.dimensions import ABSOLUTE, CURRENT, FORCE, MASS, POWER, RESISTANCE, TEMPERATURE, VOLTAGE
 
 Current = typing.Annotated[Quantity, CURRENT]
+CurrentField = typing.Annotated[QuantityLike, CURRENT]
 Force = typing.Annotated[Quantity, FORCE]
+ForceField = typing.Annotated[QuantityLike, FORCE]
 Mass = typing.Annotated[Quantity, MASS]
+MassField = typing.Annotated[QuantityLike, MASS]
 Power = typing.Annotated[Quantity, POWER]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
+ResistanceField = typing.Annotated[QuantityLike, RESISTANCE]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
+VoltageField = typing.Annotated[QuantityLike, VOLTAGE]
 
 
 @equation
@@ -35,10 +40,10 @@ def halving(halved: Voltage, scaled: Voltage) -> bool:
 def test_constituents_agreeing_on_a_shared_port_construct() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: Voltage = field()
-        i: Current = field()
-        r: Resistance = field()
-        scaled: Voltage = field()
+        v: VoltageField = field()
+        i: CurrentField = field()
+        r: ResistanceField = field()
+        scaled: VoltageField = field()
 
     Implementation(Rig, [ohms_law, doubling])
 
@@ -46,10 +51,10 @@ def test_constituents_agreeing_on_a_shared_port_construct() -> None:
 def test_a_port_only_one_constituent_declares_raises_naming_the_declaring_owner_and_the_plain_one() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: Voltage = field()
-        i: Current = field()
-        r: Resistance = field()
-        scaled: Voltage = field()
+        v: VoltageField = field()
+        i: CurrentField = field()
+        r: ResistanceField = field()
+        scaled: VoltageField = field()
 
     @equation
     def plain_doubling(scaled: float, v: float) -> bool:
@@ -68,9 +73,9 @@ def test_a_port_only_one_constituent_declares_raises_naming_the_declaring_owner_
 def test_a_declared_conflict_names_both_sources() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: Voltage = field()
-        i: Current = field()
-        r: Resistance = field()
+        v: VoltageField = field()
+        i: CurrentField = field()
+        r: ResistanceField = field()
 
     @equation
     def resting(v: Mass) -> bool:
@@ -87,11 +92,11 @@ def test_a_declared_conflict_names_both_sources() -> None:
 def test_a_conflict_reads_the_same_whatever_the_constituent_order() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: Voltage = field()
-        i: Current = field()
-        r: Resistance = field()
-        scaled: Force = field()
-        halved: Voltage = field()
+        v: VoltageField = field()
+        i: CurrentField = field()
+        r: ResistanceField = field()
+        scaled: ForceField = field()
+        halved: VoltageField = field()
 
     messages = set()
     for constituents in ([ohms_law, doubling, halving], [halving, doubling, ohms_law]):
@@ -105,9 +110,9 @@ def test_a_conflict_reads_the_same_whatever_the_constituent_order() -> None:
 def test_a_sub_system_holds_its_ports_to_their_declarations_under_their_dotted_names() -> None:
     @system
     class Resistor(metaclass=Interface):
-        v: Voltage = field()
-        i: Current = field()
-        r: Resistance = field()
+        v: VoltageField = field()
+        i: CurrentField = field()
+        r: ResistanceField = field()
 
     with pytest.raises(BiltUnitsError, match="wiring") as raised:
 
@@ -123,9 +128,9 @@ def test_a_sub_system_holds_its_ports_to_their_declarations_under_their_dotted_n
 def test_a_transform_output_takes_its_return_annotation() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: Voltage = field()
-        i: Current = field()
-        power: Mass = field()
+        v: VoltageField = field()
+        i: CurrentField = field()
+        power: MassField = field()
 
     @transform
     def power(v: Voltage, i: Current) -> Power:

@@ -12,6 +12,7 @@ from bilt.core._transform import transform
 from bilt.symbolic._dimensions import CoordinateAxis, Dim, coordinate_axis, dim
 from bilt.symbolic._domains import Domain, as_domain, domain
 from bilt.units import Quantity
+from bilt.units._quantity_protocol import QuantityLike
 
 if typing.TYPE_CHECKING:
     from bilt._backend._jax import JAX_BACKEND
@@ -25,6 +26,7 @@ __all__ = [
     "Implementation",
     "Interface",
     "Quantity",
+    "QuantityLike",
     "QuantityTensor",
     "Tensor",
     "as_domain",
