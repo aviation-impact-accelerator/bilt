@@ -9,7 +9,6 @@ from bilt import Tensor, dim, tensor
 from bilt.units import Quantity as NativeQuantity
 from bilt.units import kilogram, meter, millimeter
 from bilt.units.dimensions import LENGTH
-
 from prototypes.quantity_abc.prototype import Quantity, QuantityTensor, ScalarQuantity
 
 
