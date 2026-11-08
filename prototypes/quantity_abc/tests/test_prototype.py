@@ -51,3 +51,9 @@ def test_annotated_preserves_dimension_metadata() -> None:
 def test_existing_bilt_quantities_unchanged() -> None:
     assert isinstance(2.0 * kilogram, NativeQuantity)
     assert not isinstance(2.0 * kilogram, Quantity)
+
+
+def test_system_implementation_example() -> None:
+    from prototypes.quantity_abc.typing_examples import run_mass_scale
+
+    assert run_mass_scale() == 4.0 * kilogram
