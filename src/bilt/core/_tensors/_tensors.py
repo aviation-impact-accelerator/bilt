@@ -1,7 +1,7 @@
 __all__ = [
     "OverArg",
-    "Tensor",
     "QuantityTensor",
+    "Tensor",
     "tensor",
 ]
 
