@@ -31,6 +31,7 @@ from bilt.units.dimensions import MASS
 type Mass = typing.Annotated[QuantityLike, MASS]
 type ScalarMass = typing.Annotated[QuantityLike[float], MASS]
 type TensorMass = typing.Annotated[QuantityLike[Tensor], MASS]
+type LegacyMass = typing.Annotated[Quantity, MASS]
 time = dim("time")
 scenario = dim("scenario")
 
@@ -149,8 +150,6 @@ def test_tensor_only_boundary_rejects_scalar_at_runtime() -> None:
 
 def test_legacy_scalar_quantity_remains_liftable() -> None:
     """The existing annotations keep their permissive lifting semantics."""
-    type LegacyMass = typing.Annotated[Quantity, MASS]
-
     @system
     class Legacy(metaclass=Interface):
         m: LegacyMass = field()
