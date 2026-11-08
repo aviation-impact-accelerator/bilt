@@ -128,7 +128,7 @@ def test_native_quantity_and_tensor_conform_to_generic_contract() -> None:
     assert_type(varied.value, Tensor)
     assert accepts_mass(scalar) is kilogram
     assert accepts_mass(varied) is kilogram
-    assert accepts_scalar(scalar) == 2.0
+    assert accepts_scalar(scalar) == scalar.value
     assert accepts_tensor(varied) == (3,)
     assert varied.value.unit is None
     assert isinstance(varied, Tensor)
