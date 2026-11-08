@@ -2,10 +2,11 @@ import typing
 
 import pytest
 
-from bilt import Interface, QuantityLike, equation, field, system, transform
+from bilt import Interface, QuantityLike, dim, equation, field, system, transform
 from bilt.core._port_declaration import PortDeclaration
 from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.errors import BiltEquationDimensionalityError, BiltPortDeclarationError
+from bilt.symbolic._domains import Domain
 from bilt.units import Metadata, Quantity, kilogram
 from bilt.units.dimensions import ABSOLUTE, AREA, DIMENSIONLESS, LENGTH, MASS, TEMPERATURE, TIME
 
@@ -505,3 +506,53 @@ def test_bare_generic_quantity_still_requires_physical_dimension() -> None:
         @system
         class MissingDimension(metaclass=Interface):
             mass: QuantityLike = field()
+
+
+def test_new_quantity_tensor_domain_declares_minimum_named_axes() -> None:
+    time = dim("time")
+
+    @system
+    class Rig(metaclass=Interface):
+        mass: typing.Annotated[QuantityLike[Tensor], MASS, Domain((time,))] = field()
+        scalar: typing.Annotated[QuantityLike, MASS] = field()
+
+    declared = Rig.__bilt_port_declarations__["mass"]
+    assert declared.required_domain == Domain((time,))
+    assert declared.over_a_domain
+    assert declared == Rig.__bilt_port_declarations__["scalar"]
+
+
+def test_minimum_domain_metadata_rejects_duplicate_and_non_tensor_contracts() -> None:
+    time = dim("time")
+    scenario = dim("scenario")
+    with pytest.raises(BiltPortDeclarationError, match="more than one required domain"):
+
+        @system
+        class Duplicate(metaclass=Interface):
+            mass: typing.Annotated[QuantityTensor, MASS, Domain((time,)), Domain((scenario,))] = field()
+
+    with pytest.raises(BiltPortDeclarationError, match="scalar or generic quantity"):
+
+        @system
+        class Scalar(metaclass=Interface):
+            mass: typing.Annotated[QuantityLike[float], MASS, Domain((time,))] = field()
+
+    with pytest.raises(BiltPortDeclarationError, match="scalar or generic quantity"):
+
+        @system
+        class Generic(metaclass=Interface):
+            mass: typing.Annotated[QuantityLike, MASS, Domain((time,))] = field()
+
+
+def test_existing_tensor_domain_hints_are_not_minimum_requirements() -> None:
+    time = dim("time")
+
+    @system
+    class Legacy(metaclass=Interface):
+        tensor: typing.Annotated[Tensor, MASS, Domain((time,))] = field()
+        scalar: typing.Annotated[Quantity, MASS, Domain.scalar()] = field()
+        unitless: typing.Annotated[Tensor, Domain((time,))] = field()
+
+    assert Legacy.__bilt_port_declarations__["tensor"].required_domain is None
+    assert Legacy.__bilt_port_declarations__["scalar"].required_domain is None
+    assert "unitless" not in Legacy.__bilt_port_declarations__

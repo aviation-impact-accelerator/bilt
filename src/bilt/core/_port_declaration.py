@@ -7,6 +7,7 @@ import typing
 
 from bilt.core._errors import BiltPortDeclarationError
 from bilt.core._tensors._tensors import QuantityTensor, Tensor
+from bilt.symbolic._domains import Domain
 from bilt.units import Dimension, Metadata, Quantity, Unit
 from bilt.units._errors import BiltUnitError
 from bilt.units._quantity_protocol import QuantityLike
@@ -30,6 +31,7 @@ class PortDeclaration:
     absolute: bool = False
     over_a_domain: bool = dataclasses.field(default=False, compare=False)
     scalar_only: bool = dataclasses.field(default=False, compare=False)
+    required_domain: Domain | None = dataclasses.field(default=None, compare=False)
 
     @property
     def coherent_unit(self) -> Unit:
@@ -74,6 +76,31 @@ def quantity_magnitude_kind(base_type: object) -> typing.Literal["scalar", "tens
     raise TypeError(msg)
 
 
+def _required_domain(
+    owner_name: str,
+    port: str,
+    metadata: list[object],
+    base_type: object,
+    dimensionality: Dimension | None,
+) -> Domain | None:
+    """Read the new tensor quantity minimum-domain constraint, preserving legacy hints."""
+    # Existing Quantity/Tensor Domain metadata is used by structural analysis
+    # as a hint. Keep those annotations unchanged, including scalar Domain().
+    if dimensionality is None or base_type in (Quantity, Tensor):
+        return None
+
+    domains = [item for item in metadata if isinstance(item, Domain)]
+    if len(domains) > 1:
+        msg = "declares more than one required domain. Declare at most one Domain in Annotated."
+        raise BiltPortDeclarationError(owner_name, port, msg)
+    if not domains:
+        return None
+    if base_type is not QuantityTensor and quantity_magnitude_kind(base_type) != "tensor":
+        msg = "declares a required Domain on a scalar or generic quantity; use QuantityTensor or QuantityLike[Tensor]."
+        raise BiltPortDeclarationError(owner_name, port, msg)
+    return domains[0]
+
+
 def port_declarations(
     owner_name: str,
     port_annotations: collections.abc.Mapping[str, object],
@@ -111,6 +138,7 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
     magnitude_kind = quantity_magnitude_kind(base_type)
     carries_quantity = base_type is Quantity or magnitude_kind is not None
     over_a_domain = base_type in (Tensor, QuantityTensor) or magnitude_kind == "tensor"
+    required_domain = _required_domain(owner_name, port, metadata, base_type, dimensionality)
     absolute = any(item is ABSOLUTE for item in metadata)
     if dimensionality is None and (carries_quantity or absolute):
         msg = (
@@ -135,6 +163,7 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
         absolute=absolute,
         over_a_domain=over_a_domain,
         scalar_only=magnitude_kind == "scalar",
+        required_domain=required_domain,
     )
     if absolute:
         try:

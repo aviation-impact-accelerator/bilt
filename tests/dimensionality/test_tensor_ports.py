@@ -22,6 +22,7 @@ from bilt import (
     transform,
 )
 from bilt.errors import BiltImplementationDimensionalityError, BiltInputDimensionalityError
+from bilt.symbolic._domains import Domain
 from bilt.units import Metadata, absolute_celsius, gram, kelvin, kilogram, meter, second, tonne
 from bilt.units.dimensions import ABSOLUTE, FORCE, LENGTH, MASS, TEMPERATURE, TIME
 
@@ -425,3 +426,37 @@ def test_concrete_quantity_tensor_reduction_preserves_outer_dimension() -> None:
     np.testing.assert_array_equal(result.values, [3.0, 7.0])
     if typing.TYPE_CHECKING:
         _typed_tensor_reduction(masses)
+
+
+type TimeDomainMass = typing.Annotated[QuantityLike[Tensor], MASS, Domain((time,))]
+
+
+@system
+class RequiredTimeMass(metaclass=Interface):
+    m: TimeDomainMass = field()
+
+
+@system
+class RequiredTimeOutput(metaclass=Interface):
+    m: FlexibleMass = field()
+    doubled: TimeDomainMass = field()
+
+
+def test_required_tensor_domain_accepts_outer_axes_and_rejects_missing_axis() -> None:
+    scenario = dim("scenario")
+    accepted = tensor([[1.0, 2.0], [3.0, 4.0]], over=(scenario, time), unit=kilogram)
+    assert RequiredTimeMass(m=accepted).m is accepted
+    with pytest.raises(BiltInputDimensionalityError, match="missing dimensions: time"):
+        RequiredTimeMass(m=tensor([1.0, 2.0], over=scenario, unit=kilogram))
+    with pytest.raises(BiltInputDimensionalityError, match="missing dimensions: time"):
+        RequiredTimeMass(m=tensor(2.0, unit=kilogram))
+
+
+def test_computed_output_obeys_required_tensor_domain() -> None:
+    scenario = dim("scenario")
+    with Implementation(RequiredTimeOutput, [doubling]):
+        with pytest.raises(BiltInputDimensionalityError, match="missing dimensions: time"):
+            _ = RequiredTimeOutput(m=tensor([1.0, 2.0], over=scenario, unit=kilogram)).doubled
+        ok = RequiredTimeOutput(m=tensor([1.0, 2.0], over=time, unit=kilogram)).doubled
+    assert isinstance(ok, Tensor)
+    assert ok.domain.dims == (time,)
