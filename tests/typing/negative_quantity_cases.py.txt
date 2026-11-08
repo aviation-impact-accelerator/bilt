@@ -8,7 +8,7 @@ and then removes the file.
 
 from typing import Annotated
 
-from bilt import Interface, Quantity, QuantityLike, ScalarQuantityLike, TensorQuantityLike, dim, field, system, tensor
+from bilt import Interface, Quantity, QuantityLike, QuantityTensor, dim, field, system, tensor
 from bilt.units import kilogram
 from bilt.units.dimensions import MASS
 
@@ -23,11 +23,11 @@ def takes_quantity(mass: QuantityLike) -> None:
     pass
 
 
-def takes_scalar(mass: ScalarQuantityLike) -> None:
+def takes_scalar(mass: Quantity) -> None:
     pass
 
 
-def takes_tensor(mass: TensorQuantityLike) -> None:
+def takes_tensor(mass: QuantityTensor) -> None:
     pass
 
 
@@ -41,18 +41,17 @@ def generic_is_not_an_arithmetic_interface(mass: QuantityLike) -> None:
     _result = mass + mass  # expect: generic-quantity-has-no-arithmetic
 
 
-def tensor_has_no_concrete_scalar_scaling(mass: TensorQuantityLike) -> None:
-    _result = 2.0 * mass  # expect: tensor-contract-does-not-promise-scaling
+takes_tensor(unitless)  # expect: unitless-tensor-is-not-quantity-tensor
 
 
 @system
 class ScalarOnly(metaclass=Interface):
-    mass: Annotated[ScalarQuantityLike, MASS] = field()
+    mass: Annotated[Quantity, MASS] = field()
 
 
 @system
 class TensorOnly(metaclass=Interface):
-    mass: Annotated[TensorQuantityLike, MASS] = field()
+    mass: Annotated[QuantityTensor, MASS] = field()
 
 
 ScalarOnly(mass=labelled)  # expect: scalar-system-rejects-tensor
