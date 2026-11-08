@@ -17,7 +17,6 @@ class Conversion:
         return value * self.scale + self.offset
 
 
-
 def _create_absolute_unit_stack(unit: Unit) -> list[Unit]:
     stack = [unit]
     relative_unit = unit.relation.composition[0].unit
