@@ -4,12 +4,13 @@ from typing import Annotated, get_args, get_origin
 
 import numpy as np
 import pytest
-from ..prototype import Quantity, QuantityTensor, ScalarQuantity
 
 from bilt import Tensor, dim, tensor
 from bilt.units import Quantity as NativeQuantity
 from bilt.units import kilogram, meter, millimeter
 from bilt.units.dimensions import LENGTH
+
+from ..prototype import Quantity, QuantityTensor, ScalarQuantity
 
 
 def test_scalar_is_a_quantity_and_converts() -> None:
