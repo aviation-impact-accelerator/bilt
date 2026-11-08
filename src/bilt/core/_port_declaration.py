@@ -58,10 +58,8 @@ def quantity_magnitude_kind(base_type: object) -> typing.Literal["scalar", "tens
     float specialisation means scalar *values* at system boundaries, but a
     scalar-local symbolic expression when used by an equation.
     """
-    if base_type is ScalarQuantityLike:
-        return "scalar"
-    if base_type is TensorQuantityLike:
-        return "tensor"
+    if base_type in (ScalarQuantityLike, TensorQuantityLike):
+        return "scalar" if base_type is ScalarQuantityLike else "tensor"
     if base_type is QuantityLike:
         return "either"
     if typing.get_origin(base_type) is not QuantityLike:
