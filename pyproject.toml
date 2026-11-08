@@ -40,7 +40,7 @@ docs = [
 
 [tool.pyrefly]
 python_version = "3.15"
-search_path = ["src", "benchmarks"]
+search_path = ["src", "benchmarks", "."]
 
 [tool.ty.environment]
 extra-paths = ["benchmarks"]
