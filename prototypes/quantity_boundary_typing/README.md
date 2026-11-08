@@ -41,9 +41,8 @@ input typing**, not another equation compiler adapter.
 | Unitless Tensor | Reject | Reject | Reject |
 
 The positive cases are checked as part of normal repository-wide ty/Pyrefly
-CI, and executed through Bilt's actual system. For negative cases, use
-`negative_examples.py` and inspect *both* static checkers; it is intentionally
-excluded from normal project's type checking as its code is supposed to fail.
+CI, and executed through Bilt's actual system. Negative examples are documented below but intentionally not
+included in passing type-check fixtures.
 
 ### Limits
 
@@ -66,3 +65,21 @@ uv run pytest -q tests/core/test_quantity_boundary_typing_prototype.py
 uv run ty check tests/core/test_quantity_boundary_typing_prototype.py
 uv run pyrefly check tests/core/test_quantity_boundary_typing_prototype.py
 ```
+
+## Negative typing examples
+
+These statements should be rejected by a type checker when placed in a
+separate failing-check fixture (they are not executed by CI):
+
+```python
+unitless = tensor([1.0], over=time)
+scalar = NativeQuantity(1.0, kilogram)
+labelled = quantity_tensor([1.0], over=time, unit=kilogram)
+
+accepts_mass(unitless)        # Reject: unit may be None and no value property
+accepts_scalar(labelled)     # Reject: tensor magnitude is not float
+accepts_tensor(scalar)       # Reject: scalar magnitude is not Tensor
+```
+
+The next step is to wire those up as expected-failure fixture checks so a
+regression cannot silently make them valid.
