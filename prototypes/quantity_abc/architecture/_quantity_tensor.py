@@ -38,7 +38,10 @@ class QuantityTensor(Tensor, Quantity[Tensor]):
         """Return unitless magnitude, matching the generic contract."""
         return self.magnitude
 
-    def _with_magnitude(self, magnitude: Tensor, unit: Unit) -> Self:
+    def _with_magnitude(self, magnitude: float | Tensor, unit: Unit) -> Self:
+        if not isinstance(magnitude, Tensor):
+            message = "QuantityTensor needs a tensor magnitude"
+            raise TypeError(message)
         return self.__class__(magnitude.values, magnitude.domain, unit)
 
 
