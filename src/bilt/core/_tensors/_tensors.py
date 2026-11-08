@@ -12,6 +12,7 @@ import numpy as np
 from bilt.core._tensors._errors import BiltTensorDomainError
 from bilt.symbolic._dimensions import Coordinate, Dim
 from bilt.symbolic._domains import Domain
+from bilt.units._category import UnitCategory
 from bilt.units._conversion import conversion_between
 from bilt.units._errors import BiltUnitError
 from bilt.units._units import Unit
@@ -132,6 +133,9 @@ class Tensor:
                 f"Label it with `tensor(..., unit=...)` or by multiplying it by a unit."
             )
             raise BiltUnitError(message)
+        if self.unit.category is UnitCategory.ABSOLUTE and self.unit is unit:
+            return self
+
         conversion = conversion_between(self.unit, unit)
 
         return dataclasses.replace(self, values=self.values * conversion.scale + conversion.offset, unit=unit)
