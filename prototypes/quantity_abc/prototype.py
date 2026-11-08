@@ -93,7 +93,8 @@ class QuantityTensor(Tensor, Quantity[Tensor]):
 
     def convert_to(self, unit: Unit) -> Self:
         """Disambiguate Tensor and Quantity conversion return types."""
-        return Quantity.convert_to(self, unit)
+        conversion = conversion_between(self.unit, unit)
+        return self._converted(conversion.scale, conversion.offset, unit)
 
     def _with_unit(self, unit: Unit) -> Self:
         return self.__class__(values=self.values, domain=self.domain, unit=unit)
