@@ -6,19 +6,20 @@ Bilt's real system/equation compiler. No production compiler is replaced.
 
 import inspect
 import typing
-from collections.abc import Callable
 
 import numpy as np
 import pytest
 
 from bilt import Implementation, Interface, Tensor, dim, equation, field, system, tensor
-from bilt.core._equation import BasicEquation
 from bilt.core._port_declaration import annotated_parts
-from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._expressions import Expr, TensorExpr
 from bilt.units import Quantity as NativeQuantity
 from bilt.units import gram, kilogram, meter
 from bilt.units.dimensions import MASS
+
+if typing.TYPE_CHECKING:
+    from bilt.core._equation import BasicEquation
+    from bilt.symbolic._dimensions import Dim
 
 
 class Quantity[M: float | Tensor = float | Tensor]:
@@ -70,11 +71,11 @@ def _native_annotation(annotation: object) -> object:
         return annotation
 
     _, metadata = annotated_parts(annotation)
-    native: type[NativeQuantity] | type[Tensor] = Tensor if kind == "tensor" else NativeQuantity
+    native = Tensor if kind == "tensor" else NativeQuantity
     return typing.Annotated[native, *metadata] if metadata else native
 
 
-def prototype_equation[R, **P](function: Callable[P, R]) -> BasicEquation[R, P]:
+def prototype_equation[R, **P](function: typing.Callable[P, R]) -> BasicEquation[R, P]:
     """Build a real Bilt equation from proposed generic annotations.
 
     The original function annotations are restored after compilation. Only
