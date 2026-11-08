@@ -1,9 +1,7 @@
-"""Check quantity operations with the real Bilt compiler and static checkers.
+"""Check concrete equation operation typing and the generic system contract.
 
-The common QuantityLike protocol remains intentionally small. These narrower
-capability protocols describe scalar arithmetic or explicit tensor methods,
-without pretending that concrete tensor arithmetic is available outside an
-Implementation.
+Use existing Quantity arithmetic and QuantityTensor reductions directly,
+without auxiliary capability protocols or type-checker suppressions.
 """
 
 import typing
@@ -16,9 +14,7 @@ from bilt import (
     Quantity,
     QuantityLike,
     QuantityTensor,
-    ScalarQuantityLike,
     Tensor,
-    TensorQuantityLike,
     dim,
     equation,
     field,
@@ -30,8 +26,8 @@ from bilt.symbolic._expressions import Expr, TensorExpr
 from bilt.units import kilogram
 from bilt.units.dimensions import MASS
 
-type ScalarMass = typing.Annotated[ScalarQuantityLike, MASS]
-type TensorMass = typing.Annotated[TensorQuantityLike, MASS]
+type ScalarMass = typing.Annotated[Quantity, MASS]
+type TensorMass = typing.Annotated[QuantityTensor, MASS]
 type Mass = typing.Annotated[QuantityLike, MASS]
 
 time = dim("time")
@@ -46,7 +42,7 @@ class Scale(metaclass=Interface):
 
 @equation
 def double_mass(mass: ScalarMass, doubled: ScalarMass) -> bool:
-    """Arithmetic is statically valid on the scalar capability protocol."""
+    """Concrete scalar arithmetic stays liftable in an equation."""
     return doubled == 2.0 * mass
 
 
@@ -62,14 +58,14 @@ def total_mass(masses: TensorMass, total: ScalarMass) -> bool:
     return total == masses.sum(time)
 
 
-def _scalar_operations(mass: ScalarQuantityLike) -> ScalarQuantityLike:
-    """Accepted by ty and Pyrefly for the actual Quantity implementation."""
+def _scalar_operations(mass: Quantity) -> Quantity:
+    """Reuse the concrete scalar arithmetic API rather than a duplicate protocol."""
     result = -(mass + mass) * 2.0 / 2.0
-    typing.assert_type(result, ScalarQuantityLike)
+    typing.assert_type(result, Quantity)
     return result
 
 
-def _tensor_operations(mass: TensorQuantityLike) -> Tensor:
+def _tensor_operations(mass: QuantityTensor) -> Tensor:
     """Named reductions retain the existing Tensor return type."""
     result = mass.sum(time)
     typing.assert_type(result, Tensor)
@@ -86,8 +82,9 @@ def test_quantity_tensor_satisfies_tensor_operations() -> None:
     masses = tensor([1.0, 2.0], over=time, unit=kilogram)
     typing.assert_type(masses, QuantityTensor)
     assert isinstance(masses, Tensor)
-    # Tensor reductions are symbolic and only run during equations, so
-    # type-check the contract without calling it on a concrete Tensor.
+    # Type-check the reduction without executing it on a concrete Tensor.
+    if typing.TYPE_CHECKING:
+        _tensor_operations(masses)
 
 
 def test_scalar_arithmetic_equation_lifts_without_type_ignores() -> None:
