@@ -7,6 +7,7 @@ __all__ = [
     "BiltDomainRegistryError",
     "BiltDomainRegistryLockedError",
     "BiltEquationDimensionalityError",
+    "BiltEquationDomainRequirementError",
     "BiltEquationReturnError",
     "BiltEquationSignatureError",
     "BiltEvaluationError",
@@ -75,6 +76,15 @@ class BiltImplementationDimensionalityError(BiltDimensionalityError):
 
 class BiltAnalysisError(BiltError):
     """Raised when no evaluation route can satisfy a request."""
+
+
+class BiltEquationDomainRequirementError(BiltAnalysisError):
+    """A selected equation requires axes absent from a port's inferred domain.
+
+    Unlike structural impossibility, the failure depends on the domains in
+    this particular evaluation request and must not blacklist the equation
+    across future requests.
+    """
 
 
 class BiltEvaluationError(BiltError):

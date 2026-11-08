@@ -246,6 +246,76 @@ minimum-domain check does not reinterpret their existing behaviour. Enforcing
 additional requirements declared only on a constituent equation is a separate
 follow-up.
 
+### Minimum domains on equation parameters
+
+An equation can also require a dimension that is not mentioned on its
+enclosing system field. This is useful when the system itself accepts many
+possible shapes but one equation needs a specific axis:
+
+```python
+import typing
+
+from bilt import Quantity, QuantityLike, QuantityTensor, equation
+from bilt.symbolic._domains import Domain
+from bilt.units.dimensions import MASS
+
+type Mass = typing.Annotated[QuantityLike, MASS]
+type ScalarMass = typing.Annotated[Quantity, MASS]
+type TimeMass = typing.Annotated[QuantityTensor, MASS, Domain((time,))]
+
+
+@equation
+def copy_over_time(x: TimeMass, result: ScalarMass) -> bool:
+    return result == x
+```
+
+When Bilt chooses this equation to compute an output, it checks the
+**inferred domains** of the values the equation reads and produces.
+The `time` dimension must be present, but additional axes such as
+`scenario` are allowed. If the equation is not selected for a particular
+evaluation, its domain requirement does not constrain that evaluation.
+
+These are minimum-domain **requirements** rather than the existing exact
+`Domain` **hints** on legacy `Quantity` and `Tensor` annotations. In
+particular, they are not passed to the linear-block inference algorithm as
+exact layouts. A mismatch rejects the selected evaluation route with an
+explanation naming the equation, port and missing dimensions.
+
+### Minimum domains on equation parameters
+
+An equation can also require a dimension that is not mentioned on its
+enclosing system field. This is useful when the system itself accepts many
+possible shapes but one equation needs a specific axis:
+
+```python
+import typing
+
+from bilt import Quantity, QuantityLike, QuantityTensor, equation
+from bilt.symbolic._domains import Domain
+from bilt.units.dimensions import MASS
+
+type Mass = typing.Annotated[QuantityLike, MASS]
+type ScalarMass = typing.Annotated[Quantity, MASS]
+type TimeMass = typing.Annotated[QuantityTensor, MASS, Domain((time,))]
+
+
+@equation
+def copy_over_time(x: TimeMass, result: ScalarMass) -> bool:
+    return result == x
+```
+
+When Bilt chooses this equation to compute an output, it checks the
+**inferred domains** of the values the equation reads and produces.
+The `time` dimension must be present, but additional axes such as
+`scenario` are allowed. If the equation is not selected for a particular
+evaluation, its domain requirement does not constrain that evaluation.
+
+These are minimum-domain **requirements** rather than the existing exact
+`Domain` **hints** on legacy `Quantity` and `Tensor` annotations. In
+particular, they are not passed to the linear-block inference algorithm as
+exact layouts. A mismatch rejects the selected evaluation route with an
+explanation naming the equation, port and missing dimensions.
+
 ### Broadcasting rules
 
 Bilt broadcasting follows dimension names rather than axis positions.

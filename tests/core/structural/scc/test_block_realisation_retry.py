@@ -1,22 +1,39 @@
 import typing
 
+import numpy as np
 import pytest
 
-from bilt import equation
+from bilt import (
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityLike,
+    QuantityTensor,
+    Tensor,
+    dim,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltUnsupportedNodeError
 from bilt._backend._python._backend import PYTHON_BACKEND
+from bilt.core._errors import BiltEquationDomainRequirementError
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis import _realize as realization
 from bilt.core._structural_analysis._causalization_block_solver import _backend as solver
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
+from bilt.core._structural_analysis._linear_domains import equation_domain_hints
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanBlock, PlanStep
 from bilt.core._structural_analysis._realize import BlockRealizationFailure, BlockRealizationKey, realize_plan
 from bilt.core._tensors._errors import BiltSymbolicLoweringError, BiltTensorDomainError
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain
+from bilt.units import kilogram
+from bilt.units.dimensions import MASS
 
 if typing.TYPE_CHECKING:
     import ast
@@ -215,3 +232,54 @@ def test_surplus_assignments_do_not_recompile_the_same_rejected_block(monkeypatc
     expected_block_formulations = 2
     assert len(attempts) == expected_block_formulations
     assert len(candidates) > len(attempts)
+
+
+type GeneralMass = typing.Annotated[QuantityLike, MASS]
+type ScalarMass = typing.Annotated[Quantity, MASS]
+REQ_TIME = dim("required_time")
+REQ_SCENARIO = dim("scenario")
+type RequiredTimeMass = typing.Annotated[QuantityTensor, MASS, Domain((REQ_TIME,))]
+
+
+@system
+class MinimumDomainCopy(metaclass=Interface):
+    x: GeneralMass = field()
+    y: GeneralMass = field()
+
+
+@equation
+def time_limited_copy(x: RequiredTimeMass, y: ScalarMass) -> bool:
+    return y == x
+
+
+@equation
+def time_limited_output(x: ScalarMass, y: RequiredTimeMass) -> bool:
+    return y == x
+
+
+def test_equation_minimum_domain_failure_does_not_blacklist_a_later_request() -> None:
+    with Implementation(MinimumDomainCopy, [time_limited_copy]):
+        bad = tensor([1.0, 2.0], over=REQ_SCENARIO, unit=kilogram)
+        with pytest.raises(BiltExecutionPlanError, match="missing dimensions: required_time") as failure:
+            _ = MinimumDomainCopy(x=bad).y
+        assert isinstance(failure.value.__cause__, BiltEquationDomainRequirementError)
+
+        valid = tensor([[1.0, 2.0], [3.0, 4.0]], over=(REQ_SCENARIO, REQ_TIME), unit=kilogram)
+        answer = MinimumDomainCopy(x=valid).y
+    assert isinstance(answer, Tensor)
+    assert answer.domain.dims == (REQ_SCENARIO, REQ_TIME)
+    np.testing.assert_array_equal(answer.values, valid.values)
+
+
+def test_equation_minimum_domain_checks_computed_output() -> None:
+    with (
+        Implementation(MinimumDomainCopy, [time_limited_output]),
+        pytest.raises(BiltExecutionPlanError, match="missing dimensions: required_time") as failure,
+    ):
+        _ = MinimumDomainCopy(x=Quantity(3.0, kilogram)).y
+    assert isinstance(failure.value.__cause__, BiltEquationDomainRequirementError)
+
+
+def test_minimum_domain_is_not_an_exact_linear_hint() -> None:
+    assert equation_domain_hints(time_limited_copy) == ()
+    assert time_limited_copy.__bilt_port_declarations__["x"].required_domain == Domain((REQ_TIME,))
