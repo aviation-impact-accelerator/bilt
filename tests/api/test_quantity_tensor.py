@@ -45,11 +45,15 @@ def test_unitless_factory_preserves_tensor_type() -> None:
     assert original.unit is None
 
 
-def test_optional_unit_factory_has_conservative_return_type() -> None:
-    maybe_unit: Unit | None = gram
+def _tensor_with_optional_unit(maybe_unit: Unit | None) -> Tensor:
     result = tensor([1.0, 2.0], over=dim("time"), unit=maybe_unit)
     typing.assert_type(result, Tensor)
-    assert isinstance(result, QuantityTensor)
+    return result
+
+
+def test_optional_unit_factory_has_conservative_return_type() -> None:
+    assert isinstance(_tensor_with_optional_unit(gram), QuantityTensor)
+    assert type(_tensor_with_optional_unit(None)) is Tensor
 
 
 def test_zero_dimensional_labelled_tensor_is_a_quantity_tensor() -> None:
