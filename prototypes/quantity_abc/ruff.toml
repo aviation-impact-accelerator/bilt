@@ -6,4 +6,4 @@ extend = "../../pyproject.toml"
 extend-ignore = ["D102", "D103", "D105", "D107", "TC001"]
 
 [lint.per-file-ignores]
-"tests/*.py" = ["S101", "PLC0415"]
+"tests/*.py" = ["S101", "PLC0415", "TID252", "S603", "PLR2004"]
