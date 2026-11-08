@@ -10,7 +10,6 @@ from bilt import Implementation, Interface, Tensor, equation, field, system
 from bilt.units import Quantity as NativeQuantity
 from bilt.units import kilogram
 from bilt.units.dimensions import MASS
-
 from prototypes.quantity_abc.prototype import Quantity, QuantityTensor, ScalarQuantity
 
 type Mass = Annotated[Quantity, MASS]
