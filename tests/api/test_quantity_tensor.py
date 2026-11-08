@@ -102,7 +102,8 @@ def test_absolute_conversion_and_identity_preserve_quantity_tensor() -> None:
 
 def test_quantity_tensor_rejects_missing_unit() -> None:
     with pytest.raises(Exception, match="requires a physical unit"):
-        dataclasses.replace(tensor([1.0], over=dim("time"), unit=gram), unit=None)
+        # Deliberately bypass the static contract to exercise runtime validation.
+        dataclasses.replace(tensor([1.0], over=dim("time"), unit=gram), unit=typing.cast("Unit", None))
 
 
 type Mass = typing.Annotated[Tensor, MASS]
