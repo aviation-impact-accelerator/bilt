@@ -6,26 +6,28 @@ reductions and selections, see the [Tensor API](tensors.md).
 
 ## Choose the annotation for the job
 
-A **system** declares which values its fields can accept. An **equation** declares
-the operations needed for a mathematical relationship. The two annotations
-do not have to be identical: Bilt can lift scalar-local equations over tensors.
+A **system** declares which values its fields can accept. An **equation** describes
+a mathematical relationship. Pointwise equations can use the same scalar-or-tensor
+quantity annotation as their system fields: Bilt builds symbolic expressions and
+lifts the relationship over compatible domains.
 
 | Value | System field (when either shape is allowed) | Equation parameter |
 | --- | --- | --- |
 | Plain scalar or unitless tensor | `float | Tensor` | `float` for scalar-local arithmetic; `Tensor` for named tensor methods |
-| Quantity with a physical unit | `QuantityLike` | `Quantity` for scalar-local arithmetic; `QuantityTensor` for named tensor methods |
+| Pointwise quantity with a physical unit | `Quantity \| QuantityTensor` | Same annotation for pointwise arithmetic |
+| Tensor quantity with a physical unit | `QuantityTensor` | `QuantityTensor` for named tensor methods |
+| Strictly scalar quantity with a physical unit | `QuantityLike[float]` | `Quantity` for scalar-only operations |
 
 For example, a system may accept either a scalar or a tensor of mass:
 
 ```python
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, QuantityLike, dim, equation, field, system, tensor
+from bilt import Implementation, Interface, Quantity, QuantityTensor, dim, equation, field, system, tensor
 from bilt.units import kilogram
 from bilt.units.dimensions import MASS
 
-type Mass = Annotated[QuantityLike, MASS]
-type ScalarMass = Annotated[Quantity, MASS]
+type Mass = Annotated[Quantity | QuantityTensor, MASS]
 
 
 @system
@@ -35,7 +37,7 @@ class DoubleMass(metaclass=Interface):
 
 
 @equation
-def doubling(mass: ScalarMass, doubled: ScalarMass) -> bool:
+def doubling(mass: Mass, doubled: Mass) -> bool:
     return doubled == mass * 2.0
 
 
@@ -46,16 +48,17 @@ with Implementation(DoubleMass, [doubling]):
     tensor_result = DoubleMass(mass=tensor([2.0, 3.0], over=time, unit=kilogram)).doubled
 ```
 
-The equation is written using ordinary scalar `Quantity` operations.
-Bilt automatically lifts it when the supplied input varies over `time`.
-This does not mean that direct eager arithmetic on concrete `Tensor`
-objects is supported outside a Bilt model.
+The equation is pointwise, so Bilt automatically lifts it when the input
+varies over `time`. Its Python annotations describe the scalar-or-tensor
+values accepted at the boundary; Bilt replaces the arguments with symbolic
+expressions while constructing the equation.
 
 ## Available types
 
 | Annotation | Type checker understands | Runtime interpretation |
 | --- | --- | --- |
-| `QuantityLike` | Unit-bearing scalar **or** tensor, with `.unit` and `.value` | Flexible quantity boundary |
+| `Quantity \| QuantityTensor` | Unit-bearing scalar **or** tensor, with pointwise operators | Flexible pointwise quantity boundary and equation |
+| `QuantityLike` | Unit-bearing scalar **or** tensor, exposing only `.unit` and `.value` | Read-only quantity boundary |
 | `QuantityLike[float]` | Scalar magnitude | Strict scalar quantity at a system boundary; scalar-local in an equation |
 | `QuantityLike[Tensor]` | Tensor magnitude | Tensor quantity at a system boundary; tensor expression in an equation |
 | `Quantity` | Concrete scalar `Quantity`, with its arithmetic methods | Scalar quantity arithmetic; lifted inside equations |
@@ -63,10 +66,10 @@ objects is supported outside a Bilt model.
 | `Tensor` | Tensor with or without a unit | Plain `Tensor` fields remain outside the unit system unless given dimensionality metadata |
 | `float | Tensor` | Plain scalar or tensor | Unitless system boundary |
 
-`QuantityLike[M]` is a small structural typing interface; it is **not**
-a second quantity implementation. It intentionally exposes only `.unit`
-and `.value`, not arithmetic methods shared by all magnitudes.
-Use `Quantity` or `QuantityTensor` in equations for their operations.
+`QuantityLike[M]` is a small read-only structural interface, not a second
+quantity implementation. Use `Quantity | QuantityTensor` for pointwise equations
+when scalar and tensor values are both valid. Use concrete `Quantity` for
+scalar-only code, and `QuantityTensor` when named tensor operations are required.
 
 A unit-bearing tensor can be constructed with `tensor(..., unit=kilogram)`.
 The factory returns `QuantityTensor` when a non-optional `Unit` is supplied
@@ -133,8 +136,9 @@ equations against the inferred domains of the values those equations use
 or produce. Requirements on equations that are not selected do not
 constrain that evaluation.
 
-`Annotated[Quantity, DIM, Domain(...)]` remains an exact **scalar equation**
-domain hint for structural/linear-block analysis. It is not a system-field
+`Annotated[Quantity, DIM, Domain(...)]` and
+`Annotated[Quantity | QuantityTensor, DIM, Domain(...)]` remain **exact equation**
+domain hints for structural/linear-block analysis. It is not a system-field
 annotation, and is not reinterpreted as a minimum-domain requirement.
 Dimensioned `Annotated[Tensor, DIM]` declarations are no longer supported;
 use `QuantityTensor` for tensor equations and `QuantityLike[Tensor]` for
@@ -144,11 +148,19 @@ interpreted by ty or Pyrefly.
 
 ## Limitations
 
+- The pointwise union is an **equation annotation**, not permission to use eager
+  tensor arithmetic. Python's type checkers may accept `value * 2.0` for a
+  union-typed quantity outside `@equation`, but concrete `Tensor` arithmetic
+  deliberately raises at runtime. The checker cannot infer Bilt's symbolic
+  execution context from the decorator alone. Avoid eager tensor arithmetic
+  outside a Bilt equation.
+
 `Quantity(value, unit)` remains the concrete scalar quantity constructor.
-For dimensioned system fields, use `QuantityLike` or one of its magnitude
-specialisations; `Annotated[Quantity, DIM]` and `Annotated[Tensor, DIM]`
-are rejected at system boundaries. Equations and transforms may still
-annotate scalar quantities as `Annotated[Quantity, DIM]` for arithmetic.
+For dimensioned pointwise system fields, use `Quantity | QuantityTensor`.
+Strict scalar boundaries can still use `QuantityLike[float]`. Dimensioned
+`Annotated[Quantity, DIM]` and `Annotated[Tensor, DIM]` are rejected at
+system boundaries; equations and transforms may use concrete `Quantity`
+when scalar-only operations are intended.
 
 - A `float | Tensor` system field accepts scalar or unitless tensor
   values. `QuantityTensor` subclasses `Tensor`, so ty and Pyrefly
