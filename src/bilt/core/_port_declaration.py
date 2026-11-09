@@ -56,7 +56,9 @@ def annotated_parts(annotation: object) -> tuple[object, list[object]]:
 
 def _is_pointwise_quantity_union(base_type: object) -> bool:
     """Check the exact scalar-or-tensor quantity union, not arbitrary unions."""
-    return typing.get_origin(base_type) in (typing.Union, types.UnionType) and frozenset(typing.get_args(base_type)) == {
+    return typing.get_origin(base_type) in (typing.Union, types.UnionType) and frozenset(
+        typing.get_args(base_type)
+    ) == {
         Quantity,
         QuantityTensor,
     }
@@ -100,8 +102,10 @@ def _required_domain(  # noqa: PLR0913
 ) -> Domain | None:
     """Read minimum tensor-domain constraints, preserving exact pointwise equation hints."""
     # Exact Domain hints on pointwise equations remain for the linear solver.
-    if dimensionality is None or base_type is Quantity or (
-        not system_boundary and _is_pointwise_quantity_union(base_type)
+    if (
+        dimensionality is None
+        or base_type is Quantity
+        or (not system_boundary and _is_pointwise_quantity_union(base_type))
     ):
         return None
 
