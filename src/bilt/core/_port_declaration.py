@@ -54,6 +54,14 @@ def annotated_parts(annotation: object) -> tuple[object, list[object]]:
     return annotation, []
 
 
+def _is_pointwise_quantity_union(base_type: object) -> bool:
+    """Check the exact scalar-or-tensor quantity union, not arbitrary unions."""
+    return typing.get_origin(base_type) in (typing.Union, types.UnionType) and frozenset(typing.get_args(base_type)) == {
+        Quantity,
+        QuantityTensor,
+    }
+
+
 def quantity_magnitude_kind(base_type: object) -> typing.Literal["scalar", "tensor", "either"] | None:
     """Identify a shared quantity contract for scalar/tensor system boundaries.
 
@@ -63,10 +71,7 @@ def quantity_magnitude_kind(base_type: object) -> typing.Literal["scalar", "tens
     """
     # A union of the two concrete quantity representations is a flexible
     # pointwise quantity. It does not include plain, unitless Tensor.
-    if typing.get_origin(base_type) in (typing.Union, types.UnionType) and frozenset(typing.get_args(base_type)) == {
-        Quantity,
-        QuantityTensor,
-    }:
+    if _is_pointwise_quantity_union(base_type):
         return "either"
     if base_type is QuantityLike:
         return "either"
@@ -90,10 +95,14 @@ def _required_domain(
     metadata: list[object],
     base_type: object,
     dimensionality: Dimension | None,
+    *,
+    system_boundary: bool,
 ) -> Domain | None:
-    """Read the tensor quantity minimum-domain constraint, keeping exact scalar equation hints."""
-    # Scalar equation Domain hints remain exact linear-solver hints.
-    if dimensionality is None or base_type is Quantity:
+    """Read minimum tensor-domain constraints, preserving exact pointwise equation hints."""
+    # Exact Domain hints on pointwise equations remain for the linear solver.
+    if dimensionality is None or base_type is Quantity or (
+        not system_boundary and _is_pointwise_quantity_union(base_type)
+    ):
         return None
 
     domains = [item for item in metadata if isinstance(item, Domain)]
@@ -177,7 +186,9 @@ def _declaration(
     magnitude_kind = quantity_magnitude_kind(base_type)
     carries_quantity = base_type is Quantity or magnitude_kind is not None
     over_a_domain = base_type in (Tensor, QuantityTensor) or magnitude_kind == "tensor"
-    required_domain = _required_domain(owner_name, port, metadata, base_type, dimensionality)
+    required_domain = _required_domain(
+        owner_name, port, metadata, base_type, dimensionality, system_boundary=system_boundary
+    )
     absolute = any(item is ABSOLUTE for item in metadata)
     if dimensionality is None and (carries_quantity or absolute):
         msg = (

@@ -79,3 +79,7 @@ takes_polymorphic(unitless)  # expect: unlabelled-tensor-not-polymorphic
 
 def requires_tensor_annotation(mass: PolymorphicMass) -> None:
     _total = mass.sum(time)  # expect: polymorphic-has-no-tensor-reduction
+
+
+def scalar_only_usage(value: PolymorphicMass) -> None:
+    takes_scalar(value)  # expect: pointwise-quantity-is-not-scalar-only

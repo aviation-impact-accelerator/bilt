@@ -3,6 +3,7 @@
 import typing
 
 import numpy as np
+import pytest
 
 from bilt import (
     PYTHON_BACKEND,
@@ -18,14 +19,18 @@ from bilt import (
     tensor,
 )
 from bilt.units import kelvin, kilogram, watt
+from bilt.core._structural_analysis._linear_domains import equation_domain_hints
+from bilt.symbolic._domains import Domain
 from bilt.units.dimensions import MASS, POWER, TEMPERATURE
 
 Mass = typing.Annotated[Quantity | QuantityTensor, MASS]
 TensorMass = typing.Annotated[QuantityTensor, MASS]
+HintedMass = typing.Annotated[Quantity | QuantityTensor, MASS, Domain.scalar()]
 Temperature = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE]
 Heat = typing.Annotated[Quantity | QuantityTensor, POWER]
 ThermalResistance = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE / POWER]
 time = dim("time")
+RequiredTimeMass = typing.Annotated[QuantityTensor, MASS, Domain((time,))]
 
 
 @system
@@ -64,6 +69,16 @@ class TensorTotals(metaclass=Interface):
 
 @equation
 def sum_mass(masses: TensorMass, total: Mass) -> bool:
+    return total == masses.sum(time)
+
+
+@equation
+def hinted_sum_mass(masses: TensorMass, total: HintedMass) -> bool:
+    return total == masses.sum(time)
+
+
+@equation
+def required_time_sum(masses: RequiredTimeMass, total: Mass) -> bool:
     return total == masses.sum(time)
 
 
@@ -110,3 +125,32 @@ def _type_check_constructors(scalar: Quantity, series: QuantityTensor) -> None:
     _tensor_model = DoubleMass(mass=series)
     if typing.TYPE_CHECKING:
         typing.assert_type(series.value, Tensor)
+
+
+def test_exact_linear_hint_and_minimum_domain_requirement_are_distinct() -> None:
+    """A pointwise hint stays exact; tensor requirements allow extra axes."""
+    assert hinted_sum_mass.__bilt_port_declarations__["total"].required_domain is None
+    assert equation_domain_hints(hinted_sum_mass) == (("total", Domain.scalar()),)
+    assert required_time_sum.__bilt_port_declarations__["masses"].required_domain == Domain((time,))
+    assert equation_domain_hints(required_time_sum) == ()
+
+    scenario = dim("scenario")
+    with Implementation(TensorTotals, [required_time_sum]):
+        result = TensorTotals(masses=tensor([[2.0, 3.0], [4.0, 5.0]], over=(scenario, time), unit=kilogram)).total
+    assert isinstance(result, QuantityTensor)
+    assert result.domain.dims == (scenario,)
+    np.testing.assert_allclose(result.values, [5.0, 9.0])
+
+
+def test_union_arithmetic_is_not_an_eager_tensor_arithmetic_api() -> None:
+    """Static types alone cannot detect that a symbolic-only tensor operator will fail eagerly."""
+    scalar: Mass = Quantity(2.0, kilogram)
+    series: Mass = tensor([2.0, 3.0], over=time, unit=kilogram)
+    assert (scalar * 2.0).value == 2.0 * 2.0
+    with pytest.raises(NotImplementedError, match="Tensor arithmetic is not implemented"):
+        _ = series * 2.0
+
+
+def _eager_typing_limit(value: Mass) -> object:
+    """Both checkers accept this expression, although concrete tensors reject it eagerly."""
+    return value * 2.0

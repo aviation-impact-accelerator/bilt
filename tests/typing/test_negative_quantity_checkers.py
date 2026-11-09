@@ -20,6 +20,10 @@ MARKER = re.compile(r"# expect: ([a-z][a-z0-9-]+)")
 # The two tools sometimes describe the same typing rule differently.
 # Keep this mapping narrow: incorrect or unrelated diagnostics must fail.
 EXPECTED_CODES: dict[str, dict[str, frozenset[str]]] = {
+    "pointwise-quantity-is-not-scalar-only": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
     "unlabelled-tensor-not-polymorphic": {
         "ty": frozenset({"invalid-argument-type"}),
         "pyrefly": frozenset({"bad-argument-type"}),

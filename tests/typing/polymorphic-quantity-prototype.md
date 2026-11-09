@@ -27,3 +27,25 @@ Run \u0060uv run ty check\u0060, \u0060uv run pyrefly check\u0060 and \u0060uv r
 The union is **not** a new eager arithmetic API. Concrete tensor arithmetic still raises outside Bilt equations. A static checker that accepts mixed \u0060Quantity\u0060/\u0060QuantityTensor\u0060 operators doesn't prove those operations can run eagerly, or that their physical dimensions match. Bilt already checks the latter when constructing the symbolic tree. If type checkers accept these operations too broadly, this design may not meet the original goal of rigorous static operation checking.
 
 The port parser accepts only the **exact** two-type union, not arbitrary unions. This test is for pointwise equations, not \u0060@transform\u0060 or domain-constrained tensor fields. It is not yet a suggested production migration.
+
+
+## Domain hints
+
+On a pointwise equation, `Annotated[Quantity | QuantityTensor, DIM, Domain(...)]`
+is an **exact** linear solver hint, as the previous scalar `Quantity` form
+was. A tensor-specific `Annotated[QuantityTensor, DIM, Domain(...)]`
+still means a **minimum** required set of axes on a selected equation.
+Generic pointwise system fields don't accept a minimum-domain constraint.
+
+## Eager arithmetic caveat (confirmed)
+
+The same union can be used in regular Python, and both type checkers accept
+`value * 2.0` even when `value` may be a `QuantityTensor`.
+Eager `Tensor` arithmetic raises `NotImplementedError` by design.
+This is not statically sound for eager use: Python typing has no way to
+change permitted operators solely because the expression occurs inside an
+`@equation` function. We shouldn't claim otherwise. To enforce this
+statically would need an equation-only type plus a separate boundary type,
+a checker plugin, or eager tensor arithmetic with well-defined semantics.
+The new runtime test preserves the explicit rejection rather than
+silently treating the union as a general eager arithmetic API.
