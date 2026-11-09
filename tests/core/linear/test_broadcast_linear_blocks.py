@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, QuantityLike, QuantityTensor, Tensor, dim, equation, field, system, tensor
+from bilt import Implementation, Interface, QuantityTensor, Tensor, dim, equation, field, system, tensor
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext

@@ -10,7 +10,6 @@ from bilt import (
     Implementation,
     Interface,
     Quantity,
-    QuantityLike,
     QuantityTensor,
     Tensor,
     dim,
