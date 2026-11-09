@@ -56,6 +56,13 @@ def root(value: float) -> float:
     return jnp.sqrt(value)
 ```
 
+## Coupled blocks
+
+Both built-in backends implement the SCC analyser's linear block solves. Python uses
+NumPy; JAX uses JAX assembly and solving.
+
+Selecting a backend does not select the structural analyser.
+
 ## Errors
 
 Import Bilt exceptions from `bilt.errors`.

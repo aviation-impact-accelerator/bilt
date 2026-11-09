@@ -4,12 +4,15 @@ site_url = "https://aviation-impact-accelerator.github.io/bilt/"
 site_description = "Documentation site for the Bilt package"
 docs_dir = "docs"
 repo_url = "https://github.com/aviation-impact-accelerator/bilt"
-extra_javascript = [
-    "javascripts/mermaid-zoom.js",
-]
 
 extra_css = [
     "stylesheets/mermaid-zoom.css",
+]
+
+extra_javascript = [
+    "javascripts/mermaid-zoom.js",
+    "javascripts/mathjax.js",
+    "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js",
 ]
 
 nav = [
