@@ -15,7 +15,6 @@ from bilt import (
     Implementation,
     Interface,
     Quantity,
-    QuantityLike,
     QuantityTensor,
     Tensor,
     dim,
@@ -40,19 +39,12 @@ if typing.TYPE_CHECKING:
 
 COORDINATE = dim("branch")
 Current = typing.Annotated[QuantityTensor, CURRENT]
-CurrentField = typing.Annotated[QuantityLike[Tensor], CURRENT]
-Voltage = typing.Annotated[Quantity, VOLTAGE]
-VoltageField = typing.Annotated[QuantityLike, VOLTAGE]
-Resistance = typing.Annotated[Quantity, RESISTANCE]
-ResistanceField = typing.Annotated[QuantityLike, RESISTANCE]
-Temperature = typing.Annotated[Quantity, TEMPERATURE]
-TemperatureField = typing.Annotated[QuantityLike, TEMPERATURE]
+Voltage = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
+Resistance = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
+Temperature = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE]
 Heat = typing.Annotated[QuantityTensor, POWER]
-HeatField = typing.Annotated[QuantityLike[Tensor], POWER]
-Conductance = typing.Annotated[Quantity, POWER / TEMPERATURE]
-ConductanceField = typing.Annotated[QuantityLike, POWER / TEMPERATURE]
-ThermalResistance = typing.Annotated[Quantity, TEMPERATURE / POWER]
-ThermalResistanceField = typing.Annotated[QuantityLike, TEMPERATURE / POWER]
+Conductance = typing.Annotated[Quantity | QuantityTensor, POWER / TEMPERATURE]
+ThermalResistance = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE / POWER]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -97,48 +89,48 @@ def linear_cases(*, extended: bool) -> tuple[LinearCase, ...]:
 class ElectricalPorts(metaclass=Interface):
     """Branch current and terminal load voltage."""
 
-    current: CurrentField = field()
-    voltage: VoltageField = field()
-    load: ResistanceField = field()
+    current: Current = field()
+    voltage: Voltage = field()
+    load: Resistance = field()
 
 
 @system
 class ElectricalSource(metaclass=Interface):
     """Source voltage and series resistance."""
 
-    emf: VoltageField = field()
-    resistance: ResistanceField = field()
+    emf: Voltage = field()
+    resistance: Resistance = field()
 
 
 @equation
 def electrical_supply(emf: Voltage, resistance: Resistance, inner: ElectricalPorts) -> bool:
     """Kirchhoff voltage balance across each source branch."""
-    return emf == resistance * inner.current + inner.voltage  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
+    return emf == resistance * inner.current + inner.voltage
 
 
 @system
 class ThermalPorts(metaclass=Interface):
     """Two thermal nodes joined by a contact resistance."""
 
-    hot: TemperatureField = field()
-    cold: TemperatureField = field()
-    heat: HeatField = field()
-    contact: ConductanceField = field()
-    sink: ThermalResistanceField = field()
+    hot: Temperature = field()
+    cold: Temperature = field()
+    heat: Heat = field()
+    contact: Conductance = field()
+    sink: ThermalResistance = field()
 
 
 @system
 class ThermalSource(metaclass=Interface):
     """Prescribed source temperature rise and series thermal resistance."""
 
-    source: TemperatureField = field()
-    resistance: ThermalResistanceField = field()
+    source: Temperature = field()
+    resistance: ThermalResistance = field()
 
 
 @equation
 def thermal_supply(source: Temperature, resistance: ThermalResistance, inner: ThermalPorts) -> bool:
     """Thermal drop between source and hot contact node."""
-    return source == inner.hot + resistance * inner.heat  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
+    return source == inner.hot + resistance * inner.heat
 
 
 @dataclasses.dataclass(frozen=True)
@@ -181,9 +173,9 @@ def _electrical(case: LinearCase) -> tuple[Implementation, dict[str, object], di
         current_type = Current
         voltage_type = Voltage
     else:
-        current_type = typing.Annotated[Tensor, CURRENT, domain(COORDINATE)] if case.hinted else Current
+        current_type = typing.Annotated[QuantityTensor, CURRENT, domain(COORDINATE)] if case.hinted else Current
         voltage_type = (
-            typing.Annotated[Tensor, VOLTAGE, Domain.scalar() if case.shared else domain(COORDINATE)]
+            typing.Annotated[Quantity | QuantityTensor, VOLTAGE, Domain.scalar() if case.shared else domain(COORDINATE)]
             if case.hinted
             else Voltage
         )
@@ -237,10 +229,10 @@ def _thermal(case: LinearCase) -> tuple[Implementation, dict[str, object], dict[
         heat_type = Heat
         cold_type = Temperature
     else:
-        hot_type = typing.Annotated[Tensor, TEMPERATURE, domain(COORDINATE)] if case.hinted else Temperature
-        heat_type = typing.Annotated[Tensor, POWER, domain(COORDINATE)] if case.hinted else Heat
+        hot_type = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, domain(COORDINATE)] if case.hinted else Temperature
+        heat_type = typing.Annotated[QuantityTensor, POWER, domain(COORDINATE)] if case.hinted else Heat
         cold_type = (
-            typing.Annotated[Tensor, TEMPERATURE, Domain.scalar() if case.shared else domain(COORDINATE)]
+            typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, Domain.scalar() if case.shared else domain(COORDINATE)]
             if case.hinted
             else Temperature
         )
