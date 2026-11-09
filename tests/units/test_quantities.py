@@ -1,5 +1,6 @@
 import math
 import re
+import typing
 
 import pytest
 
@@ -36,6 +37,10 @@ from bilt.units.units import (
     watt,
     year,
 )
+
+if typing.TYPE_CHECKING:
+    from bilt.units._quantity_protocol import QuantityLike
+
 
 co2 = Metadata("co2")
 nox = Metadata("nox")
@@ -795,3 +800,14 @@ class TestQuantity:
         expected: Quantity,
     ) -> None:
         assert quantity.strip_metadata() == expected
+
+
+def _unit_from_quantity_contract(quantity: QuantityLike) -> Unit:
+    """The shared contract exposes the unit of a scalar quantity."""
+    return quantity.unit
+
+
+def test_scalar_quantity_satisfies_common_quantity_contract() -> None:
+    quantity = Quantity(2.0, kilogram)
+    typing.assert_type(quantity.value, float)
+    assert _unit_from_quantity_contract(quantity) is kilogram
