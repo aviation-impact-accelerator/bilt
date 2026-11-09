@@ -8,6 +8,7 @@ from bilt import (
     Implementation,
     Interface,
     Quantity,
+    QuantityTensor,
     Tensor,
     dim,
     equation,
