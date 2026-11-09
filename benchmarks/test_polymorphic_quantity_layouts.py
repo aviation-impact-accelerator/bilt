@@ -1,7 +1,6 @@
 """Regression checks for pointwise and shared linear layouts without Field aliases."""
 
 import pytest
-
 from linear_models import LinearCase, LinearTrial, linear_cases
 
 
