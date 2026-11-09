@@ -146,6 +146,8 @@ def test_union_arithmetic_is_not_an_eager_tensor_arithmetic_api() -> None:
     """Static types alone cannot detect that a symbolic-only tensor operator will fail eagerly."""
     scalar: Mass = Quantity(2.0, kilogram)
     series: Mass = tensor([2.0, 3.0], over=time, unit=kilogram)
+    assert isinstance(scalar, Quantity)
+    assert isinstance(series, QuantityTensor)
     assert (scalar * 2.0).value == 2.0 * 2.0
     with pytest.raises(NotImplementedError, match="Tensor arithmetic is not implemented"):
         _ = series * 2.0
