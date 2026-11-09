@@ -229,10 +229,14 @@ def _thermal(case: LinearCase) -> tuple[Implementation, dict[str, object], dict[
         heat_type = Heat
         cold_type = Temperature
     else:
-        hot_type = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, domain(COORDINATE)] if case.hinted else Temperature
+        hot_type = (
+            typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, domain(COORDINATE)] if case.hinted else Temperature
+        )
         heat_type = typing.Annotated[QuantityTensor, POWER, domain(COORDINATE)] if case.hinted else Heat
         cold_type = (
-            typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, Domain.scalar() if case.shared else domain(COORDINATE)]
+            typing.Annotated[
+                Quantity | QuantityTensor, TEMPERATURE, Domain.scalar() if case.shared else domain(COORDINATE)
+            ]
             if case.hinted
             else Temperature
         )
