@@ -3,6 +3,7 @@
 __all__ = ["PortDeclaration", "annotated_parts", "port_declarations"]
 
 import dataclasses
+import types
 import typing
 
 from bilt.core._errors import BiltPortDeclarationError
@@ -60,6 +61,13 @@ def quantity_magnitude_kind(base_type: object) -> typing.Literal["scalar", "tens
     float specialisation means scalar *values* at system boundaries, but a
     scalar-local symbolic expression when used by an equation.
     """
+    # A union of the two concrete quantity representations is a flexible
+    # pointwise quantity. It does not include plain, unitless Tensor.
+    if typing.get_origin(base_type) in (typing.Union, types.UnionType) and frozenset(typing.get_args(base_type)) == {
+        Quantity,
+        QuantityTensor,
+    }:
+        return "either"
     if base_type is QuantityLike:
         return "either"
     if typing.get_origin(base_type) is not QuantityLike:

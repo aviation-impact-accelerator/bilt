@@ -64,3 +64,18 @@ class UnitlessFlexible(metaclass=Interface):
 
 
 UnitlessFlexible(value=scalar)  # expect: unitless-union-rejects-scalar-quantity
+
+
+# A pointwise quantity may be scalar or tensor, but must carry a unit.
+type PolymorphicMass = Annotated[Quantity | QuantityTensor, MASS]
+
+
+def takes_polymorphic(mass: PolymorphicMass) -> None:
+    pass
+
+
+takes_polymorphic(unitless)  # expect: unlabelled-tensor-not-polymorphic
+
+
+def requires_tensor_annotation(mass: PolymorphicMass) -> None:
+    _total = mass.sum(time)  # expect: polymorphic-has-no-tensor-reduction
