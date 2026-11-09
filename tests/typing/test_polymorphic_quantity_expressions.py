@@ -18,9 +18,9 @@ from bilt import (
     system,
     tensor,
 )
-from bilt.units import kelvin, kilogram, watt
 from bilt.core._structural_analysis._linear_domains import equation_domain_hints
 from bilt.symbolic._domains import Domain
+from bilt.units import kelvin, kilogram, watt
 from bilt.units.dimensions import MASS, POWER, TEMPERATURE
 
 Mass = typing.Annotated[Quantity | QuantityTensor, MASS]

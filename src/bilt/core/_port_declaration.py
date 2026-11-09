@@ -89,7 +89,7 @@ def quantity_magnitude_kind(base_type: object) -> typing.Literal["scalar", "tens
     raise TypeError(msg)
 
 
-def _required_domain(
+def _required_domain(  # noqa: PLR0913
     owner_name: str,
     port: str,
     metadata: list[object],
