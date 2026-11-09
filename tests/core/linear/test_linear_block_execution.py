@@ -26,16 +26,15 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCase
     from bilt.core._model_constituent import BiltModelConstituent
 
-Length = typing.Annotated[Quantity, LENGTH]
-LengthField = typing.Annotated[QuantityLike, LENGTH]
+Length = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 
 
 @system
 class CoupledLengths(metaclass=Interface):
-    x: LengthField = field()
-    y: LengthField = field()
-    p: LengthField = field()
-    q: LengthField = field()
+    x: Length = field()
+    y: Length = field()
+    p: Length = field()
+    q: Length = field()
 
 
 @equation

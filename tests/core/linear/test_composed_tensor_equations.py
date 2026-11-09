@@ -32,12 +32,9 @@ if typing.TYPE_CHECKING:
 TIME = dim("time")
 BRANCH = dim("branch")
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
-LengthArrayField = typing.Annotated[QuantityLike[Tensor], LENGTH]
-LengthScalar = typing.Annotated[Quantity, LENGTH]
-LengthScalarField = typing.Annotated[QuantityLike, LENGTH]
+LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 MassScalar = typing.Annotated[Quantity, MASS]
 RatioArray = typing.Annotated[QuantityTensor, DIMENSIONLESS]
-RatioArrayField = typing.Annotated[QuantityLike[Tensor], DIMENSIONLESS]
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 Grid = typing.Annotated[Tensor, domain(TIME, BRANCH)]
 Shared = typing.Annotated[float, Domain.scalar()]
@@ -77,9 +74,9 @@ def test_composed_reductions_preserve_coherent_units(backend: Backend, analyser_
 
     @system
     class Lengths(metaclass=Interface):
-        value: LengthArrayField = field()
-        weights: RatioArrayField = field()
-        answer: LengthScalarField = field()
+        value: LengthArray = field()
+        weights: RatioArray = field()
+        answer: LengthScalar = field()
 
     @equation
     def weighted(answer: LengthScalar, value: LengthArray, weights: RatioArray) -> bool:

@@ -28,7 +28,6 @@ if typing.TYPE_CHECKING:
 TIME = dim("time")
 SITE = dim("site")
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
-LengthArrayField = typing.Annotated[QuantityLike[Tensor], LENGTH]
 
 
 @equation
@@ -133,10 +132,10 @@ def test_singular_batch_does_not_poison_later_values(backend: Backend) -> None:
 def test_tensor_units_are_lowered_and_lifted_in_coherent_units(backend: Backend) -> None:
     @system
     class Lengths(metaclass=Interface):
-        x: LengthArrayField = field()
-        y: LengthArrayField = field()
-        p: LengthArrayField = field()
-        q: LengthArrayField = field()
+        x: LengthArray = field()
+        y: LengthArray = field()
+        p: LengthArray = field()
+        q: LengthArray = field()
 
     @equation
     def first(x: LengthArray, y: LengthArray, p: LengthArray) -> bool:

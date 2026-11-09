@@ -31,8 +31,7 @@ if typing.TYPE_CHECKING:
 
     from bilt._backend import Backend, BackendCallable
 
-Length = typing.Annotated[Quantity, LENGTH]
-LengthField = typing.Annotated[QuantityLike, LENGTH]
+Length = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 
 
 @system
@@ -146,13 +145,13 @@ def test_required_input_query_reaches_a_cross_boundary_child_block(backend: Back
 def test_parent_and_child_unit_declarations_and_quantity_constants_survive_the_joint_solve(backend: Backend) -> None:
     @system
     class Lengths(metaclass=Interface):
-        x: LengthField = field()
-        y: LengthField = field()
-        p: LengthField = field()
+        x: Length = field()
+        y: Length = field()
+        p: Length = field()
 
     @system
     class Parent(metaclass=Interface):
-        q: LengthField = field()
+        q: Length = field()
 
     @equation
     def total(x: Length, y: Length, p: Length) -> bool:
@@ -160,7 +159,7 @@ def test_parent_and_child_unit_declarations_and_quantity_constants_survive_the_j
 
     @equation
     def relation(inner: Lengths, q: Length) -> bool:
-        return inner.x - inner.y == q  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
+        return inner.x - inner.y == q
 
     parent = Implementation(Parent, [relation], internal_implementations={"inner": Implementation(Lengths, [total])})
     result = parent.evaluate({"inner.p": 0.010 * kilometer, "q": 2.0 * meter}, "inner.x", backend)

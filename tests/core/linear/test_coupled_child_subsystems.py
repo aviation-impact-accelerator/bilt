@@ -35,9 +35,7 @@ if typing.TYPE_CHECKING:
 
 TIME = dim("time")
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
-LengthArrayField = typing.Annotated[QuantityLike[Tensor], LENGTH]
-LengthScalar = typing.Annotated[Quantity, LENGTH]
-LengthScalarField = typing.Annotated[QuantityLike, LENGTH]
+LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 
 
 @system
@@ -137,10 +135,10 @@ def test_child_route_query_exposes_only_required_boundary_inputs(backend: Backen
 def test_child_units_survive_shared_and_tensor_output_lifting(backend: Backend, output: str) -> None:
     @system
     class Lengths(metaclass=Interface):
-        x: LengthArrayField = field()
-        y: LengthScalarField = field()
-        p: LengthArrayField = field()
-        q: LengthScalarField = field()
+        x: LengthArray = field()
+        y: LengthScalar = field()
+        p: LengthArray = field()
+        q: LengthScalar = field()
 
     @equation
     def total(x: LengthArray, y: LengthScalar, p: LengthArray) -> bool:

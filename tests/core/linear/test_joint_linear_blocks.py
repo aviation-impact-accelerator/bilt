@@ -46,20 +46,16 @@ Scalar = typing.Annotated[Tensor, Domain.scalar()]
 Grid = typing.Annotated[Tensor, domain(SITE, TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
-LengthArrayField = typing.Annotated[QuantityLike[Tensor], LENGTH]
 LengthGrid = typing.Annotated[QuantityTensor, LENGTH, domain(TIME)]
 LengthScalar = typing.Annotated[Quantity, LENGTH, Domain.scalar()]
 LengthScalarField = typing.Annotated[QuantityLike[float], LENGTH]
 ReverseGrid = typing.Annotated[Tensor, domain(TIME, SITE)]
 CurrentArray = typing.Annotated[QuantityTensor, CURRENT]
-CurrentArrayField = typing.Annotated[QuantityLike[Tensor], CURRENT]
 BranchCurrent = typing.Annotated[QuantityTensor, CURRENT, domain(BRANCH)]
 SharedVoltage = typing.Annotated[Quantity, VOLTAGE, Domain.scalar()]
 SharedVoltageField = typing.Annotated[QuantityLike[float], VOLTAGE]
 VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
-VoltageArrayField = typing.Annotated[QuantityLike[Tensor], VOLTAGE]
-Resistance = typing.Annotated[Quantity, RESISTANCE]
-ResistanceField = typing.Annotated[QuantityLike, RESISTANCE]
+Resistance = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
 
 
 @equation
@@ -221,9 +217,9 @@ def test_nonlinear_reductions_of_unknowns_remain_unsupported(backend: Backend, o
 def test_joint_solve_retains_units_and_distinct_output_domains(backend: Backend, output: str) -> None:
     @system
     class Lengths(metaclass=Interface):
-        x: LengthArrayField = field()
+        x: LengthArray = field()
         y: LengthScalarField = field()
-        p: LengthArrayField = field()
+        p: LengthArray = field()
         q: LengthScalarField = field()
 
     @equation
@@ -305,11 +301,11 @@ def test_joint_and_batched_blocks_fit_between_ordinary_plan_steps(backend: Backe
 def test_parallel_sources_share_one_bus_voltage(backend: Backend, output: str) -> None:
     @system
     class Circuit(metaclass=Interface):
-        current: CurrentArrayField = field()
+        current: CurrentArray = field()
         bus_voltage: SharedVoltageField = field()
-        source_voltage: VoltageArrayField = field()
-        branch_resistance: ResistanceField = field()
-        load_resistance: ResistanceField = field()
+        source_voltage: VoltageArray = field()
+        branch_resistance: Resistance = field()
+        load_resistance: Resistance = field()
 
     @equation
     def branch_balance(

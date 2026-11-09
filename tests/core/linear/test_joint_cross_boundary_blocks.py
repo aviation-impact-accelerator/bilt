@@ -46,15 +46,11 @@ Shared = typing.Annotated[Tensor, Domain.scalar()]
 Grid = typing.Annotated[Tensor, domain(SITE, TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
 BranchCurrent = typing.Annotated[QuantityTensor, CURRENT, domain(BRANCH)]
-BranchCurrentField = typing.Annotated[QuantityLike[Tensor], CURRENT, domain(BRANCH)]
 SharedVoltage = typing.Annotated[Quantity, VOLTAGE, Domain.scalar()]
 SharedVoltageField = typing.Annotated[QuantityLike[float], VOLTAGE]
 VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
-VoltageArrayField = typing.Annotated[QuantityLike[Tensor], VOLTAGE]
 ResistanceArray = typing.Annotated[QuantityTensor, RESISTANCE]
-ResistanceArrayField = typing.Annotated[QuantityLike[Tensor], RESISTANCE]
-Resistance = typing.Annotated[Quantity, RESISTANCE]
-ResistanceField = typing.Annotated[QuantityLike, RESISTANCE]
+Resistance = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
 
 
 @system
@@ -158,14 +154,14 @@ def test_broadcasting_inside_a_reduction_is_preserved_across_qualified_rows(back
 def test_shared_bus_voltage_and_branch_currents_retain_units(backend: Backend, output: str) -> None:
     @system
     class Bus(metaclass=Interface):
-        current: BranchCurrentField = field()
+        current: BranchCurrent = field()
         voltage: SharedVoltageField = field()
-        resistance: ResistanceArrayField = field()
-        load: ResistanceField = field()
+        resistance: ResistanceArray = field()
+        load: Resistance = field()
 
     @system
     class Sources(metaclass=Interface):
-        emf: VoltageArrayField = field()
+        emf: VoltageArray = field()
 
     @equation
     def load_balance(current: BranchCurrent, voltage: SharedVoltage, load: Resistance) -> bool:
@@ -173,7 +169,7 @@ def test_shared_bus_voltage_and_branch_currents_retain_units(backend: Backend, o
 
     @equation
     def branch_balance(emf: VoltageArray, inner: Bus) -> bool:
-        return inner.resistance * inner.current + inner.voltage == emf  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
+        return inner.resistance * inner.current + inner.voltage == emf
 
     parent = Implementation(
         Sources, [branch_balance], internal_implementations={"inner": Implementation(Bus, [load_balance])}

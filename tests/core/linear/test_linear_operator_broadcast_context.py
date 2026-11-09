@@ -42,13 +42,10 @@ Shared = typing.Annotated[Tensor, Domain.scalar()]
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
-LengthArrayField = typing.Annotated[QuantityLike[Tensor], LENGTH]
 SharedLength = typing.Annotated[Quantity, LENGTH, Domain.scalar()]
 SharedLengthField = typing.Annotated[QuantityLike[float], LENGTH]
-LengthScalar = typing.Annotated[Quantity, LENGTH]
-LengthScalarField = typing.Annotated[QuantityLike, LENGTH]
+LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 RatioArray = typing.Annotated[QuantityTensor, DIMENSIONLESS]
-RatioArrayField = typing.Annotated[QuantityLike[Tensor], DIMENSIONLESS]
 
 
 @system
@@ -237,12 +234,12 @@ def test_known_tensor_supplies_the_axis_for_selecting_a_shared_scalar(backend: B
 def test_broadcast_context_preserves_units(backend: Backend, output: str) -> None:
     @system
     class Lengths(metaclass=Interface):
-        x: LengthArrayField = field()
+        x: LengthArray = field()
         y: SharedLengthField = field()
-        p: LengthArrayField = field()
-        q: LengthScalarField = field()
-        weights: RatioArrayField = field()
-        offset: LengthScalarField = field()
+        p: LengthArray = field()
+        q: LengthScalar = field()
+        weights: RatioArray = field()
+        offset: LengthScalar = field()
 
     @equation
     def first(x: LengthArray, y: SharedLength, p: LengthArray) -> bool:
