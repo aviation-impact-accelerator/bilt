@@ -6,7 +6,7 @@ both type checkers, checks each expected diagnostic code at its location,
 and then removes the file.
 """
 
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 from bilt import Interface, Quantity, QuantityLike, QuantityTensor, Tensor, dim, field, system, tensor
 from bilt.units import kilogram
@@ -64,3 +64,31 @@ class UnitlessFlexible(metaclass=Interface):
 
 
 UnitlessFlexible(value=scalar)  # expect: unitless-union-rejects-scalar-quantity
+
+
+# Prototype: a broad operator signature cannot be implemented by Quantity.
+# Quantity.__add__ accepts Quantity, not arbitrary objects.
+class TooBroad(Protocol):
+    def __add__(self, other: object) -> QuantityLike: ...
+
+
+def takes_broad(value: TooBroad) -> None:
+    pass
+
+
+takes_broad(scalar)  # expect: broad-protocol-rejects-quantity
+
+
+# A narrow scalar contract does describe Quantity, but not a tensor or a
+# flexible system-field declaration. It cannot replace QuantityLike.
+class ScalarArithmetic(QuantityLike[float], Protocol):
+    def __add__(self, other: Quantity) -> Quantity: ...
+    def __mul__(self, other: Quantity | float) -> Quantity: ...
+
+
+def takes_scalar_arithmetic(value: ScalarArithmetic) -> None:
+    pass
+
+
+takes_scalar_arithmetic(labelled)  # expect: tensor-rejects-scalar-operations
+takes_scalar_arithmetic(cast(QuantityLike, scalar))  # expect: generic-field-rejects-scalar-operations

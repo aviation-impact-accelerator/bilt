@@ -40,6 +40,18 @@ EXPECTED_CODES: dict[str, dict[str, frozenset[str]]] = {
         "ty": frozenset({"unsupported-operator"}),
         "pyrefly": frozenset({"unsupported-operation"}),
     },
+    "broad-protocol-rejects-quantity": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "tensor-rejects-scalar-operations": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "generic-field-rejects-scalar-operations": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
     "unitless-tensor-is-not-quantity-tensor": {
         "ty": frozenset({"invalid-argument-type"}),
         "pyrefly": frozenset({"bad-argument-type"}),
