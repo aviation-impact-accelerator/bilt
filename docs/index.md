@@ -15,6 +15,7 @@ The user guide introduces the main Bilt concepts:
 - [Models to computation](guide/models-to-computation.md)
 - [Dimensions, domains and tensors](guide/dimensions-domains-and-tensors.md)
 - [Systems of systems](guide/systems-of-systems.md)
+- [Coupled systems](guide/coupled-systems.md)
 - [Backends](guide/backends.md)
 - [Units](guide/units.md)
 
