@@ -4,7 +4,7 @@ For constructors, reductions, indexing and their current limitations, see the [T
 
 So far, every value in our examples has been a scalar:
 
-```python
+```python exec="on"
 speed: float
 temperature: float
 pressure: float
@@ -26,7 +26,7 @@ Bilt represents these values using **tensors** over named **dimensions**.
 
 In NumPy, an array has a shape:
 
-```python
+```python exec="off"
 values.shape
 ```
 
@@ -54,7 +54,7 @@ Those are very different things.
 
 In Bilt, we can give dimensions explicit names:
 
-```python
+```python exec="on" session="domains-tensors"
 from bilt import dim
 
 
@@ -84,7 +84,7 @@ A Bilt **tensor** combines concrete values with the dimensions they vary over.
 
 For example:
 
-```python
+```python exec="on" session="domains-tensors"
 from bilt import tensor
 
 
@@ -224,7 +224,7 @@ One useful consequence is that the mathematical relationship does not necessaril
 
 Imagine a calculation:
 
-```python
+```python exec="off"
 @transform
 def cost(demand: float, price: float) -> float:
     return demand * price
@@ -306,7 +306,7 @@ Bilt represents this with a **coordinate axis** associated with the dimension.
 
 For example:
 
-```python
+```python exec="on" session="domains-tensors"
 from datetime import datetime
 
 from bilt import coordinate_axis

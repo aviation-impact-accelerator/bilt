@@ -30,7 +30,7 @@ We will start with transforms because their direction is already fixed. This mak
 
 Consider this abstract system:
 
-```python
+```python exec="off"
 @system
 class Demo(metaclass=Interface):
     alpha: float = field()
@@ -42,7 +42,7 @@ class Demo(metaclass=Interface):
 
 with these transforms:
 
-```python
+```python exec="off"
 @transform
 def gamma(alpha: float, beta: float) -> float:
     return alpha + beta
@@ -60,13 +60,13 @@ def epsilon(gamma: float, delta: float) -> float:
 
 and an implementation:
 
-```python
+```python exec="off"
 basic = Implementation(Demo, [gamma, delta, epsilon])
 ```
 
 Now create an instance:
 
-```python
+```python exec="off"
 demo = Demo(alpha=1.0, beta=2.0)
 ```
 
@@ -89,7 +89,7 @@ Nothing happens just because we created the system.
 
 It is only when we request a value:
 
-```python
+```python exec="off"
 with basic:
     result = demo.epsilon
 ```
@@ -142,7 +142,7 @@ That gives a computation plan:
 
 Bilt can then execute that plan and return:
 
-```python
+```python exec="off"
 with basic:
     assert demo.epsilon == 7.0
 ```
@@ -153,7 +153,7 @@ This process of working out which relationships can satisfy a request is **struc
 
 At this stage, Bilt does not need to know that:
 
-```python
+```python exec="off"
 return alpha + beta
 ```
 
@@ -214,7 +214,7 @@ Then do it.
 
 Suppose we add another value and transform:
 
-```python
+```python exec="off"
 @system
 class Demo(metaclass=Interface):
     alpha: float = field()
@@ -232,7 +232,7 @@ def zeta(alpha: float) -> float:
 
 and include it in the implementation:
 
-```python
+```python exec="off"
 basic = Implementation(Demo, [gamma, delta, epsilon, zeta])
 ```
 
@@ -264,7 +264,7 @@ A particular evaluation only needs the relationships that lead to what was reque
 
 Now consider a smaller system:
 
-```python
+```python exec="off"
 @system
 class Demo(metaclass=Interface):
     alpha: float = field()
@@ -275,7 +275,7 @@ class Demo(metaclass=Interface):
 
 with only this transform:
 
-```python
+```python exec="off"
 @transform
 def delta(alpha: float, beta: float) -> float:
     return alpha + beta
@@ -283,19 +283,19 @@ def delta(alpha: float, beta: float) -> float:
 
 and an implementation:
 
-```python
+```python exec="off"
 basic = Implementation(Demo, [delta])
 ```
 
 We can construct:
 
-```python
+```python exec="off"
 demo = Demo(alpha=1.0, beta=2.0)
 ```
 
 but if we ask for `gamma`:
 
-```python
+```python exec="off"
 with basic:
     _ = demo.gamma
 ```
@@ -316,7 +316,7 @@ There is no route.
 
 In that case Bilt raises a `BiltAnalysisError` rather than beginning an evaluation that cannot satisfy the request.
 
-```python
+```python exec="off"
 with basic, pytest.raises(BiltAnalysisError):
     _ = demo.gamma
 ```
@@ -333,7 +333,7 @@ Equations make structural analysis more interesting.
 
 Recall our motion equation:
 
-```python
+```python exec="off"
 @equation
 def motion(distance: float, speed: float, time: float):
     return distance == speed * time
@@ -359,13 +359,13 @@ distance, speed ─► time
 
 Suppose we create:
 
-```python
+```python exec="off"
 journey = Motion(distance=100.0, time=5.0)
 ```
 
 and request:
 
-```python
+```python exec="off"
 with motion_model:
     speed = journey.speed
 ```
@@ -545,7 +545,7 @@ Bilt takes responsibility for turning those relationships into a computation.
 
 For our five-value example, writing the calculation directly would certainly be easier.
 
-```python
+```python exec="off"
 gamma = alpha + beta
 delta = alpha + gamma
 epsilon = gamma + delta

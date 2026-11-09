@@ -89,7 +89,7 @@ The system and transforms use scalar quantity declarations. These accept scalar 
 
 Each transform describes one scalar engineering relationship. Nothing in these functions refers to `scramble`, `sample`, `route`, NumPy axes, or broadcasting.
 
-```python
+```python exec="off"
 from typing import Annotated
 
 from bilt import Implementation, Interface, Quantity, field, system, transform
@@ -638,14 +638,14 @@ To explore the model locally, change the inputs below and save the page while ze
 
 For example, change the route or payload grids:
 
-```python
+```python exec="off"
 distances_km = np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0])
 payloads_t = np.array([2.0, 4.0, 6.0, 8.0])
 ```
 
 or change the scalar aircraft assumptions when constructing `Mission`:
 
-```python
+```python exec="off"
 mission = Mission(
     # ... other inputs ...
     empty_mass=20.0 * tonne,
@@ -657,7 +657,7 @@ mission = Mission(
 
 You can also change the uncertainty assumptions in `scrambled_sobol_inputs()`, for example the mean and spread of battery specific energy:
 
-```python
+```python exec="off"
 specific_energy_kwh_per_t = norm.ppf(
     uniforms[..., 0],
     loc=450.0,
@@ -715,12 +715,12 @@ None of those changes requires adding a model loop over the new cases.
 
 A useful next extension would be a Bilt reduction API that could replace positional NumPy operations such as:
 
-```python
+```python exec="off"
 feasible.mean(axis=1)
 ```
 
 with named operations such as:
 
-```python
+```python exec="off"
 feasible.mean(over=sample)
 ```

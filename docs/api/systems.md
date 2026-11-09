@@ -26,7 +26,7 @@ see [Units](units.md). Supply known values at construction.
 | `with implementation:` | Make this implementation the active choice for its system. The innermost context wins for instances without a selected implementation. |
 | `implementation.evaluate(inputs, output, backend)` | Calculate one named output from a dictionary of inputs using an explicit backend. Applies the same unit checks as instance evaluation. |
 
-```python
+```python exec="off"
 from bilt import Implementation, Interface, field, system, transform
 
 
@@ -76,7 +76,7 @@ square structural plan still does not guarantee a numerically nonsingular solve.
 Pass `internal_implementations={"child": child_model}`, then reference that
 same name in a parent equation parameter annotated with the child's interface:
 
-```python
+```python exec="off"
 @equation
 def connection(parent_value: float, child: Child) -> bool:
     return parent_value == child.value

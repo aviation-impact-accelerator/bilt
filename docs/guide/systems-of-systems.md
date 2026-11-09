@@ -12,7 +12,7 @@ We will start with a resistor.
 
 ### Start with an ordinary system
 
-```python
+```python exec="on" session="systems-of-systems"
 from bilt import Implementation, Interface, equation, field, system
 
 
@@ -63,7 +63,7 @@ Suppose a board contains a resistive load.
 
 Its public boundary might be:
 
-```python
+```python exec="on" session="systems-of-systems"
 @system
 class Board(metaclass=Interface):
     supply_voltage: float = field()
@@ -86,7 +86,7 @@ The resistor is not part of this public interface. It is part of one implementat
 
 Make the resistor available inside the board implementation:
 
-```python
+```python exec="off"
 board_model = Implementation(
     Board,
     [],
@@ -119,7 +119,7 @@ Containment alone does not imply a relationship.
 
 Parent equations can refer to the child interface:
 
-```python
+```python exec="on" session="systems-of-systems"
 @equation
 def voltage_connection(
     supply_voltage: float,
@@ -130,7 +130,7 @@ def voltage_connection(
 
 Here:
 
-```python
+```python exec="off"
 resistor: Resistor
 ```
 
@@ -138,7 +138,7 @@ gives the equation access to values on the child boundary.
 
 We can connect the remaining values in the same way:
 
-```python
+```python exec="on" session="systems-of-systems"
 @equation
 def resistance_connection(
     load_resistance: float,
@@ -157,7 +157,7 @@ def current_connection(
 
 Now build the complete implementation:
 
-```python
+```python exec="on" session="systems-of-systems"
 board_model = Implementation(
     Board,
     [
@@ -192,7 +192,7 @@ The resistor owns Ohm's law.
 
 Create the values we know:
 
-```python
+```python exec="on" session="systems-of-systems"
 board = Board(
     supply_voltage=6.0,
     load_resistance=3.0,
@@ -201,7 +201,7 @@ board = Board(
 
 Then request the value we want:
 
-```python
+```python exec="on" session="systems-of-systems"
 with board_model:
     assert board.supply_current == 2.0
 ```
@@ -243,7 +243,7 @@ voltage = current × resistance
 
 So we can supply current and resistance instead:
 
-```python
+```python exec="on" session="systems-of-systems"
 board = Board(
     supply_current=2.0,
     load_resistance=3.0,
@@ -263,7 +263,7 @@ As before:
 
 The same child implementation can be used in many larger models:
 
-```python
+```python exec="off"
 resistor_model = Implementation(
     Resistor,
     [ohms_law],
@@ -278,7 +278,7 @@ This is what makes small systems useful as reusable modelling components.
 
 A parent can contain several internal implementations:
 
-```python
+```python exec="off"
 circuit_model = Implementation(
     Circuit,
     [...],
@@ -306,7 +306,7 @@ This is not a restriction on which child interfaces an equation may mention. The
 
 For example:
 
-```python
+```python exec="on" session="systems-of-systems"
 @equation
 def first_voltage_connection(
     first_voltage: float,
@@ -325,7 +325,7 @@ def second_voltage_connection(
 
 Then relate the parent values:
 
-```python
+```python exec="on" session="systems-of-systems"
 @equation
 def total_voltage_relation(
     total_voltage: float,
@@ -357,7 +357,7 @@ When the boundary inputs can be established independently, each child can be eva
 
 The complete board example is:
 
-```python
+```python exec="on" session="board-complete"
 from bilt import Implementation, Interface, equation, field, system
 
 
@@ -429,7 +429,7 @@ board_model = Implementation(
 
 Use it like any other Bilt model:
 
-```python
+```python exec="on" session="board-complete"
 board = Board(
     supply_voltage=6.0,
     load_resistance=3.0,
@@ -443,7 +443,7 @@ with board_model:
 
 A larger implementation can contain smaller implementations:
 
-```python
+```python exec="on" session="board-complete"
 internal_implementations = {
     "resistor": resistor_model,
 }
@@ -453,7 +453,7 @@ The child keeps its own interface and relationships.
 
 Parent equations connect parent values to child values:
 
-```python
+```python exec="off"
 @equation
 def voltage_connection(
     supply_voltage: float,
@@ -478,7 +478,7 @@ child
 
 Users still interact with the larger system through its normal public interface:
 
-```python
+```python exec="on" session="board-complete"
 with board_model:
     current = board.supply_current
 ```

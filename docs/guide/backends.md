@@ -26,14 +26,14 @@ pip install bilt
 The Python backend is used by default, so for normal use you do not need to
 select a backend explicitly:
 
-```python
+```python exec="off"
 with motion_model:
     assert motion.distance == 100.0
 ```
 
 You can also select it explicitly when required:
 
-```python
+```python exec="off"
 from bilt import PYTHON_BACKEND
 
 with PYTHON_BACKEND, motion_model:
@@ -66,7 +66,7 @@ A Bilt model does not need to be rewritten for JAX.
 
 For example:
 
-```python
+```python exec="on" session="motion"
 from bilt import Implementation, Interface, equation, field, system
 
 
@@ -97,7 +97,7 @@ The model is backend-independent.
 By default, Bilt uses the Python backend. To use JAX instead, select the JAX
 backend around the evaluation:
 
-```python
+```python exec="on" session="motion"
 from bilt import JAX_BACKEND
 
 motion = Motion(
@@ -149,7 +149,7 @@ backend.
 
 Simple numerical expressions work naturally:
 
-```python
+```python exec="on" session="motion"
 @equation
 def kinetic_energy_relation(
     kinetic_energy: float,
@@ -161,7 +161,7 @@ def kinetic_energy_relation(
 
 Supported JAX operations can also be used where required:
 
-```python
+```python exec="off"
 import jax.numpy as jnp
 
 from bilt import transform
@@ -182,7 +182,7 @@ do not provide JAX-compatible operations.
 Bilt's current JAX backend also supports only a subset of Python syntax. For
 example, ordinary Python `if` statements are not currently supported:
 
-```python
+```python exec="off"
 @transform
 def absolute(value: float) -> float:
     if value > 0:
@@ -200,7 +200,7 @@ With the JAX backend, list literals are converted to JAX arrays.
 
 For example:
 
-```python
+```python exec="off"
 @transform
 def values() -> list[float]:
     return [1.0, 2.0, 3.0]
@@ -225,7 +225,7 @@ implementation using JAX.
 
 For example, a JAX-compatible subproblem can be defined normally:
 
-```python
+```python exec="off"
 from bilt import Implementation, Interface, field, system, transform
 
 
@@ -248,7 +248,7 @@ jax_subproblem = Implementation(
 
 A Python-backed transform can then delegate to it:
 
-```python
+```python exec="off"
 @transform
 def output_value(input_value: float) -> float:
     from bilt import JAX_BACKEND
@@ -288,7 +288,7 @@ For most use, start with the Python backend.
 
 Select Python explicitly when required:
 
-```python
+```python exec="off"
 from bilt import PYTHON_BACKEND
 
 with PYTHON_BACKEND, implementation:
@@ -297,7 +297,7 @@ with PYTHON_BACKEND, implementation:
 
 or select JAX:
 
-```python
+```python exec="off"
 from bilt import JAX_BACKEND
 
 with JAX_BACKEND, implementation:

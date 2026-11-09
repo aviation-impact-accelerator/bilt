@@ -71,7 +71,7 @@ jobs:
         run: cargo test --all-targets --all-features
 
       - name: Build docs with Zensical
-        run: uv run zensical build --clean
+        run: uv run zensical build --clean --strict
 
       - name: Check with prek
         run: uv run prek run --all-files
