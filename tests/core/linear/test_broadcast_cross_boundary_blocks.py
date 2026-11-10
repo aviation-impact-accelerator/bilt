@@ -5,7 +5,20 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
+from bilt import (
+    Domain,
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityTensor,
+    Tensor,
+    dim,
+    domain,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt._backend._errors import BiltUnsupportedNodeError
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
@@ -26,8 +39,8 @@ TIME = dim("time")
 SITE = dim("site")
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 Shared = typing.Annotated[Tensor, Domain.scalar()]
-LengthArray = typing.Annotated[Tensor, LENGTH]
-LengthScalar = typing.Annotated[Quantity, LENGTH]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
+LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 
 
 @system

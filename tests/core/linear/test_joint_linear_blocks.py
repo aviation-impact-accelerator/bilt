@@ -6,7 +6,18 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, Tensor, dim, equation, field, system, tensor, transform
+from bilt import (
+    Implementation,
+    Interface,
+    QuantityTensor,
+    Tensor,
+    dim,
+    equation,
+    field,
+    system,
+    tensor,
+    transform,
+)
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
@@ -33,15 +44,17 @@ X = typing.Annotated[Tensor, domain(TIME)]
 Scalar = typing.Annotated[Tensor, Domain.scalar()]
 Grid = typing.Annotated[Tensor, domain(SITE, TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
-LengthArray = typing.Annotated[Tensor, LENGTH]
-LengthGrid = typing.Annotated[Tensor, LENGTH, domain(TIME)]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
+LengthGrid = typing.Annotated[QuantityTensor, LENGTH, domain(TIME)]
 LengthScalar = typing.Annotated[Quantity, LENGTH, Domain.scalar()]
+LengthScalarField = typing.Annotated[Quantity, LENGTH]
 ReverseGrid = typing.Annotated[Tensor, domain(TIME, SITE)]
-CurrentArray = typing.Annotated[Tensor, CURRENT]
-BranchCurrent = typing.Annotated[Tensor, CURRENT, domain(BRANCH)]
+CurrentArray = typing.Annotated[QuantityTensor, CURRENT]
+BranchCurrent = typing.Annotated[QuantityTensor, CURRENT, domain(BRANCH)]
 SharedVoltage = typing.Annotated[Quantity, VOLTAGE, Domain.scalar()]
-VoltageArray = typing.Annotated[Tensor, VOLTAGE]
-Resistance = typing.Annotated[Quantity, RESISTANCE]
+SharedVoltageField = typing.Annotated[Quantity, VOLTAGE]
+VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
+Resistance = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
 
 
 @equation
@@ -204,9 +217,9 @@ def test_joint_solve_retains_units_and_distinct_output_domains(backend: Backend,
     @system
     class Lengths(metaclass=Interface):
         x: LengthArray = field()
-        y: LengthScalar = field()
+        y: LengthScalarField = field()
         p: LengthArray = field()
-        q: LengthScalar = field()
+        q: LengthScalarField = field()
 
     @equation
     def first(x: LengthGrid, y: LengthScalar, p: LengthArray) -> bool:
@@ -288,7 +301,7 @@ def test_parallel_sources_share_one_bus_voltage(backend: Backend, output: str) -
     @system
     class Circuit(metaclass=Interface):
         current: CurrentArray = field()
-        bus_voltage: SharedVoltage = field()
+        bus_voltage: SharedVoltageField = field()
         source_voltage: VoltageArray = field()
         branch_resistance: Resistance = field()
         load_resistance: Resistance = field()
