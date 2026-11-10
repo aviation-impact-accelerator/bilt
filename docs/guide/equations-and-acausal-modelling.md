@@ -222,6 +222,87 @@ This symbolic representation is what allows Bilt to reason about different ways 
 
 It also means an equation is not simply an arbitrary Python function. The expression needs to consist of mathematical operations that Bilt can represent symbolically.
 
+### Writing equations
+
+An equation should describe a mathematical relationship, rather than a series of instructions.
+
+You can give parts of the calculation names to make it easier to read:
+
+```python exec="off"
+@equation
+def adjusted_distance(distance: float, speed: float, time: float) -> bool:
+    travelled = speed * time
+    adjusted = travelled + 1.0
+    return distance == adjusted
+```
+
+There are a few rules to follow:
+
+- End with **one `return` statement** that gives a relationship, such as `distance == adjusted`.
+- Assign each name **only once**. You cannot change the value of a name later in the function.
+- Do not change the contents of objects, lists or dictionaries.
+- Do not use loops or comprehensions.
+
+For example, the following will not work:
+
+```python exec="off"
+@equation
+def invalid_relation(distance: float, speed: float, time: float) -> bool:
+    travelled = speed * time
+    travelled += 1.0
+    return distance == travelled
+```
+
+Here, `travelled` is changed after its first assignment. Instead, give the new value a different name, as in the previous example.
+
+You can call other functions, provided Bilt understands the mathematical operations they produce. Avoid functions that change files or other values outside the equation.
+
+Bilt also needs to read your function's original Python code. For this reason, define equations in Python files. Functions created dynamically, such as with `exec`, will not work, and some notebook environments may have difficulty providing the source code.
+
+### Using `if/else` in an equation
+
+Sometimes a relationship depends on a condition. For example, we might want to square positive values but change the sign of negative ones:
+
+```python exec="on" session="motion-equations"
+@system
+class Piecewise(metaclass=Interface):
+    x: float = field()
+    result: float = field()
+
+
+@equation
+def piecewise_relation(x: float, result: float) -> bool:
+    if x > 0:
+        selected = x**2
+    else:
+        selected = -x
+    return result == selected
+
+
+piecewise_model = Implementation(Piecewise, [piecewise_relation])
+```
+
+Both branches use the name `selected`. Bilt understands both possibilities, so it can choose the right one when a value is requested:
+
+```python exec="on" session="motion-equations"
+with piecewise_model:
+    assert Piecewise(x=3.0).result == 9.0
+    assert Piecewise(x=-3.0).result == 3.0
+```
+
+The same equation works with the JAX backend:
+
+```python exec="on" session="motion-equations"
+from bilt import JAX_BACKEND
+
+with JAX_BACKEND, piecewise_model:
+    assert Piecewise(x=-3.0).result == 3.0
+```
+
+For now, there are some limits. An equation can contain only **one `if/else`**, testing a single comparison such as `x > 0`. Both branches must assign a value to the same name, and the `return` must come afterwards. The condition and the values chosen must be **single numbers, not tensors (arrays of values)**. Inputs used in either branch must be available, even if only one branch is selected.
+
+Bilt can calculate `result` from `x` in this example. It cannot currently work backwards through the `if/else` to calculate `x` from `result`.
+
 ### Not every equation can simply be rearranged
 
 Our kinematic equation is pleasantly straightforward:
@@ -254,9 +335,9 @@ Equations are a natural starting point for Bilt because many engineering models 
 
 But not every piece of a model is best described this way.
 
-Some operations have a natural direction of computation. Others may contain conditionals, lookups, calls to external software, or calculations that cannot be meaningfully rearranged.
+Some operations have a natural direction of computation. Others involve more complicated instructions or calculations that Bilt cannot treat as equations.
 
-For those cases, Bilt provides **transforms**.
+For those cases, Bilt provides **transforms**. Equations can include a simple `if/else`, but transforms are better suited to calculations that do not describe a mathematical relationship.
 
 A useful distinction is:
 
