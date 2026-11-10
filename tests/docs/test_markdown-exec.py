@@ -11,7 +11,7 @@ DOCS = Path("docs")
 @pytest.mark.parametrize(
     "path",
     sorted(DOCS.rglob("*.md")),
-    ids=lambda path: str(path),  # noqa: PLW0108
+    ids=str,
 )
 def test_executable_documentation(
     path: Path,

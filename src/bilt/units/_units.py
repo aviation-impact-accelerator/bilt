@@ -691,10 +691,7 @@ class UnitSystem:
         }
 
     def __contains__(self, item: Unit) -> bool:
-        for si_base_unit in self.dimension_to_base_unit_mapping.values():  # noqa: SIM110
-            if item is si_base_unit:
-                return True
-        return False
+        return any(item is unit for unit in self.dimension_to_base_unit_mapping.values())
 
     def __getitem__(self, dimension: Dimension) -> Unit:
         return self.dimension_to_base_unit_mapping[dimension]
