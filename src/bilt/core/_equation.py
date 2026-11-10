@@ -21,6 +21,7 @@ from bilt.core._port import QualifiedPort
 from bilt.core._port_declaration import PortDeclaration, annotated_parts, port_declarations
 from bilt.core._sub_system import validate_name
 from bilt.core._tensors._tensors import Tensor
+from bilt.core._validation import validate_independently
 from bilt.symbolic import _atoms as ops
 from bilt.symbolic._atoms import QuantityType, SymbolType
 from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr, tensor_symbol_expr
@@ -91,9 +92,13 @@ class BasicEquation[R, **P]:
         dimensionalities = {
             port: declaration.dimensionality for port, declaration in self.__bilt_port_declarations__.items()
         }
-        check_homogeneity(self, dimensionalities)
-        _carried_under(name, tree, dimensionalities)
-        absoluteness_of(name, tree, self.__bilt_port_declarations__)
+        validate_independently(
+            (
+                lambda: check_homogeneity(self, dimensionalities),
+                lambda: _carried_under(name, tree, dimensionalities),
+                lambda: absoluteness_of(name, tree, self.__bilt_port_declarations__),
+            )
+        )
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self._function(*args, **kwargs)

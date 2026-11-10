@@ -10,19 +10,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bilt.core._equation import BasicEquation
+from bilt.core._errors import BiltCollectedValidationError
 from bilt.core._interface import Interface
 from bilt.core._system._implementation import Implementation
 from bilt.core._transform import BasicTransform
+from bilt.core._validation import Diagnostic, code_for, collecting_validation_errors
 
 if typing.TYPE_CHECKING:
     import collections.abc
     import types
-
-
-@dataclass(frozen=True, slots=True)
-class Diagnostic:
-    location: str
-    message: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,7 +62,11 @@ def check_modules(
             return
         seen_modules.add(name)
         try:
-            module = importlib.import_module(name)
+            with collecting_validation_errors():
+                module = importlib.import_module(name)
+        except BiltCollectedValidationError as error:
+            diagnostics.extend(_diagnostic(name, issue, project_root, source_error=error) for issue in error.errors)
+            return
         except Exception as error:  # noqa: BLE001 - errors in model definitions are diagnostics
             diagnostics.append(_diagnostic(name, error, project_root))
             return
@@ -110,14 +110,14 @@ def _count_models(module: types.ModuleType, seen: set[int], counts: dict[str, in
         counts[kind] += 1
 
 
-def _diagnostic(module: str, error: Exception, root: Path) -> Diagnostic:
+def _diagnostic(module: str, error: Exception, root: Path, *, source_error: Exception | None = None) -> Diagnostic:
     """Prefer a source location in the model repository over Bilt internals."""
     location = module
-    for frame in traceback.extract_tb(error.__traceback__):
+    for frame in traceback.extract_tb((source_error or error).__traceback__):
         path = Path(frame.filename).resolve()
         if path.is_relative_to(root) and not any(part in {".venv", "site-packages"} for part in path.parts):
             location = f"{path.relative_to(root)}:{frame.lineno}"
-    return Diagnostic(location, f"{type(error).__name__}: {error}")
+    return Diagnostic(location, f"{type(error).__name__}: {error}", code=code_for(error))
 
 
 @contextlib.contextmanager
