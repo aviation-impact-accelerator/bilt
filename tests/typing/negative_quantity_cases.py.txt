@@ -1,0 +1,65 @@
+"""Deliberately invalid type-checker examples, not imported by pytest.
+
+Each marker belongs on the exact line that should produce a diagnostic.
+The pytest harness materialises this source inside the repository, runs
+both type checkers, checks each expected diagnostic code at its location,
+and then removes the file.
+"""
+
+from typing import Annotated
+
+from bilt import Interface, Quantity, QuantityTensor, dim, field, system, tensor
+from bilt.units import kilogram
+from bilt.units.dimensions import MASS
+
+
+time = dim("time")
+scalar = Quantity(2.0, kilogram)
+labelled = tensor([1.0, 2.0], over=time, unit=kilogram)
+unitless = tensor([1.0, 2.0], over=time)
+
+
+def takes_quantity(mass: Quantity | QuantityTensor) -> None:
+    pass
+
+
+def takes_scalar(mass: Quantity) -> None:
+    pass
+
+
+def takes_tensor(mass: QuantityTensor) -> None:
+    pass
+
+
+takes_quantity(unitless)  # expect: unlabelled-tensor-is-not-a-quantity
+takes_scalar(labelled)  # expect: tensor-is-not-a-scalar-quantity
+takes_tensor(scalar)  # expect: scalar-is-not-a-tensor-quantity
+scalar.sum(time)  # expect: scalar-quantity-has-no-tensor-reduction
+
+
+takes_tensor(unitless)  # expect: unitless-tensor-is-not-quantity-tensor
+
+
+@system
+class ScalarOnly(metaclass=Interface):
+    mass: Annotated[Quantity, MASS] = field()
+
+
+@system
+class TensorOnly(metaclass=Interface):
+    mass: Annotated[QuantityTensor, MASS] = field()
+
+
+ScalarOnly(mass=labelled)  # expect: scalar-system-rejects-tensor
+TensorOnly(mass=scalar)  # expect: tensor-system-rejects-scalar
+
+
+# Pointwise quantities must still be unit-bearing.
+PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]
+
+
+def takes_pointwise_mass(value: PointwiseMass) -> None:
+    pass
+
+
+takes_pointwise_mass(unitless)  # expect: unitless-tensor-not-pointwise-quantity
