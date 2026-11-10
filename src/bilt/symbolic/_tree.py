@@ -155,6 +155,10 @@ class Tree:
     def __hash__(self) -> int:
         return id(self)
 
+    def __bool__(self) -> typing.NoReturn:
+        msg = "Symbolic trees cannot be used as Python booleans. Use a supported if/else inside @equation."
+        raise TypeError(msg)
+
     def __eq__(self, other: object) -> bool:
         return self is other
 
