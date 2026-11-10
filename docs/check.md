@@ -47,7 +47,7 @@ The hook uses the project's environment, where Bilt and the model's dependencies
 
 Discovery is based on Python source, not a complete static analysis. It recognises direct Bilt imports and aliases, but can miss re-exported decorators, dynamically created models or model factories requiring execution. Add such modules explicitly when needed. A module imported successfully is **not a guarantee** that a factory inside it was executed.
 
-Imports execute module-level Python code. Bilt checks definitions constructed by those imports, including dimensional consistency, declarations and subsystem wiring. It does not invoke transforms with dummy values, perform numerical evaluation, test structural solvability or infer tensor domains without inputs. Some checks remain runtime-dependent.
+Imports execute module-level Python code. For recognised top-level Bilt definitions, a failed definition does not prevent independent later definitions from being checked. Definitions depending on a failed one are reported as skipped. The recovery mechanism is intentionally limited to recognised top-level declarations; nested Python code and unrelated Python errors retain normal behaviour. Bilt checks definitions constructed by imports, including dimensional consistency, declarations and subsystem wiring. It does not invoke transforms with dummy values, perform numerical evaluation, test structural solvability or infer tensor domains without inputs. Some checks remain runtime-dependent.
 
 Files with Python syntax errors encountered during discovery are reported rather than silently ignored. No Bilt models found is a failure, not a successful check.
 
