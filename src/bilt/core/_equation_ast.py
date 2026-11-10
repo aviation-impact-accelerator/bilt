@@ -56,14 +56,14 @@ def extract_equation_ast(function: collections.abc.Callable[..., object]) -> ast
 
 
 def normalise_equation_ast(function: ast.FunctionDef) -> ast.FunctionDef:
-    """Validate and rewrite supported if/elif/else and nested conditionals."""
+    """Validate and rewrite supported if/elif/else and match/case conditions."""
     node = copy.deepcopy(function)
     node.decorator_list = []
     _validate_function(node)
 
     normalised: list[ast.stmt] = []
     for statement in node.body:
-        if not isinstance(statement, ast.If):
+        if not isinstance(statement, (ast.If, ast.Match)):
             normalised.append(statement)
             continue
 
@@ -82,6 +82,25 @@ def normalise_equation_ast(function: ast.FunctionDef) -> ast.FunctionDef:
 
 
 def _normalise_branch(statement: ast.stmt) -> tuple[str, ast.expr]:
+    if isinstance(statement, ast.Match):
+        name, result = _normalise_branch(statement.cases[-1].body[0])
+        for case in reversed(statement.cases[:-1]):
+            _, selected = _normalise_branch(case.body[0])
+            predicate = ast.Compare(
+                left=copy.deepcopy(statement.subject),
+                ops=[ast.Eq()],
+                comparators=[_match_literal(case.pattern)],
+            )
+            result = ast.copy_location(
+                ast.Call(
+                    func=ast.Name(id="_bilt_conditional", ctx=ast.Load()),
+                    args=[ast.copy_location(predicate, case.pattern), selected, result],
+                    keywords=[],
+                ),
+                case.pattern,
+            )
+        return name, result
+
     if not isinstance(statement, ast.If):
         return _assignment_name(statement), _assignment_value(statement)
 
@@ -168,23 +187,66 @@ def _parameter_names(function: ast.FunctionDef) -> set[str]:
     return names
 
 
-def _branch_statement(statements: list[ast.stmt], conditional: ast.If) -> ast.stmt:
+def _branch_statement(statements: list[ast.stmt], conditional: ast.If | ast.Match) -> ast.stmt:
     if len(statements) != 1:
-        _reject(conditional, "each branch must contain exactly one assignment or nested if/else")
+        _reject(conditional, "each branch must contain exactly one assignment or nested conditional")
     return statements[0]
 
 
 def _branch_binding_name(statement: ast.stmt) -> str:
     if isinstance(statement, ast.If):
         return _branch_binding_name(statement.body[0])
+    if isinstance(statement, ast.Match):
+        return _branch_binding_name(statement.cases[0].body[0])
     return _assignment_name(statement)
 
 
 def _validate_branch_arm(statement: ast.stmt, params: set[str], assigned: set[str]) -> str:
     if isinstance(statement, ast.If):
         return _validate_branch(statement, params, assigned)
+    if isinstance(statement, ast.Match):
+        return _validate_match(statement, params, assigned)
     name = _assignment_name(statement)
     _validate_expression(_assignment_value(statement))
+    return name
+
+
+def _match_literal(pattern: ast.pattern) -> ast.expr:
+    if isinstance(pattern, ast.MatchValue):
+        value = pattern.value
+        if isinstance(value, ast.Constant) and type(value.value) in (int, float):
+            return value
+        if (
+            isinstance(value, ast.UnaryOp)
+            and isinstance(value.op, ast.USub)
+            and isinstance(value.operand, ast.Constant)
+            and type(value.operand.value) in (int, float)
+        ):
+            return value
+    _reject(pattern, "match cases must be numeric literals followed by a final case _")
+
+
+def _is_wildcard(pattern: ast.pattern) -> bool:
+    return isinstance(pattern, ast.MatchAs) and pattern.pattern is None and pattern.name is None
+
+
+def _validate_match(statement: ast.Match, params: set[str], assigned: set[str]) -> str:
+    _validate_expression(statement.subject)
+    if not statement.cases[:-1] or not _is_wildcard(statement.cases[-1].pattern):
+        _reject(statement, "match requires literal cases and a final case _")
+
+    names: set[str] = set()
+    for index, case in enumerate(statement.cases):
+        if case.guard is not None:
+            _reject(case.guard, "match guards are not supported")
+        if index < len(statement.cases) - 1:
+            _match_literal(case.pattern)
+        body = _branch_statement(case.body, statement)
+        names.add(_validate_branch_arm(body, params, assigned))
+    if len(names) != 1:
+        _reject(statement, "all branches must assign the same local variable")
+    name = next(iter(names))
+    _check_fresh_binding(statement, name, params, assigned)
     return name
 
 
@@ -220,11 +282,11 @@ def _validate_bindings(function: ast.FunctionDef, params: set[str]) -> set[str]:
             name = _assignment_name(statement)
             _validate_expression(_assignment_value(statement))
             _check_fresh_binding(statement, name, params, assigned)
-        elif isinstance(statement, ast.If):
+        elif isinstance(statement, (ast.If, ast.Match)):
             if_count += 1
             if if_count > 1:
-                _reject(statement, "at most one if/else is supported")
-            name = _validate_branch(statement, params, assigned)
+                _reject(statement, "at most one if/else or match/case is supported at top level")
+            name = _validate_branch_arm(statement, params, assigned)
         else:
             _reject(statement, f"{type(statement).__name__} is not supported")
         assigned.add(name)
@@ -240,6 +302,16 @@ def _statement_expressions(statement: ast.stmt) -> list[ast.expr]:
             *(
                 expression
                 for branch in (*statement.body, *statement.orelse)
+                for expression in _statement_expressions(branch)
+            ),
+        ]
+    if isinstance(statement, ast.Match):
+        return [
+            statement.subject,
+            *(
+                expression
+                for case in statement.cases
+                for branch in case.body
                 for expression in _statement_expressions(branch)
             ),
         ]
@@ -266,6 +338,8 @@ def _check_local_reads(function: ast.FunctionDef, params: set[str], assigned: se
             available.add(_assignment_name(statement))
         elif isinstance(statement, ast.If):
             available.add(_branch_binding_name(statement.body[0]))
+        elif isinstance(statement, ast.Match):
+            available.add(_branch_binding_name(statement.cases[0].body[0]))
 
 
 def _validate_function(function: ast.FunctionDef) -> None:
