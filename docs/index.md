@@ -45,6 +45,7 @@ Worked examples show how these concepts fit together in complete models.
 - [Tensors](api/tensors.md) - tensor construction, domains, broadcasting, reductions, selection and current limitations.
 
 - [Units](api/units.md) - built-in units, quantity and unit helpers, dimensions, metadata and errors.
+- [Quantity annotations and typing](api/quantity-annotations.md) - scalar/tensor system fields, equation typing, minimum domains and compatibility.
 
 ## Configuration
 

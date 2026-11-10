@@ -1,6 +1,6 @@
 ## Domains and tensors
 
-For constructors, reductions, indexing and their current limitations, see the [Tensor API reference](../api/tensors.md).
+For constructors, reductions, indexing and their current limitations, see the [Tensor API reference](../api/tensors.md). For quantity-related type annotations, see [Quantity annotations and typing](../api/quantity-annotations.md).
 
 So far, every value in our examples has been a scalar:
 
@@ -236,15 +236,15 @@ Bilt checks it when values enter a system and when a computed system output
 has a declared minimum domain. Domain metadata is checked by Bilt at runtime;
 Python type checkers do not interpret the dimensions in `Annotated`.
 
-For now, this form applies to **new unit-bearing tensor annotations**
-(`QuantityTensor` and `QuantityTensor`). Bare
-`Quantity | QuantityTensor` permits scalar values and therefore cannot also declare a
+This form applies to the unit-bearing `QuantityTensor` annotation. The
+pointwise `Quantity | QuantityTensor` union permits scalars and therefore cannot declare a
 required tensor dimension. Existing unitless `Annotated[Tensor, Domain(...)]`
-annotations and existing `Quantity` or `Tensor` annotations with Domain metadata
-remain available as hints for structural domain inference; this new
-minimum-domain check does not reinterpret their existing behaviour. Enforcing
-additional requirements declared only on a constituent equation is a separate
-follow-up.
+annotations remain available as exact hints for unitless structural domain
+inference. Scalar equation annotations may also use `Quantity` with
+`Domain.scalar()` as an exact linear-solver hint. Dimensioned `Tensor`
+annotations are no longer supported.
+Equation-local minimum requirements are checked on the route Bilt selects,
+as described below.
 
 ### Minimum domains on equation parameters
 
@@ -260,12 +260,11 @@ from bilt.symbolic._domains import Domain
 from bilt.units.dimensions import MASS
 
 type Mass = typing.Annotated[Quantity | QuantityTensor, MASS]
-type ScalarMass = typing.Annotated[Quantity, MASS]
 type TimeMass = typing.Annotated[QuantityTensor, MASS, Domain((time,))]
 
 
 @equation
-def copy_over_time(x: TimeMass, result: ScalarMass) -> bool:
+def copy_over_time(x: TimeMass, result: Mass) -> bool:
     return result == x
 ```
 
@@ -275,43 +274,8 @@ The `time` dimension must be present, but additional axes such as
 `scenario` are allowed. If the equation is not selected for a particular
 evaluation, its domain requirement does not constrain that evaluation.
 
-These are minimum-domain **requirements** rather than the existing exact
-`Domain` **hints** on legacy `Quantity` and `Tensor` annotations. In
-particular, they are not passed to the linear-block inference algorithm as
-exact layouts. A mismatch rejects the selected evaluation route with an
-explanation naming the equation, port and missing dimensions.
-
-### Minimum domains on equation parameters
-
-An equation can also require a dimension that is not mentioned on its
-enclosing system field. This is useful when the system itself accepts many
-possible shapes but one equation needs a specific axis:
-
-```python exec="off"
-import typing
-
-from bilt import Quantity, QuantityTensor, equation
-from bilt.symbolic._domains import Domain
-from bilt.units.dimensions import MASS
-
-type Mass = typing.Annotated[Quantity | QuantityTensor, MASS]
-type ScalarMass = typing.Annotated[Quantity, MASS]
-type TimeMass = typing.Annotated[QuantityTensor, MASS, Domain((time,))]
-
-
-@equation
-def copy_over_time(x: TimeMass, result: ScalarMass) -> bool:
-    return result == x
-```
-
-When Bilt chooses this equation to compute an output, it checks the
-**inferred domains** of the values the equation reads and produces.
-The `time` dimension must be present, but additional axes such as
-`scenario` are allowed. If the equation is not selected for a particular
-evaluation, its domain requirement does not constrain that evaluation.
-
-These are minimum-domain **requirements** rather than the existing exact
-`Domain` **hints** on legacy `Quantity` and `Tensor` annotations. In
+These are minimum-domain **requirements**, unlike exact `Domain` **hints**
+on pointwise `Quantity | QuantityTensor` equation parameters or unitless `Tensor` parameters. In
 particular, they are not passed to the linear-block inference algorithm as
 exact layouts. A mismatch rejects the selected evaluation route with an
 explanation naming the equation, port and missing dimensions.

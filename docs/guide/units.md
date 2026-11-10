@@ -1,6 +1,8 @@
 ## Units in models
 
 For a catalogue of built-in units, helpers and errors, see the [Units API reference](../api/units.md).
+For flexible unit-bearing scalar/tensor fields and equation annotations, see
+[Quantity annotations and typing](../api/quantity-annotations.md).
 
 So far, the values in our models have mostly been plain numbers:
 
@@ -66,29 +68,32 @@ Let's declare our motion system again:
 ```python exec="on" session="units-models"
 from typing import Annotated
 
-from bilt import Implementation, Interface, equation, field, system, transform
+from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, field, system, transform
 from bilt.units.dimensions import LENGTH, TIME
 
 
 Length = Annotated[Quantity, LENGTH]
 Duration = Annotated[Quantity, TIME]
 Speed = Annotated[Quantity, LENGTH / TIME]
+PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]
+PointwiseDuration = Annotated[Quantity | QuantityTensor, TIME]
+PointwiseSpeed = Annotated[Quantity | QuantityTensor, LENGTH / TIME]
 
 
 @system
 class Motion(metaclass=Interface):
-    distance: Length = field()
-    speed: Speed = field()
-    duration: Duration = field()
+    distance: PointwiseLength = field()
+    speed: PointwiseSpeed = field()
+    duration: PointwiseDuration = field()
 ```
 
 There is one new piece of Python here:
 
 ```python exec="on" session="units-models"
-Annotated[Quantity, LENGTH]
+Annotated[Quantity | QuantityTensor, LENGTH]
 ```
 
-`Annotated` lets us attach extra information to a type. Here, the type is `Quantity` and the extra information is its dimension.
+`Annotated` attaches a physical dimension to a Python type. The union accepts a scalar `Quantity` or a unit-bearing `QuantityTensor`, and `LENGTH` states what the quantity measures.
 
 Bilt reads that annotation when `@system` runs. The `distance` field now says:
 
@@ -96,17 +101,18 @@ Bilt reads that annotation when `@system` runs. The `distance` field now says:
 
 It does not prescribe metres or kilometres.
 
-We have given the annotations short names so that we can reuse them in our equations and transforms. The aliases are a convenience; writing `Annotated[Quantity, LENGTH]` directly has the same meaning.
+System fields use `Pointwise...` aliases because they accept scalar or tensor quantities. Equations and transforms retain shorter scalar aliases (`Length`, `Speed`, and `Duration`); Bilt lifts equations over compatible tensor domains.
 
 Dimensions can be combined using multiplication, division and powers. Speed is length divided by time. Acceleration would be `LENGTH / TIME**2`.
 
 Use a dimension in the annotation, rather than a unit:
 
 ```python exec="on" session="units-models"
-Length = Annotated[Quantity, LENGTH]  # A valid declaration.
+Length = Annotated[Quantity, LENGTH]  # Scalar equation or transform.
+PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]  # Scalar or tensor field.
 ```
 
-`Annotated[Quantity, meter]` raises `BiltPortDeclarationError`. So does a bare `Quantity` annotation: it says that a value carries units, but leaves its dimension unspecified.
+`Annotated[Quantity | QuantityTensor, meter]` raises `BiltPortDeclarationError`, because `meter` is a unit rather than a dimension. Quantity annotations also need a physical dimension. Use `Annotated[Quantity, LENGTH]` for scalar-only fields, `Annotated[QuantityTensor, LENGTH]` for tensor-only fields, or `Annotated[Quantity | QuantityTensor, LENGTH]` for fields accepting either.
 
 ### Give the equation the same dimensions
 
@@ -210,10 +216,10 @@ Extend the system with one field:
 ```python exec="off"
 @system
 class Motion(metaclass=Interface):
-    distance: Length = field()
-    speed: Speed = field()
-    duration: Duration = field()
-    allowance: Length = field()
+    distance: PointwiseLength = field()
+    speed: PointwiseSpeed = field()
+    duration: PointwiseDuration = field()
+    allowance: PointwiseLength = field()
 
 
 @transform
@@ -321,12 +327,13 @@ from bilt.units.dimensions import DIMENSIONLESS
 
 
 Ratio = Annotated[Quantity, DIMENSIONLESS]
+PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
 
 half = 50.0 * percent
 assert half.convert_to(UNITLESS).value == 0.5
 ```
 
-A field annotated `Ratio` requires a dimensionless quantity, such as `Quantity(0.5, UNITLESS)`. A bare `0.5` is still refused.
+A dimensionless system field still requires a quantity, such as `Quantity(0.5, UNITLESS)`; a bare `0.5` is refused. For fields accepting either shape, use `PointwiseRatio`; `Ratio` remains the scalar annotation for equations and transforms.
 
 `DIMENSIONLESS` is the dimension used in declarations. `UNITLESS` is a unit used to construct or convert quantities.
 
@@ -366,19 +373,22 @@ A reading of twenty degrees Celsius is a position on a temperature scale. A rise
 Bilt represents these as **absolute** and **relative** quantities:
 
 ```python exec="on" session="units-models"
+from bilt import Quantity, QuantityTensor
 from bilt.units import absolute_celsius, absolute_kelvin, celsius, kelvin
 from bilt.units.dimensions import ABSOLUTE, TEMPERATURE
 
 
 AbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]
 TemperatureChange = Annotated[Quantity, TEMPERATURE]
+PointwiseAbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
+PointwiseTemperatureChange = Annotated[Quantity | QuantityTensor, TEMPERATURE]
 
 
 @system
 class Heater(metaclass=Interface):
-    inlet: AbsoluteTemperature = field()
-    rise: TemperatureChange = field()
-    outlet: AbsoluteTemperature = field()
+    inlet: PointwiseAbsoluteTemperature = field()
+    rise: PointwiseTemperatureChange = field()
+    outlet: PointwiseAbsoluteTemperature = field()
 
 
 @equation
@@ -431,21 +441,21 @@ In a transform that receives a plain Celsius number, construct the reading expli
 Units also work with the tensors introduced in [Domains and tensors](dimensions-domains-and-tensors.md):
 
 ```python exec="on" session="units-models"
-from bilt import Tensor, dim, tensor
+from bilt import QuantityTensor, dim, tensor
 
 
-LengthSeries = Annotated[Tensor, LENGTH]
+LengthTensor = Annotated[QuantityTensor, LENGTH]
 sample = dim("sample")
 
 
 @system
 class Survey(metaclass=Interface):
-    distance: LengthSeries = field()
-    doubled: LengthSeries = field()
+    distance: LengthTensor = field()
+    doubled: LengthTensor = field()
 
 
 @equation
-def doubling(doubled: LengthSeries, distance: LengthSeries) -> bool:
+def doubling(doubled: LengthTensor, distance: LengthTensor) -> bool:
     return doubled == distance * 2.0
 
 
@@ -463,9 +473,9 @@ The domain says where the value varies. The unit says what its numbers represent
 
 These are independent: `dim("sample")` names an array axis, while `LENGTH` describes a physical dimension.
 
-Use `Annotated[Tensor, LENGTH]` when the interface requires a tensor. It rejects a scalar quantity. A `Quantity` declaration can also accept a unit-carrying tensor at runtime, allowing a scalar relationship to be reused over a domain. The same port may be declared over `Tensor` on the interface and over `Quantity` in a relationship, provided its dimension and absolute marker agree.
+Use `Annotated[QuantityTensor, LENGTH]` when a field or equation needs a tensor quantity. It rejects scalar quantities. For pointwise fields and equations accepting both, use `Annotated[Quantity | QuantityTensor, LENGTH]`. Named tensor operations still need `QuantityTensor`.
 
-A tensor with no domain axes—a rank-zero tensor—is still a tensor. For example, `tensor(1.0, unit=kilometer)` is accepted by a Tensor-declared length port. Calculated outputs from Tensor-declared ports remain tensors even when their domain is scalar. They can therefore be reused as inputs without changing their declared type.
+A tensor with no domain axes—a rank-zero tensor—is still a tensor. For example, `tensor(1.0, unit=kilometer)` is accepted by a tensor-quantity length field. Calculated outputs from tensor-quantity fields remain tensors even when their domain is scalar. They can therefore be reused as inputs without changing their declared type.
 
 ### Tags preserve what a quantity measures
 
@@ -474,6 +484,7 @@ Sometimes physical dimensions alone are insufficient. A kilogram of fuel and a k
 Bilt's metadata tags can make that distinction part of the declaration:
 
 ```python exec="on" session="units-models"
+from bilt import Quantity, QuantityTensor
 from bilt.units import Metadata, kilogram
 
 
@@ -486,8 +497,8 @@ Co2Mass = Annotated[Quantity, MASS * co2]
 
 @system
 class Burn(metaclass=Interface):
-    burned: FuelMass = field()
-    emitted: Co2Mass = field()
+    burned: Annotated[Quantity | QuantityTensor, MASS * fuel] = field()
+    emitted: Annotated[Quantity | QuantityTensor, MASS * co2] = field()
 
 
 @equation
@@ -516,7 +527,7 @@ The errors identify the stage at which Bilt finds a disagreement:
 
 | Error | What to check |
 | --- | --- |
-| `BiltPortDeclarationError` | Use exactly one dimension on `Quantity` or `Tensor`; use dimensions rather than units in annotations. |
+| `BiltPortDeclarationError` | Use exactly one physical dimension on a quantity declaration. For new code, use `Quantity`, `QuantityTensor`, or their union, and annotate with a dimension rather than a unit. |
 | `BiltEquationDimensionalityError` | Check the equation's operations, both sides of the relation, and absolute versus relative quantities. |
 | `BiltImplementationDimensionalityError` | Give every occurrence of a shared port the same declaration. |
 | `BiltInputDimensionalityError` | Supply a quantity or tensor with the required dimension, tags and absolute or relative unit. |

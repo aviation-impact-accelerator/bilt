@@ -40,7 +40,7 @@ Declare **distance = speed × time**, then ask for either distance or speed:
 ```python
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, equation, field, system
+from bilt import Implementation, Interface, Quantity, QuantityTensor, dim, equation, field, system, tensor
 from bilt.units import hour, kilometer, meter, second
 from bilt.units.dimensions import LENGTH, TIME
 
@@ -48,13 +48,16 @@ from bilt.units.dimensions import LENGTH, TIME
 Length = Annotated[Quantity, LENGTH]
 Duration = Annotated[Quantity, TIME]
 Speed = Annotated[Quantity, LENGTH / TIME]
+PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]
+PointwiseDuration = Annotated[Quantity | QuantityTensor, TIME]
+PointwiseSpeed = Annotated[Quantity | QuantityTensor, LENGTH / TIME]
 
 
 @system
 class Motion(metaclass=Interface):
-    distance: Length = field()
-    speed: Speed = field()
-    time: Duration = field()
+    distance: PointwiseLength = field()
+    speed: PointwiseSpeed = field()
+    time: PointwiseDuration = field()
 
 
 @equation
@@ -71,9 +74,17 @@ with motion_model:
     another_journey = Motion(distance=1.0 * kilometer, time=100.0 * second)
     assert another_journey.speed == 10.0 * meter / second
     assert another_journey.speed.convert_to(kilometer / hour).value == 36.0
+
+    scenario = dim("scenario")
+    speeds = tensor([36.0, 72.0], over=scenario, unit=kilometer / hour)
+    journeys = Motion(speed=speeds, time=5.0 * second)
+    assert journeys.distance.domain.dims == (scenario,)
+    assert journeys.distance.convert_to(meter).values.tolist() == [50.0, 100.0]
 ```
 
-Bilt rearranges the equation and handles unit conversions. The annotations declare physical dimensions; incompatible equations or input quantities raise dimensionality errors. Equation rearrangement is limited to supported symbolic operations.
+Bilt rearranges the equation and handles unit conversions. The third journey uses a tensor of speeds over a named `scenario` dimension; Bilt broadcasts the scalar time and calculates both distances with the same equation.
+
+The annotations declare physical dimensions; incompatible equations or input quantities raise dimensionality errors. Equation rearrangement is limited to supported symbolic operations.
 
 Save the example as `motion.py` and run it with `uv run python motion.py`.
 
