@@ -174,23 +174,21 @@ def _equation_to_callable(
             equation.__bilt_equation_tree__,
             target,
         )
-    except BiltIsolationError as error:
+        lowered = lower_expression(
+            isolated.rhs,
+            symbol_domains=symbol_domains,
+            canonical_order=current_evaluation().canonical_order,
+        )
+        function_ast = tree_to_functiondef(
+            lowered.tree,
+            name=plan_step.output,
+            parameter_order=equation.__bilt_parameters__,
+        )
+    except (BiltIsolationError, BiltSymbolicLoweringError, BiltTensorDomainError) as error:
         return RealizationFailure(
             failed_plan_step=plan_step,
             cause=error,
         )
-
-    lowered = lower_expression(
-        isolated.rhs,
-        symbol_domains=symbol_domains,
-        canonical_order=current_evaluation().canonical_order,
-    )
-
-    function_ast = tree_to_functiondef(
-        lowered.tree,
-        name=plan_step.output,
-        parameter_order=equation.__bilt_parameters__,
-    )
 
     callable_ = _guarded_transpile(
         _NameMangler().visit(function_ast),
