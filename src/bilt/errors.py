@@ -17,6 +17,8 @@ __all__ = [
     "BiltAnalysisError",
     "BiltAtomMutationError",
     "BiltBackendError",
+    "BiltCheckConfigurationError",
+    "BiltCheckError",
     "BiltCompilationError",
     "BiltDefinitionError",
     "BiltDimensionalityError",
@@ -62,6 +64,7 @@ __all__ = [
 
 from bilt._backend._errors import BiltBackendError, BiltCompilationError, BiltLinearSolveError, BiltUnsupportedNodeError
 from bilt._base_error import BiltError
+from bilt._errors import BiltCheckConfigurationError, BiltCheckError
 from bilt.core._errors import (
     BiltAnalysisError,
     BiltDefinitionError,

@@ -19,6 +19,7 @@ def test_direct_subclasses_of_bilt_error() -> None:
     expected_direct = {
         "BiltDefinitionError",
         "BiltAnalysisError",
+        "BiltCheckError",
         "BiltEvaluationError",
         "BiltSymbolicError",
         "BiltUnitsError",
@@ -36,6 +37,7 @@ def test_direct_subclasses_of_bilt_error() -> None:
 @pytest.mark.parametrize(
     ("class_name", "builtin_mixin"),
     (
+        ("BiltCheckConfigurationError", ValueError),
         ("BiltEquationReturnError", TypeError),
         ("BiltEquationSignatureError", TypeError),
         ("BiltNoActiveEvaluationError", RuntimeError),
