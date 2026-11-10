@@ -13,6 +13,7 @@ from bilt.symbolic._atoms import (
 from bilt.symbolic._errors import BiltSymbolicConversionError, BiltUnknownPortError
 from bilt.symbolic._tree import (
     Tree,
+    conditional_tree,
     coordinate_tree,
     float_tree,
     int_tree,
@@ -42,6 +43,7 @@ __all__ = [
     "TensorExpr",
     "as_expr",
     "as_tree",
+    "conditional_expr",
     "symbol_expr",
     "tensor_symbol_expr",
 ]
@@ -342,6 +344,13 @@ def as_expr(value: object) -> Expr:
         return value
 
     return Expr(as_tree(value))
+
+
+def conditional_expr(predicate: Tree, when_true: object, when_false: object) -> Expr:
+    if isinstance(when_true, TensorExpr) or isinstance(when_false, TensorExpr):
+        msg = "Tensor-valued conditional branches are not supported yet."
+        raise BiltSymbolicConversionError(msg)
+    return Expr(conditional_tree(predicate, as_tree(when_true), as_tree(when_false)))
 
 
 def symbol_expr(name: str) -> Expr:
