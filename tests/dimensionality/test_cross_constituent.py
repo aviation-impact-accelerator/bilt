@@ -147,7 +147,7 @@ def test_a_transform_output_takes_its_return_annotation() -> None:
 def test_a_port_one_owner_marks_absolute_and_another_leaves_relative_raises() -> None:
     @system
     class Engine(metaclass=Interface):
-        hot: typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE] = field()
+        hot: typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE] = field()
 
     @equation
     def resting(hot: typing.Annotated[Quantity, TEMPERATURE]) -> bool:

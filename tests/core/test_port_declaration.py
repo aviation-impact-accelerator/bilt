@@ -29,11 +29,11 @@ AbsoluteTemperatureRate = typing.Annotated[Quantity, TEMPERATURE / TIME, ABSOLUT
 AbsoluteFloat = typing.Annotated[float, ABSOLUTE]
 TaggedMass = typing.Annotated[Quantity, MASS * Metadata("co2")]
 MassBesideTag = typing.Annotated[Quantity, MASS, Metadata("co2")]
-MassOverADomain = typing.Annotated[Tensor, MASS]
-AbsoluteTemperatureOverADomain = typing.Annotated[Tensor, TEMPERATURE, ABSOLUTE]
-TaggedMassOverADomain = typing.Annotated[Tensor, MASS * Metadata("co2")]
-KilogramsOverADomain = typing.Annotated[Tensor, kilogram]
-MassAndLengthOverADomain = typing.Annotated[Tensor, MASS, LENGTH]
+MassOverADomain = typing.Annotated[QuantityTensor, MASS]
+AbsoluteTemperatureOverADomain = typing.Annotated[QuantityTensor, TEMPERATURE, ABSOLUTE]
+TaggedMassOverADomain = typing.Annotated[QuantityTensor, MASS * Metadata("co2")]
+KilogramsOverADomain = typing.Annotated[QuantityTensor, kilogram]
+MassAndLengthOverADomain = typing.Annotated[QuantityTensor, MASS, LENGTH]
 
 
 def test_system_records_only_the_declared_fields() -> None:
@@ -478,11 +478,11 @@ def test_a_tensor_annotation_reads_at_an_equation_and_a_transform() -> None:
         return m == n
 
     @transform
-    def doubled(m: MassOverADomain) -> MassOverADomain:
-        return m * 2.0
+    def unchanged(m: MassOverADomain) -> MassOverADomain:
+        return m
 
     assert balance.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "n": PortDeclaration(MASS)}
-    assert doubled.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "doubled": PortDeclaration(MASS)}
+    assert unchanged.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "unchanged": PortDeclaration(MASS)}
 
 
 def test_concrete_quantity_annotation_distinguishes_scalar_and_tensor_ports() -> None:

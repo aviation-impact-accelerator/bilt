@@ -2,23 +2,24 @@ from __future__ import annotations
 
 import typing
 
-from bilt import Interface, equation, field, system, transform
+from bilt import Interface, QuantityTensor, equation, field, system, transform
 from bilt.core._port_declaration import PortDeclaration
 from bilt.units import Quantity
 from bilt.units.dimensions import MASS
 
 Mass = typing.Annotated[Quantity, MASS]
+MassField = typing.Annotated[Quantity | QuantityTensor, MASS]
 
 
 @system
 class Child(metaclass=Interface):
-    v: Mass = field()
+    v: MassField = field()
 
 
 def test_system_resolves_annotated_fields() -> None:
     @system
     class Rig(metaclass=Interface):
-        mass: Mass = field()
+        mass: MassField = field()
         limit: typing.ClassVar[float] = 1.0
 
     assert Rig.__bilt_port_declarations__ == {"mass": PortDeclaration(MASS)}

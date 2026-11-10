@@ -4,7 +4,7 @@ import typing
 
 import pytest
 
-from bilt import Implementation, Interface, equation, field, system, transform
+from bilt import Implementation, Interface, QuantityTensor, equation, field, system, transform
 from bilt.errors import BiltDefinitionError, BiltEquationDimensionalityError, BiltInputDimensionalityError
 from bilt.units import Quantity
 from bilt.units.dimensions import ABSOLUTE, AMOUNT, DIMENSIONLESS, ENERGY, MASS, PRESSURE, TEMPERATURE, TIME, VOLUME
@@ -22,15 +22,17 @@ from bilt.units.units import (
 )
 
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
+AbsoluteTemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
 Temperature = typing.Annotated[Quantity, TEMPERATURE]
+TemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE]
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
 
 
 @system
 class Heater(metaclass=Interface):
-    inlet: AbsoluteTemperature = field()
-    rise: Temperature = field()
-    outlet: AbsoluteTemperature = field()
+    inlet: AbsoluteTemperatureField = field()
+    rise: TemperatureField = field()
+    outlet: AbsoluteTemperatureField = field()
 
 
 @equation
@@ -88,7 +90,7 @@ def test_a_bare_float_at_an_absolute_port_raises() -> None:
 def test_an_absolute_unit_whose_dimensionality_cannot_be_absolute_raises() -> None:
     @system
     class Clock(metaclass=Interface):
-        started: typing.Annotated[Quantity, TIME] = field()
+        started: typing.Annotated[Quantity | QuantityTensor, TIME] = field()
 
     with pytest.raises(BiltInputDimensionalityError, match=r"'started' of 'Clock'.*in a relative unit such as second"):
         Clock(started=Quantity(2020.0, absolute_year))
@@ -97,7 +99,7 @@ def test_an_absolute_unit_whose_dimensionality_cannot_be_absolute_raises() -> No
 def test_a_compound_unit_containing_an_absolute_unit_raises_at_a_relative_port() -> None:
     @system
     class Tank(metaclass=Interface):
-        thermal_mass: typing.Annotated[Quantity, MASS * TEMPERATURE] = field()
+        thermal_mass: typing.Annotated[Quantity | QuantityTensor, MASS * TEMPERATURE] = field()
 
     with pytest.raises(BiltInputDimensionalityError, match=r"'thermal_mass' of 'Tank'.*in a relative unit") as raised:
         Tank(thermal_mass=60.0 * kilogram * absolute_celsius)
@@ -113,8 +115,8 @@ def test_a_compound_unit_containing_an_absolute_unit_raises_at_an_absolute_port(
 def test_an_absolute_quantity_constant_in_an_equation_counts_from_absolute_zero() -> None:
     @system
     class Thermometer(metaclass=Interface):
-        above_freezing: Temperature = field()
-        reading: AbsoluteTemperature = field()
+        above_freezing: TemperatureField = field()
+        reading: AbsoluteTemperatureField = field()
 
     @equation
     def reading_from_freezing(reading: AbsoluteTemperature, above_freezing: Temperature) -> bool:
@@ -130,8 +132,8 @@ def test_an_absolute_quantity_constant_in_an_equation_counts_from_absolute_zero(
 def test_an_absolute_quantity_constant_in_a_transform_counts_from_absolute_zero() -> None:
     @system
     class Thermometer(metaclass=Interface):
-        above_freezing: Temperature = field()
-        reading: AbsoluteTemperature = field()
+        above_freezing: TemperatureField = field()
+        reading: AbsoluteTemperatureField = field()
 
     @transform
     def reading(above_freezing: Temperature) -> AbsoluteTemperature:
@@ -155,9 +157,9 @@ def test_two_absolute_quantities_do_not_add() -> None:
 def test_a_mean_of_absolute_quantities_is_written_from_one_of_them() -> None:
     @system
     class Wall(metaclass=Interface):
-        hot: AbsoluteTemperature = field()
-        cold: AbsoluteTemperature = field()
-        film: AbsoluteTemperature = field()
+        hot: AbsoluteTemperatureField = field()
+        cold: AbsoluteTemperatureField = field()
+        film: AbsoluteTemperatureField = field()
 
     @equation
     def film_temperature(film: AbsoluteTemperature, hot: AbsoluteTemperature, cold: AbsoluteTemperature) -> bool:
@@ -246,7 +248,7 @@ def test_a_sub_system_port_keeps_its_absoluteness_in_a_parent_equation() -> None
 @system
 class Probe(metaclass=Interface):
     degrees: float = field()
-    reading: AbsoluteTemperature = field()
+    reading: AbsoluteTemperatureField = field()
 
 
 def test_a_constructed_absolute_quantity_brings_a_plain_port_to_an_absolute_one() -> None:
