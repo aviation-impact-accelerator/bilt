@@ -7,6 +7,7 @@ import typing
 
 from bilt.core._errors import BiltPortDeclarationError
 from bilt.core._tensors._tensors import Tensor
+from bilt.core._validation import validate_independently
 from bilt.units import Dimension, Metadata, Quantity, Unit
 from bilt.units._errors import BiltUnitError
 from bilt.units._units import BASE_UNIT_SYSTEM
@@ -54,8 +55,17 @@ def port_declarations(
     port_annotations: collections.abc.Mapping[str, object],
 ) -> dict[str, PortDeclaration]:
     """Read the value off each port's annotation to keep information about the port."""
-    declarations = {port: _declaration(owner_name, port, annotation) for port, annotation in port_annotations.items()}
-    return {port: declaration for port, declaration in declarations.items() if declaration is not None}
+    declarations: dict[str, PortDeclaration] = {}
+
+    def validate_port(port: str, annotation: object) -> None:
+        if (declaration := _declaration(owner_name, port, annotation)) is not None:
+            declarations[port] = declaration
+
+    validate_independently(
+        lambda port=port, annotation=annotation: validate_port(port, annotation)
+        for port, annotation in port_annotations.items()
+    )
+    return declarations
 
 
 def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclaration | None:
