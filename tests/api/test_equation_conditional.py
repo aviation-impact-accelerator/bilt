@@ -14,7 +14,7 @@ class Shifted(metaclass=Interface):
 SHIFT = 2.0
 
 
-def test_normal_equation_accepts_statement_level_conditional() -> None:
+def test_conditional_equation_preserves_original_python_call() -> None:
     @equation
     def relation(x: float, y: float) -> bool:
         if x > 0:
@@ -23,11 +23,9 @@ def test_normal_equation_accepts_statement_level_conditional() -> None:
             value = -x
         return y == value
 
-    with Implementation(Shifted, [relation]):
-        assert Shifted(x=2.0).y == pytest.approx(4.0)
-        assert Shifted(x=-2.0).y == pytest.approx(2.0)
     assert relation(2.0, 4.0)
     assert relation(-2.0, 2.0)
+    assert not relation(2.0, -2.0)
 
 
 def test_conditional_equation_uses_local_bindings_and_module_globals() -> None:
@@ -117,4 +115,25 @@ def test_static_python_branch_is_rejected() -> None:
                 value = x + 1
             else:
                 value = x + 2
+            return y == value
+
+
+def test_plain_equation_can_capture_a_closure_constant() -> None:
+    scale = 3.0
+
+    @equation
+    def relation(x: float, y: float) -> bool:
+        return y == x * scale
+
+    with Implementation(Shifted, [relation]):
+        assert Shifted(x=2.0).y == pytest.approx(6.0)
+
+
+def test_plain_equation_rejects_reassigned_local() -> None:
+    with pytest.raises(BiltDefinitionError, match="assigned more than once"):
+
+        @equation
+        def relation(x: float, y: float) -> bool:
+            value = x + 1
+            value = value * 2
             return y == value
