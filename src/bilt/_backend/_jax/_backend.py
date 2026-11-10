@@ -77,6 +77,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
         self.compilation_namespace = {
             "jnp": jnp,
             "jax.jit": jax.jit,
+            "jax.lax.cond": jax.lax.cond,
         }
         self.intrinsic_bindings = PythonIntrinsicBindings(
             isel=_isel,
