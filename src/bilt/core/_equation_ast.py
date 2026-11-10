@@ -56,7 +56,7 @@ def extract_equation_ast(function: collections.abc.Callable[..., object]) -> ast
 
 
 def normalise_equation_ast(function: ast.FunctionDef) -> ast.FunctionDef:
-    """Validate and rewrite the supported single-if/single-assignment subset."""
+    """Validate and rewrite supported if/elif/else and nested conditionals."""
     node = copy.deepcopy(function)
     node.decorator_list = []
     _validate_function(node)
@@ -67,23 +67,32 @@ def normalise_equation_ast(function: ast.FunctionDef) -> ast.FunctionDef:
             normalised.append(statement)
             continue
 
-        true_assignment = typing.cast("ast.Assign | ast.AnnAssign", statement.body[0])
-        false_assignment = typing.cast("ast.Assign | ast.AnnAssign", statement.orelse[0])
+        name, value = _normalise_branch(statement)
         # A branch-local annotation is a declaration, not part of the symbolic
         # expression. The merged assignment is deliberately unannotated.
         replacement = ast.Assign(
-            targets=[ast.copy_location(ast.Name(id=_assignment_name(true_assignment), ctx=ast.Store()), statement)],
-            value=ast.Call(
-                func=ast.Name(id="_bilt_conditional", ctx=ast.Load()),
-                args=[statement.test, _assignment_value(true_assignment), _assignment_value(false_assignment)],
-                keywords=[],
-            ),
+            targets=[ast.copy_location(ast.Name(id=name, ctx=ast.Store()), statement)],
+            value=value,
             type_comment=None,
         )
         normalised.append(ast.copy_location(replacement, statement))
 
     node.body = normalised
     return ast.fix_missing_locations(node)
+
+
+def _normalise_branch(statement: ast.stmt) -> tuple[str, ast.expr]:
+    if not isinstance(statement, ast.If):
+        return _assignment_name(statement), _assignment_value(statement)
+
+    true_name, when_true = _normalise_branch(statement.body[0])
+    _, when_false = _normalise_branch(statement.orelse[0])
+    expression = ast.Call(
+        func=ast.Name(id="_bilt_conditional", ctx=ast.Load()),
+        args=[statement.test, when_true, when_false],
+        keywords=[],
+    )
+    return true_name, ast.copy_location(expression, statement)
 
 
 def _reject(node: ast.AST, message: str) -> typing.NoReturn:
@@ -159,6 +168,26 @@ def _parameter_names(function: ast.FunctionDef) -> set[str]:
     return names
 
 
+def _branch_statement(statements: list[ast.stmt], conditional: ast.If) -> ast.stmt:
+    if len(statements) != 1:
+        _reject(conditional, "each branch must contain exactly one assignment or nested if/else")
+    return statements[0]
+
+
+def _branch_binding_name(statement: ast.stmt) -> str:
+    if isinstance(statement, ast.If):
+        return _branch_binding_name(statement.body[0])
+    return _assignment_name(statement)
+
+
+def _validate_branch_arm(statement: ast.stmt, params: set[str], assigned: set[str]) -> str:
+    if isinstance(statement, ast.If):
+        return _validate_branch(statement, params, assigned)
+    name = _assignment_name(statement)
+    _validate_expression(_assignment_value(statement))
+    return name
+
+
 def _validate_branch(statement: ast.If, params: set[str], assigned: set[str]) -> str:
     _validate_expression(statement.test)
     if (
@@ -167,14 +196,11 @@ def _validate_branch(statement: ast.If, params: set[str], assigned: set[str]) ->
         or not isinstance(statement.test.ops[0], (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE))
     ):
         _reject(statement.test, "conditional predicate must be one symbolic comparison")
-    if len(statement.body) != 1 or len(statement.orelse) != 1:
-        _reject(statement, "each branch must contain exactly one assignment")
-    left = _assignment_name(statement.body[0])
-    right = _assignment_name(statement.orelse[0])
+
+    left = _validate_branch_arm(_branch_statement(statement.body, statement), params, assigned)
+    right = _validate_branch_arm(_branch_statement(statement.orelse, statement), params, assigned)
     if left != right:
-        _reject(statement, "both branches must assign the same local variable")
-    _validate_expression(_assignment_value(statement.body[0]))
-    _validate_expression(_assignment_value(statement.orelse[0]))
+        _reject(statement, "all branches must assign the same local variable")
     _check_fresh_binding(statement, left, params, assigned)
     return left
 
@@ -211,7 +237,11 @@ def _statement_expressions(statement: ast.stmt) -> list[ast.expr]:
     if isinstance(statement, ast.If):
         return [
             statement.test,
-            *(_assignment_value(branch) for branch in (*statement.body, *statement.orelse)),
+            *(
+                expression
+                for branch in (*statement.body, *statement.orelse)
+                for expression in _statement_expressions(branch)
+            ),
         ]
     if isinstance(statement, ast.Return) and statement.value is not None:
         return [statement.value]
@@ -235,7 +265,7 @@ def _check_local_reads(function: ast.FunctionDef, params: set[str], assigned: se
         if isinstance(statement, (ast.Assign, ast.AnnAssign)):
             available.add(_assignment_name(statement))
         elif isinstance(statement, ast.If):
-            available.add(_assignment_name(statement.body[0]))
+            available.add(_branch_binding_name(statement.body[0]))
 
 
 def _validate_function(function: ast.FunctionDef) -> None:
