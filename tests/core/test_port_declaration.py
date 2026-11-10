@@ -4,7 +4,7 @@ import pytest
 
 from bilt import Interface, equation, field, system, transform
 from bilt.core._port_declaration import PortDeclaration
-from bilt.core._tensors._tensors import Tensor
+from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.errors import BiltEquationDimensionalityError, BiltPortDeclarationError
 from bilt.units import Metadata, Quantity, kilogram
 from bilt.units.dimensions import ABSOLUTE, AREA, DIMENSIONLESS, LENGTH, MASS, TEMPERATURE, TIME
@@ -38,7 +38,7 @@ def test_system_records_only_the_declared_fields() -> None:
     @system
     class Rig(metaclass=Interface):
         plain: float = field()
-        mass: Mass = field()
+        mass: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
 
     assert Rig.__bilt_port_declarations__ == {"mass": PortDeclaration(MASS)}
 
@@ -58,7 +58,7 @@ def test_equation_records_each_declared_parameter() -> None:
 def test_equation_records_the_child_dimensionality_of_each_referenced_sub_system_port() -> None:
     @system
     class Child(metaclass=Interface):
-        v: Mass = field()
+        v: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
         unused: float = field()
 
     @equation
@@ -138,7 +138,7 @@ def test_foreign_metadata_is_ignored() -> None:
 def test_a_tagged_dimensionality_is_recorded() -> None:
     @system
     class Rig(metaclass=Interface):
-        emitted: TaggedMass = field()
+        emitted: typing.Annotated[Quantity | QuantityTensor, MASS * Metadata("co2")] = field()
 
     assert Rig.__bilt_port_declarations__ == {"emitted": PortDeclaration(MASS * Metadata("co2"))}
 
@@ -146,8 +146,8 @@ def test_a_tagged_dimensionality_is_recorded() -> None:
 def test_an_absolute_marker_is_recorded_beside_the_dimensionality() -> None:
     @system
     class Engine(metaclass=Interface):
-        hot: AbsoluteTemperature = field()
-        drop: Temperature = field()
+        hot: typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE] = field()
+        drop: typing.Annotated[Quantity | QuantityTensor, TEMPERATURE] = field()
 
     @equation
     def cooling(hot: AbsoluteTemperature, cold: AbsoluteTemperature, drop: Temperature) -> bool:
@@ -207,7 +207,7 @@ def test_equation_relating_a_plain_port_to_a_declared_one_raises() -> None:
 def test_equation_whose_sub_system_declares_ports_cannot_relate_them_to_a_plain_port() -> None:
     @system
     class Child(metaclass=Interface):
-        v: Mass = field()
+        v: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
 
     def link(child: Child, x: float) -> bool:
         return child.v == x
@@ -424,7 +424,7 @@ def test_a_dimensionality_on_a_tensor_is_the_same_declaration_as_on_a_quantity()
     @system
     class Rig(metaclass=Interface):
         over_a_domain: MassOverADomain = field()
-        scalar: Mass = field()
+        scalar: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
 
     assert Rig.__bilt_port_declarations__ == {
         "over_a_domain": PortDeclaration(MASS),
@@ -436,7 +436,7 @@ def test_a_tensor_port_records_that_it_varies_over_a_domain() -> None:
     @system
     class Rig(metaclass=Interface):
         over_a_domain: MassOverADomain = field()
-        scalar: Mass = field()
+        scalar: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
 
     assert Rig.__bilt_port_declarations__["over_a_domain"].over_a_domain
     assert not Rig.__bilt_port_declarations__["scalar"].over_a_domain
@@ -481,3 +481,27 @@ def test_a_tensor_annotation_reads_at_an_equation_and_a_transform() -> None:
 
     assert balance.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "n": PortDeclaration(MASS)}
     assert doubled.__bilt_port_declarations__ == {"m": PortDeclaration(MASS), "doubled": PortDeclaration(MASS)}
+
+
+def test_concrete_quantity_annotation_distinguishes_scalar_and_tensor_ports() -> None:
+    @system
+    class Variants(metaclass=Interface):
+        flexible: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
+        scalar: typing.Annotated[Quantity, MASS] = field()
+        tensor: typing.Annotated[QuantityTensor, MASS] = field()
+        concrete: typing.Annotated[QuantityTensor, MASS] = field()
+
+    declarations = Variants.__bilt_port_declarations__
+    assert not declarations["flexible"].scalar_only
+    assert declarations["scalar"].scalar_only
+    assert declarations["tensor"].over_a_domain
+    assert declarations["concrete"].over_a_domain
+    assert all(declaration == PortDeclaration(MASS) for declaration in declarations.values())
+
+
+def test_bare_pointwise_quantity_still_requires_physical_dimension() -> None:
+    with pytest.raises(BiltPortDeclarationError, match="without a dimensionality"):
+
+        @system
+        class MissingDimension(metaclass=Interface):
+            mass: Quantity | QuantityTensor = field()

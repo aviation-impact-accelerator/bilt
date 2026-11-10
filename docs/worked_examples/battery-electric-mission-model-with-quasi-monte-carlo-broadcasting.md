@@ -92,7 +92,7 @@ Each transform describes one scalar engineering relationship. Nothing in these f
 ```python exec="off"
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, field, system, transform
+from bilt import Implementation, Interface, Quantity, QuantityTensor, field, system, transform
 from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
 
 
@@ -103,26 +103,33 @@ SpecificEnergy = Annotated[Quantity, ENERGY / MASS]
 EnergyIntensity = Annotated[Quantity, ENERGY / (LENGTH * MASS)]
 Ratio = Annotated[Quantity, DIMENSIONLESS]
 
+PointwiseSpecificEnergy = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
+PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
+PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]
+PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]
+PointwiseEnergyIntensity = Annotated[Quantity | QuantityTensor, ENERGY / (LENGTH * MASS)]
+PointwiseEnergy = Annotated[Quantity | QuantityTensor, ENERGY]
+
 
 @system
 class Mission(metaclass=Interface):
-    specific_energy: SpecificEnergy = field()
-    propulsive_efficiency: Ratio = field()
-    energy_multiplier: Ratio = field()
+    specific_energy: PointwiseSpecificEnergy = field()
+    propulsive_efficiency: PointwiseRatio = field()
+    energy_multiplier: PointwiseRatio = field()
 
-    distance: Length = field()
-    payload: Mass = field()
+    distance: PointwiseLength = field()
+    payload: PointwiseMass = field()
 
-    empty_mass: Mass = field()
-    energy_intensity: EnergyIntensity = field()
-    usable_fraction: Ratio = field()
-    max_battery_mass: Mass = field()
+    empty_mass: PointwiseMass = field()
+    energy_intensity: PointwiseEnergyIntensity = field()
+    usable_fraction: PointwiseRatio = field()
+    max_battery_mass: PointwiseMass = field()
 
-    gross_mass: Mass = field()
-    shaft_energy: Energy = field()
-    electrical_energy: Energy = field()
-    battery_mass: Mass = field()
-    battery_margin: Mass = field()
+    gross_mass: PointwiseMass = field()
+    shaft_energy: PointwiseEnergy = field()
+    electrical_energy: PointwiseEnergy = field()
+    battery_mass: PointwiseMass = field()
+    battery_margin: PointwiseMass = field()
 
 
 @transform
@@ -171,13 +178,15 @@ mission_model = Implementation(
 )
 ```
 
+The named `Pointwise...` aliases allow the system fields to accept scalar or tensor quantities, while the shorter scalar aliases remain appropriate for the transforms.
+
 The model above is ordinary displayed Python. For this documentation build, the same definitions are loaded from a temporary Python module. This is only needed because Bilt currently obtains transform source using `inspect.getsource()`, while `markdown-exec` normally defines functions dynamically.
 
 ```python exec="on" session="qmc"
 model_source = """
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, field, system, transform
+from bilt import Implementation, Interface, Quantity, QuantityTensor, field, system, transform
 from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
 
 
@@ -188,26 +197,33 @@ SpecificEnergy = Annotated[Quantity, ENERGY / MASS]
 EnergyIntensity = Annotated[Quantity, ENERGY / (LENGTH * MASS)]
 Ratio = Annotated[Quantity, DIMENSIONLESS]
 
+PointwiseSpecificEnergy = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
+PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
+PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]
+PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]
+PointwiseEnergyIntensity = Annotated[Quantity | QuantityTensor, ENERGY / (LENGTH * MASS)]
+PointwiseEnergy = Annotated[Quantity | QuantityTensor, ENERGY]
+
 
 @system
 class Mission(metaclass=Interface):
-    specific_energy: SpecificEnergy = field()
-    propulsive_efficiency: Ratio = field()
-    energy_multiplier: Ratio = field()
+    specific_energy: PointwiseSpecificEnergy = field()
+    propulsive_efficiency: PointwiseRatio = field()
+    energy_multiplier: PointwiseRatio = field()
 
-    distance: Length = field()
-    payload: Mass = field()
+    distance: PointwiseLength = field()
+    payload: PointwiseMass = field()
 
-    empty_mass: Mass = field()
-    energy_intensity: EnergyIntensity = field()
-    usable_fraction: Ratio = field()
-    max_battery_mass: Mass = field()
+    empty_mass: PointwiseMass = field()
+    energy_intensity: PointwiseEnergyIntensity = field()
+    usable_fraction: PointwiseRatio = field()
+    max_battery_mass: PointwiseMass = field()
 
-    gross_mass: Mass = field()
-    shaft_energy: Energy = field()
-    electrical_energy: Energy = field()
-    battery_mass: Mass = field()
-    battery_margin: Mass = field()
+    gross_mass: PointwiseMass = field()
+    shaft_energy: PointwiseEnergy = field()
+    electrical_energy: PointwiseEnergy = field()
+    battery_mass: PointwiseMass = field()
+    battery_margin: PointwiseMass = field()
 
 
 @transform
