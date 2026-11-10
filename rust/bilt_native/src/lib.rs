@@ -1,12 +1,14 @@
 use pyo3::prelude::*;
 
-#[pyfunction]
-fn hello_from_rust() -> &'static str {
-    "hello from Rust"
-}
+#[path = "symbolic/atom.rs"]
+mod atom;
+#[path = "symbolic/tree.rs"]
+mod tree;
 
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(hello_from_rust, m)?)?;
+    m.add_class::<atom::AtomType>()?;
+    m.add_class::<atom::Atom>()?;
+    m.add_class::<tree::Tree>()?;
     Ok(())
 }
