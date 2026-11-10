@@ -30,6 +30,11 @@ def equation_domain_hints(equation: BasicEquation) -> tuple[tuple[str, Domain], 
     result = []
     function = equation._function  # noqa: SLF001 - primitive equation metadata
     for name, parameter in inspect.signature(function, eval_str=True).parameters.items():
+        # New quantity minimum-domain requirements are not exact linear hints.
+        # They are checked against the selected route's inferred domains.
+        declaration = equation.__bilt_port_declarations__.get(name)
+        if declaration is not None and declaration.required_domain is not None:
+            continue
         _, metadata = annotated_parts(parameter.annotation)
         hints = [item for item in metadata if isinstance(item, Domain)]
         if len(hints) > 1:

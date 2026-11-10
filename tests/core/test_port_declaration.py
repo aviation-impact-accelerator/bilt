@@ -2,10 +2,12 @@ import typing
 
 import pytest
 
-from bilt import Interface, equation, field, system, transform
+from bilt import Interface, dim, equation, field, system, transform
 from bilt.core._port_declaration import PortDeclaration
+from bilt.core._structural_analysis._linear_domains import equation_domain_hints
 from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.errors import BiltEquationDimensionalityError, BiltPortDeclarationError
+from bilt.symbolic._domains import Domain
 from bilt.units import Metadata, Quantity, kilogram
 from bilt.units.dimensions import ABSOLUTE, AREA, DIMENSIONLESS, LENGTH, MASS, TEMPERATURE, TIME
 
@@ -505,3 +507,32 @@ def test_bare_pointwise_quantity_still_requires_physical_dimension() -> None:
         @system
         class MissingDimension(metaclass=Interface):
             mass: Quantity | QuantityTensor = field()
+
+
+def test_pointwise_equation_domain_hint_is_exact() -> None:
+    @equation
+    def same(
+        a: typing.Annotated[Quantity | QuantityTensor, MASS, Domain.scalar()],
+        b: typing.Annotated[Quantity | QuantityTensor, MASS],
+    ) -> bool:
+        return a == b
+
+    assert same.__bilt_port_declarations__["a"].required_domain is None
+    assert equation_domain_hints(same) == (("a", Domain.scalar()),)
+
+
+def test_only_tensor_fields_can_require_a_minimum_domain() -> None:
+    time = dim("time")
+
+    @system
+    class TensorField(metaclass=Interface):
+        mass: typing.Annotated[QuantityTensor, MASS, Domain((time,))] = field()
+
+    assert TensorField.__bilt_port_declarations__["mass"].required_domain == Domain((time,))
+
+    namespace = {
+        "__annotations__": {"mass": typing.Annotated[Quantity | QuantityTensor, MASS, Domain((time,))]},
+        "mass": field(),
+    }
+    with pytest.raises(BiltPortDeclarationError, match="non-tensor quantity"):
+        system(Interface("InvalidField", (), namespace))
