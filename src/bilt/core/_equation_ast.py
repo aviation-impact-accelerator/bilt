@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
 
 
 class BiltEquationSyntaxError(BiltDefinitionError, SyntaxError):
-    """A proposed equation contains unsupported statement-level syntax."""
+    """Unsupported syntax in an equation."""
 
 
 def _register_markdown_exec_source(function: collections.abc.Callable[..., object]) -> None:
@@ -50,7 +50,7 @@ def extract_equation_ast(function: collections.abc.Callable[..., object]) -> ast
         msg = f"Cannot locate function definition for equation {name!r}."
         raise BiltEquationSyntaxError(msg)
 
-    # The @equation decorator must not be reapplied if a future phase compiles the AST.
+    # Avoid reapplying decorators when compiling the tracing function.
     node.decorator_list = []
     return node
 
