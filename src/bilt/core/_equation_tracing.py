@@ -17,7 +17,7 @@ def validated_symbolic_function(
         raise BiltEquationSyntaxError(msg)
 
     source = extract_equation_ast(function)
-    has_conditional = any(isinstance(statement, ast.If) for statement in source.body)
+    has_conditional = any(isinstance(statement, (ast.If, ast.Match)) for statement in source.body)
     validated = normalise_equation_ast(source)
 
     if not has_conditional:
