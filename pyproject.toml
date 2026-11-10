@@ -9,6 +9,9 @@ dependencies = [
     "rustworkx>=0.18.0"
 ]
 
+[project.scripts]
+bilt = "bilt._cli:main"
+
 [project.optional-dependencies]
 jax = [
     "jax>=0.10.2",
