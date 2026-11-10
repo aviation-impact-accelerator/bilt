@@ -62,6 +62,8 @@ def _dimensionality_at(tree: Tree, operands: list[Dimension | None]) -> Dimensio
         _shared(operands)
         return DIMENSIONLESS
     match tree.head:
+        case ops.CONDITIONAL:
+            return _shared(operands[1:])
         case ops.ADD | ops.NEG | ops.MEAN | ops.SUM | ops.MIN | ops.MAX:
             return _shared(operands)
         case ops.ISEL | ops.SEL:
@@ -129,7 +131,7 @@ def _power(base: Dimension | None, exponent: Dimension | None) -> Dimension:
     return DIMENSIONLESS
 
 
-def absoluteness_of(  # noqa: PLR0911
+def absoluteness_of(
     equation_name: str,
     tree: Tree,
     declarations: collections.abc.Mapping[str, PortDeclaration],
@@ -153,7 +155,17 @@ def absoluteness_of(  # noqa: PLR0911
             msg = "relates an absolute quantity to a relative one: both sides must be absolute, or both relative."
             raise BiltEquationDimensionalityError(equation_name, msg)
         return frozenset({0})
+    return _absoluteness_operation(equation_name, tree, operands)
+
+
+def _absoluteness_operation(equation_name: str, tree: Tree, operands: list[frozenset[int]]) -> frozenset[int]:
     match tree.head:
+        case ops.CONDITIONAL:
+            compatible = operands[1] & operands[2]
+            if not compatible:
+                msg = "conditional branches have incompatible absolute/relative kinds."
+                raise BiltEquationDimensionalityError(equation_name, msg)
+            return compatible
         case ops.NEG:
             return frozenset(-zeros for zeros in operands[0])
         case ops.ADD:
