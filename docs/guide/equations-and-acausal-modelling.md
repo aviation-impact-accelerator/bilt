@@ -299,7 +299,38 @@ with JAX_BACKEND, piecewise_model:
     assert Piecewise(x=-3.0).result == 3.0
 ```
 
-For now, there are some limits. An equation can contain only **one `if/else`**, testing a single comparison such as `x > 0`. Both branches must assign a value to the same name, and the `return` must come afterwards. The condition and the values chosen must be **single numbers, not tensors (arrays of values)**. Inputs used in either branch must be available, even if only one branch is selected.
+You can also use `elif` and nested `if/else` blocks:
+
+```python exec="on" session="motion-equations"
+@equation
+def multiple_ranges(x: float, result: float) -> bool:
+    if x > 10:
+        selected = x * 3
+    elif x > 0:
+        if x > 5:
+            selected = x * 2
+        else:
+            selected = x
+    else:
+        selected = -x
+    return result == selected
+
+
+multi_range_model = Implementation(Piecewise, [multiple_ranges])
+with multi_range_model:
+    assert Piecewise(x=7.0).result == 14.0
+    assert Piecewise(x=-3.0).result == 3.0
+
+with JAX_BACKEND, multi_range_model:
+    assert Piecewise(x=12.0).result == 36.0
+```
+
+Each condition must test a single comparison such as `x > 0`, and every path
+must assign the same name exactly once. Each chain needs an `else`, and the
+single `return` comes afterwards. Multiple separate `if` statements are not
+supported yet. Conditions and selected values must be **single numbers, not
+tensors (arrays of values)**. Inputs used in any branch must be available,
+even if only one branch is selected.
 
 Bilt can calculate `result` from `x` in this example. It cannot currently work backwards through the `if/else` to calculate `x` from `result`.
 
@@ -337,7 +368,7 @@ But not every piece of a model is best described this way.
 
 Some operations have a natural direction of computation. Others involve more complicated instructions or calculations that Bilt cannot treat as equations.
 
-For those cases, Bilt provides **transforms**. Equations can include a simple `if/else`, but transforms are better suited to calculations that do not describe a mathematical relationship.
+For those cases, Bilt provides **transforms**. Equations can include supported `if/elif/else` and nested conditionals, but transforms are better suited to calculations that do not describe a mathematical relationship.
 
 A useful distinction is:
 

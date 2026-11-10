@@ -1,4 +1,4 @@
-# ruff: noqa: SIM108
+# ruff: noqa: SIM108, PLR2004, PLR5501
 lazy from contextlib import AbstractContextManager
 
 import pytest
@@ -114,3 +114,67 @@ def test_tensor_valued_conditional_branch_is_rejected(backend: AbstractContextMa
     with backend, implementation, pytest.raises(BiltAnalysisError, match="Cannot compute result") as raised:
         _ = model.result
     assert "scalar" in str(raised.value)
+
+
+@system
+class MultiBranch(metaclass=Interface):
+    x: float = field()
+    result: float = field()
+
+
+@equation
+def elif_value(x: float, result: float) -> bool:
+    if x > 10:
+        selected = x * 3
+    elif x > 5:
+        selected = x * 2
+    elif x > 0:
+        selected = x
+    else:
+        selected = -x
+    return result == selected
+
+
+@equation
+def nested_value(x: float, result: float) -> bool:
+    if x > 0:
+        if x > 10:
+            selected = x * 3
+        else:
+            selected = x * 2
+    else:
+        if x < -10:
+            selected = -x
+        else:
+            selected = x**2
+    return result == selected
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+@pytest.mark.parametrize(
+    ("x", "expected"),
+    ((15.0, 45.0), (10.0, 20.0), (6.0, 12.0), (5.0, 5.0), (0.0, 0.0), (-2.0, 2.0)),
+)
+def test_elif_equation(backend: AbstractContextManager[object], x: float, expected: float) -> None:
+    implementation = Implementation(MultiBranch, [elif_value])
+    with backend, implementation:
+        assert float(MultiBranch(x=x).result) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+@pytest.mark.parametrize(
+    ("x", "expected"),
+    ((15.0, 45.0), (10.0, 20.0), (2.0, 4.0), (0.0, 0.0), (-2.0, 4.0), (-12.0, 12.0)),
+)
+def test_nested_equation(backend: AbstractContextManager[object], x: float, expected: float) -> None:
+    implementation = Implementation(MultiBranch, [nested_value])
+    with backend, implementation:
+        assert float(MultiBranch(x=x).result) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+def test_nested_conditional_cannot_be_inverted(backend: AbstractContextManager[object]) -> None:
+    implementation = Implementation(MultiBranch, [nested_value])
+    with backend, implementation, pytest.raises(BiltAnalysisError, match="Cannot compute x") as raised:
+        _ = MultiBranch(result=4.0).x
+    assert "through a conditional" in str(raised.value)

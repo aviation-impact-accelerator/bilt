@@ -88,7 +88,7 @@ def test_plain_equation_ast_is_unchanged() -> None:
         ),
         (
             "def eq(x):\n    if x > 0:\n        if x > 1:\n            a = x\n    else:\n        a = x\n    return a == x",
-            "simple assignment",
+            "exactly one assignment",
         ),
         ("def eq(x):\n    value = missing\n    missing = x\n    return value == x", "before assignment"),
         ("def eq(x):\n    value = x\n    return value == (x := 1)", "NamedExpr"),
@@ -265,3 +265,99 @@ def test_normalisation_does_not_modify_input_ast() -> None:
     assert isinstance(original, ast.FunctionDef)
     normalise_equation_ast(original)
     assert isinstance(original.body[0], ast.If)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_count"),
+    (
+        (
+            """
+            def eq(x, y):
+                if x > 10:
+                    result = x * 3
+                elif x > 5:
+                    result = x * 2
+                elif x > 0:
+                    result = x
+                else:
+                    result = -x
+                return y == result
+            """,
+            3,
+        ),
+        (
+            """
+            def eq(x, y):
+                if x > 0:
+                    if x > 10:
+                        result: float = x * 3
+                    else:
+                        result = x * 2
+                else:
+                    if x < -10:
+                        result = -x
+                    else:
+                        result = x**2
+                return y == result
+            """,
+            3,
+        ),
+    ),
+)
+def test_nested_conditionals_normalise_recursively(source: str, expected_count: int) -> None:
+    node = _normalise(source)
+    assignment = node.body[0]
+    assert isinstance(assignment, ast.Assign)
+    assert isinstance(assignment.targets[0], ast.Name)
+    assert assignment.targets[0].id == "result"
+    assert not any(isinstance(item, ast.If) for item in ast.walk(node))
+    conditional_calls = [
+        item
+        for item in ast.walk(assignment)
+        if isinstance(item, ast.Call) and isinstance(item.func, ast.Name) and item.func.id == "_bilt_conditional"
+    ]
+    assert len(conditional_calls) == expected_count
+    assert all(len(call.args) == CONDITIONAL_ARITY for call in conditional_calls)
+    compile(ast.Module(body=[node], type_ignores=[]), "<normalised equation>", "exec")
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    (
+        (
+            "def eq(x, y):\n    if x > 0:\n        if x > 1:\n            result = x\n        else:\n            other = x\n    else:\n        result = -x\n    return y == result",
+            "same local",
+        ),
+        (
+            "def eq(x, y):\n    if x > 0:\n        if x > 1:\n            result = x\n        else:\n            result = -x\n    else:\n        other = -x\n    return y == result",
+            "same local",
+        ),
+        (
+            "def eq(x, y):\n    if x > 0:\n        if x > 1:\n            result = x\n    else:\n        result = -x\n    return y == result",
+            "exactly one assignment",
+        ),
+        (
+            "def eq(x, y):\n    if x > 0:\n        if True:\n            result = x\n        else:\n            result = -x\n    else:\n        result = x\n    return y == result",
+            "symbolic comparison",
+        ),
+        (
+            "def eq(x, y):\n    if x > 0:\n        if x > 1:\n            result = result + 1\n        else:\n            result = x\n    else:\n        result = -x\n    return y == result",
+            "before assignment",
+        ),
+        (
+            "def eq(x, y):\n    if x > 0:\n        if x > later:\n            result = x\n        else:\n            result = -x\n    else:\n        result = -x\n    later = x + 1\n    return y == result",
+            "before assignment",
+        ),
+        (
+            "def eq(x, y):\n    if x > 0:\n        if x > 1:\n            result = x\n            extra = x\n        else:\n            result = x\n    else:\n        result = -x\n    return y == result",
+            "exactly one assignment",
+        ),
+        (
+            "def eq(x, y):\n    if x > 0:\n        if x > 1:\n            x = 3\n        else:\n            x = 4\n    else:\n        x = 5\n    return y == x",
+            "cannot reassign equation parameter",
+        ),
+    ),
+)
+def test_rejects_invalid_nested_conditionals(source: str, message: str) -> None:
+    with pytest.raises(BiltEquationSyntaxError, match=message):
+        _normalise(source)
