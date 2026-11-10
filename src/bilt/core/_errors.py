@@ -2,6 +2,7 @@
 
 __all__ = [
     "BiltAnalysisError",
+    "BiltCollectedValidationError",
     "BiltDefinitionError",
     "BiltDomainBindingError",
     "BiltDomainRegistryError",
@@ -17,12 +18,25 @@ __all__ = [
     "BiltUnresolvedAnnotationError",
 ]
 
+import typing
+
 from bilt._base_error import BiltError
+
+if typing.TYPE_CHECKING:
+    import collections.abc
 from bilt.units._errors import BiltDimensionalityError
 
 
 class BiltDefinitionError(BiltError):
     """Raised when a system or equation definition is invalid."""
+
+
+class BiltCollectedValidationError(BiltDefinitionError):
+    """Independent definition errors found while collecting validation failures."""
+
+    def __init__(self, errors: collections.abc.Iterable[BiltError]) -> None:
+        self.errors = tuple(errors)
+        super().__init__(f"{len(self.errors)} validation errors")
 
 
 class BiltNameError(BiltDefinitionError):

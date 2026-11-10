@@ -6,6 +6,7 @@ import typing
 
 from bilt.core._errors import BiltImplementationDimensionalityError
 from bilt.core._transform import BasicTransform
+from bilt.core._validation import validate_independently
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -31,29 +32,40 @@ def check_dimensional_consistency(
     for owner in owners:
         if isinstance(owner, BasicTransform):
             named[owner].add(owner.__bilt_name__)
-    for port in sorted(set().union(*named.values())):
-        naming = [owner for owner in owners if port in named[owner]]
-        declaring = [owner for owner in naming if port in owner.__bilt_port_declarations__]
-        if not declaring:
-            continue
+    validate_independently(
+        lambda port=port: _check_port(system, port, owners, named) for port in sorted(set().union(*named.values()))
+    )
 
-        first = declaring[0]
-        declaration = first.__bilt_port_declarations__[port]
-        for owner in declaring[1:]:
-            other = owner.__bilt_port_declarations__[port]
-            if other != declaration:
-                msg = (
-                    f"gives port {port!r} conflicting declarations:\n"
-                    f"  {declaration}: declared by {first.__bilt_name__}\n"
-                    f"  {other}: declared by {owner.__bilt_name__}"
-                )
-                raise BiltImplementationDimensionalityError(system.__bilt_name__, msg)
 
-        plain = [owner.__bilt_name__ for owner in naming if port not in owner.__bilt_port_declarations__]
-        if plain:
+def _check_port(
+    system: Interface,
+    port: str,
+    owners: tuple[Interface | BiltModelConstituent, ...],
+    named: collections.abc.Mapping[Interface | BiltModelConstituent, set[str]],
+) -> None:
+    """Validate a single port independently of the declarations of other ports."""
+    naming = [owner for owner in owners if port in named[owner]]
+    declaring = [owner for owner in naming if port in owner.__bilt_port_declarations__]
+    if not declaring:
+        return
+
+    first = declaring[0]
+    declaration = first.__bilt_port_declarations__[port]
+    for owner in declaring[1:]:
+        other = owner.__bilt_port_declarations__[port]
+        if other != declaration:
             msg = (
-                f"gives port {port!r} a dimensionality in only some places:\n"
+                f"gives port {port!r} conflicting declarations:\n"
                 f"  {declaration}: declared by {first.__bilt_name__}\n"
-                f"  left plain by {', '.join(sorted(plain))}"
+                f"  {other}: declared by {owner.__bilt_name__}"
             )
             raise BiltImplementationDimensionalityError(system.__bilt_name__, msg)
+
+    plain = [owner.__bilt_name__ for owner in naming if port not in owner.__bilt_port_declarations__]
+    if plain:
+        msg = (
+            f"gives port {port!r} a dimensionality in only some places:\n"
+            f"  {declaration}: declared by {first.__bilt_name__}\n"
+            f"  left plain by {', '.join(sorted(plain))}"
+        )
+        raise BiltImplementationDimensionalityError(system.__bilt_name__, msg)

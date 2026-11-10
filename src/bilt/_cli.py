@@ -87,13 +87,15 @@ def _check(target: Path, config: Path | None, modules_override: list[str] | None
     for problem in found.errors:
         sys.stderr.write(f"{problem}\n")
     for diagnostic in result.diagnostics:
-        sys.stderr.write(f"{diagnostic.location}: error: {diagnostic.message}\n")
+        sys.stderr.write(f"{diagnostic.location}: error: {diagnostic.code} {diagnostic.message}\n")
 
     sys.stdout.write(
         f"Checked {result.modules} module(s): {result.systems} system(s), "
         f"{result.implementations} implementation(s), {result.equations} equation(s), "
         f"{result.transforms} transform(s).\n"
     )
+    if result.diagnostics:
+        sys.stderr.write(f"{len(result.diagnostics)} errors found.\n")
     if found.errors or result.diagnostics:
         return 1
     if not result.models:
