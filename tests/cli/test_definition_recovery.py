@@ -291,3 +291,25 @@ def test_ordinary_python_usage_of_failed_definition_is_not_suppressed(tmp_path: 
     assert "BILT001" in result.stderr
     assert "NameError" in result.stderr
     assert "definition(s) skipped" not in result.stderr
+
+
+def test_invalid_system_ports_are_reported_together(tmp_path: Path) -> None:
+    result = _run(
+        tmp_path,
+        """
+        from typing import Annotated
+        from bilt import Interface, field, system
+        from bilt.units import Quantity
+        from bilt.units.dimensions import LENGTH
+
+        @system
+        class Broken(metaclass=Interface):
+            first: Quantity = field()
+            second: Annotated[float, LENGTH] = field()
+        """,
+    )
+    assert result.returncode == 1
+    assert result.stderr.count("BILT003") == EXPECTED_ERRORS
+    assert "Port 'first'" in result.stderr
+    assert "Port 'second'" in result.stderr
+    assert "2 errors found" in result.stderr

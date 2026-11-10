@@ -54,13 +54,12 @@ def _create_bilt_system_class_attribute(cls: Interface) -> None:
         for name, annotation in annotations.items()
         if typing.get_origin(annotation) is not typing.ClassVar  # type: ignore[comparison-overlap]
     }
+    declarations = port_declarations(
+        cls.__name__, {name: attribute.annotation for name, attribute in attributes.items()}
+    )
     setattr(cls, "__bilt_system_attributes__", attributes)  # noqa: B010
     setattr(cls, "__bilt_parameters__", tuple(attributes.keys()))  # noqa: B010
-    setattr(  # noqa: B010
-        cls,
-        "__bilt_port_declarations__",
-        port_declarations(cls.__name__, {name: attribute.annotation for name, attribute in attributes.items()}),
-    )
+    setattr(cls, "__bilt_port_declarations__", declarations)  # noqa: B010
 
 
 def _create_initialize_method(cls: Interface) -> None:
