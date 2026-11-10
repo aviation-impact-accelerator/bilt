@@ -176,6 +176,76 @@ cost      (location, time)
 
 Bilt can align the values using the **names of their dimensions**, rather than requiring the user to arrange axes purely by position.
 
+### Scalar or tensor values at system boundaries
+
+When a system can accept either a plain scalar or a **unitless** tensor,
+a union is sufficient. There is no need for an additional Bilt protocol:
+
+```python exec="off"
+from bilt import Interface, Tensor, field, system
+
+type Value = float | Tensor
+
+
+@system
+class Scale(metaclass=Interface):
+    x: Value = field()
+    doubled: Value = field()
+```
+
+Both `Scale(x=2.0)` and `Scale(x=tensor([1.0, 2.0], over=time))`
+are accepted. An equation can still use `float` annotations and Bilt will
+lift it over the input's named domain. This keeps the system's accepted
+value types separate from the local operations of the equation.
+
+**Limit of static typing:** The concrete `QuantityTensor` class currently
+inherits `Tensor`. Python type checkers therefore also consider a
+unit-bearing tensor valid wherever a `Tensor` is annotated. Bilt rejects
+it **at runtime** at a plain, unitless port. A static guarantee that the
+tensor has no unit would require a separate tensor typing design; a
+`float | Tensor` union cannot provide that guarantee.
+
+### Requiring a minimum domain
+
+A system input can require a particular named dimension without fixing the
+complete shape of the input. For a unit-bearing tensor quantity:
+
+```python exec="off"
+import typing
+
+from bilt import Interface, Quantity, QuantityTensor, Tensor, dim, field, system
+from bilt.symbolic._domains import Domain
+from bilt.units.dimensions import MASS
+
+time = dim("time")
+scenario = dim("scenario")
+type TimeMass = typing.Annotated[QuantityTensor, MASS, Domain((time,))]
+
+
+@system
+class Demand(metaclass=Interface):
+    mass: TimeMass = field()
+```
+
+A tensor over `(time,)` satisfies that requirement, as does one over
+`(scenario, time)`. A tensor over only `(scenario,)` does not: it lacks
+the required `time` dimension. The order of axes does not matter.
+
+This is a **minimum** domain requirement, not an exact-domain restriction.
+Bilt checks it when values enter a system and when a computed system output
+has a declared minimum domain. Domain metadata is checked by Bilt at runtime;
+Python type checkers do not interpret the dimensions in `Annotated`.
+
+For now, this form applies to **new unit-bearing tensor annotations**
+(`QuantityTensor` and `QuantityTensor`). Bare
+`Quantity | QuantityTensor` permits scalar values and therefore cannot also declare a
+required tensor dimension. Existing unitless `Annotated[Tensor, Domain(...)]`
+annotations and existing `Quantity` or `Tensor` annotations with Domain metadata
+remain available as hints for structural domain inference; this new
+minimum-domain check does not reinterpret their existing behaviour. Enforcing
+additional requirements declared only on a constituent equation is a separate
+follow-up.
+
 ### Broadcasting rules
 
 Bilt broadcasting follows dimension names rather than axis positions.
