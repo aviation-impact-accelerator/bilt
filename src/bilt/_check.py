@@ -9,6 +9,7 @@ import typing
 from dataclasses import dataclass
 from pathlib import Path
 
+from bilt._check_imports import SkippedDefinition, recovering_project_imports
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltCollectedValidationError
 from bilt.core._interface import Interface
@@ -29,6 +30,7 @@ class CheckResult:
     equations: int
     transforms: int
     diagnostics: tuple[Diagnostic, ...]
+    skipped: tuple[SkippedDefinition, ...] = ()
 
     @property
     def models(self) -> int:
@@ -53,6 +55,7 @@ def check_modules(
     seen_objects: set[int] = set()
     counts = {"systems": 0, "implementations": 0, "equations": 0, "transforms": 0}
     diagnostics: list[Diagnostic] = []
+    skipped: list[SkippedDefinition] = []
     loaded = 0
     roots = set(module_names if recursive_roots is None else recursive_roots)
 
@@ -84,11 +87,11 @@ def check_modules(
         for child in children:
             visit(child.name, descend=True)
 
-    with _import_paths(import_paths):
+    with _import_paths(import_paths), recovering_project_imports(project_root, diagnostics, skipped):
         for name in dict.fromkeys(module_names):
             visit(name, descend=recursive and name in roots)
 
-    return CheckResult(loaded, **counts, diagnostics=tuple(diagnostics))
+    return CheckResult(loaded, **counts, diagnostics=tuple(diagnostics), skipped=tuple(skipped))
 
 
 def _count_models(module: types.ModuleType, seen: set[int], counts: dict[str, int]) -> None:
