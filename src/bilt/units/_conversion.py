@@ -65,9 +65,10 @@ def _find_common_unit_index(
 ) -> int:
     index = 0
 
-    for start_unit, end_unit in zip(  # noqa: B905
+    for start_unit, end_unit in zip(
         start_unit_stack,
         end_unit_stack,
+        strict=False,
     ):
         if start_unit != end_unit:
             break
