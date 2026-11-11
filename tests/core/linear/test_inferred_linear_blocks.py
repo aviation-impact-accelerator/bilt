@@ -3,7 +3,20 @@ import typing
 import numpy as np
 import pytest
 
-from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
+from bilt import (
+    Domain,
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityTensor,
+    Tensor,
+    dim,
+    domain,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.symbolic._dimensions import coordinate_axis
@@ -20,10 +33,10 @@ BRANCH = dim("branch")
 Shared = typing.Annotated[float, Domain.scalar()]
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
-CurrentArray = typing.Annotated[Tensor, CURRENT]
-Voltage = typing.Annotated[Quantity, VOLTAGE]
-VoltageArray = typing.Annotated[Tensor, VOLTAGE]
-Resistance = typing.Annotated[Quantity, RESISTANCE]
+CurrentArray = typing.Annotated[QuantityTensor, CURRENT]
+Voltage = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
+VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
+Resistance = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
 
 
 @system

@@ -3,7 +3,20 @@ import typing
 import numpy as np
 import pytest
 
-from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
+from bilt import (
+    Domain,
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityTensor,
+    Tensor,
+    dim,
+    domain,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._system import _implementation as implementation_module
@@ -17,10 +30,10 @@ if typing.TYPE_CHECKING:
 
 TIME = dim("time")
 BRANCH = dim("branch")
-LengthArray = typing.Annotated[Tensor, LENGTH]
-LengthScalar = typing.Annotated[Quantity, LENGTH]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
+LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 MassScalar = typing.Annotated[Quantity, MASS]
-RatioArray = typing.Annotated[Tensor, DIMENSIONLESS]
+RatioArray = typing.Annotated[QuantityTensor, DIMENSIONLESS]
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 Grid = typing.Annotated[Tensor, domain(TIME, BRANCH)]
 Shared = typing.Annotated[float, Domain.scalar()]

@@ -6,7 +6,20 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
+from bilt import (
+    Domain,
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityTensor,
+    Tensor,
+    dim,
+    domain,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt._backend._errors import BiltUnsupportedNodeError
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
@@ -31,11 +44,12 @@ OverTime = typing.Annotated[Tensor, domain(TIME)]
 Shared = typing.Annotated[Tensor, Domain.scalar()]
 Grid = typing.Annotated[Tensor, domain(SITE, TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
-BranchCurrent = typing.Annotated[Tensor, CURRENT, domain(BRANCH)]
+BranchCurrent = typing.Annotated[QuantityTensor, CURRENT, domain(BRANCH)]
 SharedVoltage = typing.Annotated[Quantity, VOLTAGE, Domain.scalar()]
-VoltageArray = typing.Annotated[Tensor, VOLTAGE]
-ResistanceArray = typing.Annotated[Tensor, RESISTANCE]
-Resistance = typing.Annotated[Quantity, RESISTANCE]
+SharedVoltageField = typing.Annotated[Quantity, VOLTAGE]
+VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
+ResistanceArray = typing.Annotated[QuantityTensor, RESISTANCE]
+Resistance = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
 
 
 @system
@@ -140,7 +154,7 @@ def test_shared_bus_voltage_and_branch_currents_retain_units(backend: Backend, o
     @system
     class Bus(metaclass=Interface):
         current: BranchCurrent = field()
-        voltage: SharedVoltage = field()
+        voltage: SharedVoltageField = field()
         resistance: ResistanceArray = field()
         load: Resistance = field()
 
