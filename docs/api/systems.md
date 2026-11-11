@@ -14,7 +14,7 @@ See [Systems and values](../guide/systems-and-values.md) and
 | `instance.name` | Return a known value, or calculate and cache it using the selected implementation. |
 
 Annotations declare ports; `ClassVar` annotations are excluded.
-Use dimensions on unit-aware ports, such as `Annotated[Quantity, LENGTH]`;
+Use dimensions on pointwise unit-aware system ports, such as `Annotated[Quantity | QuantityTensor, LENGTH]`;
 see [Units](units.md). Supply known values at construction.
 
 ## Implementations
