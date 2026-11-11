@@ -35,5 +35,10 @@ def validate_inputs(
             or not (unit.category is UnitCategory.ABSOLUTE if expected.absolute else unit.is_relative)
             or (expected.over_a_domain and not isinstance(value, Tensor))
             or (expected.scalar_only and isinstance(value, Tensor))
+            or (
+                expected.required_domain is not None
+                and isinstance(value, Tensor)
+                and not set(expected.required_domain.dims).issubset(value.domain.dims)
+            )
         ):
             raise BiltInputDimensionalityError(system_name, port, expected, value)
