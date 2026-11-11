@@ -1,5 +1,5 @@
 default_install_hook_types = ["pre-commit", "pre-push"]
-
+default_language_version.python = "3.15"
 [[repos]]
 repo = "https://github.com/pre-commit/pre-commit-hooks"
 rev = "v6.0.0"
