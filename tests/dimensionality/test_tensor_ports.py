@@ -29,21 +29,27 @@ if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
 
 Mass = typing.Annotated[Quantity, MASS]
-MassOverADomain = typing.Annotated[Tensor, MASS]
+MassField = typing.Annotated[Quantity | QuantityTensor, MASS]
+MassOverADomain = typing.Annotated[QuantityTensor, MASS]
+MassOverADomainField = typing.Annotated[QuantityTensor, MASS]
 Force = typing.Annotated[Quantity, FORCE]
+ForceField = typing.Annotated[Quantity | QuantityTensor, FORCE]
 Acceleration = typing.Annotated[Quantity, LENGTH / TIME**2]
+AccelerationField = typing.Annotated[Quantity | QuantityTensor, LENGTH / TIME**2]
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
+AbsoluteTemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
 co2 = Metadata("co2")
 TaggedMass = typing.Annotated[Quantity, MASS * co2]
+TaggedMassField = typing.Annotated[Quantity | QuantityTensor, MASS * co2]
 time = dim("time")
 
 
 @system
 class Scale(metaclass=Interface):
-    m: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
-    k: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
-    doubled: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
-    total: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
+    m: MassField = field()
+    k: MassField = field()
+    doubled: MassField = field()
+    total: MassField = field()
 
 
 @equation
@@ -58,8 +64,8 @@ def totalling(total: Mass, m: Mass, k: Mass) -> bool:
 
 @system
 class TaggedScale(metaclass=Interface):
-    m: typing.Annotated[Quantity | QuantityTensor, MASS * co2] = field()
-    doubled: typing.Annotated[Quantity | QuantityTensor, MASS * co2] = field()
+    m: TaggedMassField = field()
+    doubled: TaggedMassField = field()
 
 
 @equation
@@ -69,8 +75,8 @@ def tagged_doubling(doubled: TaggedMass, m: TaggedMass) -> bool:
 
 @system
 class TensorScale(metaclass=Interface):
-    m: MassOverADomain = field()
-    doubled: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
+    m: MassOverADomainField = field()
+    doubled: MassField = field()
 
 
 @equation
@@ -91,8 +97,8 @@ def plain_doubling(doubled: Tensor, x: Tensor) -> bool:
 
 @system
 class AbsoluteThermometer(metaclass=Interface):
-    t: typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE] = field()
-    same: typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE] = field()
+    t: AbsoluteTemperatureField = field()
+    same: AbsoluteTemperatureField = field()
 
 
 @equation
@@ -168,8 +174,8 @@ def test_a_transform_bridges_a_plain_tensor_into_a_declared_port() -> None:
     @system
     class Rig(metaclass=Interface):
         masses_g: Tensor = field()
-        a: typing.Annotated[Quantity | QuantityTensor, LENGTH / TIME**2] = field()
-        force: typing.Annotated[Quantity | QuantityTensor, FORCE] = field()
+        a: AccelerationField = field()
+        force: ForceField = field()
 
     @transform
     def force(masses_g: Tensor, a: Acceleration) -> Force:
@@ -199,8 +205,8 @@ def test_a_declared_tensor_parameter_is_erased_in_a_transform_body_as_a_scalar_i
 def test_an_absolute_declared_tensor_parameter_is_erased_with_its_offset() -> None:
     @system
     class Rig(metaclass=Interface):
-        t: typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE] = field()
-        in_celsius: typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE] = field()
+        t: AbsoluteTemperatureField = field()
+        in_celsius: AbsoluteTemperatureField = field()
 
     @transform
     def in_celsius(t: AbsoluteTemperature) -> AbsoluteTemperature:
@@ -233,8 +239,8 @@ def test_an_untagged_tensor_at_a_tagged_port_raises() -> None:
 def test_stripping_a_tag_in_a_transform_body_passes_a_tensor_through() -> None:
     @system
     class Rig(metaclass=Interface):
-        m: typing.Annotated[Quantity | QuantityTensor, MASS * co2] = field()
-        plain: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
+        m: TaggedMassField = field()
+        plain: MassField = field()
 
     @transform
     def plain(m: TaggedMass) -> Mass:
@@ -252,8 +258,8 @@ def test_stripping_a_tag_in_a_transform_body_passes_a_tensor_through() -> None:
 def test_multiplying_by_a_tag_in_a_transform_body_passes_a_tensor_through() -> None:
     @system
     class Rig(metaclass=Interface):
-        m: typing.Annotated[Quantity | QuantityTensor, MASS] = field()
-        tagged: typing.Annotated[Quantity | QuantityTensor, MASS * co2] = field()
+        m: MassField = field()
+        tagged: TaggedMassField = field()
 
     @transform
     def tagged(m: Mass) -> TaggedMass:
@@ -305,8 +311,8 @@ def test_an_absolute_tensor_answers_in_the_absolute_coherent_unit() -> None:
 def test_a_dimensionality_differing_under_one_port_name_is_still_a_conflict() -> None:
     @system
     class Rig(metaclass=Interface):
-        m: MassOverADomain = field()
-        doubled: typing.Annotated[Tensor, FORCE] = field()
+        m: MassOverADomainField = field()
+        doubled: typing.Annotated[QuantityTensor, FORCE] = field()
 
     @equation
     def doubling(doubled: Mass, m: Mass) -> bool:
@@ -320,9 +326,9 @@ def test_a_dimensionality_differing_under_one_port_name_is_still_a_conflict() ->
 def test_rank_zero_tensor_outputs_can_be_reused(backend: Backend) -> None:
     @system
     class Chain(metaclass=Interface):
-        x: MassOverADomain = field()
-        y: MassOverADomain = field()
-        z: MassOverADomain = field()
+        x: MassOverADomainField = field()
+        y: MassOverADomainField = field()
+        z: MassOverADomainField = field()
 
     @equation
     def twice(y: Mass, x: Mass) -> bool:
