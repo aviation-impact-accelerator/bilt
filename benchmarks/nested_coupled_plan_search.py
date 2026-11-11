@@ -1,4 +1,4 @@
-"""Bounded, cold structural-search benchmark for the nested syngas model."""
+"""Bounded, cold structural-search benchmark for the nested coupled model."""
 
 # ruff: noqa: INP001 - standalone benchmark companion, not an installed package
 
@@ -8,7 +8,7 @@ import typing
 from contextlib import ExitStack
 from unittest.mock import patch
 
-from syngas_models import EXPECTED_JET_POWER_W, RAW_INPUTS, build_syngas_model
+from nested_coupled_models import EXPECTED_FINAL_POWER_W, RAW_INPUTS, build_nested_coupled_model
 
 from bilt._backend._case import BackendCase
 from bilt._backend._python._backend import PYTHON_BACKEND
@@ -33,7 +33,7 @@ PLAN_ATTEMPT_BUDGET = 1_000
 
 
 @dataclasses.dataclass
-class SyngasTrial:
+class NestedCoupledTrial:
     """One fresh implementation, context and bounded request."""
 
     coupled: bool
@@ -50,9 +50,9 @@ class SyngasTrial:
         """Prepare one independent trial and its evaluation context."""
         resources = ExitStack()
         try:
-            implementation = build_syngas_model(coupled=coupled)
+            implementation = build_nested_coupled_model(coupled=coupled)
             request = EvaluationRequest(
-                output="jet_power",
+                output="final_power",
                 input_domains=dict.fromkeys(RAW_INPUTS, Domain.scalar()),
             )
             resources.enter_context(EvaluationContext())
@@ -94,9 +94,9 @@ class SyngasTrial:
         if isinstance(self.result, BackendCase):
             computed = PYTHON_BACKEND.chain_case(self.result).callable(**RAW_INPUTS)
             if not isinstance(computed, (int, float)) or not math.isclose(
-                computed, EXPECTED_JET_POWER_W, rel_tol=1e-10
+                computed, EXPECTED_FINAL_POWER_W, rel_tol=1e-10
             ):
-                msg = f"Expected {EXPECTED_JET_POWER_W}, got {computed!r}."
+                msg = f"Expected {EXPECTED_FINAL_POWER_W}, got {computed!r}."
                 raise AssertionError(msg)
             status = "solved"
         elif self.coupled and isinstance(self.result, PlanSearchBudgetError):
@@ -111,10 +111,10 @@ class SyngasTrial:
             "formulation": "coupled" if self.coupled else "explicit",
             "candidate_budget": PLAN_ATTEMPT_BUDGET,
             "plan_attempts": self.plan_attempts,
-            "expected_jet_power_w": EXPECTED_JET_POWER_W,
+            "expected_final_power_w": EXPECTED_FINAL_POWER_W,
         }
 
     def close(self) -> None:
-        """Release the evaluation context even after budget exhaustion."""
+        """Release the evaluation context even aoutput_stageer budget exhaustion."""
         self.resources.close()
         self.closed = True

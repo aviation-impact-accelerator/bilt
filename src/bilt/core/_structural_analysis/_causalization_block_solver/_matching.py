@@ -4,7 +4,14 @@ import typing
 
 import rustworkx as rx
 
-from bilt.core._structural_analysis._plan import PlanStep
+from bilt.core._equation import BasicEquation
+from bilt.core._errors import BiltAnalysisError
+from bilt.core._structural_analysis._linear_operator import (
+    extract_supported_linear_block,
+    extract_supported_qualified_block,
+)
+from bilt.core._structural_analysis._plan import PlanBlock, PlanStep
+from bilt.core._structural_analysis._qualified_block import QualifiedBlock, QualifiedEquation
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform
 
@@ -130,10 +137,117 @@ def _forward_producers(structure: ExpansionSnapshot) -> dict[str, ExpandedConstr
             producers[output] = constraint
             reached.add(output)
         if len(deferred) == len(pending):
-            break
+            coupled = _coupled_linear_producers(deferred, reached)
+            if not coupled:
+                break
+            producers.update(coupled)
+            reached.update(coupled)
         pending = deferred
 
     return producers
+
+
+def _coupled_linear_producers(
+    constraints: list[ExpandedConstraint], reached: set[str]
+) -> dict[str, ExpandedConstraint]:
+    """Prefer ready, supported linear blocks of any size.
+
+    Use a maximum matching and its dependency cycles rather than enumerating
+    combinations of equation rows. Try child-local groups before mixed owners.
+    These are only preference hints: normal planning still validates execution.
+    """
+    by_path: dict[tuple[str, ...], list[ExpandedConstraint]] = {}
+    for constraint in constraints:
+        if isinstance(constraint.operation, BasicEquation) and len(constraint.attributes - reached) > 1:
+            by_path.setdefault(constraint.path, []).append(constraint)
+
+    for path in sorted(by_path, key=lambda item: (-len(item), item)):
+        preferred = _ready_linear_component(by_path[path], reached)
+        if preferred:
+            return preferred
+
+    if len(by_path) > 1:
+        return _ready_linear_component([row for group in by_path.values() for row in group], reached)
+    return {}
+
+
+def _ready_linear_component(constraints: list[ExpandedConstraint], reached: set[str]) -> dict[str, ExpandedConstraint]:
+    """Find a supported dependency closure containing a coupled component."""
+    if len(constraints) < 2:  # noqa: PLR2004 - coupled blocks require multiple rows
+        return {}
+
+    assigned = _matched_linear_constraints(constraints, reached)
+    dependencies = rx.PyDiGraph(multigraph=False)
+    nodes = {name: dependencies.add_node(name) for name in sorted(assigned)}
+    for output, constraint in assigned.items():
+        for name in sorted(constraint.attributes - reached - {output}):
+            if name in nodes:
+                dependencies.add_edge(nodes[name], nodes[output], None)
+
+    for component in rx.strongly_connected_components(dependencies):
+        if len(component) < 2:  # noqa: PLR2004 - only coupled blocks need a hint
+            continue
+        closure = set(component)
+        for node in component:
+            closure.update(rx.ancestors(dependencies, node))
+        selected = {
+            typing.cast("str", dependencies[node]): assigned[typing.cast("str", dependencies[node])] for node in closure
+        }
+        if any(row.attributes - reached - selected.keys() for row in selected.values()):
+            continue
+        if _supported_linear_component(selected):
+            return selected
+    return {}
+
+
+def _matched_linear_constraints(
+    constraints: list[ExpandedConstraint], reached: set[str]
+) -> dict[str, ExpandedConstraint]:
+    """Choose one maximum matching in the unresolved equation incidence graph."""
+    incidence = rx.PyGraph(multigraph=False)
+    names = sorted({name for row in constraints for name in row.attributes - reached})
+    attribute_nodes = {name: incidence.add_node(name) for name in names}
+    for constraint in constraints:
+        row = incidence.add_node(constraint)
+        for name in sorted(constraint.attributes - reached):
+            incidence.add_edge(row, attribute_nodes[name], None)
+
+    assignments: dict[str, ExpandedConstraint] = {}
+    for first, second in rx.max_weight_matching(incidence, max_cardinality=True):
+        row, attribute = (second, first) if isinstance(incidence[first], str) else (first, second)
+        assignments[typing.cast("str", incidence[attribute])] = typing.cast("ExpandedConstraint", incidence[row])
+    return assignments
+
+
+def _supported_linear_component(selected: dict[str, ExpandedConstraint]) -> bool:
+    """Validate linearity using the existing local or qualified block machinery."""
+    outputs = sorted(selected)
+    paths = {row.path for row in selected.values()}
+    try:
+        if len(paths) == 1:
+            path = next(iter(paths))
+            prefix = ".".join((*path, "")) if path else ""
+            if any(not name.startswith(prefix) for name in outputs):
+                return False
+            block = PlanBlock(
+                steps=tuple(
+                    PlanStep(operation=selected[name].operation, output=name[len(prefix) :]) for name in outputs
+                ),
+                is_cyclic=True,
+            )
+            extract_supported_linear_block(block)
+        else:
+            block = QualifiedBlock(
+                rows=tuple(
+                    QualifiedEquation(typing.cast("BasicEquation", selected[name].operation), selected[name].path)
+                    for name in outputs
+                ),
+                unknowns=tuple(outputs),
+            )
+            extract_supported_qualified_block(block)
+    except BiltAnalysisError:
+        return False
+    return True
 
 
 def find_matching(graph: rx.PyGraph) -> dict[str, BiltModelConstituent]:
