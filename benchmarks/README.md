@@ -486,3 +486,40 @@ hint policy, coordinate count, wrapper depth, target and timing scope.
 
 No existing benchmark models, outcomes or timing boundaries change. No solver,
 backend, dependency configuration or default analyser changes are required.
+
+## Nested syngas search regression
+
+`test_syngas_plan_search.py` preserves the small, three-child calculation
+that exposed a costly structural-plan search in
+[bilt-fuels PR #4](https://github.com/aviation-impact-accelerator/bilt-fuels/pull/4).
+The gasification, syngas composition and conditional Fischer–Tropsch models,
+including all parent connection equations, come from that experiment. These
+are illustrative relationships for testing structural analysis, **not** a
+validated fuel-production model.
+
+The two variants differ **only** in how syngas energy and H₂/CO ratio determine
+the two molar-flow values:
+
+- `coupled`: the original two equations have both CO and H₂ unknown.
+- `explicit`: the equivalent equations first calculate CO and then H₂.
+
+Both have the independently known expected jet power of 10.53 MW. The explicit
+case must return the right value; the coupled case may either succeed with
+that value or hit a **1,000-plan-attempt work budget**. A different Bilt error is
+always a failure. This isn't claiming a budget hit is a solution: it gives us a
+bounded baseline until planning improves.
+
+The benchmark command uses pytest-benchmark 5.3.1 because the currently locked 5.3.0 fails at fixture setup with pytest 9.2. This does not update the project lockfile.\n\nThe work budget counts attempts to build execution plans, including nested
+child requests. It is not a wall-clock timeout and should not be compared
+directly with the previous 12-second runs (which tried tens of thousands of
+candidates). Timeouts in pytest still guard against any slowdown outside
+this budget.
+
+```sh
+uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_syngas_plan_search.py --benchmark-disable --search-rounds=1 --timeout=30
+uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_syngas_plan_search.py --benchmark-only --search-rounds=3 --timeout=30 --benchmark-columns=median,min,max
+```
+
+For investigation, compare the result status, attempt count and elapsed time.
+When a solver change makes the coupled case finish reliably, we can make
+successful evaluation mandatory and lower or remove the work budget.
