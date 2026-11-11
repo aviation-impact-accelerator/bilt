@@ -9,7 +9,7 @@ from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
-from bilt.core._errors import BiltAnalysisError
+from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_name
@@ -27,6 +27,8 @@ from bilt.symbolic._isolation._errors import BiltIsolationError
 from bilt.symbolic._isolation._isolate import isolate
 
 if typing.TYPE_CHECKING:
+    import collections.abc
+
     from bilt._backend._base_backend import Backend
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanBlock, PlanStep
 
@@ -52,25 +54,20 @@ def realize_plan(
             names = {mangle_name(step.output) for step in plan.steps} | set(map(mangle_name, plan.inputs))
             while name in names:
                 name += "_"
-            key = (
-                frozenset((step, step.child_inputs) for step in block.steps),
-                frozenset((attribute, symbol_domains.get(attribute)) for attribute in block.inputs),
-            )
-            if block_failures is not None and key in block_failures:
-                return block_failures[key]
-            try:
-                callables = realize_linear_block(block, backend, symbol_domains, solution_name=name)
-            except (BiltLinearBlockError, BiltSymbolicLoweringError, BiltTensorDomainError) as error:
-                failure = BlockRealizationFailure(failed_block=block, cause=error)
-                if block_failures is not None:
-                    block_failures[key] = failure
-                return failure
+            realized = _realize_cyclic_with_domains(block, backend, symbol_domains, name, block_failures)
+            if isinstance(realized, BlockRealizationFailure):
+                return realized
+            callables, resolved = realized
             intermediates.extend(callables)
-            for output, callable_ in zip(sorted(block.outputs), callables[1:], strict=True):
-                symbol_domains[output] = _output_domain(callable_, output)
+            symbol_domains.update(resolved)
             continue
 
         step = block.steps[0]
+        if isinstance(step.operation, BasicEquation):
+            try:
+                _check_equation_domains(step, symbol_domains, step.consumed)
+            except BiltEquationDomainRequirementError as error:
+                return RealizationFailure(failed_plan_step=step, cause=error)
         result = _operation_to_callable(
             step,
             backend=backend,
@@ -80,7 +77,12 @@ def realize_plan(
             return result
         intermediates.append(result)
 
-        symbol_domains[step.output] = _output_domain(result, step.output)
+        candidate_domain = _output_domain(result, step.output)
+        try:
+            _check_equation_domains(step, {step.output: candidate_domain}, (step.output,))
+        except BiltEquationDomainRequirementError as error:
+            return RealizationFailure(failed_plan_step=step, cause=error)
+        symbol_domains[step.output] = candidate_domain
 
     output = mangle_name(plan.output)
     return BackendCase(
@@ -89,6 +91,72 @@ def realize_plan(
         intermediates=intermediates,
         return_name=output,
     )
+
+
+def _realize_cyclic_with_domains(
+    block: PlanBlock,
+    backend: Backend,
+    known: dict[str, Domain],
+    solution_name: str,
+    failures: dict[BlockRealizationKey, BlockRealizationFailure] | None,
+) -> tuple[tuple[BackendCallable, ...], dict[str, Domain]] | BlockRealizationFailure:
+    """Realise a joint block only when its selected equations meet minimum domains."""
+    key: BlockRealizationKey = (
+        frozenset((step, step.child_inputs) for step in block.steps),
+        frozenset((attribute, known.get(attribute)) for attribute in block.inputs),
+    )
+    if failures is not None and key in failures:
+        return failures[key]
+
+    try:
+        for step in block.steps:
+            _check_equation_domains(step, known, block.inputs)
+        callables = realize_linear_block(block, backend, known, solution_name=solution_name)
+        resolved = {
+            output: _output_domain(callable_, output)
+            for output, callable_ in zip(sorted(block.outputs), callables[1:], strict=True)
+        }
+        for step in block.steps:
+            _check_equation_domains(step, known | resolved, block.outputs)
+    except (
+        BiltLinearBlockError,
+        BiltSymbolicLoweringError,
+        BiltTensorDomainError,
+        BiltEquationDomainRequirementError,
+    ) as error:
+        failure = BlockRealizationFailure(failed_block=block, cause=error)
+        if failures is not None:
+            failures[key] = failure
+        return failure
+    return tuple(callables), resolved
+
+
+def _check_equation_domains(
+    step: PlanStep,
+    known: dict[str, Domain],
+    names: collections.abc.Iterable[str],
+) -> None:
+    """Check minimum domains on ports actually used by a selected equation.
+
+    Do not merge these into the system's declarations or exact linear-domain
+    hints: a different equation/route may impose different constraints.
+    """
+    if not isinstance(step.operation, BasicEquation):
+        return
+    for name in names:
+        declaration = step.operation.__bilt_port_declarations__.get(name)
+        required = None if declaration is None else declaration.required_domain
+        if required is None or name not in known:
+            continue
+        actual = known[name]
+        missing = tuple(dim for dim in required.dims if dim not in actual.dims)
+        if missing:
+            message = (
+                f"Equation {step.operation.__bilt_name__!r} requires port {name!r} "
+                f"to include {required}, but inferred {actual}; "
+                f"missing dimensions: {', '.join(map(str, missing))}."
+            )
+            raise BiltEquationDomainRequirementError(message)
 
 
 def _output_domain(callable_: BackendCallable, output: str) -> Domain:

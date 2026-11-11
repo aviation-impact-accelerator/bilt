@@ -23,7 +23,7 @@ if typing.TYPE_CHECKING:
 class PortDeclaration:
     """What a declared port holds: a quantity of its dimensionality, absolute if marked and relative otherwise.
 
-    `over_a_domain` records that the port was annotated `Tensor` rather than `Quantity`. It says what a caller may
+    `over_a_domain` records that the port requires a tensor rather than a scalar. It says what a caller may
     pass at this port, not what the port measures, so it takes no part in a declaration's identity: a constituent
     written over scalars is reusable in a tensor system under the same port name.
     """
@@ -72,17 +72,24 @@ def quantity_magnitude_kind(base_type: object) -> typing.Literal["scalar", "tens
     return None
 
 
-def _required_domain(
+def _required_domain(  # noqa: PLR0913
     owner_name: str,
     port: str,
     metadata: list[object],
     base_type: object,
     dimensionality: Dimension | None,
+    *,
+    system_boundary: bool,
 ) -> Domain | None:
-    """Read the new tensor quantity minimum-domain constraint, preserving legacy hints."""
-    # Existing Quantity/Tensor Domain metadata is used by structural analysis
-    # as a hint. Keep those annotations unchanged, including scalar Domain().
-    if dimensionality is None or base_type in (Quantity, Tensor):
+    """Distinguish exact equation hints from minimum tensor-domain requirements."""
+    # Existing dimensioned Tensor annotations remain valid until the migration is done.
+    # Keep existing scalar hints until the system-field migration is complete.
+    # Pointwise equation hints are exact; tensor field requirements are minimum.
+    if (
+        dimensionality is None
+        or base_type in (Quantity, Tensor)
+        or (not system_boundary and _is_pointwise_quantity_union(base_type))
+    ):
         return None
 
     domains = [item for item in metadata if isinstance(item, Domain)]
@@ -100,12 +107,14 @@ def _required_domain(
 def port_declarations(
     owner_name: str,
     port_annotations: collections.abc.Mapping[str, object],
+    *,
+    system_boundary: bool = False,
 ) -> dict[str, PortDeclaration]:
     """Read the value off each port's annotation to keep information about the port."""
     declarations: dict[str, PortDeclaration] = {}
 
     def validate_port(port: str, annotation: object) -> None:
-        if (declaration := _declaration(owner_name, port, annotation)) is not None:
+        if (declaration := _declaration(owner_name, port, annotation, system_boundary=system_boundary)) is not None:
             declarations[port] = declaration
 
     validate_independently(
@@ -115,7 +124,9 @@ def port_declarations(
     return declarations
 
 
-def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclaration | None:
+def _declaration(
+    owner_name: str, port: str, annotation: object, *, system_boundary: bool = False
+) -> PortDeclaration | None:
     """Classify one annotation, ignoring `Annotated` metadata that is neither a dimensionality nor the absolute marker."""
     base_type, metadata = annotated_parts(annotation)
     unit = next((item for item in metadata if isinstance(item, Unit)), None)
@@ -143,7 +154,9 @@ def _declaration(owner_name: str, port: str, annotation: object) -> PortDeclarat
     magnitude_kind = quantity_magnitude_kind(base_type)
     carries_quantity = base_type is Quantity or magnitude_kind is not None
     over_a_domain = base_type in (Tensor, QuantityTensor) or magnitude_kind == "tensor"
-    required_domain = _required_domain(owner_name, port, metadata, base_type, dimensionality)
+    required_domain = _required_domain(
+        owner_name, port, metadata, base_type, dimensionality, system_boundary=system_boundary
+    )
     absolute = any(item is ABSOLUTE for item in metadata)
     if dimensionality is None and (carries_quantity or absolute):
         msg = (
