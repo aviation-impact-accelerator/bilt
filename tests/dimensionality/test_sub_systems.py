@@ -4,23 +4,27 @@ import typing
 
 import pytest
 
-from bilt import Implementation, Interface, equation, field, system
+from bilt import Implementation, Interface, QuantityTensor, equation, field, system
 from bilt.errors import BiltEquationDimensionalityError, BiltImplementationDimensionalityError, BiltUnitsError
 from bilt.units import Quantity
 from bilt.units.dimensions import CURRENT, LENGTH, RESISTANCE, VOLTAGE
 from bilt.units.units import ampere, ohm, volt
 
 Current = typing.Annotated[Quantity, CURRENT]
+CurrentField = typing.Annotated[Quantity | QuantityTensor, CURRENT]
 Length = typing.Annotated[Quantity, LENGTH]
+LengthField = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
+ResistanceField = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
+VoltageField = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
 
 
 @system
 class Resistor(metaclass=Interface):
-    v: Voltage = field()
-    i: Current = field()
-    r: Resistance = field()
+    v: VoltageField = field()
+    i: CurrentField = field()
+    r: ResistanceField = field()
 
 
 @equation
@@ -30,9 +34,9 @@ def ohms_law(v: Voltage, i: Current, r: Resistance) -> bool:
 
 @system
 class Component(metaclass=Interface):
-    voltage: Voltage = field()
-    current: Current = field()
-    resistance: Resistance = field()
+    voltage: VoltageField = field()
+    current: CurrentField = field()
+    resistance: ResistanceField = field()
 
 
 @equation
@@ -72,7 +76,7 @@ def test_a_parent_port_contradicting_what_the_child_declares_raises_at_decoratio
 def test_a_dimensionality_a_grandchild_declares_reaches_the_grandparent() -> None:
     @system
     class Circuit(metaclass=Interface):
-        total: Length = field()
+        total: LengthField = field()
 
     with pytest.raises(BiltUnitsError, match=r"total_eq.*relates"):
 
@@ -98,7 +102,7 @@ def test_a_child_leaving_a_port_plain_where_the_parent_declares_it_raises_at_con
 
     @system
     class Parent(metaclass=Interface):
-        voltage: Voltage = field()
+        voltage: VoltageField = field()
 
     @equation
     def plain_voltage_eq(voltage: float, resistor: PlainResistor) -> bool:

@@ -88,10 +88,11 @@ def induced_drag(
     return dynamic_pressure * wing_area * induced_drag_factor * lift_coefficient**2
 ```
 
-The system and transforms use scalar quantity declarations. They accept scalar
-quantities or compatible unit-carrying tensors, so the model does not prescribe
-the shape of the ensemble. Efficiencies, Mach number, aerodynamic coefficients,
-and emission indices are dimensionless quantities supplied with `UNITLESS`.
+The system uses named pointwise aliases such as `PointwiseRatio` for fields accepting
+scalar or tensor quantities, and scalar aliases such as `Ratio` for transforms.
+The transforms lift over compatible tensor domains, so the model does not
+prescribe the shape of the ensemble. Efficiencies, Mach number, aerodynamic
+coefficients, and emission indices are dimensionless quantities supplied with `UNITLESS`.
 
 The atmosphere uses absolute temperatures and relative temperature offsets.
 Gravity, lapse rate, gas constant, reference pressure, and fuel heating value
@@ -127,6 +128,7 @@ _model_source = (  # markdown-exec: hide
             "    Implementation,",  # markdown-exec: hide
             "    Interface,",  # markdown-exec: hide
             "    Quantity,",  # markdown-exec: hide
+            "    QuantityTensor,",  # markdown-exec: hide
             "    field,",  # markdown-exec: hide
             "    system,",  # markdown-exec: hide
             "    transform,",  # markdown-exec: hide
@@ -151,57 +153,69 @@ _model_source = (  # markdown-exec: hide
             "Power = Annotated[Quantity, ENERGY / TIME]",  # markdown-exec: hide
             "MassRate = Annotated[Quantity, MASS / TIME]",  # markdown-exec: hide
             "Ratio = Annotated[Quantity, DIMENSIONLESS]",  # markdown-exec: hide
+            "PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]",  # markdown-exec: hide
+            "PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]",  # markdown-exec: hide
+            "PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]",  # markdown-exec: hide
+            "PointwiseTemperatureChange = Annotated[Quantity | QuantityTensor, TEMPERATURE]",  # markdown-exec: hide
+            "PointwiseArea = Annotated[Quantity | QuantityTensor, LENGTH**2]",  # markdown-exec: hide
+            "PointwiseAbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]",  # markdown-exec: hide
+            "PointwisePressure = Annotated[Quantity | QuantityTensor, FORCE / LENGTH**2]",  # markdown-exec: hide
+            "PointwiseDensity = Annotated[Quantity | QuantityTensor, MASS / LENGTH**3]",  # markdown-exec: hide
+            "PointwiseSpeed = Annotated[Quantity | QuantityTensor, LENGTH / TIME]",  # markdown-exec: hide
+            "PointwiseForce = Annotated[Quantity | QuantityTensor, FORCE]",  # markdown-exec: hide
+            "PointwisePower = Annotated[Quantity | QuantityTensor, ENERGY / TIME]",  # markdown-exec: hide
+            "PointwiseMassRate = Annotated[Quantity | QuantityTensor, MASS / TIME]",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "@system",  # markdown-exec: hide
             "class CruiseImpact(metaclass=Interface):",  # markdown-exec: hide
             "    # Inputs",  # markdown-exec: hide
-            "    altitude: Length = field()",  # markdown-exec: hide
-            "    mach: Ratio = field()",  # markdown-exec: hide
-            "    mass: Mass = field()",  # markdown-exec: hide
-            "    temperature_offset: TemperatureChange = field()",  # markdown-exec: hide
-            "    wing_area: Area = field()",  # markdown-exec: hide
-            "    zero_lift_drag_coefficient: Ratio = field()",  # markdown-exec: hide
-            "    induced_drag_factor: Ratio = field()",  # markdown-exec: hide
-            "    propulsive_efficiency: Ratio = field()",  # markdown-exec: hide
-            "    nox_emission_index: Ratio = field()",  # markdown-exec: hide
-            "    soot_emission_index: Ratio = field()",  # markdown-exec: hide
+            "    altitude: PointwiseLength = field()",  # markdown-exec: hide
+            "    mach: PointwiseRatio = field()",  # markdown-exec: hide
+            "    mass: PointwiseMass = field()",  # markdown-exec: hide
+            "    temperature_offset: PointwiseTemperatureChange = field()",  # markdown-exec: hide
+            "    wing_area: PointwiseArea = field()",  # markdown-exec: hide
+            "    zero_lift_drag_coefficient: PointwiseRatio = field()",  # markdown-exec: hide
+            "    induced_drag_factor: PointwiseRatio = field()",  # markdown-exec: hide
+            "    propulsive_efficiency: PointwiseRatio = field()",  # markdown-exec: hide
+            "    nox_emission_index: PointwiseRatio = field()",  # markdown-exec: hide
+            "    soot_emission_index: PointwiseRatio = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "    # Atmosphere",  # markdown-exec: hide
-            "    temperature: AbsoluteTemperature = field()",  # markdown-exec: hide
-            "    pressure: Pressure = field()",  # markdown-exec: hide
-            "    density: Density = field()",  # markdown-exec: hide
-            "    speed_of_sound: Speed = field()",  # markdown-exec: hide
-            "    true_airspeed: Speed = field()",  # markdown-exec: hide
+            "    temperature: PointwiseAbsoluteTemperature = field()",  # markdown-exec: hide
+            "    pressure: PointwisePressure = field()",  # markdown-exec: hide
+            "    density: PointwiseDensity = field()",  # markdown-exec: hide
+            "    speed_of_sound: PointwiseSpeed = field()",  # markdown-exec: hide
+            "    true_airspeed: PointwiseSpeed = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "    # Aerodynamics",  # markdown-exec: hide
-            "    weight: Force = field()",  # markdown-exec: hide
-            "    dynamic_pressure: Pressure = field()",  # markdown-exec: hide
-            "    lift_coefficient: Ratio = field()",  # markdown-exec: hide
-            "    parasite_drag: Force = field()",  # markdown-exec: hide
-            "    induced_drag: Force = field()",  # markdown-exec: hide
-            "    compressibility_drag: Force = field()",  # markdown-exec: hide
-            "    trim_drag: Force = field()",  # markdown-exec: hide
-            "    total_drag: Force = field()",  # markdown-exec: hide
+            "    weight: PointwiseForce = field()",  # markdown-exec: hide
+            "    dynamic_pressure: PointwisePressure = field()",  # markdown-exec: hide
+            "    lift_coefficient: PointwiseRatio = field()",  # markdown-exec: hide
+            "    parasite_drag: PointwiseForce = field()",  # markdown-exec: hide
+            "    induced_drag: PointwiseForce = field()",  # markdown-exec: hide
+            "    compressibility_drag: PointwiseForce = field()",  # markdown-exec: hide
+            "    trim_drag: PointwiseForce = field()",  # markdown-exec: hide
+            "    total_drag: PointwiseForce = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "    # Propulsion",  # markdown-exec: hide
-            "    propulsive_power: Power = field()",  # markdown-exec: hide
-            "    fuel_power: Power = field()",  # markdown-exec: hide
-            "    fuel_flow: MassRate = field()",  # markdown-exec: hide
+            "    propulsive_power: PointwisePower = field()",  # markdown-exec: hide
+            "    fuel_power: PointwisePower = field()",  # markdown-exec: hide
+            "    fuel_flow: PointwiseMassRate = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "    # Emissions",  # markdown-exec: hide
-            "    co2_rate: MassRate = field()",  # markdown-exec: hide
-            "    water_rate: MassRate = field()",  # markdown-exec: hide
-            "    nox_rate: MassRate = field()",  # markdown-exec: hide
-            "    soot_rate: MassRate = field()",  # markdown-exec: hide
+            "    co2_rate: PointwiseMassRate = field()",  # markdown-exec: hide
+            "    water_rate: PointwiseMassRate = field()",  # markdown-exec: hide
+            "    nox_rate: PointwiseMassRate = field()",  # markdown-exec: hide
+            "    soot_rate: PointwiseMassRate = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "    # Illustrative climate-effect outputs",  # markdown-exec: hide
-            "    co2_effect: MassRate = field()",  # markdown-exec: hide
-            "    water_effect: MassRate = field()",  # markdown-exec: hide
-            "    nox_effect: MassRate = field()",  # markdown-exec: hide
-            "    soot_effect: MassRate = field()",  # markdown-exec: hide
-            "    contrail_effect: MassRate = field()",  # markdown-exec: hide
-            "    total_climate_effect: MassRate = field()",  # markdown-exec: hide
+            "    co2_effect: PointwiseMassRate = field()",  # markdown-exec: hide
+            "    water_effect: PointwiseMassRate = field()",  # markdown-exec: hide
+            "    nox_effect: PointwiseMassRate = field()",  # markdown-exec: hide
+            "    soot_effect: PointwiseMassRate = field()",  # markdown-exec: hide
+            "    contrail_effect: PointwiseMassRate = field()",  # markdown-exec: hide
+            "    total_climate_effect: PointwiseMassRate = field()",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "# Atmosphere -----------------------------------------------------------------",  # markdown-exec: hide
