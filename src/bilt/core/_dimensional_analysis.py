@@ -39,6 +39,8 @@ def dimensionality_of(
     if tree.is_leaf:
         return _leaf(tree, dimensionalities)
     operands = [dimensionality_of(operand, dimensionalities) for operand in tree.args]
+    if tree.head in (ops.MASK_AND, ops.MASK_OR, ops.MASK_NOT):
+        return DIMENSIONLESS
     return _dimensionality_at(tree, operands)
 
 
@@ -62,7 +64,7 @@ def _dimensionality_at(tree: Tree, operands: list[Dimension | None]) -> Dimensio
         _shared(operands)
         return DIMENSIONLESS
     match tree.head:
-        case ops.CONDITIONAL:
+        case ops.CONDITIONAL | ops.WHERE:
             return _shared(operands[1:])
         case ops.ADD | ops.NEG | ops.MEAN | ops.SUM | ops.MIN | ops.MAX:
             return _shared(operands)
@@ -150,6 +152,8 @@ def absoluteness_of(
             return frozenset({int(typing.cast("tuple[float, Dimension, bool]", tree.head.value)[2])})
         return _EITHER
     operands = [absoluteness_of(equation_name, operand, declarations) for operand in tree.args]
+    if tree.head in (ops.MASK_AND, ops.MASK_OR, ops.MASK_NOT):
+        return frozenset({0})
     if tree.is_relation:
         if not operands[0] & operands[1]:
             msg = "relates an absolute quantity to a relative one: both sides must be absolute, or both relative."
@@ -160,7 +164,7 @@ def absoluteness_of(
 
 def _absoluteness_operation(equation_name: str, tree: Tree, operands: list[frozenset[int]]) -> frozenset[int]:
     match tree.head:
-        case ops.CONDITIONAL:
+        case ops.CONDITIONAL | ops.WHERE:
             compatible = operands[1] & operands[2]
             if not compatible:
                 msg = "conditional branches have incompatible absolute/relative kinds."

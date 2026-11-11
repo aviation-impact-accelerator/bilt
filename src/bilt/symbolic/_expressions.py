@@ -347,10 +347,10 @@ def as_expr(value: object) -> Expr:
 
 
 def conditional_expr(predicate: Tree, when_true: object, when_false: object) -> Expr:
+    tree = conditional_tree(predicate, as_tree(when_true), as_tree(when_false))
     if isinstance(when_true, TensorExpr) or isinstance(when_false, TensorExpr):
-        msg = "Tensor-valued conditional branches are not supported yet."
-        raise BiltSymbolicConversionError(msg)
-    return Expr(conditional_tree(predicate, as_tree(when_true), as_tree(when_false)))
+        return TensorExpr(tree)
+    return Expr(tree)
 
 
 def symbol_expr(name: str) -> Expr:

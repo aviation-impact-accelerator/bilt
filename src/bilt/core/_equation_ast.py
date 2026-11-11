@@ -188,14 +188,25 @@ def _validate_branch_arm(statement: ast.stmt, params: set[str], assigned: set[st
     return name
 
 
+def _validate_mask_predicate(node: ast.expr) -> None:
+    """Allow comparisons combined with bitwise Boolean mask operators only."""
+    if isinstance(node, ast.Compare):
+        if len(node.ops) != 1 or not isinstance(node.ops[0], (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
+            _reject(node, "mask predicates require one symbolic comparison")
+        _validate_expression(node)
+        return
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.BitAnd, ast.BitOr)):
+        _validate_mask_predicate(node.left)
+        _validate_mask_predicate(node.right)
+        return
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Invert):
+        _validate_mask_predicate(node.operand)
+        return
+    _reject(node, "mask predicates require a symbolic comparison, optionally combined with &, | or ~")
+
+
 def _validate_branch(statement: ast.If, params: set[str], assigned: set[str]) -> str:
-    _validate_expression(statement.test)
-    if (
-        not isinstance(statement.test, ast.Compare)
-        or len(statement.test.ops) != 1
-        or not isinstance(statement.test.ops[0], (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE))
-    ):
-        _reject(statement.test, "conditional predicate must be one symbolic comparison")
+    _validate_mask_predicate(statement.test)
 
     left = _validate_branch_arm(_branch_statement(statement.body, statement), params, assigned)
     right = _validate_branch_arm(_branch_statement(statement.orelse, statement), params, assigned)
