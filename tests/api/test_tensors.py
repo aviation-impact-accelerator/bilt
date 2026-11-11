@@ -1,11 +1,15 @@
+import dataclasses
+import typing
+
 import numpy as np
 import pytest
 
-from bilt.core._tensors._tensors import Tensor, tensor
+from bilt.core._tensors._tensors import QuantityTensor, Tensor, tensor
 from bilt.errors import BiltDimensionalityError, BiltTensorDomainError, BiltUnitError
 from bilt.symbolic._dimensions import dim
 from bilt.symbolic._domains import domain
 from bilt.units import (
+    Unit,
     absolute_celsius,
     absolute_kelvin,
     absolute_year,
@@ -232,3 +236,43 @@ def test_converting_an_unlabelled_tensor_raises_and_names_the_label() -> None:
 
     with pytest.raises(BiltUnitError, match=r"tensor\(\.\.\., unit=\.\.\.\)"):
         unlabelled.convert_to(kilogram)
+
+
+def test_typed_tensor_factory_and_magnitude_contract() -> None:
+    varied = tensor([1000.0, 2000.0], over=dim("time"), unit=gram)
+    typing.assert_type(varied, QuantityTensor)
+    typing.assert_type(varied.unit, Unit)
+    typing.assert_type(varied.value, Tensor)
+    assert isinstance(varied, QuantityTensor)
+    assert varied.value.unit is None
+    assert varied.value.domain == varied.domain
+    np.testing.assert_array_equal(varied.value.values, varied.values)
+
+    plain = tensor([1.0, 2.0], over=dim("time"))
+    typing.assert_type(plain, Tensor)
+    assert type(plain) is Tensor
+
+
+def _tensor_with_optional_unit(maybe_unit: Unit | None) -> Tensor:
+    result = tensor([1.0, 2.0], over=dim("time"), unit=maybe_unit)
+    typing.assert_type(result, Tensor)
+    return result
+
+
+def test_optional_unit_factory_has_conservative_static_return() -> None:
+    assert isinstance(_tensor_with_optional_unit(gram), QuantityTensor)
+    assert type(_tensor_with_optional_unit(None)) is Tensor
+
+
+def test_quantity_tensor_preserves_concrete_type_and_rejects_missing_unit() -> None:
+    labelled = tensor([1000.0, 2000.0], over=dim("time"), unit=gram)
+    converted = labelled.convert_to(kilogram)
+    typing.assert_type(converted, QuantityTensor)
+    assert type(converted) is QuantityTensor
+
+    updated = dataclasses.replace(labelled, values=np.asarray([3.0, 4.0]))
+    assert type(updated) is QuantityTensor
+    assert updated.unit is gram
+
+    with pytest.raises(BiltUnitError, match="requires a physical unit"):
+        dataclasses.replace(labelled, unit=typing.cast("Unit", None))
