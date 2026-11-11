@@ -487,39 +487,44 @@ hint policy, coordinate count, wrapper depth, target and timing scope.
 No existing benchmark models, outcomes or timing boundaries change. No solver,
 backend, dependency configuration or default analyser changes are required.
 
-## Nested syngas search regression
+## Nested coupled planning regression
 
-`test_syngas_plan_search.py` preserves the small, three-child calculation
-that exposed a costly structural-plan search in
-[bilt-fuels PR #4](https://github.com/aviation-impact-accelerator/bilt-fuels/pull/4).
-The gasification, syngas composition and conditional Fischer–Tropsch models,
-including all parent connection equations, come from that experiment. These
-are illustrative relationships for testing structural analysis, **not** a
-validated fuel-production model.
+`test_nested_coupled_plan_search.py` exercises three connected subsystems:
+an input calculation, a coupled calculation with two jointly determined
+unknowns, and an output calculation. Parent equations connect subsystem ports
+and introduce alternative producers, making the planning choices non-trivial.
 
-The two variants differ **only** in how syngas energy and H₂/CO ratio determine
-the two molar-flow values:
+Both variants use the same subsystem graph, supplied values and expected output.
+Only the middle-stage equations differ:
 
-- `coupled`: the original two equations have both CO and H₂ unknown.
-- `explicit`: the equivalent equations first calculate CO and then H₂.
+- **Coupled:** two linear relationships jointly determine both unknowns.
+- **Explicit:** the algebra is rearranged to compute one unknown, then the other.
 
-Both have the independently known expected jet power of 10.53 MW. The explicit
-case must return the right value; the coupled case may either succeed with
-that value or hit a **1,000-plan-attempt work budget**. A different Bilt error is
-always a failure. This isn't claiming a budget hit is a solution: it gives us a
-bounded baseline until planning improves.
+The expected result is **10.53 MW**. The comparison tests whether planning
+performance depends on how equivalent equations are expressed.
 
-The benchmark command uses pytest-benchmark 5.3.1 because the currently locked 5.3.0 fails at fixture setup with pytest 9.2. This does not update the project lockfile.\n\nThe work budget counts attempts to build execution plans, including nested
-child requests. It is not a wall-clock timeout and should not be compared
-directly with the previous 12-second runs (which tried tens of thousands of
-candidates). Timeouts in pytest still guard against any slowdown outside
-this budget.
+The benchmark has a **1,000-plan-attempt limit**, including nested child
+requests. Reaching the limit is recorded as `budget_exceeded`, not as a
+successful calculation. Other planning failures fail the benchmark. As
+planning improves, both formulations should be required to succeed.
 
 ```sh
-uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_syngas_plan_search.py --benchmark-disable --search-rounds=1 --timeout=30
-uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_syngas_plan_search.py --benchmark-only --search-rounds=3 --timeout=30 --benchmark-columns=median,min,max
+uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_nested_coupled_plan_search.py --benchmark-only --search-rounds=5 --timeout=30
 ```
 
-For investigation, compare the result status, attempt count and elapsed time.
-When a solver change makes the coupled case finish reliably, we can make
-successful evaluation mandatory and lower or remove the work budget.
+The original application-specific reproduction is archived in the
+[benchmark investigation](https://github.com/aviation-impact-accelerator/bilt-fuels/pull/5).
+These synthetic equations are for testing structural planning, not validating
+a physical process. pytest-benchmark 5.3.1 is used for compatibility with
+pytest 9.2.
+
+## Larger coupled groups
+
+`test_coupled_group_planning.py` benchmarks complete 3×3 and 4×4 sparse
+linear systems, using fresh implementations and evaluation contexts in each
+round. The answer is independently checked (x = 1). These cases check that
+coupled-group recognition works beyond the two-equation syngas example.
+
+```sh
+uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_coupled_group_planning.py --benchmark-only --search-rounds=5 --timeout=30
+```
