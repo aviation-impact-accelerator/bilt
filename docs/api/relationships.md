@@ -49,6 +49,7 @@ Some notebooks and interactive environments may not make the source available.
 | Loops | `for`, `while` and comprehensions are not supported. |
 | Function calls | Allowed when Bilt understands the mathematical result. Bilt cannot detect every side effect inside a called function. |
 | Python `if/elif/else` | A single conditional chain may contain `elif` and nested `if/else`; all paths must assign the same local name once and end in an `else`. |
+| Python `match/case` | Numeric literal cases (integers or floats), followed by a final `case _`. Every path must assign the same local name once. Guards, captures and structural patterns are not supported. |
 | Inline `if` | Expressions such as `a if flag else b` work when `flag` is an ordinary Python value known when Bilt reads the equation, not a value being solved for. |
 
 Ordinary equations can use constants from outside the function, including
@@ -71,7 +72,8 @@ def piecewise(x: float, result: float) -> bool:
 Each condition must be a single comparison, such as `x > 0`. You can use
 `elif` or nest `if/else` blocks. Every path must assign to the **same name**
 exactly once, with a final `else` and the `return` outside the branches.
-Multiple separate `if` statements are not yet supported.
+You can also nest `match/case` within `if/else`, or the other way around.
+Multiple separate top-level conditionals are not yet supported.
 
 Each condition must compare scalar expressions, and every branch must produce
 a scalar result, not a tensor. Inputs used in **any** branch must be available,
