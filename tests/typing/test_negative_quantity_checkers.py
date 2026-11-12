@@ -41,7 +41,7 @@ EXPECTED_CODES: dict[str, dict[str, frozenset[str]]] = {
         "pyrefly": frozenset({"bad-argument-type"}),
     },
     "scalar-quantity-has-no-tensor-reduction": {
-        "ty": frozenset({"unresolved-attribute"}),
+        "ty": frozenset({"missing-attribute"}),
         "pyrefly": frozenset({"missing-attribute"}),
     },
     "unitless-tensor-is-not-quantity-tensor": {
