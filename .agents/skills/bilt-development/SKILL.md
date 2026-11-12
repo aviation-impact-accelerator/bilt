@@ -32,11 +32,18 @@ Read the relevant implementation and existing tests before proposing an API or r
 
 ## Development workflow
 
-From a checkout of Bilt:
+From a checkout of Bilt, use the bundled script for a repeatable full check:
 
 ```bash
-uv sync --all-extras --all-groups
-uv run pytest
+bash .agents/skills/bilt-development/scripts/check.sh
+```
+
+The script installs the locked environment, then runs Ruff lint and format checks, Pyrefly, ty, pytest, the two coupled-planning regression checks, Cargo format/lint/tests, the Zensical documentation build and prek. It stops at the first failure. This mirrors the checks in `.github/workflows/check.yml`; keep the script in sync if CI changes. CI validates the script's shell syntax but runs its constituent checks separately, so it does not duplicate the full suite.
+
+For quicker iteration, run the relevant checks individually, for example:
+
+```bash
+uv run pytest tests/
 uv run ruff check
 uv run ruff format --check
 uv run pyrefly check
@@ -44,7 +51,7 @@ uv run ty check
 uv run prek run --all-files
 ```
 
-For changes to Rust, also run `cargo fmt --all -- --check`, `cargo clippy --all-targets --all-features -- -D warnings` and `cargo test --all-targets --all-features`. For documentation changes, run `uv run zensical build --clean --strict` in the docs-enabled environment. CI runs these checks; only claim they pass if they were actually executed.
+Only claim checks have passed when they have actually executed successfully.
 
 When touching model behaviour, add focused regression tests for successful calculations **and** meaningful failure cases. For planner changes, compare relevant benchmarks, including nested and coupled models. When changing a public API, update examples, reference docs and tests in the same change.
 
