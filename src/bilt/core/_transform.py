@@ -23,7 +23,7 @@ class Transform[R, **P](typing.Protocol):
 
 class BasicTransform[R, **P]:
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
-        self.__bilt_name__ = function.__name__  # ty: ignore[unresolved-attribute]
+        self.__bilt_name__ = function.__name__  # ty: ignore[missing-attribute]
         try:
             signature = inspect.signature(function, eval_str=True)
         except NameError as error:

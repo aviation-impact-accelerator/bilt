@@ -259,7 +259,7 @@ def test_converting_a_parameter_to_a_unit_of_another_dimensionality_is_refused()
 def test_value_on_a_plain_parameter_fails_as_python_fails_it() -> None:
     @transform
     def stretched(span_km: float) -> Length:
-        return span_km.value * kilometer  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
+        return span_km.value * kilometer  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
     with (
         Implementation(Stretch, [stretched]),
