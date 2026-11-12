@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="278" viewBox="0 0 960 278" role="img" aria-labelledby="title description">
+<title id="title">Unit conversion and dimensional checks</title>
+<desc id="description">A speed of 36 kilometres per hour converts to 10 metres per second. Multiplying by five seconds gives 50 metres. The lower comparison shows a dimensionally valid equation and an invalid addition of speed and time.</desc>
+<rect width="960" height="278" fill="#273137"/>
+<text x="45" y="38" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#A9B8B2">Unit conversion</text>
+<text x="480" y="88" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="27" fill="#DDE5DF" text-anchor="middle">36 km/h = 10 m/s</text>
+<text x="480" y="126" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="23" fill="#DDE5DF" text-anchor="middle">10 m/s × 5 s = 50 m</text>
+<text x="45" y="171" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#A9B8B2">Dimensional checks</text>
+<text x="45" y="199" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#A9B8B2">Valid</text>
+<text x="509" y="199" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#A9B8B2">Invalid</text>
+<text x="45" y="242" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="23" fill="#DDE5DF">[L T⁻¹] × [T] = [L]</text>
+<text x="509" y="242" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="23" fill="#DDE5DF">[L T⁻¹] + [T] ≠ [L]</text>
+<line x1="479" y1="190" x2="479" y2="258" stroke="#536163" stroke-width="0.85"/>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="274" viewBox="0 0 960 274" role="img" aria-labelledby="title description">
+<title id="title">One relationship, three ways to evaluate it</title>
+<desc id="description">An energy balance equation defines output energy as input energy multiplied by efficiency. The equation is solved in forward, inverse and parameter-identification directions, depending on which variables are known.</desc>
+<rect width="960" height="274" fill="#273137"/>
+<text x="42" y="39" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#A9B8B2">Energy balance</text>
+<text x="480" y="91" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="31" fill="#DDE5DF" text-anchor="middle">Eₒᵤₜ = η Eᵢₙ</text>
+<text x="42" y="157" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A9B8B2">Forward</text>
+<text x="42" y="195" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="18" fill="#DDE5DF">Eᵢₙ = 100     η = 0.4</text>
+<line x1="42" y1="214" x2="310" y2="214" stroke="#536163" stroke-width="0.85"/>
+<text x="42" y="246" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="23" fill="#93C2B2">Eₒᵤₜ = 40</text>
+<text x="349" y="157" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A9B8B2">Inverse</text>
+<text x="349" y="195" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="18" fill="#DDE5DF">Eₒᵤₜ = 40     η = 0.4</text>
+<line x1="349" y1="214" x2="617" y2="214" stroke="#536163" stroke-width="0.85"/>
+<text x="349" y="246" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="23" fill="#93C2B2">Eᵢₙ = 100</text>
+<text x="656" y="157" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A9B8B2">Parameter identification</text>
+<text x="656" y="195" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="18" fill="#DDE5DF">Eᵢₙ = 100     Eₒᵤₜ = 36</text>
+<line x1="656" y1="214" x2="924" y2="214" stroke="#536163" stroke-width="0.85"/>
+<text x="656" y="246" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="23" fill="#93C2B2">η = 0.36</text>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="278" viewBox="0 0 960 278" role="img" aria-labelledby="title description">
+<title id="title">Uncertainty propagation through an inverse relationship</title>
+<desc id="description">With input energy held at 100, a distribution of output-energy measurements maps through the inverse equation to a distribution of efficiency. The first curve is muted; inferred efficiency is teal. This is uncertainty propagation, not statistical fitting.</desc>
+<rect width="960" height="278" fill="#273137"/>
+<text x="58" y="36" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#A9B8B2">Uncertainty propagation</text>
+<text x="58" y="69" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#DDE5DF">Output energy</text>
+<text x="585" y="69" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#DDE5DF">Efficiency</text>
+<text x="58" y="92" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="17" fill="#DDE5DF">Eₒᵤₜ ~ N(36, 2²)</text>
+<text x="585" y="92" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="17" fill="#DDE5DF">η ~ N(0.36, 0.02²)</text>
+<line x1="58" y1="236" x2="399" y2="236" stroke="#DDE5DF" stroke-width="1"/>
+<line x1="585" y1="236" x2="926" y2="236" stroke="#DDE5DF" stroke-width="1"/>
+<line x1="59" y1="235" x2="59" y2="241" stroke="#DDE5DF" stroke-width="1"/>
+<text x="59" y="260" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#A9B8B2">30</text>
+<line x1="230" y1="235" x2="230" y2="241" stroke="#DDE5DF" stroke-width="1"/>
+<text x="230" y="260" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#A9B8B2" text-anchor="middle">36</text>
+<line x1="385" y1="235" x2="385" y2="241" stroke="#DDE5DF" stroke-width="1"/>
+<text x="385" y="260" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#A9B8B2" text-anchor="middle">42</text>
+<line x1="585" y1="235" x2="585" y2="241" stroke="#DDE5DF" stroke-width="1"/>
+<text x="585" y="260" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#A9B8B2">0.30</text>
+<line x1="758" y1="235" x2="758" y2="241" stroke="#DDE5DF" stroke-width="1"/>
+<text x="758" y="260" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#A9B8B2" text-anchor="middle">0.36</text>
+<line x1="907" y1="235" x2="907" y2="241" stroke="#DDE5DF" stroke-width="1"/>
+<text x="907" y="260" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#A9B8B2" text-anchor="middle">0.42</text>
+<path d="M59.0 234.0 L62.8 233.7 L66.6 233.5 L70.3 233.1 L74.1 232.8 L77.9 232.3 L81.7 231.8 L85.4 231.2 L89.2 230.5 L93.0 229.7 L96.8 228.8 L100.6 227.8 L104.3 226.6 L108.1 225.3 L111.9 223.9 L115.7 222.3 L119.4 220.5 L123.2 218.5 L127.0 216.4 L130.8 214.1 L134.6 211.6 L138.3 208.9 L142.1 206.0 L145.9 202.9 L149.7 199.7 L153.4 196.4 L157.2 192.9 L161.0 189.2 L164.8 185.5 L168.6 181.8 L172.3 178.0 L176.1 174.2 L179.9 170.4 L183.7 166.7 L187.4 163.2 L191.2 159.7 L195.0 156.5 L198.8 153.5 L202.6 150.7 L206.3 148.2 L210.1 146.1 L213.9 144.3 L217.7 142.9 L221.4 141.8 L225.2 141.2 L229.0 141.0 L232.8 141.2 L236.6 141.8 L240.3 142.9 L244.1 144.3 L247.9 146.1 L251.7 148.2 L255.4 150.7 L259.2 153.5 L263.0 156.5 L266.8 159.7 L270.6 163.2 L274.3 166.7 L278.1 170.4 L281.9 174.2 L285.7 178.0 L289.4 181.8 L293.2 185.5 L297.0 189.2 L300.8 192.9 L304.6 196.4 L308.3 199.7 L312.1 202.9 L315.9 206.0 L319.7 208.9 L323.4 211.6 L327.2 214.1 L331.0 216.4 L334.8 218.5 L338.6 220.5 L342.3 222.3 L346.1 223.9 L349.9 225.3 L353.7 226.6 L357.4 227.8 L361.2 228.8 L365.0 229.7 L368.8 230.5 L372.6 231.2 L376.3 231.8 L380.1 232.3 L383.9 232.8 L387.7 233.1 L391.4 233.5 L395.2 233.7 L399.0 234.0" fill="none" stroke="#A9B8B2" stroke-width="2.3"/>
+<path d="M585.0 234.0 L588.8 233.7 L592.6 233.5 L596.3 233.1 L600.1 232.8 L603.9 232.3 L607.7 231.8 L611.4 231.2 L615.2 230.5 L619.0 229.7 L622.8 228.8 L626.6 227.8 L630.3 226.6 L634.1 225.3 L637.9 223.9 L641.7 222.3 L645.4 220.5 L649.2 218.5 L653.0 216.4 L656.8 214.1 L660.6 211.6 L664.3 208.9 L668.1 206.0 L671.9 202.9 L675.7 199.7 L679.4 196.4 L683.2 192.9 L687.0 189.2 L690.8 185.5 L694.6 181.8 L698.3 178.0 L702.1 174.2 L705.9 170.4 L709.7 166.7 L713.4 163.2 L717.2 159.7 L721.0 156.5 L724.8 153.5 L728.6 150.7 L732.3 148.2 L736.1 146.1 L739.9 144.3 L743.7 142.9 L747.4 141.8 L751.2 141.2 L755.0 141.0 L758.8 141.2 L762.6 141.8 L766.3 142.9 L770.1 144.3 L773.9 146.1 L777.7 148.2 L781.4 150.7 L785.2 153.5 L789.0 156.5 L792.8 159.7 L796.6 163.2 L800.3 166.7 L804.1 170.4 L807.9 174.2 L811.7 178.0 L815.4 181.8 L819.2 185.5 L823.0 189.2 L826.8 192.9 L830.6 196.4 L834.3 199.7 L838.1 202.9 L841.9 206.0 L845.7 208.9 L849.4 211.6 L853.2 214.1 L857.0 216.4 L860.8 218.5 L864.6 220.5 L868.3 222.3 L872.1 223.9 L875.9 225.3 L879.7 226.6 L883.4 227.8 L887.2 228.8 L891.0 229.7 L894.8 230.5 L898.6 231.2 L902.3 231.8 L906.1 232.3 L909.9 232.8 L913.7 233.1 L917.4 233.5 L921.2 233.7 L925.0 234.0" fill="none" stroke="#93C2B2" stroke-width="2.3"/>
+<text x="480" y="145" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="17" fill="#DDE5DF" text-anchor="middle">η = Eₒᵤₜ / Eᵢₙ</text>
+<line x1="405" y1="174" x2="560" y2="174" stroke="#93C2B2" stroke-width="1.7"/>
+<path d="M554 169 L560 174 L554 179" fill="none" stroke="#93C2B2" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

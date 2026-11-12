@@ -49,6 +49,9 @@ jobs:
         run: |
           echo "PYO3_PYTHON=$(uv run python -c 'import sys; print(sys.executable)')" >> "$GITHUB_ENV"
 
+      - name: Verify generated README illustrations
+        run: uv run python scripts/generate_readme_svgs.py --check
+
       - name: Lint with Ruff
         run: uv run ruff check
 
