@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="424" viewBox="0 0 960 424" role="img" aria-labelledby="title description">
+<title id="title">Reusable systems and coupled equations</title>
+<desc id="description">Two spring subsystems are connected by parent equations. When total extension is known, force and component extensions form a coupled linear block crossing both subsystem boundaries.</desc>
+<rect width="960" height="424" fill="#273137"/>
+<rect x="44" y="66" width="866" height="164" fill="none" stroke="#536163" stroke-width="1" rx="4"/>
+<text x="53" y="57" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#A9B8B2">DoubleSpring</text>
+<line x1="97" y1="83" x2="109" y2="95" stroke="#536163" stroke-width="1"/>
+<line x1="97" y1="98" x2="109" y2="110" stroke="#536163" stroke-width="1"/>
+<line x1="97" y1="113" x2="109" y2="125" stroke="#536163" stroke-width="1"/>
+<line x1="97" y1="128" x2="109" y2="140" stroke="#536163" stroke-width="1"/>
+<line x1="97" y1="143" x2="109" y2="155" stroke="#536163" stroke-width="1"/>
+<line x1="97" y1="158" x2="109" y2="170" stroke="#536163" stroke-width="1"/>
+<line x1="111" y1="89" x2="111" y2="174" stroke="#DDE5DF" stroke-width="1.65"/>
+<line x1="111" y1="132" x2="164" y2="132" stroke="#DDE5DF" stroke-width="1.65"/>
+<path d="M164.0 132.0 L181.0 132.0 L181.0 120.0 L191.2 144.0 L201.4 120.0 L211.6 144.0 L221.8 120.0 L231.9 144.0 L242.1 120.0 L252.3 144.0 L262.5 120.0 L272.7 144.0 L282.9 120.0 L293.1 144.0 L303.2 120.0 L313.4 144.0 L323.6 120.0 L333.8 144.0 L344.0 120.0 L344.0 132.0 L361.0 132.0" fill="none" stroke="#DDE5DF" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="361" cy="132" r="4.5" fill="#DDE5DF"/>
+<path d="M361.0 132.0 L378.0 132.0 L378.0 120.0 L388.7 144.0 L399.4 120.0 L410.1 144.0 L420.8 120.0 L431.4 144.0 L442.1 120.0 L452.8 144.0 L463.5 120.0 L474.2 144.0 L484.9 120.0 L495.6 144.0 L506.2 120.0 L516.9 144.0 L527.6 120.0 L538.3 144.0 L549.0 120.0 L549.0 132.0 L566.0 132.0" fill="none" stroke="#DDE5DF" stroke-width="1.8" stroke-linejoin="round"/>
+<line x1="566" y1="132" x2="704" y2="132" stroke="#DDE5DF" stroke-width="1.65"/>
+<path d="M704 132 L688 125 M704 132 L688 139" fill="none" stroke="#93C2B2" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="264" y="104" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#DDE5DF" text-anchor="middle">Spring 1</text>
+<text x="463" y="104" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#DDE5DF" text-anchor="middle">Spring 2</text>
+<text x="265" y="166" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="18" fill="#DDE5DF" text-anchor="middle">F = k₁x₁</text>
+<text x="463" y="166" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="18" fill="#DDE5DF" text-anchor="middle">F = k₂x₂</text>
+<text x="724" y="136" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="19" fill="#DDE5DF">F</text>
+<text x="843" y="109" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="18" fill="#DDE5DF" text-anchor="middle">xₜ = x₁ + x₂</text>
+<line x1="35" y1="243" x2="925" y2="243" stroke="#536163" stroke-width="0.85"/>
+<text x="36" y="270" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#A9B8B2">Known</text>
+<text x="270" y="270" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#A9B8B2">Coupled block</text>
+<text x="699" y="270" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#A9B8B2">Result</text>
+<text x="36" y="302" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="16" fill="#DDE5DF">k₁ = 100 N/m</text>
+<text x="36" y="329" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="16" fill="#DDE5DF">k₂ = 300 N/m</text>
+<text x="36" y="356" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="16" fill="#DDE5DF">xₜ = 0.1 m</text>
+<rect x="264" y="284" width="388" height="114" fill="#303E40" stroke="#536163" stroke-width="1"/>
+<text x="282" y="313" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="22" fill="#DDE5DF">F = k₁x₁ = k₂x₂</text>
+<text x="282" y="347" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="22" fill="#DDE5DF">x₁ + x₂ = xₜ</text>
+<text x="704" y="304" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="19" fill="#93C2B2">F = 7.5 N</text>
+<text x="704" y="337" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="17" fill="#DDE5DF">x₁ = 0.075 m</text>
+<text x="704" y="366" font-family="STIX Two Math, Cambria Math, Georgia, serif" font-size="17" fill="#DDE5DF">x₂ = 0.025 m</text>
+<line x1="220" y1="339" x2="249" y2="339" stroke="#93C2B2" stroke-width="2"/>
+<path d="M243 334 L249 339 L243 344" fill="none" stroke="#93C2B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="659" y1="339" x2="689" y2="339" stroke="#93C2B2" stroke-width="2"/>
+<path d="M683 334 L689 339 L683 344" fill="none" stroke="#93C2B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
