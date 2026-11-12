@@ -5,11 +5,10 @@ from bilt.core._port_declaration import PortDeclaration
 from bilt.errors import (
     BiltDimensionalityError,
     BiltEquationDimensionalityError,
-    BiltSymbolicConversionError,
     BiltUnsupportedIsolationError,
 )
 from bilt.symbolic._atoms import CONDITIONAL
-from bilt.symbolic._expressions import Expr, conditional_expr, tensor_symbol_expr
+from bilt.symbolic._expressions import Expr, TensorExpr, conditional_expr, tensor_symbol_expr
 from bilt.symbolic._isolation._isolate import isolate
 from bilt.symbolic._tree import conditional_tree
 from bilt.symbolic._walk import contains
@@ -26,7 +25,7 @@ def test_conditional_has_three_operands_and_is_not_a_relation() -> None:
 
 def test_conditional_requires_a_relation_predicate() -> None:
     x = Expr.symbol("x")
-    with pytest.raises(TypeError, match="binary relation predicate"):
+    with pytest.raises(TypeError, match="Boolean mask predicate"):
         conditional_tree(x.tree, x.tree, x.tree)
 
 
@@ -37,12 +36,13 @@ def test_conditional_rejects_relation_valued_branches() -> None:
 
 
 @pytest.mark.parametrize("tensor_first", (True, False))
-def test_tensor_conditional_branches_are_deferred(tensor_first: bool) -> None:
+def test_tensor_conditional_branches_are_accepted(tensor_first: bool) -> None:
     x = Expr.symbol("x")
     tensor = tensor_symbol_expr("tensor")
     a, b = (tensor, x) if tensor_first else (x, tensor)
-    with pytest.raises(BiltSymbolicConversionError, match="Tensor-valued conditional branches"):
-        conditional_expr(x > 0, a, b)
+    result = conditional_expr(x > 0, a, b)
+    assert isinstance(result, TensorExpr)
+    assert result.tree.head is CONDITIONAL
 
 
 def test_dependencies_include_predicate_and_both_branches() -> None:

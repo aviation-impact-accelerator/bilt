@@ -5,12 +5,16 @@ from bilt.symbolic._atoms import (
     CONDITIONAL,
     EQUALS,
     ISEL,
+    MASK_AND,
+    MASK_NOT,
+    MASK_OR,
     MAX,
     MEAN,
     MIN,
     PROD,
     SEL,
     SUM,
+    WHERE,
     Atom,
     IndexOpType,
     ReductionOpType,
@@ -56,6 +60,7 @@ __all__ = [
     "sel_tree",
     "sum_tree",
     "symbol_tree",
+    "where_tree",
 ]
 
 _NUMBER_OF_SUB_TREES = 2
@@ -121,6 +126,11 @@ class Tree:
         return self.head.atom_type is RelationOpType
 
     @property
+    def is_mask(self) -> bool:
+        """True for Boolean relations and combinations of masks."""
+        return self.is_relation or self.head in (MASK_AND, MASK_OR, MASK_NOT)
+
+    @property
     def is_equality(self) -> bool:
         """True when this tree represents symbolic equality."""
         return self.head is EQUALS
@@ -158,6 +168,24 @@ class Tree:
     def __bool__(self) -> typing.NoReturn:
         msg = "Symbolic trees cannot be used as Python booleans. Use a supported if/else in a source-inspectable @equation."
         raise TypeError(msg)
+
+    def __and__(self, other: Tree) -> Tree:
+        if not self.is_mask or not isinstance(other, Tree) or not other.is_mask:
+            msg = "Mask operators require symbolic Boolean masks."
+            raise TypeError(msg)
+        return Tree(MASK_AND, (self, other))
+
+    def __or__(self, other: Tree) -> Tree:
+        if not self.is_mask or not isinstance(other, Tree) or not other.is_mask:
+            msg = "Mask operators require symbolic Boolean masks."
+            raise TypeError(msg)
+        return Tree(MASK_OR, (self, other))
+
+    def __invert__(self) -> Tree:
+        if not self.is_mask:
+            msg = "Mask operators require a symbolic Boolean mask."
+            raise TypeError(msg)
+        return Tree(MASK_NOT, (self,))
 
     def __eq__(self, other: object) -> bool:
         return self is other
@@ -297,13 +325,24 @@ def relation_tree(operator: Atom | str, left: Tree, right: Tree) -> Tree:
 
 
 def conditional_tree(predicate: Tree, when_true: Tree, when_false: Tree) -> Tree:
-    if not predicate.is_relation or len(predicate.args) != _NUMBER_OF_SUB_TREES:
-        msg = "A symbolic conditional requires a binary relation predicate."
+    if not predicate.is_mask:
+        msg = "A symbolic conditional requires a Boolean mask predicate."
         raise TypeError(msg)
-    if when_true.is_relation or when_false.is_relation:
+    if when_true.is_mask or when_false.is_mask:
         msg = "Conditional branches must be expressions, not relations."
         raise TypeError(msg)
     return Tree(CONDITIONAL, (predicate, when_true, when_false))
+
+
+def where_tree(mask: Tree, when_true: Tree, when_false: Tree) -> Tree:
+    """Select values elementwise using a symbolic Boolean mask."""
+    if not mask.is_mask:
+        msg = "where() requires a symbolic Boolean mask."
+        raise TypeError(msg)
+    if when_true.is_relation or when_true.is_mask or when_false.is_relation or when_false.is_mask:
+        msg = "where() branches must be numerical expressions."
+        raise TypeError(msg)
+    return Tree(WHERE, (mask, when_true, when_false))
 
 
 def equality_tree(left: Tree, right: Tree) -> Tree:

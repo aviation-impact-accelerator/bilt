@@ -291,7 +291,7 @@ def _carried_under(
         return frozenset(), frozenset()
 
     under = [_carried_under(equation_name, operand, dimensionalities) for operand in tree.args]
-    if tree.head is ops.CONDITIONAL:
+    if tree.head in (ops.CONDITIONAL, ops.WHERE):
         carried = under[1:]
     elif tree.head in (ops.POW, ops.ISEL):
         carried = under[:1]

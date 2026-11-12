@@ -10,6 +10,10 @@ if typing.TYPE_CHECKING:
     from bilt.units import Dimension
 
 __all__ = [
+    "MASK_AND_INTRINSIC_NAME",
+    "MASK_NOT_INTRINSIC_NAME",
+    "MASK_OR_INTRINSIC_NAME",
+    "WHERE_INTRINSIC_NAME",
     "isel_intrinsic_ast",
     "reduction_intrinsic_ast",
     "tree_to_functiondef",
@@ -22,6 +26,10 @@ MAX_INTRINSIC_NAME = "__bilt_max__"
 PROD_INTRINSIC_NAME = "__bilt_prod__"
 
 ISEL_INTRINSIC_NAME = "__bilt_isel__"
+WHERE_INTRINSIC_NAME = "__bilt_where__"
+MASK_AND_INTRINSIC_NAME = "__bilt_mask_and__"
+MASK_OR_INTRINSIC_NAME = "__bilt_mask_or__"
+MASK_NOT_INTRINSIC_NAME = "__bilt_mask_not__"
 
 _REDUCTION_INTRINSICS = {
     ops.MEAN: MEAN_INTRINSIC_NAME,
@@ -77,6 +85,19 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:
 
 def _operation_to_ast(tree: Tree) -> ast.expr:  # noqa: PLR0911
     match tree.head:
+        case ops.WHERE | ops.MASK_AND | ops.MASK_OR | ops.MASK_NOT:
+            names = {
+                ops.WHERE: WHERE_INTRINSIC_NAME,
+                ops.MASK_AND: MASK_AND_INTRINSIC_NAME,
+                ops.MASK_OR: MASK_OR_INTRINSIC_NAME,
+                ops.MASK_NOT: MASK_NOT_INTRINSIC_NAME,
+            }
+            return ast.Call(
+                func=ast.Name(id=names[tree.head], ctx=ast.Load()),
+                args=[_tree_to_ast_expr(arg) for arg in tree.args],
+                keywords=[],
+            )
+
         case ops.CONDITIONAL:
             predicate, when_true, when_false = tree.args
             return ast.IfExp(
