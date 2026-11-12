@@ -151,8 +151,9 @@ def _build_symbols(
 ) -> dict[str, Expr | SubSystemExpr]:
     """Bind each parameter to what the equation function sees when called symbolically.
 
-    A parameter over a domain gets the tensor symbol, so a declared `Annotated[Tensor, DIM]` port reduces and
-    indexes as a plain `Tensor` one does.
+    Tensor-specific annotations get tensor symbols for named reductions and
+    selections. Pointwise scalar-or-tensor quantities use ordinary symbols,
+    which Bilt can lift over compatible domains.
     """
     symbols: dict[str, Expr | SubSystemExpr] = {}
 

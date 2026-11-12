@@ -536,3 +536,18 @@ def test_only_tensor_fields_can_require_a_minimum_domain() -> None:
     }
     with pytest.raises(BiltPortDeclarationError, match="non-tensor quantity"):
         system(Interface("InvalidField", (), namespace))
+
+
+@pytest.mark.parametrize("declare", (_system_field, _equation_parameter, _transform_parameter, _transform_return))
+def test_dimensioned_tensor_annotation_is_no_longer_supported(
+    declare: collections.abc.Callable[[object], None],
+) -> None:
+    with pytest.raises(BiltPortDeclarationError, match="old dimensioned Tensor annotation"):
+        declare(typing.Annotated[Tensor, MASS])
+
+
+def test_scalar_system_field_cannot_require_tensor_domain() -> None:
+    time = dim("time")
+    annotation = typing.Annotated[Quantity, MASS, Domain((time,))]
+    with pytest.raises(BiltPortDeclarationError, match="non-tensor quantity"):
+        _system_field(annotation)
