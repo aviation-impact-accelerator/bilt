@@ -92,6 +92,28 @@ Save the example as `motion.py` and run it with `uv run python motion.py`.
 
 The [documentation](https://aviation-impact-accelerator.github.io/bilt/) includes a user guide, worked examples and an API reference covering units, transforms, subsystem composition, tensors and backends.
 
+## AI coding assistants
+
+Bilt has two optional [Agent Skills](https://agentskills.io/) for coding assistants:
+
+- **[bilt](.agents/skills/bilt/SKILL.md)** helps users write and debug models *with* Bilt.
+- **[bilt-development](.agents/skills/bilt-development/SKILL.md)** helps contributors work on the Bilt framework, including architecture, tests and code review.
+
+Install only the skill you need in your own project:
+
+```bash
+npx skills add aviation-impact-accelerator/bilt --skill bilt
+```
+
+Contributors who want the development skill in another project can instead use
+`--skill bilt-development`. In a Bilt checkout, GitHub Copilot discovers the
+skills from `.agents/skills/`, which is also the canonical location used by
+Codex and the `skills` CLI. Copilot code review also uses the brief
+[repository review instructions](.github/copilot-instructions.md).
+
+Agent Skills are optional instructions for coding assistants: they do not install
+the Bilt Python package, and installing Bilt does not automatically install a skill.
+
 ## Development
 
 Developed at the [**Aviation Impact Accelerator, University of Cambridge**](https://aiazero.org). Bilt is under active development; expect API changes.
