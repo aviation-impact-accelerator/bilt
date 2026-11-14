@@ -2,11 +2,11 @@
 
 import numpy as np
 import pytest
-from bilt import QuantityTensor, tensor
-from bilt.units import degree, kilogram, meter, newton
-
 from examples.aircraft_trim.fixtures import example_aircraft, trim_case
 from examples.aircraft_trim.model import CASE, MODEL, SOURCE_PANEL
+
+from bilt import QuantityTensor, tensor
+from bilt.units import degree, kilogram, meter, newton
 
 
 def _influence() -> np.ndarray:

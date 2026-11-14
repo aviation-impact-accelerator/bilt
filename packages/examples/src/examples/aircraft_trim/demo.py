@@ -1,5 +1,7 @@
 """Run the small acausal wing-and-tail trim example."""
 
+# ruff: noqa: T201  # This script deliberately prints the demonstration results.
+
 from bilt.units import degree
 
 from .fixtures import example_aircraft, trim_case

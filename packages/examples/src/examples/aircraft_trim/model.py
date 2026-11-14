@@ -42,7 +42,7 @@ class WingTailTrim(metaclass=Interface):
 
 
 @equation
-def no_penetration(
+def no_penetration(  # noqa: PLR0913, PLR0917 - Bilt equations declare physical ports explicitly.
     influence: Annotated[QuantityTensor, LENGTH**-1, Domain((TARGET_PANEL, SOURCE_PANEL))],
     circulation: Annotated[QuantityTensor, LENGTH**2 / TIME, Domain((SOURCE_PANEL,))],
     speed: Annotated[Quantity | QuantityTensor, LENGTH / TIME],
