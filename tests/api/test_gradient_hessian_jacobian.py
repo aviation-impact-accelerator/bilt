@@ -143,7 +143,7 @@ def test_removed_d_diff_and_jacobian_field_access() -> None:
         assert not hasattr(model, "d")
         assert not hasattr(model, "diff")
         with pytest.raises(AttributeError, match="explicit outputs"):
-            model.jacobian.energy  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+            _ = model.jacobian.energy  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 def test_jacobian_rejects_duplicate_outputs() -> None:
