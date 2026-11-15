@@ -229,3 +229,23 @@ def test_nonincreasing_output_coordinates_rejected() -> None:
         model = Decay(t=tensor([0.0, 1.0, 1.0], over=TIME), rate=2.0, t0=0.0, y0=1.0)
         with pytest.raises(ValueError, match="strictly increasing"):
             _ = model.y
+
+
+@equation
+def unsupported_expression_rate(y: Tensor, t: Tensor, rate: float) -> bool:
+    return grad(y * y, wrt=t) == -rate * y  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
+
+
+def test_unknown_expression_rate_never_silently_becomes_zero() -> None:
+    with pytest.raises(ValueError, match="named state and coordinate"):
+        Implementation(Decay, [unsupported_expression_rate, decay_initial])
+
+
+@equation
+def unsupported_state_constraint(y: Tensor, rate: float) -> bool:
+    return y == rate
+
+
+def test_additional_state_constraint_is_not_ignored() -> None:
+    with pytest.raises(ValueError, match="Additional algebraic constraints"):
+        Implementation(Decay, [decay_rate, decay_initial, unsupported_state_constraint])
