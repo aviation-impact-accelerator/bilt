@@ -1,3 +1,4 @@
+# ruff: noqa: SIM108
 """Expression-level derivatives can be used as regular equation constraints."""
 
 import typing
