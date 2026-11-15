@@ -11,6 +11,7 @@ from bilt.symbolic._differential import DEFERRED_GRAD
 from bilt.symbolic._differentiation import jvp_tree
 from bilt.symbolic._expressions import Expr, TensorExpr, as_tree
 from bilt.symbolic._tree import Tree, float_tree
+from bilt.symbolic._walk import contains
 
 __all__ = ["grad", "hessian", "jacobian"]
 
@@ -41,7 +42,7 @@ def _partial(expression: Tree, parameter: str) -> Tree:
 
 
 def _gradient(expression: object, selector: object) -> Expr:
-    """Retain a tensor state's rate with respect to a distinct tensor coordinate.
+    """Retain a tensor expression's rate with respect to a distinct coordinate.
 
     Scalar expression derivatives and explicit tensor derivatives still use
     ordinary symbolic JVPs. Formal rates are classified at implementation
@@ -52,8 +53,8 @@ def _gradient(expression: object, selector: object) -> Expr:
     if (
         isinstance(expression, TensorExpr)
         and isinstance(selector, TensorExpr)
-        and expression.is_symbol
-        and expression.tree is not selector.tree
+        and selector.is_symbol
+        and not contains(tree, selector.tree)
     ):
         return TensorExpr(Tree(DEFERRED_GRAD, (tree, selector.tree)))
     return Expr(_partial(tree, parameter))
