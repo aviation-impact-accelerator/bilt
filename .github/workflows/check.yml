@@ -89,7 +89,7 @@ jobs:
         run: uv run prek run --all-files
 
   optimisation-ipopt:
-    name: Bilt + asdex + IPOPT integration
+    name: Compare IPOPT and POUNCE optimisation
     runs-on: ubuntu-latest
 
     steps:
@@ -118,11 +118,14 @@ jobs:
       - name: Install compatible JAX 0.11, asdex 0.6.1 and cyipopt
         run: uv pip install --python .venv/bin/python "jax==0.11.2" "jaxlib==0.11.2" "cyipopt==1.7.0" "git+https://github.com/adrhill/asdex.git@84a9fc1a8926ce5ffd729cabc4fc811f69af0a80"
 
-      - name: Verify optional solver imports
-        run: uv run --no-sync python -c "import asdex, cyipopt; print('asdex and cyipopt installed')"
+      - name: Install prebuilt POUNCE wheel
+        run: uv pip install --python .venv/bin/python "pounce-solver==0.16.0"
+
+      - name: Verify solver imports
+        run: uv run --no-sync python -c "import asdex, cyipopt, pounce; print('All three solver dependencies installed')"
 
       - name: Verify sparse derivatives and run IPOPT
-        run: uv run --no-sync pytest -v packages/examples/tests/test_asdex_ipopt_cruise.py::test_sparse_derivatives_match_dense_jax packages/examples/tests/test_asdex_ipopt_cruise.py::test_ipopt_matches_analytic_solution
+        run: uv run --no-sync pytest -v packages/examples/tests/test_asdex_ipopt_cruise.py::test_sparse_derivatives_match_dense_jax packages/examples/tests/test_asdex_ipopt_cruise.py::test_ipopt_matches_analytic_solution packages/examples/tests/test_asdex_ipopt_cruise.py::test_pounce_and_ipopt_agree_on_lowered_bilt_model
 
   check:
     name: Checks and tests
@@ -141,7 +144,7 @@ jobs:
           fi
 
           if [[ "${{ needs.optimisation-ipopt.result }}" != "success" ]]; then
-            echo "Bilt/asdex/IPOPT integration failed or was cancelled."
+            echo "Bilt/IPOPT/POUNCE comparison failed or was cancelled."
             exit 1
           fi
 
