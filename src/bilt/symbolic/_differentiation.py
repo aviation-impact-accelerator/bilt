@@ -27,6 +27,13 @@ class UnsupportedDerivativeError(ValueError):
     """An expression cannot be differentiated using the supported IR operations."""
 
 
+def _float_derivative_constant(tree: Tree) -> Tree:
+    """Keep scalar derivative branch dtypes consistent after simplification."""
+    if tree.is_leaf and tree.head.atom_type is IntType:
+        return float_tree(typing.cast("int", tree.head.value))
+    return tree
+
+
 def jvp_tree(tree: Tree, tangents: Mapping[str, Tree]) -> Tree:  # noqa: C901
     """Build a symbolic directional derivative without needing a numerical backend."""
     cache: dict[Tree, Tree] = {}
@@ -80,16 +87,10 @@ def jvp_tree(tree: Tree, tangents: Mapping[str, Tree]) -> Tree:  # noqa: C901
             result = Tree(ISEL, (tangent(value), axis, selector))
         elif node.head is CONDITIONAL:
             predicate, when_true, when_false = node.args
-            # The scalar JVP is a floating-point quantity, including branches
-            # whose derivatives simplify to a constant integer. JAX requires
-            # identical branch result dtypes in lax.cond.
-            true_tangent = tangent(when_true)
-            false_tangent = tangent(when_false)
-            if true_tangent.is_leaf and true_tangent.head.atom_type is IntType:
-                true_tangent = float_tree(typing.cast("int", true_tangent.head.value))
-            if false_tangent.is_leaf and false_tangent.head.atom_type is IntType:
-                false_tangent = float_tree(typing.cast("int", false_tangent.head.value))
-            result = Tree(CONDITIONAL, (predicate, true_tangent, false_tangent))
+            result = Tree(
+                CONDITIONAL,
+                (predicate, _float_derivative_constant(tangent(when_true)), _float_derivative_constant(tangent(when_false))),
+            )
         else:
             msg = f"Unsupported differentiable operation: {node.head}."
             raise UnsupportedDerivativeError(msg)
