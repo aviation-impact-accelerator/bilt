@@ -34,18 +34,25 @@ compile-and-bind API in Bilt.
 
 ## Run
 
-Bilt currently requires Python 3.15+. Install the optional JAX backend and
-asdex/cyipopt in an environment containing the system IPOPT library:
+Bilt requires Python 3.15+. On Ubuntu, install the IPOPT development library
+before building cyipopt:
 
 ```bash
-uv sync --extra jax
-uv pip install --python .venv/bin/python asdex cyipopt
+sudo apt-get install -y build-essential pkg-config coinor-libipopt-dev
+uv sync --extra jax --group dev
+uv pip install --python .venv/bin/python "jax==0.11.2" "jaxlib==0.11.2" "cyipopt==1.7.0" \
+    "git+https://github.com/adrhill/asdex.git@84a9fc1a8926ce5ffd729cabc4fc811f69af0a80"
 uv run --no-sync python -m examples.optimisation.asdex_ipopt_cruise
-uv run --no-sync pytest packages/examples/tests/test_asdex_ipopt_cruise.py
+uv run --no-sync pytest -v packages/examples/tests/test_asdex_ipopt_cruise.py
 ```
 
-CI runs the JAX compilation/gradient test without requiring IPOPT, and only
-runs the IPOPT integration test when `asdex` and `cyipopt` are installed.
+The integration CI job installs these dependencies and **runs the actual
+IPOPT solver**. An import check fails the job if asdex or cyipopt is missing,
+so the optional pytest marker cannot silently give a green result.
+
+The pinned upstream asdex commit is version 0.6.1. Its published constraints
+support JAX 0.11 rather than the current JAX 0.12, so we intentionally use
+JAX 0.11.2 in this dedicated job without changing Bilt's general JAX support.
 
 ## Open questions
 
