@@ -96,8 +96,7 @@ class ExplicitODEPrototype:
             msg = "All ODE states and their conditions must use one common coordinate."
             raise ValueError(msg)
         states = tuple(
-            _State(name, rates[name][0], rates[name][1], initial[name][2], initial[name][1])
-            for name in sorted(rates)
+            _State(name, rates[name][0], rates[name][1], initial[name][2], initial[name][1]) for name in sorted(rates)
         )
         return cls(states)
 
