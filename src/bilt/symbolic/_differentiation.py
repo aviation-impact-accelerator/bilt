@@ -28,10 +28,18 @@ class UnsupportedDerivativeError(ValueError):
 
 
 def _float_derivative_constant(tree: Tree) -> Tree:
-    """Keep scalar derivative branch dtypes consistent after simplification."""
-    if tree.is_leaf and tree.head.atom_type is IntType:
-        return float_tree(typing.cast("int", tree.head.value))
-    return tree
+    """Keep scalar derivative branch dtypes consistent after simplification.
+
+    Integer literals can survive inside expressions such as NEG(3), not only
+    as leaves of the conditional. Rewriting numeric derivative literals
+    recursively avoids integer-valued JAX branches.
+    """
+    if tree.is_leaf:
+        if tree.head.atom_type is IntType:
+            return float_tree(typing.cast("int", tree.head.value))
+        return tree
+    children = tuple(_float_derivative_constant(child) for child in tree.args)
+    return Tree(tree.head, children) if children != tree.args else tree
 
 
 def jvp_tree(tree: Tree, tangents: Mapping[str, Tree]) -> Tree:  # noqa: C901
