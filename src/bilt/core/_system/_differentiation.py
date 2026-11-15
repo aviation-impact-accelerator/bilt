@@ -50,9 +50,7 @@ def _selected_implementation(instance: SystemInstance, output: str) -> object:
 
 
 def _inputs(instance: SystemInstance) -> dict[str, object]:
-    return {
-        field: value for field, value in instance.__bilt_system_instance_inputs__.items() if value is not MISSING
-    }
+    return {field: value for field, value in instance.__bilt_system_instance_inputs__.items() if value is not MISSING}
 
 
 def _fields(instance: SystemInstance, selectors: FieldSelectors, *, label: str) -> tuple[str, ...]:
@@ -123,9 +121,7 @@ class DerivativeNamespace:
             raise AttributeError(msg)
         return DerivativeQuery(self._instance, name, self._kind)
 
-    def __call__(
-        self, outputs: FieldSelectors, *, wrt: FieldSelectors
-    ) -> tuple[tuple[object, ...], ...]:
+    def __call__(self, outputs: FieldSelectors, *, wrt: FieldSelectors) -> tuple[tuple[object, ...], ...]:
         """Build a Jacobian matrix with ordered rows and columns."""
         if self._kind != "jacobian":
             msg = "Multiple outputs are supported only by the jacobian namespace."
