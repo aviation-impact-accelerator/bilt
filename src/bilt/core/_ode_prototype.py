@@ -13,6 +13,8 @@ import numpy as np
 
 from bilt._backend._python import PYTHON_BACKEND
 from bilt.core._equation import BasicEquation
+from bilt.core._evaluation_context import EvaluationContext
+from bilt.core._ode_planning import compile_ode_plans
 from bilt.core._tensors._tensors import Tensor
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.symbolic._atoms import SymbolType
@@ -34,13 +36,16 @@ class _State:
     rhs: Tree
     initial: Tree
     initial_coordinate: Tree
+    source: BasicEquation
+    condition: BasicEquation
 
 
 class ExplicitODEPrototype:
     """Classify and execute only unambiguous scalar instantaneous ODE systems."""
 
-    def __init__(self, states: tuple[_State, ...]) -> None:
+    def __init__(self, states: tuple[_State, ...], components: tuple[BiltModelConstituent, ...]) -> None:
         self.states = states
+        self.components = components
         self.coordinate = states[0].coordinate
         self.state_names = frozenset(state.name for state in states)
 
@@ -48,8 +53,9 @@ class ExplicitODEPrototype:
     def extract(  # noqa: C901, PLR0912, PLR0915
         cls, components: Iterable[BiltModelConstituent]
     ) -> ExplicitODEPrototype | None:
-        rates: dict[str, tuple[str, Tree]] = {}
-        initial: dict[str, tuple[str, Tree, Tree]] = {}
+        components = tuple(components)
+        rates: dict[str, tuple[str, Tree, BasicEquation]] = {}
+        initial: dict[str, tuple[str, Tree, Tree, BasicEquation]] = {}
         for component in components:
             if not isinstance(component, BasicEquation):
                 continue
@@ -80,18 +86,18 @@ class ExplicitODEPrototype:
                 if state in rates:
                     msg = f"Duplicate rate equations for {state!r}."
                     raise ValueError(msg)
-                rates[state] = (coordinate, expression)
+                rates[state] = (coordinate, expression, component)
             else:
                 if state in initial:
                     msg = f"Duplicate initial conditions for {state!r}."
                     raise ValueError(msg)
-                initial[state] = (coordinate, node.args[2], expression)
+                initial[state] = (coordinate, node.args[2], expression, component)
         if not rates and not initial:
             return None
         if set(rates) != set(initial):
             msg = f"Each evolving state needs exactly one rate and initial condition: rates={sorted(rates)}, initial={sorted(initial)}."
             raise ValueError(msg)
-        coordinates = {coord for coord, _ in rates.values()} | {coord for coord, _, _ in initial.values()}
+        coordinates = {value[0] for value in rates.values()} | {value[0] for value in initial.values()}
         if len(coordinates) != 1:
             msg = "All ODE states and their conditions must use one common coordinate."
             raise ValueError(msg)
@@ -108,9 +114,18 @@ class ExplicitODEPrototype:
                 msg = "Additional algebraic constraints on ODE states require the full differential planner."
                 raise ValueError(msg)
         states = tuple(
-            _State(name, rates[name][0], rates[name][1], initial[name][2], initial[name][1]) for name in sorted(rates)
+            _State(
+                name,
+                rates[name][0],
+                rates[name][1],
+                initial[name][2],
+                initial[name][1],
+                rates[name][2],
+                initial[name][3],
+            )
+            for name in sorted(rates)
         )
-        return cls(states)
+        return cls(states, components)
 
     def solve(  # noqa: C901, PLR0912, PLR0915
         self, inputs: Mapping[str, object], backend: Backend
@@ -144,24 +159,19 @@ class ExplicitODEPrototype:
                 raise TypeError(msg)
             parameters[name] = float(value)
 
-        available = set(parameters) | self.state_names | {self.coordinate}
-        for state in self.states:
-            required = _symbols(state.rhs)
-            if required - available:
-                msg = f"ODE rate {state.name!r} references unknown symbols {sorted(required - available)}."
-                raise ValueError(msg)
-            for tree in (state.initial, state.initial_coordinate):
-                if _symbols(tree) - set(parameters):
-                    msg = "ODE initial conditions must depend on known scalar boundary parameters only."
-                    raise ValueError(msg)
-
-        rhs_calls = tuple(_compile(state.rhs, f"__ode_rhs_{state.name}") for state in self.states)
-        initial_calls = tuple(_compile(state.initial, f"__ode_initial_{state.name}") for state in self.states)
-        location_calls = tuple(
-            _compile(state.initial_coordinate, f"__ode_location_{state.name}") for state in self.states
-        )
-        initial = np.asarray([_scalar(call(parameters)) for call in initial_calls], dtype=float)
-        locations = [_scalar(call(parameters)) for call in location_calls]
+        # The archived solver's full-scope validation and shared matching now
+        # determine the RHS and initialization, including algebraic intermediates.
+        with EvaluationContext():
+            rhs_plan, initial_plan = compile_ode_plans(
+                self.states,
+                self.components,
+                input_names=set(parameters),
+                coordinate=self.coordinate,
+            )
+        initial_results = initial_plan(parameters)
+        count = len(self.states)
+        initial = np.asarray([_scalar(value) for value in initial_results[:count]], dtype=float)
+        locations = [_scalar(value) for value in initial_results[count:]]
         if len(set(locations)) != 1:
             msg = "ODE states must share a common initial coordinate."
             raise ValueError(msg)
@@ -174,7 +184,7 @@ class ExplicitODEPrototype:
             values = dict(parameters)
             values[self.coordinate] = time
             values.update(zip((state.name for state in self.states), y, strict=True))
-            return np.asarray([_scalar(call(values)) for call in rhs_calls], dtype=float)
+            return np.asarray([_scalar(value) for value in rhs_plan(values)], dtype=float)
 
         if times[-1] == t0:
             result = initial[:, None]
