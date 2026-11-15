@@ -58,9 +58,7 @@ def grad(expression: object, *, wrt: object | tuple[object, ...]) -> Expr | tupl
     return Expr(_partial(tree, _symbol_name(wrt)))
 
 
-def jacobian(
-    expressions: tuple[object, ...], *, wrt: tuple[object, ...]
-) -> tuple[tuple[Expr, ...], ...]:
+def jacobian(expressions: tuple[object, ...], *, wrt: tuple[object, ...]) -> tuple[tuple[Expr, ...], ...]:
     """Return the Jacobian of local expressions (output rows, input columns)."""
     if not isinstance(expressions, tuple) or not expressions:
         msg = "jacobian requires a non-empty tuple of output expressions."
