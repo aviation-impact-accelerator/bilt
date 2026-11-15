@@ -6,6 +6,8 @@ import math
 import numpy as np
 import pytest
 
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
+
 from bilt import (
     JAX_BACKEND,
     PYTHON_BACKEND,
@@ -250,7 +252,7 @@ def test_additional_state_constraint_is_not_ignored() -> None:
     constrained = Implementation(Decay, [decay_rate, decay_initial, unsupported_state_constraint])
     with PYTHON_BACKEND, constrained:
         model = Decay(t=tensor([0.0, 1.0], over=TIME), rate=2.0, t0=0.0, y0=1.0)
-        with pytest.raises(ValueError, match="Overconstrained|Overconstrained|overconstrained"):
+        with pytest.raises(BiltOverconstrainedError, match="Overconstrained"):
             _ = model.y
 
 
@@ -321,5 +323,5 @@ def test_full_scope_rejects_competing_algebraic_rows() -> None:
             x0=3.0,
             v0=5.0,
         )
-        with pytest.raises(ValueError, match="Overconstrained|overconstrained"):
+        with pytest.raises(BiltOverconstrainedError, match="Overconstrained"):
             _ = model.x
