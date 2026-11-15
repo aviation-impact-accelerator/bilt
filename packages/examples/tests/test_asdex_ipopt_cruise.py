@@ -2,24 +2,29 @@
 
 import importlib.util
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 import pytest
+from examples.optimisation.asdex_ipopt_cruise import (
+    DISTANCES,
+    REQUIRED_SPEEDS,
+    compile_cruise_legs,
+    optimise_cruise_speeds,
+)
 
-def test_cruise_model_evaluates_in_jax() -> None:
-    jax = pytest.importorskip("jax")
-    import jax.numpy as jnp
 
-    from examples.optimisation.asdex_ipopt_cruise import evaluate_legs
-
+def test_lowered_bilt_cruise_model_is_differentiable() -> None:
+    """Check JAX AD acts on compiled Bilt numerics, not Bilt evaluation."""
+    compiled = compile_cruise_legs(np.asarray([1.0, 3.0]))
     speeds = jnp.asarray([1.0, 2.0])
-    distances = jnp.asarray([1.0, 3.0])
-    energies, times = evaluate_legs(speeds, distances)
+    energies, times = compiled(speeds)
 
     np.testing.assert_allclose(np.asarray(energies), [2.0, 12.75], atol=1e-5)
     np.testing.assert_allclose(np.asarray(times), [1.0, 1.5], atol=1e-5)
 
     def objective(x: jax.Array) -> jax.Array:
-        return jnp.sum(evaluate_legs(x, distances)[0])
+        return jnp.sum(compiled(x)[0])
 
     gradient = jax.grad(objective)(speeds)
     np.testing.assert_allclose(np.asarray(gradient), [0.0, 11.25], atol=1e-5)
@@ -30,13 +35,7 @@ def test_cruise_model_evaluates_in_jax() -> None:
     reason="Optional asdex/cyipopt optimisation dependencies are not installed",
 )
 def test_ipopt_matches_analytic_solution() -> None:
-    pytest.importorskip("jax")
-    from examples.optimisation.asdex_ipopt_cruise import (
-        DISTANCES,
-        REQUIRED_SPEEDS,
-        optimise_cruise_speeds,
-    )
-
+    """Check sparse nonlinear optimisation against a known optimum."""
     result = optimise_cruise_speeds()
     expected = np.maximum(1.0, np.asarray(REQUIRED_SPEEDS))
 
