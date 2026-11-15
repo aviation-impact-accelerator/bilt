@@ -2,6 +2,7 @@
 
 import importlib
 import importlib.util
+import logging
 
 import jax
 import jax.numpy as jnp
@@ -131,10 +132,15 @@ def test_pounce_and_ipopt_agree_on_lowered_bilt_model() -> None:
         for name in ("ipopt", "pounce-asdex", "pounce-jax")
     }
     expected = np.maximum(1.0, np.asarray(REQUIRED_SPEEDS))
+    max_violation_tolerance = 1e-7
     for name, result in results.items():
         np.testing.assert_allclose(result.speeds, expected, atol=1e-5, rtol=0, err_msg=name)
-        assert result.max_time_violation < 1e-7, name
+        assert result.max_time_violation < max_violation_tolerance, name
         assert np.isfinite(result.total_energy), name
+        logging.getLogger(__name__).info(  # noqa: LOG015
+            "%s: speeds=%s energy=%.10f max_time_violation=%.3g",
+            name, np.array2string(result.speeds, precision=7), result.total_energy, result.max_time_violation,
+        )
 
     ipopt_result = results["ipopt"]
     for name in ("pounce-asdex", "pounce-jax"):
