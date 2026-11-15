@@ -161,13 +161,11 @@ class Implementation:
         """Evaluate an exact scalar derivative of a supported equation plan."""
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
         if wrt not in inputs:
-            raise BiltUnsupportedDerivativeError(
-                f"Cannot differentiate with respect to {wrt!r}: it was not supplied as an input."
-            )
+            msg = f"Cannot differentiate with respect to {wrt!r}: it was not supplied as an input."
+            raise BiltUnsupportedDerivativeError(msg)
         if any(isinstance(value, (Tensor, Quantity)) for value in inputs.values()):
-            raise BiltUnsupportedDerivativeError(
-                "Instance derivative queries currently support plain scalar inputs only."
-            )
+            msg = "Instance derivative queries currently support plain scalar inputs only."
+            raise BiltUnsupportedDerivativeError(msg)
         if output in inputs:
             return 1.0 if output == wrt else 0.0
 
