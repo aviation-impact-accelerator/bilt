@@ -93,8 +93,23 @@ def compile_ode_plans(
     )
     rhs_inputs = input_names | {state.name for state in states} | {coordinate}
 
-    # No derivative nodes reach the instantaneous algebraic planner.
-    rhs = _compile_many((*ordinary, *rates), rhs_outputs, rhs_inputs)
+    # Traverse the ORIGINAL differential equations with states still unknown.
+    # This retains every connected algebraic row, including constraints that
+    # would disappear if current state values were treated as inputs first.
+    original_scope = StructuralAnalysis(components).inspect(
+        input_names | {coordinate}, {state.name for state in states}
+    )
+    if original_scope.boundaries:
+        msg = "Cross-subsystem differential constraints require a qualified ODE planner."
+        raise ValueError(msg)
+    rate_rewrites = {id(state.source): rate for state, rate in zip(states, rates, strict=True)}
+    conditions = {id(state.condition) for state in states}
+    full_rhs = tuple(
+        rate_rewrites.get(id(component), component)
+        for component in original_scope.constraints
+        if id(component) not in conditions
+    )
+    rhs = _compile_many(full_rhs, rhs_outputs, rhs_inputs, validate_full_scope=True)
     init = _compile_many((*ordinary, *initials, *locations), initial_outputs, input_names)
     return rhs, init
 
@@ -124,13 +139,17 @@ def _compile_many(
     components: tuple[BiltModelConstituent, ...],
     outputs: tuple[str, ...],
     available: set[str],
+    *,
+    validate_full_scope: bool = False,
 ) -> Callable[[Mapping[str, float]], tuple[object, ...]]:
     """Select a single matching and compile its shared SCC dependency closure."""
     scope = StructuralAnalysis(components).inspect(available, set(outputs))
     if scope.boundaries:
         msg = "Differential subsystem coupling requires the full ODE boundary planner."
         raise ValueError(msg)
-    incidence = FullIncidenceGraph(scope.constraints)
+    # A differential scope must validate every connected equation, not only
+    # the particular route selected to compute the requested rate outputs.
+    incidence = FullIncidenceGraph(components if validate_full_scope else scope.constraints)
     known = frozenset(
         incidence.attribute_nodes[name] for name in available if name in incidence.attribute_nodes
     )
