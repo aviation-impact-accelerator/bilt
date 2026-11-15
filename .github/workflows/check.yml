@@ -121,8 +121,8 @@ jobs:
       - name: Verify optional solver imports
         run: uv run --no-sync python -c "import asdex, cyipopt; print('asdex and cyipopt installed')"
 
-      - name: Run actual sparse IPOPT integration
-        run: uv run --no-sync pytest -v packages/examples/tests/test_asdex_ipopt_cruise.py::test_ipopt_matches_analytic_solution
+      - name: Verify sparse derivatives and run IPOPT
+        run: uv run --no-sync pytest -v packages/examples/tests/test_asdex_ipopt_cruise.py::test_sparse_derivatives_match_dense_jax packages/examples/tests/test_asdex_ipopt_cruise.py::test_ipopt_matches_analytic_solution
 
   check:
     name: Checks and tests
