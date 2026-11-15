@@ -17,8 +17,8 @@ from bilt import (
     jacobian,
     system,
 )
-from bilt.symbolic._expressions import Expr, symbol_expr
 from bilt.core._to_ast import tree_to_functiondef
+from bilt.symbolic._expressions import Expr, symbol_expr
 
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -90,8 +90,9 @@ def test_full_symbolic_matrices(backend: Backend) -> None:
     matrix = jacobian(outputs, wrt=(x, y))
     curvature = hessian(x**3 + x * y + y**2, wrt=(x, y))
 
-    assert len(matrix) == len(curvature) == 2
-    assert all(len(row) == 2 for row in (*matrix, *curvature))
+    expected_size = len((x, y))
+    assert len(matrix) == len(curvature) == expected_size
+    assert all(len(row) == expected_size for row in (*matrix, *curvature))
     for name, values, expected in (
         ("jacobian", matrix, ((4.0, 1.0), (3.0, 2.0))),
         ("hessian", curvature, ((12.0, 1.0), (1.0, 2.0))),
