@@ -7,8 +7,8 @@ import typing
 
 from bilt.core._errors import BiltEquationDimensionalityError
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._differential import AT, DEFERRED_GRAD
 from bilt.symbolic._atoms import CoordinateType, DimensionType, FloatType, IntType, QuantityType, SymbolType
+from bilt.symbolic._differential import AT, DEFERRED_GRAD
 from bilt.units._errors import BiltDimensionalityError
 from bilt.units.dimensions import DIMENSIONLESS
 
@@ -57,7 +57,7 @@ def _leaf(tree: Tree, dimensionalities: collections.abc.Mapping[str, Dimension])
     raise NotImplementedError(msg)
 
 
-def _dimensionality_at(tree: Tree, operands: list[Dimension | None]) -> Dimension | None:  # noqa: PLR0911
+def _dimensionality_at(tree: Tree, operands: list[Dimension | None]) -> Dimension | None:  # noqa: C901, PLR0911
     """Return the dimensionality of the operation at the head of `tree`, given its operands' dimensionalities."""
     if tree.is_relation:
         _shared(operands)
@@ -137,7 +137,7 @@ def _power(base: Dimension | None, exponent: Dimension | None) -> Dimension:
     return DIMENSIONLESS
 
 
-def absoluteness_of(
+def absoluteness_of(  # noqa: PLR0911
     equation_name: str,
     tree: Tree,
     declarations: collections.abc.Mapping[str, PortDeclaration],
