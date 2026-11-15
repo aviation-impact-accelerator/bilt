@@ -2,7 +2,7 @@
 
 import pytest
 
-from bilt import Implementation, Interface, JAX_BACKEND, PYTHON_BACKEND, field, system
+from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, field, system
 from bilt.core._equation import equation
 from bilt.errors import BiltUnsupportedDerivativeError
 
