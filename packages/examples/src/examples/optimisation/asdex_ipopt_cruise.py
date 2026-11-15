@@ -8,7 +8,7 @@ the differentiated function.
 
 import importlib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import jax
 import jax.numpy as jnp
@@ -125,20 +125,21 @@ class OptimisationResult:
 
     speeds: np.ndarray
     total_energy: float
-    jacobian_nonzeros: int
-    hessian_lower_nonzeros: int
+    jacobian_nonzeros: int | None
+    hessian_lower_nonzeros: int | None
+    max_time_violation: float
 
 
-def optimise_cruise_speeds() -> OptimisationResult:  # noqa: C901
-    """Minimise energy with per-leg time constraints, using the lowered model.
+def optimise_cruise_speeds(
+    *, solver: Literal["ipopt", "pounce-asdex", "pounce-jax"] = "ipopt"
+) -> OptimisationResult:  # noqa: C901, PLR0912
+    """Minimise Bilt cruise energy with one of three numerical solver paths.
 
-    For drag = speed**2 + speed**-2, the exact optimum is
-    max(1, required_speed) for each independent leg.
+    All paths share Bilt's compiled, named-domain JAX objective and constraints.
+    The first two use asdex sparse derivatives through a cyipopt-style API;
+    the third asks POUNCE to construct its own coloured sparse derivatives.
     """
-    asdex = importlib.import_module("asdex")
-    cyipopt = importlib.import_module("cyipopt")
-
-    # Set x64 before generating arrays or compiling to match IPOPT precision.
+    # IPOPT-style interior-point methods use double precision.
     jax.config.update("jax_enable_x64", True)  # noqa: FBT003
 
     distances = jnp.asarray(DISTANCES)
@@ -146,7 +147,7 @@ def optimise_cruise_speeds() -> OptimisationResult:  # noqa: C901
     time_limits = distances / required
     n = len(DISTANCES)
 
-    # All Bilt setup runs here, before any JAX tracing by grad or asdex.
+    # Bilt performs structural analysis and JAX lowering exactly once, here.
     compiled = compile_cruise_legs(np.asarray(DISTANCES))
 
     def objective(speeds: jax.Array) -> jax.Array:
@@ -162,71 +163,93 @@ def optimise_cruise_speeds() -> OptimisationResult:  # noqa: C901
 
     x0 = jnp.maximum(required, 1.2)
     objective_fn = jax.jit(objective)
-    gradient_fn = jax.jit(jax.grad(objective))
-    constraints_fn = jax.jit(constraints)
+    bounds = {
+        "n": n,
+        "m": n,
+        "lb": np.full(n, 0.6),
+        "ub": np.full(n, 2.0),
+        "cl": np.full(n, -1e20),
+        "cu": np.zeros(n),
+    }
 
-    # asdex analyses JAX primitives from the *lowered* calculation, not Bilt.
-    jacobian_fn = jax.jit(asdex.jacobian(constraints, x0))
-    hessian_fn = jax.jit(asdex.hessian(lagrangian, x0, jnp.zeros(n), jnp.asarray(1.0)))
+    if solver == "pounce-jax":
+        # POUNCE's own coloured JAX derivative implementation, without asdex.
+        pounce_jax = importlib.import_module("pounce.jax")
+        problem = pounce_jax.from_jax(
+            objective,
+            constraints,
+            **bounds,
+            sparse=True,
+            x0=np.asarray(x0),
+        )
+        jacobian_nonzeros = None
+        hessian_lower_nonzeros = None
+    elif solver in ("ipopt", "pounce-asdex"):
+        asdex = importlib.import_module("asdex")
+        gradient_fn = jax.jit(jax.grad(objective))
+        constraints_fn = jax.jit(constraints)
 
-    jacobian_example = jacobian_fn(x0)
-    jac_rows, jac_cols = np.asarray(jacobian_example.indices).T
+        # Both solvers receive identical asdex sparsity and derivative values.
+        jacobian_fn = jax.jit(asdex.jacobian(constraints, x0))
+        hessian_fn = jax.jit(asdex.hessian(lagrangian, x0, jnp.zeros(n), jnp.asarray(1.0)))
 
-    hessian_example = hessian_fn(x0, jnp.zeros(n), jnp.asarray(1.0))
-    hess_rows_full, hess_cols_full = np.asarray(hessian_example.indices).T
-    lower = hess_rows_full >= hess_cols_full
-    hess_rows = hess_rows_full[lower]
-    hess_cols = hess_cols_full[lower]
+        jacobian_example = jacobian_fn(x0)
+        jac_rows, jac_cols = np.asarray(jacobian_example.indices).T
+        hessian_example = hessian_fn(x0, jnp.zeros(n), jnp.asarray(1.0))
+        hess_rows_full, hess_cols_full = np.asarray(hessian_example.indices).T
+        lower = hess_rows_full >= hess_cols_full
+        hess_rows = hess_rows_full[lower]
+        hess_cols = hess_cols_full[lower]
 
-    class Callbacks:
-        """IPOPT host callbacks wrapping the already compiled JAX functions."""
+        class Callbacks:
+            """Standard cyipopt-compatible callbacks for either Rust or IPOPT."""
 
-        def objective(self, x: np.ndarray) -> float:
-            return float(objective_fn(jnp.asarray(x)))
+            def objective(self, x: np.ndarray) -> float:
+                return float(objective_fn(jnp.asarray(x)))
 
-        def gradient(self, x: np.ndarray) -> np.ndarray:
-            return np.asarray(gradient_fn(jnp.asarray(x)))
+            def gradient(self, x: np.ndarray) -> np.ndarray:
+                return np.asarray(gradient_fn(jnp.asarray(x)))
 
-        def constraints(self, x: np.ndarray) -> np.ndarray:
-            return np.asarray(constraints_fn(jnp.asarray(x)))
+            def constraints(self, x: np.ndarray) -> np.ndarray:
+                return np.asarray(constraints_fn(jnp.asarray(x)))
 
-        def jacobianstructure(self) -> tuple[np.ndarray, np.ndarray]:
-            return jac_rows, jac_cols
+            def jacobianstructure(self) -> tuple[np.ndarray, np.ndarray]:
+                return jac_rows, jac_cols
 
-        def jacobian(self, x: np.ndarray) -> np.ndarray:
-            return np.asarray(jacobian_fn(jnp.asarray(x)).data)
+            def jacobian(self, x: np.ndarray) -> np.ndarray:
+                return np.asarray(jacobian_fn(jnp.asarray(x)).data)
 
-        def hessianstructure(self) -> tuple[np.ndarray, np.ndarray]:
-            return hess_rows, hess_cols
+            def hessianstructure(self) -> tuple[np.ndarray, np.ndarray]:
+                return hess_rows, hess_cols
 
-        def hessian(self, x: np.ndarray, lagrange: np.ndarray, obj_factor: float) -> np.ndarray:
-            return np.asarray(hessian_fn(jnp.asarray(x), jnp.asarray(lagrange), jnp.asarray(obj_factor)).data)[lower]
+            def hessian(self, x: np.ndarray, lagrange: np.ndarray, obj_factor: float) -> np.ndarray:
+                return np.asarray(hessian_fn(jnp.asarray(x), jnp.asarray(lagrange), jnp.asarray(obj_factor)).data)[lower]
 
-    problem = cyipopt.Problem(
-        n=n,
-        m=n,
-        problem_obj=Callbacks(),
-        lb=np.full(n, 0.6),
-        ub=np.full(n, 2.0),
-        cl=np.full(n, -1e20),
-        cu=np.zeros(n),
-    )
+        library = importlib.import_module("cyipopt" if solver == "ipopt" else "pounce")
+        problem = library.Problem(problem_obj=Callbacks(), **bounds)
+        jacobian_nonzeros = len(jac_rows)
+        hessian_lower_nonzeros = len(hess_rows)
+    else:
+        msg = f"Unknown optimisation solver: {solver!r}"
+        raise ValueError(msg)
+
     problem.add_option("tol", 1e-9)
     problem.add_option("print_level", 0)
     problem.add_option("sb", "yes")
 
     speeds, info = problem.solve(np.asarray(x0))
     if info["status"] not in (0, 1):
-        msg = f"IPOPT did not converge: {info['status_msg']}"
+        msg = f"{solver} did not converge: {info['status_msg']}"
         raise RuntimeError(msg)
 
+    _, solved_times = compiled(jnp.asarray(speeds))
     return OptimisationResult(
         speeds=np.asarray(speeds),
         total_energy=float(objective_fn(jnp.asarray(speeds))),
-        jacobian_nonzeros=len(jac_rows),
-        hessian_lower_nonzeros=len(hess_rows),
+        jacobian_nonzeros=jacobian_nonzeros,
+        hessian_lower_nonzeros=hessian_lower_nonzeros,
+        max_time_violation=float(np.maximum(np.asarray(solved_times - time_limits), 0).max()),
     )
-
 
 if __name__ == "__main__":
     result = optimise_cruise_speeds()
