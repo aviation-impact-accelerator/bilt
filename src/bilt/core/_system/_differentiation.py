@@ -100,6 +100,7 @@ class DerivativeQuery:
         msg = f"Unknown scalar differentiation namespace {self.kind!r}."
         raise ValueError(msg)
 
+
 class DerivativeNamespace:
     """Select a scalar output with instance.grad.field(wrt=(System.x, System.y))."""
 
