@@ -9,7 +9,7 @@ from bilt.core._port import mangle_name
 from bilt.core._system._errors import BiltUnsupportedDerivativeError
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.symbolic._differentiation import UnsupportedDerivativeError, jvp_tree
-from bilt.symbolic._tree import Tree, int_tree, symbol_tree
+from bilt.symbolic._tree import Tree, float_tree, int_tree, symbol_tree
 
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -66,7 +66,7 @@ def differentiate_case(case: BackendCase, *, wrt: str, backend: Backend) -> Back
             for parameter in source_parameters:
                 compiled_name = mangle_name(parameter)
                 if compiled_name in original_inputs:
-                    mapping[parameter] = int_tree(1 if compiled_name == wrt_name else 0)
+                    mapping[parameter] = float_tree(1.0 if compiled_name == wrt_name else 0.0)
                 elif compiled_name in seen:
                     tangent_parameter = f"{_TANGENT_PREFIX}{parameter}"
                     mapping[parameter] = symbol_tree(tangent_parameter)
