@@ -42,8 +42,16 @@ These are the **runnable public operators from this prototype**.
 ```python exec="off"
 import numpy as np
 from bilt import (
-    Implementation, Interface, Tensor, at, dim, equation,
-    field, grad, system, tensor,
+    Implementation,
+    Interface,
+    Tensor,
+    at,
+    dim,
+    equation,
+    field,
+    grad,
+    system,
+    tensor,
 )
 
 TIME = dim("time")
@@ -67,9 +75,7 @@ def position_rate(x: Tensor, v: Tensor, t: Tensor) -> bool:
 
 
 @equation
-def velocity_rate(
-    x: Tensor, v: Tensor, t: Tensor, stiffness: float, mass: float
-) -> bool:
+def velocity_rate(x: Tensor, v: Tensor, t: Tensor, stiffness: float, mass: float) -> bool:
     potential = 0.5 * stiffness * x * x
     force = -grad(potential, wrt=x)
     return grad(v, wrt=t) == force / mass
@@ -85,9 +91,7 @@ def initial_v(v: Tensor, t: Tensor, t0: float, v0: float) -> bool:
     return at(v, wrt=t, where=t0) == v0
 
 
-implementation = Implementation(
-    Oscillator, [position_rate, velocity_rate, initial_x, initial_v]
-)
+implementation = Implementation(Oscillator, [position_rate, velocity_rate, initial_x, initial_v])
 
 with implementation:
     oscillator = Oscillator(
