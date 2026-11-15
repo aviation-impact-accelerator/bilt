@@ -11,6 +11,7 @@ from bilt.core._differentiation import differentiate_case
 from bilt.core._equation import BasicEquation
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
+from bilt.core._ode_prototype import ExplicitODEPrototype
 from bilt.core._port import mangle_inputs
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralAnalysis
@@ -77,6 +78,7 @@ class Implementation:
             named_components | sub_systems
         )
         check_dimensional_consistency(system, self._components.values())
+        self._ode_prototype = ExplicitODEPrototype.extract(self._components.values())
         self._port_declarations: dict[str, PortDeclaration] = {
             port: declaration
             for component in self._components.values()
@@ -113,9 +115,16 @@ class Implementation:
         inputs: dict[str, object],
         output: str,
         backend: Backend,
+        *,
+        _computed: dict[str, object] | None = None,
     ) -> object:
-        """Evaluate one output from supplied boundary values using the selected backend."""
+        """Evaluate an algebraic output or an experimental explicit ODE trajectory."""
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+        if self._ode_prototype is not None and output in self._ode_prototype.state_names and output not in inputs:
+            trajectories = self._ode_prototype.solve(inputs, backend)
+            if _computed is not None:
+                _computed.update(trajectories)
+            return trajectories[output]
 
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
