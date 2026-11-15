@@ -6,8 +6,6 @@ import math
 import numpy as np
 import pytest
 
-from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
-
 from bilt import (
     JAX_BACKEND,
     PYTHON_BACKEND,
@@ -22,6 +20,7 @@ from bilt import (
     system,
     tensor,
 )
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
 from bilt.symbolic._differential import DEFERRED_GRAD
 from bilt.symbolic._expressions import symbol_expr, tensor_symbol_expr
 
