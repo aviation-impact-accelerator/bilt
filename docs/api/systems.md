@@ -84,9 +84,7 @@ with implementation:
     assert spring.grad.displacement(wrt=Spring.force) == 0.05
 
     # Multiple inputs: ordered tuple
-    assert spring.grad.displacement(
-        wrt=(Spring.force, Spring.stiffness)
-    ) == (0.05, -0.25)
+    assert spring.grad.displacement(wrt=(Spring.force, Spring.stiffness)) == (0.05, -0.25)
 
     # Explicit outputs and inputs, always a matrix
     jacobian = spring.jacobian(
