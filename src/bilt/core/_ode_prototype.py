@@ -95,6 +95,18 @@ class ExplicitODEPrototype:
         if len(coordinates) != 1:
             msg = "All ODE states and their conditions must use one common coordinate."
             raise ValueError(msg)
+        # This spike does not yet have the archived ODE planner's full-scope
+        # causalisation. Reject additional state constraints rather than
+        # silently integrating a different mathematical problem.
+        for component in components:
+            if not isinstance(component, BasicEquation):
+                continue
+            tree = component.__bilt_equation_tree__
+            if any(node.head in (DEFERRED_GRAD, AT) for node in subtrees(tree)):
+                continue
+            if _symbols(tree) & rates.keys():
+                msg = "Additional algebraic constraints on ODE states require the full differential planner."
+                raise ValueError(msg)
         states = tuple(
             _State(name, rates[name][0], rates[name][1], initial[name][2], initial[name][1]) for name in sorted(rates)
         )
