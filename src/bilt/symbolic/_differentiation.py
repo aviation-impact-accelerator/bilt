@@ -56,11 +56,7 @@ def jvp_tree(tree: Tree, tangents: Mapping[str, Tree]) -> Tree:  # noqa: C901
         elif node.head is INV:
             child = node.args[0]
             derivative = tangent(child)
-            result = (
-                zero()
-                if is_zero(derivative)
-                else divide(negate(derivative), Tree(POW, (child, int_tree(2))))
-            )
+            result = zero() if is_zero(derivative) else divide(negate(derivative), Tree(POW, (child, int_tree(2))))
         elif node.head is POW:
             base, exponent = node.args
             derivative = tangent(base)
