@@ -12,6 +12,7 @@ from bilt.core._tensors._tensors import QuantityTensor, Tensor, tensor
 from bilt.core._transform import transform
 from bilt.symbolic._dimensions import CoordinateAxis, Dim, coordinate_axis, dim
 from bilt.symbolic._domains import Domain, as_domain, domain
+from bilt.symbolic._differential import at
 from bilt.units import Quantity
 
 if typing.TYPE_CHECKING:
@@ -29,6 +30,7 @@ __all__ = [
     "QuantityTensor",
     "Tensor",
     "as_domain",
+    "at",
     "coordinate_axis",
     "dim",
     "domain",
