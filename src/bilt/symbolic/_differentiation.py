@@ -1,4 +1,3 @@
-# ruff: noqa: TRY003
 """Forward-mode differentiation of Bilt's symbolic expression trees."""
 
 import typing
