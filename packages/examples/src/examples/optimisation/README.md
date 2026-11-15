@@ -1,4 +1,4 @@
-# Bilt + asdex + IPOPT cruise-speed optimisation
+# Bilt optimisation with IPOPT, POUNCE and sparse derivatives
 
 Experimental integration in `asdex_ipopt_cruise.py` using a named `leg`
 dimension. The Bilt model describes acausal drag, energy, and travel time:
@@ -22,8 +22,10 @@ differentiated function**:
 3. Lower numerical inputs and align named dimensions once.
 4. Use only the compiled `BackendCallable` objects with JAX array arguments in
    objective and constraint functions.
-5. Differentiate the resulting JAX function using JAX and asdex, and pass sparse
-   Jacobian/Hessian callbacks to IPOPT through cyipopt.
+5. Optimise the same lowered JAX functions using one of three methods:
+   - IPOPT via cyipopt with asdex sparse derivatives
+   - POUNCE via its PyO3-backed `Problem` API with the same asdex callbacks
+   - POUNCE `from_jax(..., sparse=True)` with its own coloured derivatives
 
 No `Implementation.evaluate`, structural analysis, `Quantity` lifting or
 `Tensor` construction takes place inside JAX's traced objective/constraints.
@@ -42,13 +44,18 @@ sudo apt-get install -y build-essential pkg-config coinor-libipopt-dev
 uv sync --extra jax --group dev
 uv pip install --python .venv/bin/python "jax==0.11.2" "jaxlib==0.11.2" "cyipopt==1.7.0" \
     "git+https://github.com/adrhill/asdex.git@84a9fc1a8926ce5ffd729cabc4fc811f69af0a80"
+uv pip install --python .venv/bin/python "pounce-solver==0.16.0"
 uv run --no-sync python -m examples.optimisation.asdex_ipopt_cruise
-uv run --no-sync pytest -v packages/examples/tests/test_asdex_ipopt_cruise.py
+uv run --no-sync pytest -v -o log_cli=true -o log_cli_level=INFO packages/examples/tests/test_asdex_ipopt_cruise.py
 ```
 
-The integration CI job installs these dependencies and **runs the actual
-IPOPT solver**. An import check fails the job if asdex or cyipopt is missing,
-so the optional pytest marker cannot silently give a green result.
+The integration CI job installs the solver dependencies and **runs all three
+solvers** against exactly the same Bilt model, compares each solution to the
+analytic optimum and to IPOPT, and logs the computed speeds, energy and
+constraint violation. Missing imports fail the job rather than silently
+skipping the tests. POUNCE is a prebuilt Python wheel and does not require
+system-installed IPOPT; the reference IPOPT solve still needs the Ubuntu
+development library in CI.
 
 The pinned upstream asdex commit is version 0.6.1. Its published constraints
 support JAX 0.11 rather than the current JAX 0.12, so we intentionally use
@@ -58,7 +65,7 @@ JAX 0.11.2 in this dedicated job without changing Bilt's general JAX support.
 
 - Verify asdex's sparse coordinate ordering stays fixed between IPOPT
   structure/value callbacks.
-- Compare its sparse derivatives with dense JAX derivatives.
+- Compare performance and derivative setup costs on larger, coupled models.
 - Consider how multiple outputs should be compiled as one shared numerical
   graph without reconstructing independent evaluations.
 - Expose fixed unit scales and domain metadata in a future stable public
