@@ -20,6 +20,7 @@ from bilt import (
     system,
     tensor,
 )
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
 from bilt.symbolic._differential import DEFERRED_GRAD
 from bilt.symbolic._expressions import symbol_expr, tensor_symbol_expr
 
@@ -247,5 +248,79 @@ def unsupported_state_constraint(y: Tensor, rate: float) -> bool:
 
 
 def test_additional_state_constraint_is_not_ignored() -> None:
-    with pytest.raises(ValueError, match="Additional algebraic constraints"):
-        Implementation(Decay, [decay_rate, decay_initial, unsupported_state_constraint])
+    constrained = Implementation(Decay, [decay_rate, decay_initial, unsupported_state_constraint])
+    with PYTHON_BACKEND, constrained:
+        model = Decay(t=tensor([0.0, 1.0], over=TIME), rate=2.0, t0=0.0, y0=1.0)
+        with pytest.raises(BiltOverconstrainedError, match="Overconstrained"):
+            _ = model.y
+
+
+@system
+class SharedRHS(metaclass=Interface):
+    t: Tensor = field()
+    x: Tensor = field()
+    v: Tensor = field()
+    restoring: float = field()
+    stiffness: float = field()
+    t0: float = field()
+    x0: float = field()
+    v0: float = field()
+
+
+@equation
+def shared_rate_x(x: Tensor, t: Tensor, restoring: float) -> bool:
+    return grad(x, wrt=t) == restoring  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
+
+
+@equation
+def shared_rate_v(v: Tensor, t: Tensor, restoring: float) -> bool:
+    return grad(v, wrt=t) == 2 * restoring  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
+
+
+@equation
+def shared_restoring(x: Tensor, restoring: float, stiffness: float) -> bool:
+    return restoring == -stiffness * x
+
+
+SHARED_RHS = Implementation(
+    SharedRHS,
+    [shared_rate_x, shared_rate_v, shared_restoring, initial_x, initial_v],
+)
+
+
+def test_shared_algebraic_rhs_intermediate() -> None:
+    pytest.importorskip("scipy.integrate")
+    times = np.linspace(0.0, 1.0, 41)
+    with PYTHON_BACKEND, SHARED_RHS:
+        model = SharedRHS(
+            t=tensor(times, over=TIME),
+            stiffness=0.7,
+            t0=0.0,
+            x0=3.0,
+            v0=5.0,
+        )
+        expected_x = 3.0 * np.exp(-0.7 * times)
+        np.testing.assert_allclose(model.x.values, expected_x, rtol=2e-7, atol=2e-7)
+        np.testing.assert_allclose(model.v.values, 5.0 + 2 * (expected_x - 3.0), rtol=2e-7, atol=2e-7)
+
+
+@equation
+def conflicting_restoring(x: Tensor, restoring: float, stiffness: float) -> bool:
+    return restoring == -2 * stiffness * x
+
+
+def test_full_scope_rejects_competing_algebraic_rows() -> None:
+    constrained = Implementation(
+        SharedRHS,
+        [shared_rate_x, shared_rate_v, shared_restoring, conflicting_restoring, initial_x, initial_v],
+    )
+    with PYTHON_BACKEND, constrained:
+        model = SharedRHS(
+            t=tensor([0.0, 1.0], over=TIME),
+            stiffness=0.7,
+            t0=0.0,
+            x0=3.0,
+            v0=5.0,
+        )
+        with pytest.raises(BiltOverconstrainedError, match="Overconstrained"):
+            _ = model.x

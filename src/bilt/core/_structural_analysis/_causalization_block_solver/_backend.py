@@ -67,6 +67,31 @@ class CausalizationStructuralAnalyzer:
         with structural_cache_scope(), route_cache_scope():
             return self._analyse(request)
 
+    def plan_many(self, request: EvaluationRequest, outputs: tuple[str, ...]) -> AnalysisPlan:
+        """Find one consistent assignment and shared SCC plan for several outputs."""
+        if not outputs:
+            msg = "Multi-output requests must select at least one output."
+            raise ValueError(msg)
+        available = set(request.input_domains)
+        graph = build_matching_graph(self.full_incidence_graph, available)
+        self._prefer_child_producers(graph, available, outputs[0])
+        last_error: Exception | None = None
+        for assignments in search.candidate_assignments(graph, self._failures, output=outputs[0]):
+            try:
+                blocks = planning.plan_blocks_many(assignments, available, outputs, backend=self.backend)
+                plan = AnalysisPlan(request=request, blocks=blocks)
+                realized = realize_plan(plan, self.backend)
+                if not isinstance(realized, (RealizationFailure, BlockRealizationFailure)):
+                    return plan
+                last_error = realized.cause
+            except BiltAnalysisError as error:
+                last_error = error
+        message = f"No consistent multi-output route for {outputs!r} from inputs {sorted(available)}."
+        if last_error is not None:
+            msg = f"{message} {last_error}"
+            raise BiltExecutionPlanError(msg) from last_error
+        raise BiltExecutionPlanError(message)
+
     def _analyse(self, request: EvaluationRequest) -> BackendCase:
         """Search within the current request's cache scopes."""
         available = set(request.input_domains)
