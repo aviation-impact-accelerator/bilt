@@ -4,6 +4,7 @@ import typing
 if typing.TYPE_CHECKING:
     import collections.abc
 
+    from bilt.core._structural_analysis._linear_block import LinearBlock
     from bilt.symbolic._domains import Domain
     from bilt.symbolic._tree import Tree
 
@@ -16,6 +17,8 @@ class BackendCallable:
     output_domain: Domain | None = None
     symbolic_tree: Tree | None = None
     symbolic_parameters: tuple[str, ...] = ()
+    linear_block: LinearBlock | None = None
+    linear_projection: tuple[str, int] | None = None
 
     def evaluate(
         self,

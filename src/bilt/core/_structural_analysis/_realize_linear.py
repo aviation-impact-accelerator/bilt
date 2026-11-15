@@ -94,7 +94,10 @@ def realize_linear_block(
     )
     solve.body[:0] = assignments
     try:
-        callables = [backend.transpile_linear_solve(solve)]
+        # Retain exact affine coefficients for differentiating scalar pointwise
+        # solves. Joint tensor operators need a separate tangent layout rule.
+        scalar_linear = linear if isinstance(linear, LinearBlock) and pointwise and batch_rank == 0 else None
+        callables = [dataclasses.replace(backend.transpile_linear_solve(solve), linear_block=scalar_linear)]
         for index, output in enumerate(lowering.linear.unknowns):
             slice_ = (
                 ast.Tuple(elts=[ast.Constant(Ellipsis), ast.Constant(index)], ctx=ast.Load())
@@ -106,7 +109,13 @@ def realize_linear_block(
                 (solution_name,),
                 ast.Subscript(value=ast.Name(id=solution_name, ctx=ast.Load()), slice=slice_, ctx=ast.Load()),
             )
-            callables.append(dataclasses.replace(backend.transpile(projection), output_domain=domains[output]))
+            callables.append(
+                dataclasses.replace(
+                    backend.transpile(projection),
+                    output_domain=domains[output],
+                    linear_projection=(solution_name, index) if scalar_linear is not None else None,
+                )
+            )
     except BiltBackendError as error:
         message = f"The backend could not compile the linear block for {lowering.linear.unknowns!r}: {error}"
         raise BiltLinearBlockError(message) from error

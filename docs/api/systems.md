@@ -96,10 +96,14 @@ argument must identify a supplied input on the same system interface.
 For a supplied output, its derivative with respect to itself is one and
 with respect to another supplied input is zero.
 
-This first prototype handles plain scalar inputs and supported `@equation`
-expressions across acyclic execution plans. It rejects derivatives that require
-unsupported transforms, subsystem computations or coupled solves, and
-unit-bearing or tensor inputs. It does not silently use finite differences.
+Derivative queries support plain scalar inputs, including acyclic `@equation`
+chains and coupled scalar affine systems. For a coupled linear system
+`A @ y = b`, Bilt constructs an additional implicit tangent solve,
+`A @ dy = db - dA @ y`, using the active Python or JAX backend. This includes
+coefficients dependent on model inputs and values from earlier equations.
+
+The experimental API still rejects unsupported transforms, tensor operators,
+other subsystem computations, and unit-bearing or tensor inputs. It does not silently use finite differences.
 Derivatives are taken with respect to the numerical values in the model;
 the returned result currently has no separate derivative-unit wrapper.
 The generated `d` and `diff` properties are runtime additions and may
