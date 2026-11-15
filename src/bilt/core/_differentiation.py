@@ -39,9 +39,7 @@ class _MangleNames(ast.NodeTransformer):
         return node
 
 
-def _tangent_seeds(
-    inputs: tuple[str, ...], original_inputs: set[str], wrt: str, seen: set[str]
-) -> dict[str, Tree]:
+def _tangent_seeds(inputs: tuple[str, ...], original_inputs: set[str], wrt: str, seen: set[str]) -> dict[str, Tree]:
     """Seed supplied inputs and refer to already computed tangents."""
     seeds = {}
     for name in inputs:
@@ -66,9 +64,7 @@ def _compile_expression_tangent(
     parameters = tuple(name for name in step.symbolic_parameters if mangle_name(name) != step.name)
     seeds = _tangent_seeds(parameters, original_inputs, wrt, seen)
     tangent_parameters = tuple(
-        f"{_TANGENT_PREFIX}{mangle_name(name)}"
-        for name in parameters
-        if mangle_name(name) in seen
+        f"{_TANGENT_PREFIX}{mangle_name(name)}" for name in parameters if mangle_name(name) in seen
     )
     try:
         derivative = jvp_tree(step.symbolic_tree, seeds)
@@ -116,9 +112,7 @@ def _subscript(value: str, index: int) -> ast.Subscript:
     )
 
 
-def _tangent_rhs(
-    linear: LinearBlock, seeds: dict[str, Tree], solution_name: str
-) -> ast.Tuple:
+def _tangent_rhs(linear: LinearBlock, seeds: dict[str, Tree], solution_name: str) -> ast.Tuple:
     """Differentiate Ay=b implicitly: A dy = db - dA y."""
     rows: list[ast.expr] = []
     for rhs, coefficients in zip(linear.rhs, linear.coefficients, strict=True):
