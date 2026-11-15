@@ -79,7 +79,7 @@ class DerivativeQuery:
 
         if self.kind == "grad":
             if not isinstance(wrt, tuple):
-                name = _field_name(self.instance, typing.cast("FieldSelector", wrt))
+                name = _field_name(self.instance, wrt)
                 return implementation.evaluate_derivative(inputs=inputs, output=self.output, wrt=name, backend=backend)
             names = _fields(self.instance, wrt, label="wrt")
             return tuple(
