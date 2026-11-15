@@ -106,6 +106,18 @@ The generated `d` and `diff` properties are runtime additions and may
 require local suppression in static type-checking tools until their typing
 support is implemented.
 
+Conditional `@equation` expressions also support **branch-wise derivatives**.
+For a scalar `if/elif/else` or nested conditional, Bilt differentiates each
+branch and retains the original predicate, in both Python and JAX. For
+example, if the selected equation says `value = x**2` when `x > 0` and
+`value = -x` otherwise, then `instance.d.value(wrt=System.x)` is
+`2*x` for positive `x` and `-1` for negative `x`. Conditions are not
+differentiated: changing a threshold gives a zero local derivative away from
+a switching point. **At the switching point the result is the selected
+branch's derivative, not necessarily a mathematical derivative of the
+piecewise function.** Conditional equations still cannot be inverted
+through a predicate depending on the target variable.
+
 ## Evaluation and structural analysis
 
 `Implementation.evaluate` and instance evaluation use the causalization (SCC)
