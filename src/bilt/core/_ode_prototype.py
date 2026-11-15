@@ -218,7 +218,6 @@ def _symbols(tree: Tree) -> set[str]:
     }
 
 
-
 def _scalar(value: object) -> float:
     array = np.asarray(value)
     if array.size != 1:
