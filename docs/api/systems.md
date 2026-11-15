@@ -53,11 +53,11 @@ and caches requested outputs. Use a fresh instance when comparing implementation
 inputs or backends. Registering an implementation alone does not activate it.
 Component order does not prescribe execution order.
 
-## Instance derivatives (experimental)
+## Parameter derivatives (experimental)
 
-Bilt can calculate exact scalar derivatives through supported acyclic equation
-routes without requiring JAX. Ordinary property access remains unchanged; use
-the `d` namespace to request a derivative of a field:
+Bilt supports exact symbolic first and second derivatives of scalar model
+outputs with respect to *constructor-supplied scalar inputs*. The API has three
+namespaces:
 
 ```python exec="off"
 from bilt import Implementation, Interface, equation, field, system
@@ -79,81 +79,58 @@ implementation = Implementation(Spring, [law])
 
 with implementation:
     spring = Spring(force=100.0, stiffness=20.0)
-    assert spring.displacement == 5.0
-    assert spring.d.displacement(wrt=Spring.force) == 0.05
-    assert spring.d.displacement(wrt=Spring.stiffness) == -0.25
+
+    # One input: scalar first derivative
+    assert spring.grad.displacement(wrt=Spring.force) == 0.05
+
+    # Multiple inputs: ordered tuple
+    assert spring.grad.displacement(
+        wrt=(Spring.force, Spring.stiffness)
+    ) == (0.05, -0.25)
+
+    # Explicit outputs and inputs, always a matrix
+    jacobian = spring.jacobian(
+        (Spring.displacement,),
+        wrt=(Spring.force, Spring.stiffness),
+    )
+
+    # Second derivatives as a square tuple-of-tuples
+    hessian = spring.hessian.displacement(
+        wrt=(Spring.force, Spring.stiffness),
+    )
 ```
 
-`spring.diff.displacement(wrt="force")` is equivalent. If a system
-already declares a field named `d`, that field takes precedence and `diff`
-remains available. If `diff` is also a declared field, neither convenience
-namespace is installed.
+A single field selector to `grad` returns a scalar; a non-empty tuple returns
+an ordered tuple, even for one field. `jacobian` takes explicit non-empty
+tuples of outputs and `wrt` inputs; its rows follow the order of outputs and
+columns follow the order of inputs. `hessian` accepts a non-empty tuple of
+inputs and returns a square matrix represented as tuples of tuples. Field
+selectors can be class properties or their names as strings.
 
-Derivative queries use the constructor-supplied boundary inputs and the same
-selected implementation and backend as ordinary instance lookups. Previously
-calculated outputs do not become additional boundary inputs. The `wrt`
-argument must identify a supplied input on the same system interface.
-For a supplied output, its derivative with respect to itself is one and
-with respect to another supplied input is zero.
+The `d` and `diff` aliases and the `jacobian.field(...)` form are not part
+of this API. Existing fields named `grad`, `jacobian` or `hessian` take
+precedence over the generated namespace.
 
-This first prototype handles plain scalar inputs and supported `@equation`
-expressions across acyclic execution plans. It rejects derivatives that require
-unsupported transforms, subsystem computations or coupled solves, and
-unit-bearing or tensor inputs. It does not silently use finite differences.
-Derivatives are taken with respect to the numerical values in the model;
-the returned result currently has no separate derivative-unit wrapper.
-The generated `d` and `diff` properties are runtime additions and may
-require local suppression in static type-checking tools until their typing
-support is implemented.
+Queries use the instance's selected implementation and active Python or JAX
+backend, and do not modify its boundary inputs. Previously calculated outputs
+remain derived quantities. A scalar output already supplied as a constructor
+input has first derivatives of one with respect to itself and zero with respect
+to other supplied inputs; all its second derivatives are zero.
 
-Conditional `@equation` expressions also support **branch-wise derivatives**.
-For a scalar `if/elif/else` or nested conditional, Bilt differentiates each
-branch and retains the original predicate, in both Python and JAX. For
-example, if the selected equation says `value = x**2` when `x > 0` and
-`value = -x` otherwise, then `instance.d.value(wrt=System.x)` is
-`2*x` for positive `x` and `-1` for negative `x`. Conditions are not
-differentiated: changing a threshold gives a zero local derivative away from
-a switching point. **At the switching point the result is the selected
-branch's derivative, not necessarily a mathematical derivative of the
-piecewise function.** Conditional equations still cannot be inverted
-through a predicate depending on the target variable.
+Derivatives use forward-mode symbolic JVPs on supported scalar acyclic
+`@equation` routes. The Hessian applies a second JVP to the differentiated
+execution plan; it is **not** a finite-difference estimate. Unit-bearing or
+tensor inputs, unsupported transforms and coupled solves are not supported
+in this initial query layer. Returned values do not yet carry derivative
+units. The generated namespace properties are runtime-defined and might need
+static type-checker suppressions.
 
-### Gradients, Jacobians and Hessians (experimental)
-
-All queries below differentiate **scalar model outputs with respect to supplied
-scalar system inputs**, not spatial fields. They operate on the same selected
-`Implementation` and Python or JAX backend as `model.d`:
-
-```python exec="off"
-with implementation:
-    model = System(x=2.0, y=3.0)
-
-    model.d.force(wrt=System.x)  # scalar derivative
-    model.grad.force(wrt=(System.x, System.y))  # ordered tuple of partials
-    model.hessian.force(wrt=(System.x, System.y))  # square tuple-of-tuples
-
-    # A scalar output produces a one-row Jacobian:
-    model.jacobian.force(wrt=(System.x, System.y))
-
-    # Named scalar outputs produce a full Jacobian matrix:
-    model.jacobian((System.force, System.energy), wrt=(System.x, System.y))
-```
-
-A gradient is a tuple ordered by `wrt`; a Hessian is a square
-tuple-of-tuples in the same order (including mixed derivatives).
-For a Jacobian, **rows follow output order and columns follow input order**.
-Field names can be provided as strings, e.g. `wrt=("x", "y")`.
-Empty lists/tuples, duplicate fields or unsupplied differentiation inputs are
-rejected. Existing system ports named `grad`, `hessian` or `jacobian`
-are not overwritten.
-
-The Hessian is computed by applying the symbolic forward-mode JVP twice to
-the equation execution plan. As for `d`, exact derivatives are limited to
-supported scalar acyclic equation routes. Coupled block and arbitrary
-transform derivatives, unit-bearing inputs and tensor-valued outputs are not
-supported here. Results are plain numerical values without derivative unit
-wrappers. At conditional switching boundaries, derivatives are the selected
-branch derivatives and need not exist mathematically.
+Conditional equations support branch-wise derivatives across scalar
+`if/elif/else` and nested branches. At a switching point the result is the
+selected branch's derivative, which need not be the mathematical derivative of
+the piecewise function. Conditions themselves are not differentiated, and
+conditional equations cannot be inverted through predicates depending on the
+target variable.
 
 ## Evaluation and structural analysis
 
