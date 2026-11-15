@@ -89,7 +89,11 @@ def jvp_tree(tree: Tree, tangents: Mapping[str, Tree]) -> Tree:  # noqa: C901
             predicate, when_true, when_false = node.args
             result = Tree(
                 CONDITIONAL,
-                (predicate, _float_derivative_constant(tangent(when_true)), _float_derivative_constant(tangent(when_false))),
+                (
+                    predicate,
+                    _float_derivative_constant(tangent(when_true)),
+                    _float_derivative_constant(tangent(when_false)),
+                ),
             )
         else:
             msg = f"Unsupported differentiable operation: {node.head}."
