@@ -45,7 +45,7 @@ class ExplicitODEPrototype:
         self.state_names = frozenset(state.name for state in states)
 
     @classmethod
-    def extract(  # noqa: C901, PLR0912
+    def extract(  # noqa: C901, PLR0912, PLR0915
         cls, components: Iterable[BiltModelConstituent]
     ) -> ExplicitODEPrototype | None:
         rates: dict[str, tuple[str, Tree]] = {}
