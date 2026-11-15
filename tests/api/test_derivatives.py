@@ -2,7 +2,7 @@
 
 import pytest
 
-from bilt import Implementation, Interface, field, system
+from bilt import Implementation, Interface, JAX_BACKEND, PYTHON_BACKEND, field, system
 from bilt.core._equation import equation
 from bilt.errors import BiltUnsupportedDerivativeError
 
@@ -24,14 +24,7 @@ SPRING = Implementation(Spring, [spring_law])
 
 @pytest.mark.parametrize("backend_name", ("python", "jax"))
 def test_spring_acausal_derivatives(backend_name: str) -> None:
-    if backend_name == "jax":
-        from bilt import JAX_BACKEND
-
-        backend = JAX_BACKEND
-    else:
-        from bilt import PYTHON_BACKEND
-
-        backend = PYTHON_BACKEND
+    backend = JAX_BACKEND if backend_name == "jax" else PYTHON_BACKEND
 
     with backend, SPRING:
         spring = Spring(force=100.0, stiffness=20.0)
@@ -100,7 +93,7 @@ def test_existing_d_field_is_not_overwritten() -> None:
         value: float = field()
 
     instance = HasD(d=2.0, value=4.0)
-    assert instance.d == 2.0
+    assert instance.d == pytest.approx(2.0)
     assert hasattr(instance, "diff")
 
 
