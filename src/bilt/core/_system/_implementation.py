@@ -7,6 +7,7 @@ import dataclasses
 import types
 import typing
 
+from bilt.core._differentiation import differentiate_case
 from bilt.core._equation import BasicEquation
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
@@ -17,6 +18,7 @@ from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._system._dimensional_unification import check_dimensional_consistency
 from bilt.core._system._errors import (
     BiltSubSystemConflictError,
+    BiltUnsupportedDerivativeError,
     BiltSubSystemMismatchedImplementationError,
     BiltSubSystemMissingImplementationError,
     BiltSubSystemNameCollisionError,
@@ -24,6 +26,7 @@ from bilt.core._system._errors import (
 )
 from bilt.core._system._input_validation import validate_inputs
 from bilt.core._tensors._tensors import Tensor
+from bilt.units import Quantity
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
@@ -147,6 +150,41 @@ class Implementation:
             evaluation.domains.bind(output_value)
 
         return output_value
+
+    def evaluate_derivative(
+        self,
+        inputs: dict[str, object],
+        output: str,
+        wrt: str,
+        backend: Backend,
+    ) -> object:
+        """Evaluate an exact scalar derivative of a supported equation plan."""
+        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+        if wrt not in inputs:
+            raise BiltUnsupportedDerivativeError(
+                f"Cannot differentiate with respect to {wrt!r}: it was not supplied as an input."
+            )
+        if any(isinstance(value, (Tensor, Quantity)) for value in inputs.values()):
+            raise BiltUnsupportedDerivativeError(
+                "Instance derivative queries currently support plain scalar inputs only."
+            )
+        if output in inputs:
+            return 1.0 if output == wrt else 0.0
+
+        with EvaluationContext() as evaluation:
+            evaluation.domains.bind_all(inputs.values())
+            request = EvaluationRequest(
+                output=output,
+                input_domains={name: Domain.scalar() for name in inputs},
+            )
+            case = self.analyser_for(backend).analyse(request)
+            tangent_case = differentiate_case(case, wrt=wrt, backend=backend)
+            compiled = backend.chain_case(tangent_case)
+
+            lowered_inputs = lower_inputs(inputs)
+            alignment_plan = generate_alignment_plan(inputs)
+            aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
+            return compiled.evaluate(mangle_inputs(aligned_inputs))
 
     def get_evaluation(
         self,
