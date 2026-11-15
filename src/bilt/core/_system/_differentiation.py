@@ -1,4 +1,3 @@
-# ruff: noqa: TRY003
 """Derivative queries on system instances."""
 
 import dataclasses
