@@ -31,7 +31,6 @@ def test_lowered_bilt_cruise_model_is_differentiable() -> None:
     np.testing.assert_allclose(np.asarray(gradient), [0.0, 11.25], atol=1e-5)
 
 
-
 @pytest.mark.skipif(
     importlib.util.find_spec("asdex") is None,
     reason="Optional asdex dependency is not installed",
