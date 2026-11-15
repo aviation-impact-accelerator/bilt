@@ -1,4 +1,3 @@
-# ruff: noqa: TRY003
 """Differentiate a realised scalar equation plan before backend execution."""
 
 import ast
