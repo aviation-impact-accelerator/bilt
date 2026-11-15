@@ -7,6 +7,7 @@ import typing
 
 from bilt.core._errors import BiltEquationDimensionalityError
 from bilt.symbolic import _atoms as ops
+from bilt.symbolic._differential import AT, DEFERRED_GRAD
 from bilt.symbolic._atoms import CoordinateType, DimensionType, FloatType, IntType, QuantityType, SymbolType
 from bilt.units._errors import BiltDimensionalityError
 from bilt.units.dimensions import DIMENSIONLESS
@@ -61,6 +62,11 @@ def _dimensionality_at(tree: Tree, operands: list[Dimension | None]) -> Dimensio
     if tree.is_relation:
         _shared(operands)
         return DIMENSIONLESS
+    if tree.head is DEFERRED_GRAD:
+        numerator, denominator = operands
+        return None if numerator is None or denominator is None else numerator / denominator
+    if tree.head is AT:
+        return operands[0]
     match tree.head:
         case ops.CONDITIONAL:
             return _shared(operands[1:])
@@ -150,6 +156,10 @@ def absoluteness_of(
             return frozenset({int(typing.cast("tuple[float, Dimension, bool]", tree.head.value)[2])})
         return _EITHER
     operands = [absoluteness_of(equation_name, operand, declarations) for operand in tree.args]
+    if tree.head is AT:
+        return operands[0]
+    if tree.head is DEFERRED_GRAD:
+        return _EITHER
     if tree.is_relation:
         if not operands[0] & operands[1]:
             msg = "relates an absolute quantity to a relative one: both sides must be absolute, or both relative."
