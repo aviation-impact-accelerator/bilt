@@ -127,10 +127,7 @@ def test_ipopt_matches_analytic_solution() -> None:
 )
 def test_pounce_and_ipopt_agree_on_lowered_bilt_model() -> None:
     """Three solver paths must solve the same Bilt NLP to the same optimum."""
-    results = {
-        name: optimise_cruise_speeds(solver=name)
-        for name in ("ipopt", "pounce-asdex", "pounce-jax")
-    }
+    results = {name: optimise_cruise_speeds(solver=name) for name in ("ipopt", "pounce-asdex", "pounce-jax")}
     expected = np.maximum(1.0, np.asarray(REQUIRED_SPEEDS))
     max_violation_tolerance = 1e-7
     for name, result in results.items():
@@ -139,7 +136,10 @@ def test_pounce_and_ipopt_agree_on_lowered_bilt_model() -> None:
         assert np.isfinite(result.total_energy), name
         logging.getLogger(__name__).info(
             "%s: speeds=%s energy=%.10f max_time_violation=%.3g",
-            name, np.array2string(result.speeds, precision=7), result.total_energy, result.max_time_violation,
+            name,
+            np.array2string(result.speeds, precision=7),
+            result.total_energy,
+            result.max_time_violation,
         )
 
     ipopt_result = results["ipopt"]
