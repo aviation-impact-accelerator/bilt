@@ -9,8 +9,8 @@ __all__ = [
     "BiltSubSystemNameCollisionError",
     "BiltSubSystemUnreferencedEntryError",
     "BiltSystemDefinitionError",
-    "BiltUnsupportedDerivativeError",
     "BiltUnknownSystemAttributeError",
+    "BiltUnsupportedDerivativeError",
 ]
 
 import typing
