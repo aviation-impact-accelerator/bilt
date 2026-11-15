@@ -13,11 +13,10 @@ import numpy as np
 
 from bilt._backend._python import PYTHON_BACKEND
 from bilt.core._equation import BasicEquation
-from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._tensors._tensors import Tensor
+from bilt.core._to_ast import tree_to_functiondef
 from bilt.symbolic._atoms import SymbolType
 from bilt.symbolic._differential import AT, DEFERRED_GRAD
-from bilt.symbolic._tree import Tree
 from bilt.symbolic._walk import subtrees
 
 if typing.TYPE_CHECKING:
@@ -25,6 +24,7 @@ if typing.TYPE_CHECKING:
 
     from bilt._backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
+    from bilt.symbolic._tree import Tree
 
 
 @dataclasses.dataclass(frozen=True)
@@ -45,7 +45,9 @@ class ExplicitODEPrototype:
         self.state_names = frozenset(state.name for state in states)
 
     @classmethod
-    def extract(cls, components: Iterable[BiltModelConstituent]) -> ExplicitODEPrototype | None:
+    def extract(  # noqa: C901, PLR0912
+        cls, components: Iterable[BiltModelConstituent]
+    ) -> ExplicitODEPrototype | None:
         rates: dict[str, tuple[str, Tree]] = {}
         initial: dict[str, tuple[str, Tree, Tree]] = {}
         for component in components:
@@ -99,7 +101,9 @@ class ExplicitODEPrototype:
         )
         return cls(states)
 
-    def solve(self, inputs: Mapping[str, object], backend: Backend) -> dict[str, Tensor]:
+    def solve(  # noqa: C901, PLR0912, PLR0915
+        self, inputs: Mapping[str, object], backend: Backend
+    ) -> dict[str, Tensor]:
         """Run one shared SciPy RK45 solve for all requested state trajectories."""
         if backend is not PYTHON_BACKEND:
             msg = "The experimental ODE runtime currently supports only the Python backend."
@@ -210,7 +214,7 @@ def _compile(tree: Tree, name: str) -> typing.Callable[[Mapping[str, float]], ob
     parameters = tuple(sorted(_symbols(tree)))
     fn = tree_to_functiondef(tree, name=name, parameter_order=parameters)
     compiled = PYTHON_BACKEND.transpile(fn)
-    return lambda values: compiled.evaluate(values)
+    return compiled.evaluate
 
 
 def _scalar(value: object) -> float:
