@@ -49,9 +49,7 @@ def plan_blocks_many(  # noqa: C901
             msg = f"No candidate producer for {output!r}."
             raise BiltExecutionPlanError(msg)
 
-    settled, _ = settle_assignments_many(
-        assignments, available, backend, targets=needed
-    )
+    settled, _ = settle_assignments_many(assignments, available, backend, targets=needed)
     by_output = {step.output: step for step in settled}
     selected: dict[str, PlanStep] = {}
     pending = list(needed)
