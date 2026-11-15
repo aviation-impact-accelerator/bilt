@@ -6,8 +6,9 @@ JAX functions accepting numerical arrays, with no Bilt system evaluation in
 the differentiated function.
 """
 
+import importlib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import jax
 import jax.numpy as jnp
@@ -79,7 +80,7 @@ class CompiledCruise:
     def __call__(self, speeds: jax.Array) -> tuple[jax.Array, jax.Array]:
         """Run the JAX numerical graph; no Bilt structural analysis occurs here."""
         inputs = {**self.fixed_inputs, "speed": speeds}
-        return self.energy.evaluate(inputs), self.time.evaluate(inputs)
+        return cast("jax.Array", self.energy.evaluate(inputs)), cast("jax.Array", self.time.evaluate(inputs))
 
 
 def compile_cruise_legs(distances: np.ndarray) -> CompiledCruise:
@@ -134,8 +135,8 @@ def optimise_cruise_speeds() -> OptimisationResult:  # noqa: C901
     For drag = speed**2 + speed**-2, the exact optimum is
     max(1, required_speed) for each independent leg.
     """
-    import asdex  # noqa: PLC0415
-    import cyipopt  # noqa: PLC0415
+    asdex = importlib.import_module("asdex")
+    cyipopt = importlib.import_module("cyipopt")
 
     # Set x64 before generating arrays or compiling to match IPOPT precision.
     jax.config.update("jax_enable_x64", True)  # noqa: FBT003
