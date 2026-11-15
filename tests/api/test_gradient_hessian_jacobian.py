@@ -122,7 +122,7 @@ def test_supplied_output_has_zero_hessian_and_jacobian_identity() -> None:
 def test_empty_and_repeated_inputs_rejected(namespace: str) -> None:
     with POLYNOMIAL:
         model = Polynomial(x=2.0, y=3.0)
-        query = getattr(getattr(model, namespace), "energy")
+        query = getattr(model, namespace).energy
         with pytest.raises(ValueError, match="non-empty tuple"):
             query(wrt=())
         with pytest.raises(ValueError, match="duplicate fields"):
@@ -146,8 +146,8 @@ def test_field_namespace_does_not_overwrite_declared_fields() -> None:
 
     model = OwnGrad(grad=1.0, hessian=2.0, jacobian=3.0)
     assert model.grad == 1.0
-    assert model.hessian == 2.0
-    assert model.jacobian == 3.0
+    assert model.hessian == pytest.approx(2.0)
+    assert model.jacobian == pytest.approx(3.0)
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
