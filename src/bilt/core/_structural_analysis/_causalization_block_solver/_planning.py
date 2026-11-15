@@ -30,7 +30,7 @@ def plan_blocks(
     return plan_blocks_many(assignments, available, (output,), backend=backend)
 
 
-def plan_blocks_many(
+def plan_blocks_many(  # noqa: C901
     assignments: collections.abc.Mapping[str, BiltModelConstituent],
     available: set[str],
     outputs: tuple[str, ...],
