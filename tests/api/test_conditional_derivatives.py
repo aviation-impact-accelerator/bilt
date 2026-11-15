@@ -49,7 +49,7 @@ def test_if_else_differentiates_active_branch(
     with backend, PIECEWISE:
         model = Piecewise(x=x)
         assert model.value == pytest.approx(expected_value)
-        assert model.d.value(wrt=Piecewise.x) == pytest.approx(expected_derivative)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.value(wrt=Piecewise.x) == pytest.approx(expected_derivative)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
@@ -59,8 +59,8 @@ def test_conditional_tangent_flows_through_next_equation(
 ) -> None:
     with backend, PIECEWISE:
         model = Piecewise(x=x, bias=10.0)
-        assert model.d.total(wrt=Piecewise.x) == pytest.approx(expected_derivative)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
-        assert model.d.total(wrt=Piecewise.bias) == pytest.approx(1.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.total(wrt=Piecewise.x) == pytest.approx(expected_derivative)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.total(wrt=Piecewise.bias) == pytest.approx(1.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 @system
@@ -94,11 +94,11 @@ def test_conditional_predicate_and_inactive_branch(
 ) -> None:
     with backend, SELECTED:
         model = Selected(x=x, threshold=0.0, scale=2.0, offset=7.0)
-        assert model.d.result(wrt=Selected.x) == pytest.approx(dx)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
-        assert model.d.result(wrt=Selected.scale) == pytest.approx(dscale)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
-        assert model.d.result(wrt=Selected.offset) == pytest.approx(doffset)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.result(wrt=Selected.x) == pytest.approx(dx)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.result(wrt=Selected.scale) == pytest.approx(dscale)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.result(wrt=Selected.offset) == pytest.approx(doffset)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
         # A switch position has no local first-order effect away from the threshold.
-        assert model.d.result(wrt=Selected.threshold) == pytest.approx(0.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.result(wrt=Selected.threshold) == pytest.approx(0.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 @system
@@ -138,7 +138,7 @@ def nested_value(x: float, result: float) -> bool:
 def test_elif_branch_derivatives(backend: Backend, x: float, expected: float) -> None:
     with backend, Implementation(MultiBranch, [elif_value]):
         model = MultiBranch(x=x)
-        assert model.d.result(wrt=MultiBranch.x) == pytest.approx(expected)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.result(wrt=MultiBranch.x) == pytest.approx(expected)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
@@ -146,7 +146,7 @@ def test_elif_branch_derivatives(backend: Backend, x: float, expected: float) ->
 def test_nested_if_else_derivatives(backend: Backend, x: float, expected: float) -> None:
     with backend, Implementation(MultiBranch, [nested_value]):
         model = MultiBranch(x=x)
-        assert model.d.result(wrt=MultiBranch.x) == pytest.approx(expected)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.result(wrt=MultiBranch.x) == pytest.approx(expected)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
@@ -155,7 +155,7 @@ def test_switching_boundary_returns_branch_derivative_not_mathematical_derivativ
     with backend, PIECEWISE:
         model = Piecewise(x=0.0)
         assert model.value == pytest.approx(0.0)
-        assert model.d.value(wrt=Piecewise.x) == pytest.approx(-1.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.value(wrt=Piecewise.x) == pytest.approx(-1.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 @pytest.mark.parametrize("x", (3.0, -3.0))
@@ -166,4 +166,4 @@ def test_conditional_derivatives_agree_with_jax_autodiff_away_from_switch(x: flo
     expected = jax.grad(direct)(jnp.asarray(x))
     with PYTHON_BACKEND, PIECEWISE:
         model = Piecewise(x=x)
-        assert model.d.value(wrt=Piecewise.x) == pytest.approx(float(expected))  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.value(wrt=Piecewise.x) == pytest.approx(float(expected))  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]

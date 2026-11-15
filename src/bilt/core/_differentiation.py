@@ -34,7 +34,9 @@ class _MangleNames(ast.NodeTransformer):
         return node
 
 
-def differentiate_case(case: BackendCase, *, wrt: str, backend: Backend) -> BackendCase:
+def differentiate_case(
+    case: BackendCase, *, wrt: str, backend: Backend, tangent_prefix: str = _TANGENT_PREFIX
+) -> BackendCase:
     """Interleave derivative operations with their primal computations."""
     original_inputs = set(case.parameters)
     wrt_name = mangle_name(wrt)
@@ -48,7 +50,7 @@ def differentiate_case(case: BackendCase, *, wrt: str, backend: Backend) -> Back
 
     for step in case.intermediates:
         intermediates.append(step)
-        tangent_name = f"{_TANGENT_PREFIX}{step.name}"
+        tangent_name = f"{tangent_prefix}{step.name}"
         dependencies = set(step.parameters)
         if step.symbolic_tree is None:
             if dependencies & active:
@@ -68,7 +70,7 @@ def differentiate_case(case: BackendCase, *, wrt: str, backend: Backend) -> Back
                 if compiled_name in original_inputs:
                     mapping[parameter] = float_tree(1.0 if compiled_name == wrt_name else 0.0)
                 elif compiled_name in seen:
-                    tangent_parameter = f"{_TANGENT_PREFIX}{parameter}"
+                    tangent_parameter = f"{tangent_prefix}{parameter}"
                     mapping[parameter] = symbol_tree(tangent_parameter)
                     extra_parameters.append(tangent_parameter)
                 else:
@@ -85,14 +87,21 @@ def differentiate_case(case: BackendCase, *, wrt: str, backend: Backend) -> Back
 
         func = tree_to_functiondef(derivative, name=tangent_name, parameter_order=source_parameters)
         compiled = backend.transpile(_MangleNames().visit(func))
-        intermediates.append(dataclasses.replace(compiled, output_domain=step.output_domain))
+        intermediates.append(
+            dataclasses.replace(
+                compiled,
+                output_domain=step.output_domain,
+                symbolic_tree=derivative,
+                symbolic_parameters=source_parameters,
+            )
+        )
         seen.add(step.name)
         if dependencies & active:
             active.add(step.name)
 
     return BackendCase(
-        name=f"{_TANGENT_PREFIX}{case.name}",
+        name=f"{tangent_prefix}{case.name}",
         parameters=case.parameters,
         intermediates=intermediates,
-        return_name=f"{_TANGENT_PREFIX}{case.return_name}",
+        return_name=f"{tangent_prefix}{case.return_name}",
     )

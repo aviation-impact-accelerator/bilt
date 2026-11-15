@@ -29,13 +29,13 @@ def test_spring_acausal_derivatives(backend_name: str) -> None:
     with backend, SPRING:
         spring = Spring(force=100.0, stiffness=20.0)
         assert spring.displacement == pytest.approx(5.0)
-        assert spring.d.displacement(wrt=Spring.force) == pytest.approx(0.05)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
-        assert spring.d.displacement(wrt=Spring.stiffness) == pytest.approx(-0.25)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
-        assert spring.diff.displacement(wrt="force") == pytest.approx(0.05)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert spring.grad.displacement(wrt=Spring.force) == pytest.approx(0.05)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert spring.grad.displacement(wrt=Spring.stiffness) == pytest.approx(-0.25)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert spring.grad.displacement(wrt="force") == pytest.approx(0.05)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
         reversed_spring = Spring(stiffness=20.0, displacement=5.0)
-        assert reversed_spring.d.force(wrt=Spring.displacement) == pytest.approx(20.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
-        assert reversed_spring.d.force(wrt=Spring.stiffness) == pytest.approx(5.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert reversed_spring.grad.force(wrt=Spring.displacement) == pytest.approx(20.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert reversed_spring.grad.force(wrt=Spring.stiffness) == pytest.approx(5.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 @system
@@ -61,7 +61,7 @@ CHAIN = Implementation(Chain, [first, second])
 def test_chain_rule_across_equations() -> None:
     with CHAIN:
         chain = Chain(x=3.0)
-        assert chain.d.b(wrt=Chain.x) == pytest.approx(24.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert chain.grad.b(wrt=Chain.x) == pytest.approx(24.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
         assert chain.b == pytest.approx(36.0)
 
 
@@ -69,21 +69,21 @@ def test_requires_supplied_input() -> None:
     with SPRING:
         spring = Spring(force=100.0, stiffness=20.0)
         with pytest.raises(BiltUnsupportedDerivativeError, match="was not supplied"):
-            spring.d.displacement(wrt=Spring.displacement)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+            spring.grad.displacement(wrt=Spring.displacement)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 def test_supplied_output_has_identity_derivative() -> None:
     spring = Spring(force=100.0, stiffness=20.0, displacement=5.0)
     with SPRING:
-        assert spring.d.force(wrt=Spring.force) == pytest.approx(1.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
-        assert spring.d.force(wrt=Spring.stiffness) == pytest.approx(0.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert spring.grad.force(wrt=Spring.force) == pytest.approx(1.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert spring.grad.force(wrt=Spring.stiffness) == pytest.approx(0.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 def test_invalid_field_name() -> None:
     with SPRING:
         spring = Spring(force=100.0, stiffness=20.0)
         with pytest.raises(ValueError, match="Unknown differentiation field"):
-            spring.d.displacement(wrt="unknown")  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+            spring.grad.displacement(wrt="unknown")  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 def test_existing_d_field_is_not_overwritten() -> None:
@@ -94,10 +94,10 @@ def test_existing_d_field_is_not_overwritten() -> None:
 
     instance = HasD(d=2.0, value=4.0)
     assert instance.d == pytest.approx(2.0)
-    assert hasattr(instance, "diff")
+    assert hasattr(instance, "grad")
 
 
 def test_numpy_backend_requires_no_jax() -> None:
     with SPRING:
         spring = Spring(force=100.0, stiffness=20.0)
-        assert spring.d.displacement(wrt=Spring.force) == pytest.approx(0.05)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert spring.grad.displacement(wrt=Spring.force) == pytest.approx(0.05)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]

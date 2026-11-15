@@ -112,9 +112,9 @@ def _create_properties(cls: Interface) -> None:
 
 def _create_derivative_namespace(cls: Interface) -> None:
     # Existing system ports take precedence over convenience namespaces.
-    for name in ("diff", "d"):
+    for name in ("grad", "jacobian", "hessian"):
         if name not in cls.__bilt_system_attributes__:
-            setattr(cls, name, property(DerivativeNamespace))
+            setattr(cls, name, property(lambda instance, kind=name: DerivativeNamespace(instance, kind)))
 
 
 def _create_eq_method(cls: Interface) -> None:
