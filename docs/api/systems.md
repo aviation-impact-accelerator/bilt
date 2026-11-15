@@ -130,6 +130,50 @@ the piecewise function. Conditions themselves are not differentiated, and
 conditional equations cannot be inverted through predicates depending on the
 target variable.
 
+## Differentiation inside equations (experimental)
+
+You can also differentiate a **local symbolic expression** as part of an
+`@equation` definition. These are standalone functions from `bilt`, rather
+than queries on an instantiated model:
+
+```python exec="off"
+from bilt import equation, grad, hessian, jacobian
+
+
+@equation
+def energy_sensitivity(x: float, y: float, sensitivity: float) -> bool:
+    expression = x**3 + x * y + y**2
+    return sensitivity == grad(expression, wrt=x)
+
+
+@equation
+def mixed_curvature(x: float, y: float, curvature: float) -> bool:
+    expression = x**3 + x * y + y**2
+    return curvature == hessian(expression, wrt=(x, y))[0][1]
+
+
+@equation
+def cross_sensitivity(x: float, y: float, sensitivity: float) -> bool:
+    outputs = (x**2 + y, x * y)
+    return sensitivity == jacobian(outputs, wrt=(x, y))[1][0]
+```
+
+`grad(expression, wrt=x)` returns a symbolic scalar expression;
+`wrt=(x, y)` returns a tuple of symbolic partials. `hessian` and
+`jacobian` return tuples of tuples, which can be indexed to select a
+scalar equation expression. They lower through the usual symbolic
+simplification, dimensional analysis and backend code generation for
+Python and JAX, with no finite-difference fallback.
+
+**Scope:** `wrt` variables must be the symbolic parameter expressions
+provided to the equation. These functions differentiate the supplied
+expression tree only: `grad(y, wrt=x)` is zero when `x` and `y`
+are separate parameter symbols, even if another model equation relates
+them. For derivatives *through an implemented model*, use instance
+`model.grad`, `model.jacobian` or `model.hessian`.
+These expression operators do not introduce spatial derivatives or
+infer implicit sensitivities through other equations.
+
 ## Evaluation and structural analysis
 
 `Implementation.evaluate` and instance evaluation use the causalization (SCC)
