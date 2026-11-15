@@ -1,4 +1,4 @@
-# ruff: noqa: PLR2004, SIM108
+# ruff: noqa: PLR2004
 """Experimental unified grad notation for algebraic and ODE relationships."""
 
 import math
