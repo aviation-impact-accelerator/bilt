@@ -1,60 +1,58 @@
 # Bilt + asdex + IPOPT cruise-speed optimisation
 
-An experimental integration in `packages/examples/src/examples/optimisation/asdex_ipopt_cruise.py`.
-
-This example optimises eight nondimensional aircraft cruise legs. Each leg has
-an acausal Bilt model with drag, energy and journey-time equations:
+Experimental integration in `asdex_ipopt_cruise.py` using a named `leg`
+dimension. The Bilt model describes acausal drag, energy, and travel time:
 
 - `drag = parasite_coefficient * speed**2 + induced_coefficient / speed**2`
 - `energy = drag * distance`
 - `distance = speed * time`
 
-We minimise the sum of energies subject to each leg's maximum permitted time.
-The first derivative comes from JAX; sparse constraint Jacobians and
-Lagrangian Hessians come from **asdex**, then are passed to **IPOPT** using
-`cyipopt.Problem`.
+Eight independent cruise legs minimise total nondimensional drag energy, subject
+to maximum travel time per leg. Since `drag = speed**2 + speed**-2`, the
+analytic constrained solution is `maximum(1, required_speed)` per leg.
 
-## Running
+## Integration boundary
 
-Bilt requires Python 3.15+. From the repo root, after `uv sync --extra jax`,
-install the two *optional* optimisation dependencies into the development
-environment:
+The point of this prototype is to keep **structural analysis out of the
+differentiated function**:
+
+1. Prepare concrete Bilt tensors with the named `leg` dimension.
+2. Bind the domains and ask Bilt for a backend-specific compiled evaluation for
+   each output with `Implementation.get_evaluation`.
+3. Lower numerical inputs and align named dimensions once.
+4. Use only the compiled `BackendCallable` objects with JAX array arguments in
+   objective and constraint functions.
+5. Differentiate the resulting JAX function using JAX and asdex, and pass sparse
+   Jacobian/Hessian callbacks to IPOPT through cyipopt.
+
+No `Implementation.evaluate`, structural analysis, `Quantity` lifting or
+`Tensor` construction takes place inside JAX's traced objective/constraints.
+This prototype uses Bilt's internal compilation API and plain
+nondimensional numerical fields; it is *not* proposing direct differentiation of
+Bilt's Python object model. The integration suggests exposing a stable public
+compile-and-bind API in Bilt.
+
+## Run
+
+Bilt currently requires Python 3.15+. Install the optional JAX backend and
+asdex/cyipopt in an environment containing the system IPOPT library:
 
 ```bash
+uv sync --extra jax
 uv pip install --python .venv/bin/python asdex cyipopt
 uv run --no-sync python -m examples.optimisation.asdex_ipopt_cruise
 uv run --no-sync pytest packages/examples/tests/test_asdex_ipopt_cruise.py
 ```
 
-`cyipopt` also requires the system IPOPT library and build metadata. Where
-they are unavailable, use an environment containing IPOPT, for instance
-conda-forge's `ipopt` and `cyipopt` packages. We deliberately do not add
-these dependencies to Bilt's default installation.
+CI runs the JAX compilation/gradient test without requiring IPOPT, and only
+runs the IPOPT integration test when `asdex` and `cyipopt` are installed.
 
-## Expected solution
+## Open questions
 
-With both drag coefficients equal to 1, drag is `v**2 + v**-2`,
-which is minimised at `v = 1`. Since `time <= distance / required_speed`,
-the constrained solution for each leg is
-
-```python
-speeds = np.maximum(1.0, np.asarray(REQUIRED_SPEEDS))
-```
-
-The sparse Jacobian of the per-leg time constraints has eight entries (one
-per speed), and the lower-triangular Hessian of the Lagrangian has eight
-entries. The test checks the solver against the analytic solution.
-
-## Important limitation
-
-The differentiated numerical function **does evaluate Bilt**, but it uses
-`jax.vmap` over scalar Bilt leg evaluations. We do not pass traced arrays into
-Bilt's `tensor()`: Bilt's `Tensor` currently uses `np.asarray`, which
-cannot accept a JAX tracer during differentiation. Likewise, Bilt's
-unit-carrying scalar output lifting calls `float()`. This is why the first
-prototype is nondimensional and uses plain `float`-annotated fields.
-
-For a more native optimiser we need a public interface to Bilt's compiled
-numerical function and its input/output metadata, with JAX arrays kept inside
-the differentiable graph. This is an integration exploration, not yet an
-optimisation backend or a claim of end-to-end named-tensor differentiation.
+- Verify asdex's sparse coordinate ordering stays fixed between IPOPT
+  structure/value callbacks.
+- Compare its sparse derivatives with dense JAX derivatives.
+- Consider how multiple outputs should be compiled as one shared numerical
+  graph without reconstructing independent evaluations.
+- Expose fixed unit scales and domain metadata in a future stable public
+  numerical compilation interface.
