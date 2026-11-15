@@ -1,3 +1,4 @@
+# ruff: noqa: SIM108, PLR2004, PLR5501
 """Differentiate supported conditional equations through the public model API."""
 
 import typing
