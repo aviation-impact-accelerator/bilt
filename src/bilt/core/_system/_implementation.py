@@ -158,16 +158,42 @@ class Implementation:
         wrt: str,
         backend: Backend,
     ) -> object:
-        """Evaluate an exact scalar derivative of a supported equation plan."""
+        """Evaluate a scalar first partial derivative."""
+        return self._evaluate_partial_derivative(inputs, output, (wrt,), backend)
+
+    def evaluate_second_derivative(
+        self,
+        inputs: dict[str, object],
+        output: str,
+        wrt: str,
+        wrt2: str,
+        backend: Backend,
+    ) -> object:
+        """Evaluate a scalar mixed second partial derivative."""
+        return self._evaluate_partial_derivative(inputs, output, (wrt, wrt2), backend)
+
+    def _evaluate_partial_derivative(
+        self,
+        inputs: dict[str, object],
+        output: str,
+        wrt: tuple[str, ...],
+        backend: Backend,
+    ) -> object:
+        """Apply symbolic JVPs to the selected scalar equation plan.
+
+        The second JVP differentiates the first tangent computation and
+        its primal dependencies; it is not a finite-difference estimate.
+        """
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
-        if wrt not in inputs:
-            msg = f"Cannot differentiate with respect to {wrt!r}: it was not supplied as an input."
-            raise BiltUnsupportedDerivativeError(msg)
+        for parameter in wrt:
+            if parameter not in inputs:
+                msg = f"Cannot differentiate with respect to {parameter!r}: it was not supplied as an input."
+                raise BiltUnsupportedDerivativeError(msg)
         if any(isinstance(value, (Tensor, Quantity)) for value in inputs.values()):
             msg = "Instance derivative queries currently support plain scalar inputs only."
             raise BiltUnsupportedDerivativeError(msg)
         if output in inputs:
-            return 1.0 if output == wrt else 0.0
+            return 1.0 if len(wrt) == 1 and output == wrt[0] else 0.0
 
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
@@ -176,8 +202,10 @@ class Implementation:
                 input_domains={name: Domain.scalar() for name in inputs},
             )
             case = self.analyser_for(backend).analyse(request)
-            tangent_case = differentiate_case(case, wrt=wrt, backend=backend)
-            compiled = backend.chain_case(tangent_case)
+            for index, parameter in enumerate(wrt):
+                prefix = "__bilt_tangent__" if index == 0 else "__bilt_second__"
+                case = differentiate_case(case, wrt=parameter, backend=backend, tangent_prefix=prefix)
+            compiled = backend.chain_case(case)
 
             lowered_inputs = lower_inputs(inputs)
             alignment_plan = generate_alignment_plan(inputs)
