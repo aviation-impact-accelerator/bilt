@@ -16,7 +16,6 @@ from bilt.core._equation import BasicEquation
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._ode_planning import compile_ode_plans
 from bilt.core._tensors._tensors import Tensor
-from bilt.core._to_ast import tree_to_functiondef
 from bilt.symbolic._atoms import SymbolType
 from bilt.symbolic._differential import AT, DEFERRED_GRAD
 from bilt.symbolic._walk import subtrees
@@ -101,18 +100,6 @@ class ExplicitODEPrototype:
         if len(coordinates) != 1:
             msg = "All ODE states and their conditions must use one common coordinate."
             raise ValueError(msg)
-        # This spike does not yet have the archived ODE planner's full-scope
-        # causalisation. Reject additional state constraints rather than
-        # silently integrating a different mathematical problem.
-        for component in components:
-            if not isinstance(component, BasicEquation):
-                continue
-            tree = component.__bilt_equation_tree__
-            if any(node.head in (DEFERRED_GRAD, AT) for node in subtrees(tree)):
-                continue
-            if _symbols(tree) & rates.keys():
-                msg = "Additional algebraic constraints on ODE states require the full differential planner."
-                raise ValueError(msg)
         states = tuple(
             _State(
                 name,
@@ -230,12 +217,6 @@ def _symbols(tree: Tree) -> set[str]:
         if node.is_leaf and node.head.atom_type is SymbolType
     }
 
-
-def _compile(tree: Tree, name: str) -> typing.Callable[[Mapping[str, float]], object]:
-    parameters = tuple(sorted(_symbols(tree)))
-    fn = tree_to_functiondef(tree, name=name, parameter_order=parameters)
-    compiled = PYTHON_BACKEND.transpile(fn)
-    return compiled.evaluate
 
 
 def _scalar(value: object) -> float:
