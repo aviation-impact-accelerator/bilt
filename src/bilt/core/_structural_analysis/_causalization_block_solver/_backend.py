@@ -88,7 +88,8 @@ class CausalizationStructuralAnalyzer:
                 last_error = error
         message = f"No consistent multi-output route for {outputs!r} from inputs {sorted(available)}."
         if last_error is not None:
-            raise BiltExecutionPlanError(f"{message} {last_error}") from last_error
+            msg = f"{message} {last_error}"
+            raise BiltExecutionPlanError(msg) from last_error
         raise BiltExecutionPlanError(message)
 
     def _analyse(self, request: EvaluationRequest) -> BackendCase:
