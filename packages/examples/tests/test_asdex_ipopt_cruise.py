@@ -118,3 +118,28 @@ def test_ipopt_matches_analytic_solution() -> None:
     assert result.jacobian_nonzeros == len(DISTANCES)
     assert result.hessian_lower_nonzeros == len(DISTANCES)
     assert np.all(np.asarray(DISTANCES) / result.speeds <= np.asarray(DISTANCES) / np.asarray(REQUIRED_SPEEDS) + 1e-7)
+
+
+@pytest.mark.skipif(
+    any(importlib.util.find_spec(name) is None for name in ("asdex", "cyipopt", "pounce")),
+    reason="Comparative optimisation needs asdex, cyipopt and pounce",
+)
+def test_pounce_and_ipopt_agree_on_lowered_bilt_model() -> None:
+    """Three solver paths must solve the same Bilt NLP to the same optimum."""
+    results = {
+        name: optimise_cruise_speeds(solver=name)
+        for name in ("ipopt", "pounce-asdex", "pounce-jax")
+    }
+    expected = np.maximum(1.0, np.asarray(REQUIRED_SPEEDS))
+    for name, result in results.items():
+        np.testing.assert_allclose(result.speeds, expected, atol=1e-5, rtol=0, err_msg=name)
+        assert result.max_time_violation < 1e-7, name
+        assert np.isfinite(result.total_energy), name
+
+    ipopt_result = results["ipopt"]
+    for name in ("pounce-asdex", "pounce-jax"):
+        result = results[name]
+        np.testing.assert_allclose(result.speeds, ipopt_result.speeds, atol=1e-5, rtol=0)
+        np.testing.assert_allclose(result.total_energy, ipopt_result.total_energy, atol=1e-7, rtol=0)
+    assert results["pounce-asdex"].jacobian_nonzeros == len(DISTANCES)
+    assert results["pounce-asdex"].hessian_lower_nonzeros == len(DISTANCES)
