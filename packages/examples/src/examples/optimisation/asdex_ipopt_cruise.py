@@ -130,9 +130,7 @@ class OptimisationResult:
     max_time_violation: float
 
 
-def optimise_cruise_speeds(
-    *, solver: Literal["ipopt", "pounce-asdex", "pounce-jax"] = "ipopt"
-) -> OptimisationResult:  # noqa: C901, PLR0912
+def optimise_cruise_speeds(*, solver: Literal["ipopt", "pounce-asdex", "pounce-jax"] = "ipopt") -> OptimisationResult:  # noqa: C901
     """Minimise Bilt cruise energy with one of three numerical solver paths.
 
     All paths share Bilt's compiled, named-domain JAX objective and constraints.
