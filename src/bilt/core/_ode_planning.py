@@ -16,16 +16,15 @@ from bilt.core._structural_analysis._causalization_block_solver._full_incidence_
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralAnalysis
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_structure
 from bilt.core._structural_analysis._realize import BlockRealizationFailure, RealizationFailure, realize_plan
+from bilt.symbolic._atoms import SymbolType
 from bilt.symbolic._domains import Domain
 from bilt.symbolic._expressions import symbol_expr
 from bilt.symbolic._tree import equality_tree, symbol_tree
 from bilt.symbolic._walk import subtrees
-from bilt.symbolic._atoms import SymbolType
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Mapping
+    from collections.abc import Callable, Mapping
 
-    from bilt._backend._callable import BackendCallable
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._ode_prototype import _State
     from bilt.symbolic._tree import Tree
@@ -160,7 +159,7 @@ def _compile_many(
     case = realize_plan(plan, PYTHON_BACKEND)
     if isinstance(case, (RealizationFailure, BlockRealizationFailure)):
         msg = "ODE plan could not be lowered to a supported instantaneous operation."
-        raise ValueError(msg) from case.cause
+        raise TypeError(msg) from case.cause
 
     def evaluate(values: Mapping[str, float]) -> tuple[object, ...]:
         current: dict[str, object] = {mangle_name(name): value for name, value in values.items()}
