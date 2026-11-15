@@ -7,7 +7,10 @@ import typing
 from bilt.core._structural_analysis._causalization_block_solver._blocks import ordered_blocks
 from bilt.core._structural_analysis._causalization_block_solver._dependency_graph import build_dependency_graph
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
-from bilt.core._structural_analysis._causalization_block_solver._settle_assignments import settle_assignments_many
+from bilt.core._structural_analysis._causalization_block_solver._settle_assignments import (
+    settle_assignments,
+    settle_assignments_many,
+)
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._linear_operator import extract_supported_linear_block
 
@@ -26,11 +29,17 @@ def plan_blocks(
     *,
     backend: Backend,
 ) -> tuple[PlanBlock, ...]:
-    """Retain the original single-output route behavior."""
-    return plan_blocks_many(assignments, available, (output,), backend=backend)
+    """Select a single output using the original settlement path."""
+    if output in available:
+        return ()
+    if output not in assignments:
+        msg = f"No candidate producer for {output!r}."
+        raise BiltExecutionPlanError(msg)
+    settled, _ = settle_assignments(assignments, available, backend, target=output)
+    return _blocks_from_settled(settled, available, (output,))
 
 
-def plan_blocks_many(  # noqa: C901
+def plan_blocks_many(
     assignments: collections.abc.Mapping[str, BiltModelConstituent],
     available: set[str],
     outputs: tuple[str, ...],
@@ -50,9 +59,18 @@ def plan_blocks_many(  # noqa: C901
             raise BiltExecutionPlanError(msg)
 
     settled, _ = settle_assignments_many(assignments, available, backend, targets=needed)
+    return _blocks_from_settled(settled, available, needed)
+
+
+def _blocks_from_settled(
+    settled: tuple[PlanStep, ...],
+    available: set[str],
+    targets: tuple[str, ...],
+) -> tuple[PlanBlock, ...]:
+    """Build one dependency closure from already-settled output assignments."""
     by_output = {step.output: step for step in settled}
     selected: dict[str, PlanStep] = {}
-    pending = list(needed)
+    pending = list(targets)
 
     while pending:
         attribute = pending.pop()
