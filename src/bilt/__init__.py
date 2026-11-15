@@ -6,6 +6,7 @@ import typing
 from bilt._backend._python import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.core._interface import Interface
+from bilt.core._symbolic_derivatives import grad, hessian, jacobian
 from bilt.core._system import Implementation, field, system
 from bilt.core._tensors._tensors import QuantityTensor, Tensor, tensor
 from bilt.core._transform import transform
@@ -33,6 +34,9 @@ __all__ = [
     "domain",
     "equation",
     "field",
+    "grad",
+    "hessian",
+    "jacobian",
     "system",
     "tensor",
     "transform",
