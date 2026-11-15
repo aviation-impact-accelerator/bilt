@@ -80,7 +80,16 @@ def jvp_tree(tree: Tree, tangents: Mapping[str, Tree]) -> Tree:  # noqa: C901
             result = Tree(ISEL, (tangent(value), axis, selector))
         elif node.head is CONDITIONAL:
             predicate, when_true, when_false = node.args
-            result = Tree(CONDITIONAL, (predicate, tangent(when_true), tangent(when_false)))
+            # The scalar JVP is a floating-point quantity, including branches
+            # whose derivatives simplify to a constant integer. JAX requires
+            # identical branch result dtypes in lax.cond.
+            true_tangent = tangent(when_true)
+            false_tangent = tangent(when_false)
+            if true_tangent.is_leaf and true_tangent.head.atom_type is IntType:
+                true_tangent = float_tree(typing.cast("int", true_tangent.head.value))
+            if false_tangent.is_leaf and false_tangent.head.atom_type is IntType:
+                false_tangent = float_tree(typing.cast("int", false_tangent.head.value))
+            result = Tree(CONDITIONAL, (predicate, true_tangent, false_tangent))
         else:
             msg = f"Unsupported differentiable operation: {node.head}."
             raise UnsupportedDerivativeError(msg)
