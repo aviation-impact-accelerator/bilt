@@ -43,6 +43,14 @@ def test_gradient_of_scalar_output(backend: Backend) -> None:
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+def test_scalar_gradient_shape(backend: Backend) -> None:
+    with backend, POLYNOMIAL:
+        model = Polynomial(x=2.0, y=3.0)
+        assert model.grad.energy(wrt=Polynomial.x) == pytest.approx(15.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.energy(wrt=(Polynomial.x,)) == pytest.approx((15.0,))  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 def test_hessian_mixed_partials(backend: Backend) -> None:
     with backend, POLYNOMIAL:
         model = Polynomial(x=2.0, y=3.0)
@@ -55,7 +63,7 @@ def test_hessian_mixed_partials(backend: Backend) -> None:
 def test_jacobian_scalar_and_multiple_named_outputs(backend: Backend) -> None:
     with backend, POLYNOMIAL:
         model = Polynomial(x=2.0, y=3.0)
-        assert model.jacobian.energy(wrt=(Polynomial.x, Polynomial.y))[0] == pytest.approx((15.0, 8.0))  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.jacobian((Polynomial.energy,), wrt=(Polynomial.x, Polynomial.y))[0] == pytest.approx((15.0, 8.0))  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
         matrix = model.jacobian((Polynomial.energy, Polynomial.force), wrt=(Polynomial.x, Polynomial.y))  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
         assert matrix[0] == pytest.approx((15.0, 8.0))
         assert matrix[1] == pytest.approx((2.0, 3.0))
@@ -118,7 +126,7 @@ def test_supplied_output_has_zero_hessian_and_jacobian_identity() -> None:
         )
 
 
-@pytest.mark.parametrize("namespace", ("grad", "jacobian", "hessian"))
+@pytest.mark.parametrize("namespace", ("grad", "hessian"))
 def test_empty_and_repeated_inputs_rejected(namespace: str) -> None:
     with POLYNOMIAL:
         model = Polynomial(x=2.0, y=3.0)
@@ -127,6 +135,15 @@ def test_empty_and_repeated_inputs_rejected(namespace: str) -> None:
             query(wrt=())
         with pytest.raises(ValueError, match="duplicate fields"):
             query(wrt=("x", "x"))
+
+
+def test_removed_d_diff_and_jacobian_field_access() -> None:
+    with POLYNOMIAL:
+        model = Polynomial(x=2.0, y=3.0)
+        assert not hasattr(model, "d")
+        assert not hasattr(model, "diff")
+        with pytest.raises(AttributeError, match="explicit outputs"):
+            model.jacobian.energy  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 def test_jacobian_rejects_duplicate_outputs() -> None:
@@ -151,7 +168,7 @@ def test_field_namespace_does_not_overwrite_declared_fields() -> None:
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_existing_single_derivative_remains_supported(backend: Backend) -> None:
+def test_single_scalar_gradient(backend: Backend) -> None:
     with backend, POLYNOMIAL:
         model = Polynomial(x=2.0, y=3.0)
-        assert model.d.energy(wrt=Polynomial.x) == pytest.approx(15.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+        assert model.grad.energy(wrt=Polynomial.x) == pytest.approx(15.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
