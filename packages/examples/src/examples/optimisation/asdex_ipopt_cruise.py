@@ -101,10 +101,11 @@ def compile_cruise_legs(distances: np.ndarray) -> CompiledCruise:
     with EvaluationContext() as evaluation:
         evaluation.domains.bind_all(model_inputs.values())
         input_domains = {
-            name: value.domain if isinstance(value, Tensor) else Domain.scalar()
-            for name, value in model_inputs.items()
+            name: value.domain if isinstance(value, Tensor) else Domain.scalar() for name, value in model_inputs.items()
         }
-        energy = cruise_model.get_evaluation(EvaluationRequest(output="energy", input_domains=input_domains), JAX_BACKEND)
+        energy = cruise_model.get_evaluation(
+            EvaluationRequest(output="energy", input_domains=input_domains), JAX_BACKEND
+        )
         time = cruise_model.get_evaluation(EvaluationRequest(output="time", input_domains=input_domains), JAX_BACKEND)
 
         aligned = JAX_BACKEND.apply_alignment(
@@ -113,11 +114,7 @@ def compile_cruise_legs(distances: np.ndarray) -> CompiledCruise:
         )
 
     lowered_inputs = mangle_inputs(aligned)
-    fixed_inputs = {
-        name: jnp.asarray(value)
-        for name, value in lowered_inputs.items()
-        if name != "speed"
-    }
+    fixed_inputs = {name: jnp.asarray(value) for name, value in lowered_inputs.items() if name != "speed"}
     return CompiledCruise(energy=energy, time=time, fixed_inputs=fixed_inputs)
 
 
@@ -202,9 +199,7 @@ def optimise_cruise_speeds() -> OptimisationResult:  # noqa: C901
             return hess_rows, hess_cols
 
         def hessian(self, x: np.ndarray, lagrange: np.ndarray, obj_factor: float) -> np.ndarray:
-            return np.asarray(
-                hessian_fn(jnp.asarray(x), jnp.asarray(lagrange), jnp.asarray(obj_factor)).data
-            )[lower]
+            return np.asarray(hessian_fn(jnp.asarray(x), jnp.asarray(lagrange), jnp.asarray(obj_factor)).data)[lower]
 
     problem = cyipopt.Problem(
         n=n,
