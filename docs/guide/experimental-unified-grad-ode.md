@@ -128,11 +128,18 @@ The archived `bilt-ode-prototype.zip` demonstrated:
 - A semantic `ODESolve` region, isolated from SciPy numerical execution.
 - One integrated solve for coupled states, and instance-level result caching.
 
-This spike keeps the **shared solve and caching** but implements only direct
-explicit RHS expressions. It does **not** port the archived SCC planner,
-constraint solver, full-scope validation, integration options, or qualified
-subsystems. It actively rejects additional algebraic state constraints
-rather than ignoring them.
+The stacked structural-planning extension (PR #439) now reuses Bilt's
+**existing causal matching and SCC realisation** for multi-output instantaneous
+RHSs and initialisation. It first traverses the *original differential
+scope* with states still unknown, so every connected algebraic equation
+participates in validation. Formal gradients are then rewritten to named
+rate unknowns; the planner constructs one compatible assignment across
+all rates and shares algebraic intermediates rather than solving each
+rate independently.
+
+This does not yet reproduce the archived semantic `ODESolve` region,
+qualified subsystem expansion, user-facing integration controls, or its
+general execution-planning integration. Those remain separate work.
 
 ## Representation and semantics
 
@@ -151,10 +158,13 @@ rather than ignoring them.
 Implementation-level classification:
     group all formal rates + initial conditions
     ensure one shared coordinate and one condition per state
-    reject conflicting / unsupported additional state constraints
+    validate original full differential scope (states not yet inputs)
+    rewrite formal derivatives to named rate unknowns
+    select one consistent multi-output causal matching
+    lower shared algebraic and supported SCC blocks
     |
     v
-One compiled, explicit, scalar instantaneous RHS
+One compiled, shared scalar instantaneous RHS
     |
     v
 SciPy RK45 for all coupled states together
@@ -171,10 +181,11 @@ There is no spatial differentiation or PDE support in this prototype.
    coordinate are supported. The instantaneous state values and all model
    parameters must be scalar. The output times form a one-dimensional
    increasing tensor.
-2. Rate equations must already be in explicit form
-   `grad(state, wrt=time) == rhs`. Algebraic coupling and extra constraints
-   involving evolving states are rejected; restoring those capabilities
-   requires the archived full-scope acausal planner.
+2. The formal derivative must occupy one whole side of a first-order rate
+   equation. The SCC-based planner supports algebraic intermediates
+   in the instantaneous RHS and checks all connected constraints before
+   states become known inputs. Unsupported implicit differential systems
+   and DAEs are still rejected; this is not a general DAE solver.
 3. Arbitrary derivatives of composite time-dependent expressions such as
    `grad(x*x, wrt=t)` are preserved as formal expressions but are
    **not yet lowered using the chain rule**. Such rates are rejected
@@ -186,20 +197,23 @@ There is no spatial differentiation or PDE support in this prototype.
 5. Python/SciPy only for solving trajectories. JAX has no ODE execution
    integration in this PR. Instance-level parameter derivatives through
    the entire ODE trajectory are also not yet supported.
-6. This is a proof of concept for the public notation, **not** a proposal
-   to merge the narrow ODE solver instead of the archived mature SCC
-   integration. The larger solver should be reused or adapted.
+6. This remains a prototype: although the shared instantaneous
+   structural-planning pieces have been adapted, the larger ODE-specific
+   execution-region design, qualified subsystem support, and backend
+   integration policy are not yet production ready.
 
 ## Tests
 
 `tests/api/test_deferred_grad_ode_prototype.py` covers numerical decay,
 the oscillator with an energy-derived restoring force, Lorenz's three-state
-RHS, one-solve caching, backend restrictions, missing initial conditions,
-invalid sampling and rejection of unsupported extra constraints.
+RHS, shared algebraic intermediates, full-scope overconstraint rejection,
+one-solve caching, backend restrictions, missing initial conditions,
+and invalid sampling.
 
-The next production PR should transplant the formal derivative/point
-constraint nodes into the current structural analysis pipeline, port
-the archived explicit ODE validation and multi-output RHS planner, and
-replace this dedicated narrow execution path with a semantic `ODESolve`
-region. Do not special-case `grad` by variable spelling or silently
-differentiate an unknown trajectory as if it were an independent symbol.
+The next production step is to introduce a semantic `ODESolve` region
+and route evaluation through Bilt's ordinary execution planner, rather
+than through the dedicated prototype dispatcher. A differential-domain
+dependency pass is also needed before relying on `grad` for arbitrary
+time-dependent expressions. Do not special-case `grad` by variable
+spelling or silently differentiate an unknown trajectory as if it were
+an independent symbol.
