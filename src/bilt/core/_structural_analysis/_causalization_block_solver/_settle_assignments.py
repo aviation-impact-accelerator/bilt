@@ -1,4 +1,4 @@
-__all__ = ["settle_assignments"]
+__all__ = ["settle_assignments", "settle_assignments_many"]
 
 import typing
 
@@ -28,6 +28,17 @@ def settle_assignments(
     """
     return _TargetSettlement(assignments, available, backend).settle(target)
 
+
+
+def settle_assignments_many(
+    assignments: collections.abc.Mapping[str, BiltModelConstituent],
+    available: collections.abc.Set[str],
+    backend: Backend,
+    *,
+    targets: tuple[str, ...],
+) -> tuple[tuple[PlanStep, ...], frozenset[str]]:
+    """Settle multiple targets under one candidate matching, not separate routes."""
+    return _TargetSettlement(assignments, available, backend).settle_many(targets)
 
 def _assignment_step(
     operation: BiltModelConstituent,
@@ -63,17 +74,25 @@ class _TargetSettlement:
         self.active: set[str] = set()
 
     def settle(self, output: str) -> tuple[tuple[PlanStep, ...], frozenset[str]]:
-        """Revisit stalled dependencies whenever another value was established."""
-        while output not in self.established:
+        """Settle a single target using the shared multi-target algorithm."""
+        return self.settle_many((output,))
+
+    def settle_many(self, outputs: tuple[str, ...]) -> tuple[tuple[PlanStep, ...], frozenset[str]]:
+        """Revisit stalled dependencies until all requested outputs are settled."""
+        pending_targets = set(outputs)
+        while not pending_targets <= self.established:
             before = len(self.established)
-            pending = [self._resolve(output)]
-            while pending:
-                try:
-                    dependency = next(pending[-1])
-                except StopIteration:
-                    pending.pop()
-                else:
-                    pending.append(self._resolve(dependency))
+            for output in outputs:
+                if output in self.established:
+                    continue
+                pending = [self._resolve(output)]
+                while pending:
+                    try:
+                        dependency = next(pending[-1])
+                    except StopIteration:
+                        pending.pop()
+                    else:
+                        pending.append(self._resolve(dependency))
             if len(self.established) == before:
                 break
         return (
