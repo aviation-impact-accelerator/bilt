@@ -149,9 +149,7 @@ def _compile_many(
     # A differential scope must validate every connected equation, not only
     # the particular route selected to compute the requested rate outputs.
     incidence = FullIncidenceGraph(components if validate_full_scope else scope.constraints)
-    known = frozenset(
-        incidence.attribute_nodes[name] for name in available if name in incidence.attribute_nodes
-    )
+    known = frozenset(incidence.attribute_nodes[name] for name in available if name in incidence.attribute_nodes)
     validate_structure(incidence.graph, frozenset(incidence.attribute_nodes.values()), known)
     request = EvaluationRequest(outputs[0], {name: Domain.scalar() for name in available})
     analyser = CausalizationStructuralAnalyzer(scope.constraints, PYTHON_BACKEND)
