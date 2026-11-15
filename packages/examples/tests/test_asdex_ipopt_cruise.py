@@ -5,17 +5,11 @@ import importlib.util
 import numpy as np
 import pytest
 
-from examples.optimisation.asdex_ipopt_cruise import (
-    DISTANCES,
-    REQUIRED_SPEEDS,
-    evaluate_legs,
-    optimise_cruise_speeds,
-)
-
-
 def test_cruise_model_evaluates_in_jax() -> None:
     jax = pytest.importorskip("jax")
     import jax.numpy as jnp
+
+    from examples.optimisation.asdex_ipopt_cruise import evaluate_legs
 
     speeds = jnp.asarray([1.0, 2.0])
     distances = jnp.asarray([1.0, 3.0])
@@ -36,6 +30,13 @@ def test_cruise_model_evaluates_in_jax() -> None:
     reason="Optional asdex/cyipopt optimisation dependencies are not installed",
 )
 def test_ipopt_matches_analytic_solution() -> None:
+    pytest.importorskip("jax")
+    from examples.optimisation.asdex_ipopt_cruise import (
+        DISTANCES,
+        REQUIRED_SPEEDS,
+        optimise_cruise_speeds,
+    )
+
     result = optimise_cruise_speeds()
     expected = np.maximum(1.0, np.asarray(REQUIRED_SPEEDS))
 
