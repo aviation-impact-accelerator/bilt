@@ -29,7 +29,6 @@ def settle_assignments(
     return _TargetSettlement(assignments, available, backend).settle(target)
 
 
-
 def settle_assignments_many(
     assignments: collections.abc.Mapping[str, BiltModelConstituent],
     available: collections.abc.Set[str],
@@ -39,6 +38,7 @@ def settle_assignments_many(
 ) -> tuple[tuple[PlanStep, ...], frozenset[str]]:
     """Settle multiple targets under one candidate matching, not separate routes."""
     return _TargetSettlement(assignments, available, backend).settle_many(targets)
+
 
 def _assignment_step(
     operation: BiltModelConstituent,
