@@ -221,7 +221,9 @@ def optimise_cruise_speeds(*, solver: Literal["ipopt", "pounce-asdex", "pounce-j
                 return hess_rows, hess_cols
 
             def hessian(self, x: np.ndarray, lagrange: np.ndarray, obj_factor: float) -> np.ndarray:
-                return np.asarray(hessian_fn(jnp.asarray(x), jnp.asarray(lagrange), jnp.asarray(obj_factor)).data)[lower]
+                return np.asarray(hessian_fn(jnp.asarray(x), jnp.asarray(lagrange), jnp.asarray(obj_factor)).data)[
+                    lower
+                ]
 
         library = importlib.import_module("cyipopt" if solver == "ipopt" else "pounce")
         problem = library.Problem(problem_obj=Callbacks(), **bounds)
@@ -248,6 +250,7 @@ def optimise_cruise_speeds(*, solver: Literal["ipopt", "pounce-asdex", "pounce-j
         hessian_lower_nonzeros=hessian_lower_nonzeros,
         max_time_violation=float(np.maximum(np.asarray(solved_times - time_limits), 0).max()),
     )
+
 
 if __name__ == "__main__":
     result = optimise_cruise_speeds()
