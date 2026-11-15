@@ -1,3 +1,4 @@
+# ruff: noqa: TRY003
 """Forward-mode differentiation of Bilt's symbolic expression trees."""
 
 import typing
@@ -27,11 +28,11 @@ class UnsupportedDerivativeError(ValueError):
     """An expression cannot be differentiated using the supported IR operations."""
 
 
-def jvp_tree(tree: Tree, tangents: Mapping[str, Tree]) -> Tree:
+def jvp_tree(tree: Tree, tangents: Mapping[str, Tree]) -> Tree:  # noqa: C901
     """Build a symbolic directional derivative without needing a numerical backend."""
     cache: dict[Tree, Tree] = {}
 
-    def tangent(node: Tree) -> Tree:
+    def tangent(node: Tree) -> Tree:  # noqa: C901, PLR0912
         if node in cache:
             return cache[node]
         if node.is_leaf:
@@ -74,7 +75,8 @@ def jvp_tree(tree: Tree, tangents: Mapping[str, Tree]) -> Tree:
                     reduced_power = int_tree(power - 1) if isinstance(power, int) else float_tree(power - 1)
                     result = multiply(multiply(exponent, Tree(POW, (base, reduced_power))), derivative)
             else:
-                raise UnsupportedDerivativeError("Differentiation of a variable exponent is unsupported.")
+                msg = "Differentiation of a variable exponent is unsupported."
+                raise UnsupportedDerivativeError(msg)
         elif node.head in (SUM, MEAN):
             value, axis = node.args
             result = Tree(node.head, (tangent(value), axis))
@@ -85,7 +87,8 @@ def jvp_tree(tree: Tree, tangents: Mapping[str, Tree]) -> Tree:
             predicate, when_true, when_false = node.args
             result = Tree(CONDITIONAL, (predicate, tangent(when_true), tangent(when_false)))
         else:
-            raise UnsupportedDerivativeError(f"Unsupported differentiable operation: {node.head}.")
+            msg = f"Unsupported differentiable operation: {node.head}."
+            raise UnsupportedDerivativeError(msg)
         cache[node] = result
         return result
 
