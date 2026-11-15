@@ -17,6 +17,7 @@ from bilt.core._structural_analysis._causalization_block_solver._structural_scop
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_structure
 from bilt.core._structural_analysis._realize import BlockRealizationFailure, RealizationFailure, realize_plan
 from bilt.symbolic._atoms import SymbolType
+from bilt.symbolic._differential import AT, DEFERRED_GRAD
 from bilt.symbolic._domains import Domain
 from bilt.symbolic._expressions import symbol_expr
 from bilt.symbolic._tree import equality_tree, symbol_tree
@@ -58,11 +59,7 @@ def compile_ode_plans(
         item
         for item in components
         if not isinstance(item, BasicEquation)
-        or not any(
-            node.head.value in ("deferred_grad", "at")
-            for node in subtrees(item.__bilt_equation_tree__)
-            if not node.is_leaf
-        )
+        or not any(node.head in (DEFERRED_GRAD, AT) for node in subtrees(item.__bilt_equation_tree__))
     )
     rates = tuple(
         _rewrite(
