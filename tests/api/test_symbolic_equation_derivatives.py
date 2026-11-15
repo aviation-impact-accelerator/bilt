@@ -17,7 +17,8 @@ from bilt import (
     jacobian,
     system,
 )
-from bilt.symbolic._expressions import symbol_expr
+from bilt.symbolic._expressions import Expr, symbol_expr
+from bilt.core._to_ast import tree_to_functiondef
 
 if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -47,23 +48,25 @@ def tuple_gradient(x: float, y: float, other_slope: float) -> bool:
 
 
 @equation
-def mixed_hessian(x: float, y: float, mixed: float) -> bool:
-    return mixed == hessian(x**3 + x * y + y**2, wrt=(x, y))[0][1]
+def mixed_second_derivative(x: float, y: float, mixed: float) -> bool:
+    expression = x**3 + x * y + y**2
+    return mixed == grad(grad(expression, wrt=x), wrt=y)
 
 
 @equation
-def diagonal_hessian(x: float, y: float, diagonal: float) -> bool:
-    return diagonal == hessian(x**3 + x * y + y**2, wrt=(x, y))[0][0]
+def diagonal_second_derivative(x: float, y: float, diagonal: float) -> bool:
+    expression = x**3 + x * y + y**2
+    return diagonal == grad(grad(expression, wrt=x), wrt=x)
 
 
 @equation
-def jacobian_entry(x: float, y: float, entry: float) -> bool:
-    return entry == jacobian((x**2 + y, x * y), wrt=(x, y))[1][0]
+def cross_sensitivity(x: float, y: float, entry: float) -> bool:
+    return entry == grad(x * y, wrt=x)
 
 
 POLYNOMIAL = Implementation(
     Polynomial,
-    [scalar_gradient, tuple_gradient, mixed_hessian, diagonal_hessian, jacobian_entry],
+    [scalar_gradient, tuple_gradient, mixed_second_derivative, diagonal_second_derivative, cross_sensitivity],
 )
 
 
@@ -76,6 +79,51 @@ def test_symbolic_derivatives_inside_equations(backend: Backend) -> None:
         assert model.mixed == pytest.approx(1.0)
         assert model.diagonal == pytest.approx(12.0)
         assert model.entry == pytest.approx(3.0)
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+def test_full_symbolic_matrices(backend: Backend) -> None:
+    """Matrix helpers are for whole derivative matrices, not single entries."""
+    x = symbol_expr("x")
+    y = symbol_expr("y")
+    outputs = (x**2 + y, x * y)
+    matrix = jacobian(outputs, wrt=(x, y))
+    curvature = hessian(x**3 + x * y + y**2, wrt=(x, y))
+
+    assert len(matrix) == len(curvature) == 2
+    assert all(len(row) == 2 for row in (*matrix, *curvature))
+    for name, values, expected in (
+        ("jacobian", matrix, ((4.0, 1.0), (3.0, 2.0))),
+        ("hessian", curvature, ((12.0, 1.0), (1.0, 2.0))),
+    ):
+        for i, row in enumerate(values):
+            for j, entry in enumerate(row):
+                assert isinstance(entry, Expr)
+                compiled = backend.transpile(
+                    tree_to_functiondef(entry.tree, name=f"{name}_{i}_{j}", parameter_order=("x", "y"))
+                )
+                assert compiled.evaluate({"x": 2.0, "y": 3.0}) == pytest.approx(expected[i][j])
+
+
+@system
+class ThirdOrder(metaclass=Interface):
+    x: float = field()
+    result: float = field()
+
+
+@equation
+def third_derivative(x: float, result: float) -> bool:
+    expression = x**3
+    return result == grad(grad(grad(expression, wrt=x), wrt=x), wrt=x)
+
+
+THIRD_ORDER = Implementation(ThirdOrder, [third_derivative])
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+def test_nested_grad_supports_higher_order_partials(backend: Backend) -> None:
+    with backend, THIRD_ORDER:
+        assert ThirdOrder(x=5.0).result == pytest.approx(6.0)
 
 
 @system
