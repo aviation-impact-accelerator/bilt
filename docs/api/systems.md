@@ -118,6 +118,43 @@ branch's derivative, not necessarily a mathematical derivative of the
 piecewise function.** Conditional equations still cannot be inverted
 through a predicate depending on the target variable.
 
+### Gradients, Jacobians and Hessians (experimental)
+
+All queries below differentiate **scalar model outputs with respect to supplied
+scalar system inputs**, not spatial fields. They operate on the same selected
+`Implementation` and Python or JAX backend as `model.d`:
+
+```python exec="off"
+with implementation:
+    model = System(x=2.0, y=3.0)
+
+    model.d.force(wrt=System.x)  # scalar derivative
+    model.grad.force(wrt=(System.x, System.y))  # ordered tuple of partials
+    model.hessian.force(wrt=(System.x, System.y))  # square tuple-of-tuples
+
+    # A scalar output produces a one-row Jacobian:
+    model.jacobian.force(wrt=(System.x, System.y))
+
+    # Named scalar outputs produce a full Jacobian matrix:
+    model.jacobian((System.force, System.energy), wrt=(System.x, System.y))
+```
+
+A gradient is a tuple ordered by `wrt`; a Hessian is a square
+tuple-of-tuples in the same order (including mixed derivatives).
+For a Jacobian, **rows follow output order and columns follow input order**.
+Field names can be provided as strings, e.g. `wrt=("x", "y")`.
+Empty lists/tuples, duplicate fields or unsupplied differentiation inputs are
+rejected. Existing system ports named `grad`, `hessian` or `jacobian`
+are not overwritten.
+
+The Hessian is computed by applying the symbolic forward-mode JVP twice to
+the equation execution plan. As for `d`, exact derivatives are limited to
+supported scalar acyclic equation routes. Coupled block and arbitrary
+transform derivatives, unit-bearing inputs and tensor-valued outputs are not
+supported here. Results are plain numerical values without derivative unit
+wrappers. At conditional switching boundaries, derivatives are the selected
+branch derivatives and need not exist mathematically.
+
 ## Evaluation and structural analysis
 
 `Implementation.evaluate` and instance evaluation use the causalization (SCC)
