@@ -7,19 +7,22 @@ the differentiated function.
 """
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 
-from bilt import Implementation, Interface, JAX_BACKEND, Tensor, dim, equation, field, system, tensor
-from bilt._backend._callable import BackendCallable
+from bilt import JAX_BACKEND, Implementation, Interface, Tensor, dim, equation, field, system, tensor
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
 from bilt.core._system._lowering_and_lifting import lower_inputs
 from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 from bilt.symbolic._domains import Domain
+
+if TYPE_CHECKING:
+    from bilt._backend._callable import BackendCallable
 
 # Dimensionless toy example: each leg's unconstrained optimum is speed = 1.
 DISTANCES = (1.0, 1.2, 0.8, 1.6, 1.1, 1.4, 0.9, 1.3)
@@ -46,16 +49,19 @@ def drag_balance(
     parasite_coefficient: float,
     induced_coefficient: float,
 ) -> bool:
+    """Relate drag and speed through the parasite and induced terms."""
     return drag == parasite_coefficient * speed**2 + induced_coefficient / speed**2
 
 
 @equation
 def energy_balance(energy: float, drag: float, distance: float) -> bool:
+    """Relate leg energy to aerodynamic drag and distance."""
     return energy == drag * distance
 
 
 @equation
 def travel_time_balance(time: float, distance: float, speed: float) -> bool:
+    """Relate journey time to distance and cruise speed."""
     return distance == speed * time
 
 
@@ -125,7 +131,7 @@ class OptimisationResult:
     hessian_lower_nonzeros: int
 
 
-def optimise_cruise_speeds() -> OptimisationResult:
+def optimise_cruise_speeds() -> OptimisationResult:  # noqa: C901
     """Minimise energy with per-leg time constraints, using the lowered model.
 
     For drag = speed**2 + speed**-2, the exact optimum is
@@ -135,7 +141,7 @@ def optimise_cruise_speeds() -> OptimisationResult:
     import cyipopt  # noqa: PLC0415
 
     # Set x64 before generating arrays or compiling to match IPOPT precision.
-    jax.config.update("jax_enable_x64", True)
+    jax.config.update("jax_enable_x64", True)  # noqa: FBT003
 
     distances = jnp.asarray(DISTANCES)
     required = jnp.asarray(REQUIRED_SPEEDS)
