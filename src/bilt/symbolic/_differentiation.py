@@ -36,9 +36,9 @@ def jvp_tree(tree: Tree, tangents: Mapping[str, Tree]) -> Tree:  # noqa: C901
             return cache[node]
         if node.is_leaf:
             result = (
-                tangents.get(typing.cast("str", node.head.value), zero())
+                tangents.get(typing.cast("str", node.head.value), float_tree(0.0))
                 if node.head.atom_type is SymbolType
-                else zero()
+                else float_tree(0.0)
             )
         elif node.head is ADD:
             result = zero()
