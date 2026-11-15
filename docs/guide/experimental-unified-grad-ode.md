@@ -9,7 +9,7 @@ SCC-based causalisation and shared RHS planning.
 
 Within ordinary Bilt equations:
 
-```python
+```python exec="off"
 grad(expression, wrt=x)
 ```
 
@@ -19,7 +19,7 @@ is still evaluated by the symbolic forward-mode JVP rules. For instance,
 A different pattern, where a **named tensor state** is differentiated with
 respect to a **distinct tensor coordinate**, stays unresolved:
 
-```python
+```python exec="off"
 grad(position, wrt=time)
 ```
 
