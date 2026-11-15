@@ -1,11 +1,16 @@
 """Derivative queries through parameter-dependent coupled linear systems."""
 
+import typing
+
 import jax
 import pytest
 
-from bilt import Domain, Implementation, Interface, JAX_BACKEND, PYTHON_BACKEND, equation, field, system
+from bilt import JAX_BACKEND, PYTHON_BACKEND, Domain, Implementation, Interface, equation, field, system
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
+
+if typing.TYPE_CHECKING:
+    from bilt._backend._base_backend import Backend
 
 
 @system
@@ -36,9 +41,9 @@ def product(z: float, x: float, y: float) -> bool:
 COUPLED = Implementation(Coupled, [balance, difference, product])
 
 
-@pytest.mark.parametrize("backend", [PYTHON_BACKEND, JAX_BACKEND], ids=["python", "jax"])
-def test_coupled_implicit_derivatives(backend: object) -> None:
-    with backend, COUPLED:  # type: ignore[attr-defined]
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=["python", "jax"])
+def test_coupled_implicit_derivatives(backend: Backend) -> None:
+    with backend, COUPLED:
         sample = Coupled(p=10.0, q=2.0, stiffness=3.0)
         assert sample.x == pytest.approx(3.0)
         assert sample.y == pytest.approx(1.0)
@@ -54,9 +59,9 @@ def test_coupled_implicit_derivatives(backend: object) -> None:
         assert sample.d.y(wrt=Coupled.stiffness) == pytest.approx(-0.75)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
-@pytest.mark.parametrize("backend", [PYTHON_BACKEND, JAX_BACKEND], ids=["python", "jax"])
-def test_chain_rule_after_coupled_solve(backend: object) -> None:
-    with backend, COUPLED:  # type: ignore[attr-defined]
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=["python", "jax"])
+def test_chain_rule_after_coupled_solve(backend: Backend) -> None:
+    with backend, COUPLED:
         sample = Coupled(p=10.0, q=2.0, stiffness=3.0)
         assert sample.z == pytest.approx(3.0)
         assert sample.d.z(wrt=Coupled.p) == pytest.approx(1.0)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
@@ -81,9 +86,9 @@ def stiffness_from_t(t: float, stiffness: float) -> bool:
 DRIVEN = Implementation(Driven, [stiffness_from_t, balance, difference])
 
 
-@pytest.mark.parametrize("backend", [PYTHON_BACKEND, JAX_BACKEND], ids=["python", "jax"])
-def test_coefficient_derivative_uses_previous_equation_tangent(backend: object) -> None:
-    with backend, DRIVEN:  # type: ignore[attr-defined]
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=["python", "jax"])
+def test_coefficient_derivative_uses_previous_equation_tangent(backend: Backend) -> None:
+    with backend, DRIVEN:
         sample = Driven(p=10.0, q=2.0, t=1.5)
         assert sample.x == pytest.approx(3.0)
         assert sample.d.x(wrt=Driven.t) == pytest.approx(-1.5)  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
