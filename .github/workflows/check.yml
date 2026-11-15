@@ -115,8 +115,8 @@ jobs:
       - name: Install Bilt and JAX
         run: uv sync --extra jax --group dev
 
-      - name: Install asdex and cyipopt
-        run: uv pip install --python .venv/bin/python "asdex==0.5.2" "cyipopt==1.7.0"
+      - name: Install compatible JAX, asdex and cyipopt
+        run: uv pip install --python .venv/bin/python "jax==0.10.2" "jaxlib==0.10.2" "asdex==0.5.2" "cyipopt==1.7.0"
 
       - name: Verify optional solver imports
         run: uv run --no-sync python -c "import asdex, cyipopt; print('asdex and cyipopt installed')"
