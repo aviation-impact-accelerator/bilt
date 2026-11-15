@@ -137,7 +137,7 @@ def test_pounce_and_ipopt_agree_on_lowered_bilt_model() -> None:
         np.testing.assert_allclose(result.speeds, expected, atol=1e-5, rtol=0, err_msg=name)
         assert result.max_time_violation < max_violation_tolerance, name
         assert np.isfinite(result.total_energy), name
-        logging.getLogger(__name__).info(  # noqa: LOG015
+        logging.getLogger(__name__).info(
             "%s: speeds=%s energy=%.10f max_time_violation=%.3g",
             name, np.array2string(result.speeds, precision=7), result.total_energy, result.max_time_violation,
         )
