@@ -66,34 +66,28 @@ def _fields(instance: SystemInstance, selectors: FieldSelectors, *, label: str) 
 
 @dataclasses.dataclass(frozen=True)
 class DerivativeQuery:
-    """A field selected for a scalar sensitivity, gradient, Hessian or Jacobian."""
+    """A scalar output selected for a gradient or Hessian query."""
 
     instance: SystemInstance
     output: str
-    kind: str = "d"
+    kind: str
 
     def __call__(self, *, wrt: FieldSelector | FieldSelectors) -> object:
         implementation = typing.cast("Implementation", _selected_implementation(self.instance, self.output))
         backend = _backend_stack[-1] if _backend_stack else PYTHON_BACKEND
         inputs = _inputs(self.instance)
 
-        if self.kind == "d":
-            name = _field_name(self.instance, typing.cast("FieldSelector", wrt))
-            return implementation.evaluate_derivative(inputs=inputs, output=self.output, wrt=name, backend=backend)
-
-        names = _fields(self.instance, typing.cast("FieldSelectors", wrt), label="wrt")
         if self.kind == "grad":
+            if not isinstance(wrt, tuple):
+                name = _field_name(self.instance, typing.cast("FieldSelector", wrt))
+                return implementation.evaluate_derivative(inputs=inputs, output=self.output, wrt=name, backend=backend)
+            names = _fields(self.instance, wrt, label="wrt")
             return tuple(
                 implementation.evaluate_derivative(inputs=inputs, output=self.output, wrt=name, backend=backend)
                 for name in names
             )
-        if self.kind == "jacobian":
-            row = tuple(
-                implementation.evaluate_derivative(inputs=inputs, output=self.output, wrt=name, backend=backend)
-                for name in names
-            )
-            return (row,)
         if self.kind == "hessian":
+            names = _fields(self.instance, typing.cast("FieldSelectors", wrt), label="wrt")
             return tuple(
                 tuple(
                     implementation.evaluate_second_derivative(
@@ -103,18 +97,20 @@ class DerivativeQuery:
                 )
                 for name in names
             )
-        msg = f"Unknown differentiation namespace {self.kind!r}."
+        msg = f"Unknown scalar differentiation namespace {self.kind!r}."
         raise ValueError(msg)
-
 
 class DerivativeNamespace:
     """Select a scalar output with instance.grad.field(wrt=(System.x, System.y))."""
 
-    def __init__(self, instance: SystemInstance, kind: str = "d") -> None:
+    def __init__(self, instance: SystemInstance, kind: str) -> None:
         self._instance = instance
         self._kind = kind
 
     def __getattr__(self, name: str) -> DerivativeQuery:
+        if self._kind == "jacobian":
+            msg = "Use jacobian((System.output,), wrt=(System.input,)) to select explicit outputs."
+            raise AttributeError(msg)
         cls = typing.cast("Interface", type(self._instance))
         if name not in cls.__bilt_system_attributes__:
             msg = f"{cls.__name__} has no field {name!r}."
