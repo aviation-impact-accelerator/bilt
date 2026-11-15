@@ -36,7 +36,7 @@ def _float_derivative_constant(tree: Tree) -> Tree:
     """
     if tree.is_leaf:
         if tree.head.atom_type is IntType:
-            return float_tree(typing.cast("int", tree.head.value))
+            return float_tree(float(typing.cast("int", tree.head.value)))
         return tree
     children = tuple(_float_derivative_constant(child) for child in tree.args)
     return Tree(tree.head, children) if children != tree.args else tree
