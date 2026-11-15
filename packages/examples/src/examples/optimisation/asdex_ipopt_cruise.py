@@ -1,12 +1,9 @@
-"""Prototype: optimise independent cruise legs with Bilt, asdex and IPOPT.
+"""Prototype: optimise a lowered, named-domain Bilt calculation with asdex and IPOPT.
 
-The Bilt equations are evaluated by JAX and differentiated by asdex. IPOPT
-receives sparse constraint Jacobians and Lagrangian Hessians through cyipopt.
-
-All inputs are nondimensional for this first integration experiment. In
-particular, JAX tracers are passed into scalar Bilt ports through jax.vmap,
-rather than being converted to Bilt Tensor objects (which currently coerce
-their values with NumPy).
+Bilt performs its structural analysis, unit erasure, domain alignment and JAX
+lowering once. Sparse differentiation and optimisation then see only compiled
+JAX functions accepting numerical arrays, with no Bilt system evaluation in
+the differentiated function.
 """
 
 from dataclasses import dataclass
@@ -15,16 +12,23 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from bilt import Implementation, Interface, JAX_BACKEND, equation, field, system
+from bilt import Implementation, Interface, JAX_BACKEND, Tensor, dim, equation, field, system, tensor
+from bilt._backend._callable import BackendCallable
+from bilt.core._evaluation_context import EvaluationContext
+from bilt.core._evaluation_request import EvaluationRequest
+from bilt.core._port import mangle_inputs
+from bilt.core._system._lowering_and_lifting import lower_inputs
+from bilt.core._tensors._tensor_alignment import generate_alignment_plan
+from bilt.symbolic._domains import Domain
 
-# Independent route segments with differing arrival-time requirements.
+# Dimensionless toy example: each leg's unconstrained optimum is speed = 1.
 DISTANCES = (1.0, 1.2, 0.8, 1.6, 1.1, 1.4, 0.9, 1.3)
 REQUIRED_SPEEDS = (0.8, 1.15, 0.95, 1.3, 1.1, 0.9, 1.45, 1.0)
 
 
 @system
 class CruiseLeg(metaclass=Interface):
-    """A deliberately simple, nondimensional aerodynamic mission leg."""
+    """Nondimensional aerodynamic mission leg, evaluated over a named domain."""
 
     speed: float = field()
     distance: float = field()
@@ -58,21 +62,57 @@ def travel_time_balance(time: float, distance: float, speed: float) -> bool:
 cruise_model = Implementation(CruiseLeg, [drag_balance, energy_balance, travel_time_balance])
 
 
-def evaluate_leg(speed: jax.Array, distance: jax.Array) -> tuple[jax.Array, jax.Array]:
-    """Evaluate the actual Bilt implementation, not a duplicated JAX formula."""
-    with JAX_BACKEND, cruise_model:
-        leg = CruiseLeg(
-            speed=speed,
-            distance=distance,
-            parasite_coefficient=1.0,
-            induced_coefficient=1.0,
+@dataclass(frozen=True)
+class CompiledCruise:
+    """Only backend numerical callables and already lowered fixed inputs."""
+
+    energy: BackendCallable
+    time: BackendCallable
+    fixed_inputs: dict[str, jax.Array]
+
+    def __call__(self, speeds: jax.Array) -> tuple[jax.Array, jax.Array]:
+        """Run the JAX numerical graph; no Bilt structural analysis occurs here."""
+        inputs = {**self.fixed_inputs, "speed": speeds}
+        return self.energy.evaluate(inputs), self.time.evaluate(inputs)
+
+
+def compile_cruise_legs(distances: np.ndarray) -> CompiledCruise:
+    """Perform Bilt analysis, tensor alignment and lowering once, outside JAX AD.
+
+    The Bilt input tensors are concrete and carry the named 'leg' domain.
+    Only their lowered numerical arrays are passed to compiled callables.
+    This private API is used only to explore a future public compile interface.
+    """
+    distances = np.asarray(distances, dtype=float)
+    leg = dim("leg")
+    model_inputs: dict[str, object] = {
+        "speed": tensor(np.ones_like(distances), over=leg),
+        "distance": tensor(distances, over=leg),
+        "parasite_coefficient": 1.0,
+        "induced_coefficient": 1.0,
+    }
+
+    with EvaluationContext() as evaluation:
+        evaluation.domains.bind_all(model_inputs.values())
+        input_domains = {
+            name: value.domain if isinstance(value, Tensor) else Domain.scalar()
+            for name, value in model_inputs.items()
+        }
+        energy = cruise_model.get_evaluation(EvaluationRequest(output="energy", input_domains=input_domains), JAX_BACKEND)
+        time = cruise_model.get_evaluation(EvaluationRequest(output="time", input_domains=input_domains), JAX_BACKEND)
+
+        aligned = JAX_BACKEND.apply_alignment(
+            lower_inputs(model_inputs),
+            generate_alignment_plan(model_inputs),
         )
-        return leg.energy, leg.time
 
-
-def evaluate_legs(speeds: jax.Array, distances: jax.Array) -> tuple[jax.Array, jax.Array]:
-    """Map the scalar Bilt model over independent route legs."""
-    return jax.vmap(evaluate_leg)(speeds, distances)
+    lowered_inputs = mangle_inputs(aligned)
+    fixed_inputs = {
+        name: jnp.asarray(value)
+        for name, value in lowered_inputs.items()
+        if name != "speed"
+    }
+    return CompiledCruise(energy=energy, time=time, fixed_inputs=fixed_inputs)
 
 
 @dataclass(frozen=True)
@@ -81,36 +121,37 @@ class OptimisationResult:
 
     speeds: np.ndarray
     total_energy: float
-    iterations: int
     jacobian_nonzeros: int
     hessian_lower_nonzeros: int
 
 
 def optimise_cruise_speeds() -> OptimisationResult:
-    """Minimise total energy with per-leg arrival-time constraints.
+    """Minimise energy with per-leg time constraints, using the lowered model.
 
-    The unconstrained optimum is speed=1 for every leg, because drag is
-    speed**2 + speed**(-2). The time limits impose speed>=REQUIRED_SPEEDS,
-    giving an independently checkable optimum max(1, required_speed).
+    For drag = speed**2 + speed**-2, the exact optimum is
+    max(1, required_speed) for each independent leg.
     """
-    import asdex
-    import cyipopt
+    import asdex  # noqa: PLC0415
+    import cyipopt  # noqa: PLC0415
 
-    # IPOPT needs double precision, and configuration must precede array creation.
+    # Set x64 before generating arrays or compiling to match IPOPT precision.
     jax.config.update("jax_enable_x64", True)
 
-    distances = jnp.asarray(DISTANCES, dtype=jnp.float64)
-    required = jnp.asarray(REQUIRED_SPEEDS, dtype=jnp.float64)
+    distances = jnp.asarray(DISTANCES)
+    required = jnp.asarray(REQUIRED_SPEEDS)
     time_limits = distances / required
     n = len(DISTANCES)
 
+    # All Bilt setup runs here, before any JAX tracing by grad or asdex.
+    compiled = compile_cruise_legs(np.asarray(DISTANCES))
+
     def objective(speeds: jax.Array) -> jax.Array:
-        energies, _ = evaluate_legs(speeds, distances)
+        energies, _ = compiled(speeds)
         return jnp.sum(energies)
 
     def constraints(speeds: jax.Array) -> jax.Array:
-        _, times = evaluate_legs(speeds, distances)
-        return times - time_limits  # <= 0
+        _, times = compiled(speeds)
+        return times - time_limits
 
     def lagrangian(speeds: jax.Array, multipliers: jax.Array, factor: jax.Array) -> jax.Array:
         return factor * objective(speeds) + jnp.dot(multipliers, constraints(speeds))
@@ -120,8 +161,7 @@ def optimise_cruise_speeds() -> OptimisationResult:
     gradient_fn = jax.jit(jax.grad(objective))
     constraints_fn = jax.jit(constraints)
 
-    # Sparsity detection/colouring happens once. Both derivative functions
-    # return BCOO matrices with fixed coordinates and varying nonzero data.
+    # asdex analyses JAX primitives from the *lowered* calculation, not Bilt.
     jacobian_fn = jax.jit(asdex.jacobian(constraints, x0))
     hessian_fn = jax.jit(asdex.hessian(lagrangian, x0, jnp.zeros(n), jnp.asarray(1.0)))
 
@@ -135,6 +175,8 @@ def optimise_cruise_speeds() -> OptimisationResult:
     hess_cols = hess_cols_full[lower]
 
     class Callbacks:
+        """IPOPT host callbacks wrapping the already compiled JAX functions."""
+
         def objective(self, x: np.ndarray) -> float:
             return float(objective_fn(jnp.asarray(x)))
 
@@ -179,7 +221,6 @@ def optimise_cruise_speeds() -> OptimisationResult:
     return OptimisationResult(
         speeds=np.asarray(speeds),
         total_energy=float(objective_fn(jnp.asarray(speeds))),
-        iterations=int(info.get("iter_count", -1)),
         jacobian_nonzeros=len(jac_rows),
         hessian_lower_nonzeros=len(hess_rows),
     )
@@ -188,9 +229,4 @@ def optimise_cruise_speeds() -> OptimisationResult:
 if __name__ == "__main__":
     result = optimise_cruise_speeds()
     expected = np.maximum(1.0, np.asarray(REQUIRED_SPEEDS))
-    print(f"IPOPT speeds:    {np.round(result.speeds, 6)}")
-    print(f"Expected speeds: {expected}")
-    print(f"Total energy:    {result.total_energy:.6f}")
-    print(f"Jacobian nnz:    {result.jacobian_nonzeros}")
-    print(f"Hessian nnz:     {result.hessian_lower_nonzeros}")
     np.testing.assert_allclose(result.speeds, expected, atol=1e-5, rtol=0)
