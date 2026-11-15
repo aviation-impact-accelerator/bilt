@@ -29,6 +29,14 @@ def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -
     inputs = {name: value for name, value in instance.__bilt_system_instance_inputs__.items() if value is not MISSING}
     output = attribute.name
     backend = _backend_stack[-1] if _backend_stack else PYTHON_BACKEND
-    result = typing.cast("T", implementation.evaluate(inputs=inputs, output=output, backend=backend))
+    result = typing.cast(
+        "T",
+        implementation.evaluate(
+            inputs=inputs,
+            output=output,
+            backend=backend,
+            _computed=instance.__bilt_system_instance_variables__,
+        ),
+    )
     instance.__bilt_system_instance_variables__[attribute.name] = result
     return result

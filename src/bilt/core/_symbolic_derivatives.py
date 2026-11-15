@@ -7,9 +7,11 @@ dependency between fields defined by separate model equations.
 import typing
 
 from bilt.symbolic._atoms import SymbolType
+from bilt.symbolic._differential import DEFERRED_GRAD
 from bilt.symbolic._differentiation import jvp_tree
-from bilt.symbolic._expressions import Expr, as_tree
+from bilt.symbolic._expressions import Expr, TensorExpr, as_tree
 from bilt.symbolic._tree import Tree, float_tree
+from bilt.symbolic._walk import contains
 
 __all__ = ["grad", "hessian", "jacobian"]
 
@@ -39,6 +41,25 @@ def _partial(expression: Tree, parameter: str) -> Tree:
     return jvp_tree(expression, {parameter: float_tree(1.0)})
 
 
+def _gradient(expression: object, selector: object) -> Expr:
+    """Retain a tensor expression's rate with respect to a distinct coordinate.
+
+    Scalar expression derivatives and explicit tensor derivatives still use
+    ordinary symbolic JVPs. Formal rates are classified at implementation
+    level, where all model equations and initial conditions are available.
+    """
+    parameter = _symbol_name(selector)
+    tree = as_tree(expression)
+    if (
+        isinstance(expression, TensorExpr)
+        and isinstance(selector, TensorExpr)
+        and selector.is_symbol
+        and not contains(tree, selector.tree)
+    ):
+        return TensorExpr(Tree(DEFERRED_GRAD, (tree, selector.tree)))
+    return Expr(_partial(tree, parameter))
+
+
 @typing.overload
 def grad(expression: object, *, wrt: tuple[object, ...]) -> tuple[Expr, ...]: ...
 
@@ -52,10 +73,10 @@ def grad(expression: object, *, wrt: object | tuple[object, ...]) -> Expr | tupl
 
     A scalar selector returns an Expr; an ordered tuple returns a tuple of Exprs.
     """
-    tree = as_tree(expression)
     if isinstance(wrt, tuple):
-        return tuple(Expr(_partial(tree, name)) for name in _selectors(wrt))
-    return Expr(_partial(tree, _symbol_name(wrt)))
+        _selectors(wrt)
+        return tuple(_gradient(expression, selector) for selector in wrt)
+    return _gradient(expression, wrt)
 
 
 def jacobian(expressions: tuple[object, ...], *, wrt: tuple[object, ...]) -> tuple[tuple[Expr, ...], ...]:
