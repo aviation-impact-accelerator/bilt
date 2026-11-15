@@ -37,7 +37,7 @@ class Decay(metaclass=Interface):
 
 @equation
 def decay_rate(y: Tensor, t: Tensor, rate: float) -> bool:
-    return grad(y, wrt=t) == -rate * y
+    return grad(y, wrt=t) == -rate * y  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
 
 
 @equation
@@ -84,14 +84,14 @@ class Oscillator(metaclass=Interface):
 
 @equation
 def position_rate(x: Tensor, v: Tensor, t: Tensor) -> bool:
-    return grad(x, wrt=t) == v
+    return grad(x, wrt=t) == v  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
 
 
 @equation
 def velocity_rate(x: Tensor, v: Tensor, t: Tensor, stiffness: float, mass: float) -> bool:
-    potential = 0.5 * stiffness * x**2
+    potential = 0.5 * stiffness * x * x
     force = -grad(potential, wrt=x)
-    return grad(v, wrt=t) == force / mass
+    return grad(v, wrt=t) == force / mass  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
 
 
 @equation
@@ -151,17 +151,17 @@ class Lorenz(metaclass=Interface):
 
 @equation
 def lorenz_x(x: Tensor, y: Tensor, t: Tensor, sigma: float) -> bool:
-    return grad(x, wrt=t) == sigma * (y - x)
+    return grad(x, wrt=t) == sigma * (y - x)  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
 
 
 @equation
 def lorenz_y(x: Tensor, y: Tensor, z: Tensor, t: Tensor, rho: float) -> bool:
-    return grad(y, wrt=t) == x * (rho - z) - y
+    return grad(y, wrt=t) == x * (rho - z) - y  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
 
 
 @equation
 def lorenz_z(x: Tensor, y: Tensor, z: Tensor, t: Tensor, beta: float) -> bool:
-    return grad(z, wrt=t) == x * y - beta * z
+    return grad(z, wrt=t) == x * y - beta * z  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
 
 
 @equation
