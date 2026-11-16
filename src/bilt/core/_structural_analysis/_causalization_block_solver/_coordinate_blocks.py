@@ -18,10 +18,10 @@ from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltDomainBindingError
 from bilt.core._port_declaration import annotated_parts, quantity_magnitude_kind
 from bilt.core._structural_analysis._causalization_block_solver._coordinate_incidence import (
-    _CoordinateTracer,
     CoordinateIncidence,
     ResidualCoordinate,
     UnknownCoordinate,
+    _CoordinateTracer,
     build_coordinate_incidence,
 )
 from bilt.core._structural_analysis._causalization_block_solver._dm import dulmage_mendelsohn
@@ -53,7 +53,7 @@ class CoordinateBlockDiscovery:
     requires_execution: bool = False
 
 
-def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request validation dispatch.
+def discover_coordinate_blocks(  # noqa: C901, PLR0911 - request validation dispatch.
     structure: ExpansionSnapshot,
     input_domains: Mapping[str, Domain],
     bindings: DomainRegistry,
