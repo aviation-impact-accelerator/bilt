@@ -195,9 +195,7 @@ def test_pointwise_does_not_connect_unrelated_coordinates() -> None:
         {"rhs": domain(SOURCE)},
         _registry(source=3),
     )
-    assert result.edges == frozenset(
-        (ResidualCoordinate(0, (i,)), UnknownCoordinate("x", (i,))) for i in range(3)
-    )
+    assert result.edges == frozenset((ResidualCoordinate(0, (i,)), UnknownCoordinate("x", (i,))) for i in range(3))
 
 
 def test_broadcast_scalar_connects_to_each_residual() -> None:
