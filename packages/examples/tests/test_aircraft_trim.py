@@ -63,7 +63,7 @@ def _combine(wing: QuantityTensor, tail: QuantityTensor) -> np.ndarray:
     return np.r_[wing.convert_to(meter**2 / second).values, tail.convert_to(meter**2 / second).values]
 
 
-@pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4)))
+@pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4), (12, 6)))
 def test_geometry_based_forward_matches_numpy(wing_panels: int, tail_panels: int) -> None:
     """Bilt solves each source-panel circulation from physical vortex influence."""
     geometry = example_geometry(wing_panels=wing_panels, tail_panels=tail_panels)
@@ -87,7 +87,7 @@ def test_geometry_based_forward_matches_numpy(wing_panels: int, tail_panels: int
     assert moment.convert_to(newton * meter).value == pytest.approx(expected_moment, rel=1e-6)
 
 
-@pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4)))
+@pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4), (12, 6)))
 def test_geometry_based_inverse_trim_matches_numpy(wing_panels: int, tail_panels: int) -> None:
     """N panel unknowns plus two global unknowns form an (N+2)-square problem."""
     geometry = example_geometry(wing_panels=wing_panels, tail_panels=tail_panels)
