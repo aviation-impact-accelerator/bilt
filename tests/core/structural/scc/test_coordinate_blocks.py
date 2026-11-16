@@ -51,8 +51,7 @@ def _snapshot(
     known: set[str],
 ) -> ExpansionSnapshot:
     constraints = tuple(
-        ExpandedConstraint((), typing.cast("typing.Any", row), frozenset(row.__bilt_parameters__))
-        for row in rows
+        ExpandedConstraint((), typing.cast("typing.Any", row), frozenset(row.__bilt_parameters__)) for row in rows
     )
     return ExpansionSnapshot(
         constraints=constraints,
