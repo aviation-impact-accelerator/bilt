@@ -14,6 +14,7 @@ from bilt.symbolic._atoms import (
     Atom,
     ConcatDimOpType,
     IndexOpType,
+    IntegrateDimOpType,
     ReductionOpType,
     RelationOpType,
     SelSliceDimOpType,
@@ -31,7 +32,7 @@ from bilt.symbolic._errors import BiltTreeMutationError
 
 if typing.TYPE_CHECKING:
     from bilt.symbolic._dimensions import Coordinate, Dim
-    from bilt.units import Dimension
+    from bilt.units import Dimension, Unit
 
 _tree_cache: weakref.WeakValueDictionary[
     tuple[Atom, tuple[Tree, ...]],
@@ -48,6 +49,7 @@ __all__ = [
     "equality_tree",
     "float_tree",
     "index_tree",
+    "integrate_tree",
     "int_tree",
     "isel_tree",
     "max_tree",
@@ -217,6 +219,11 @@ def float_tree(x: float) -> Tree:
 
 def quantity_tree(coherent_value: float, dimensionality: Dimension, *, absolute: bool) -> Tree:
     return Tree(quantity(coherent_value, dimensionality, absolute=absolute))
+
+
+def integrate_tree(value: Tree, dim: Dim, coordinate_unit: Unit | None) -> Tree:
+    """Represent trapezoidal integration over a labelled named axis."""
+    return Tree(IntegrateDimOpType(coordinate_unit), (value, dimension_tree(dim)))
 
 
 def reduction_tree(operator: Atom, value: Tree, dim: Dim) -> Tree:
