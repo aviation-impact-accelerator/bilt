@@ -7,6 +7,7 @@ uses exact named-domain declarations, and never executes model equations.
 
 __all__ = ["CoordinateBlockDiscovery", "discover_coordinate_blocks"]
 
+import collections
 import dataclasses
 import inspect
 import typing
@@ -48,6 +49,7 @@ class CoordinateBlockDiscovery:
 
     blocks: tuple[QualifiedBlock, ...]
     unknown_domains: tuple[tuple[str, Domain], ...]
+    requires_execution: bool = False
 
 
 def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request validation dispatch.
@@ -71,10 +73,14 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
     equations = tuple(
         QualifiedEquation(typing.cast("BasicEquation", row.operation), row.path) for row in structure.constraints
     )
-    if not any(_has_operator(equation.tree) for equation in equations):
+    unknowns = structure.attributes - structure.available
+    # A vector equality may determine several scalar ports without containing
+    # an explicit reduction or selection operator.
+    has_domain_operator = any(_has_operator(equation.tree) for equation in equations)
+    multi_port_vector = len(equations) != len(unknowns) and any(domain.dims for domain in input_domains.values())
+    if not (has_domain_operator or multi_port_vector):
         return None
 
-    unknowns = structure.attributes - structure.available
     if output not in unknowns:
         return None
     hints = merge_domain_hints(hint for equation in equations for hint in equation.domain_hints)
@@ -127,10 +133,14 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
         # The port planner still handles other structurally determined regions.
         return None
 
-    return CoordinateBlockDiscovery(
-        _ordered_coordinate_blocks(incidence, equations, output),
-        tuple(sorted(resolved.items())),
+    blocks = _ordered_coordinate_blocks(incidence, equations, output, resolved)
+    requires_execution = any(
+        len(block.rows) != len(block.unknowns)
+        or collections.Counter(incidence.residual_domains[equations.index(row)] for row in block.rows)
+        != collections.Counter(resolved[name] for name in block.unknowns)
+        for block in blocks
     )
+    return CoordinateBlockDiscovery(blocks, tuple(sorted(resolved.items())), requires_execution)
 
 
 def _has_operator(tree: Tree) -> bool:
@@ -156,6 +166,7 @@ def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate mat
     incidence: CoordinateIncidence,
     equations: tuple[QualifiedEquation, ...],
     output: str,
+    resolved: Mapping[str, Domain],
 ) -> tuple[QualifiedBlock, ...]:
     """Match coordinates, coalesce their equation/port owners, then take SCCs.
 
@@ -222,7 +233,11 @@ def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate mat
         members = [row for row in incidence.residuals if root(residual_index[row]) in group_ids]
         row_ids = sorted({row.equation for row in members})
         ports = sorted({matched[row].name for row in members})
-        block = QualifiedBlock(tuple(equations[index] for index in row_ids), tuple(ports))
+        block = QualifiedBlock(
+            tuple(equations[index] for index in row_ids),
+            tuple(ports),
+            resolved_domains=tuple((name, resolved[name]) for name in ports),
+        )
         node = condensed.add_node((ports[0], block))
         node_mapping.update(dict.fromkeys(component, node))
 

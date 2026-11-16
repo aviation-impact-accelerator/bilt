@@ -73,11 +73,15 @@ def extract_supported_linear_block(block: PlanBlock) -> LinearBlock | LinearOper
 
 def extract_supported_qualified_block(block: QualifiedBlock) -> LinearBlock | LinearOperatorBlock:
     """Retain qualified receiver expressions for the existing supported tensor operators."""
-    try:
-        return extract_qualified_linear_block(block)
-    except BiltLinearBlockError as error:
-        if not isinstance(error.__cause__, AffineAnalysisError):
-            raise
+    # Coordinate-aware matching can select multiple scalar equation objects
+    # for one tensor port, or one vector equation for several scalar ports.
+    # Those are not pointwise systems, even when their expressions are affine.
+    if len(block.rows) == len(block.unknowns):
+        try:
+            return extract_qualified_linear_block(block)
+        except BiltLinearBlockError as error:
+            if not isinstance(error.__cause__, AffineAnalysisError):
+                raise
     equations = []
     for row in block.rows:
         tree = row.tree

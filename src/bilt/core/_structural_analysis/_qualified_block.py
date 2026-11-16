@@ -66,6 +66,7 @@ class QualifiedBlock:
 
     rows: tuple[QualifiedEquation, ...]
     unknowns: tuple[str, ...]
+    resolved_domains: tuple[tuple[str, Domain], ...] = ()
     domain_hints: tuple[tuple[str, Domain], ...] = dataclasses.field(init=False)
 
     def __post_init__(self) -> None:
@@ -84,6 +85,14 @@ class QualifiedBlock:
             message = f"Qualified block unknowns are not declared by its rows: {sorted(missing)}."
             raise BiltAnalysisError(message)
         hints = merge_domain_hints(hint for row in self.rows for hint in row.domain_hints)
+        resolved = dict(self.resolved_domains)
+        if len(resolved) != len(self.resolved_domains) or set(resolved) - set(self.unknowns):
+            message = "Resolved block domains must identify distinct block unknowns."
+            raise BiltAnalysisError(message)
+        for name, layout in resolved.items():
+            if name in hints and set(hints[name].dims) != set(layout.dims):
+                message = f"Resolved domain for {name!r} conflicts with its equation hint."
+                raise BiltAnalysisError(message)
         object.__setattr__(self, "domain_hints", tuple(sorted(hints.items())))
 
     @property

@@ -3,6 +3,7 @@
 import ast
 import collections
 import dataclasses
+import math
 import typing
 
 from bilt._backend import LinearSolveBackend
@@ -144,7 +145,7 @@ class _LinearLowering:
             message = "Linear-block input dimensions must be registered in the evaluation context."
             raise BiltLinearBlockError(message)
         hints = (
-            dict(self.linear.block.domain_hints)
+            dict(self.linear.block.domain_hints) | dict(self.linear.block.resolved_domains)
             if isinstance(self.linear.block, QualifiedBlock)
             else declared_linear_domains(self.linear.block)
         )
@@ -218,8 +219,20 @@ class _LinearLowering:
             constants = [_names(value, self.parameters) for value, _ in rhs]
             extra = []
         if collections.Counter(domains.values()) != collections.Counter(self.ordered(domain) for domain in row_domains):
-            message = "Tensor block scalar equations must have the same domain layout as its unknowns."
-            raise BiltLinearBlockError(message)
+            # Operator rows can constrain differently shaped unknown ports.
+            # Keep the existing pointwise layout check for legacy blocks.
+            block = self.linear.block
+            if not isinstance(block, QualifiedBlock) or not block.resolved_domains:
+                message = "Tensor block scalar equations must have the same domain layout as its unknowns."
+                raise BiltLinearBlockError(message)
+            bindings = current_evaluation().domains
+
+            def count(domain: Domain) -> int:
+                return math.prod(bindings.size(dim) for dim in domain.dims)
+
+            if sum(map(count, domains.values())) != sum(map(count, row_domains)):
+                message = "Tensor block scalar equations must equal its scalar unknown degrees of freedom."
+                raise BiltLinearBlockError(message)
         layout = (
             tuple(self.axes(domains[name]) for name in self.linear.unknowns),
             tuple(map(self.axes, row_domains)),
