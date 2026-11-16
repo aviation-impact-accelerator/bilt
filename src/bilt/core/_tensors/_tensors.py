@@ -174,8 +174,8 @@ class Tensor:
         """
         raise _symbolic_operation_only()
 
-    def sel(self, dim: Dim, coordinate: Coordinate) -> Tensor:  # noqa: ARG002
-        """Select a coordinate along a named dimension in a Bilt model."""
+    def sel(self, dim: Dim, coordinate: Coordinate | slice, *, into: Dim | None = None) -> Tensor:  # noqa: ARG002
+        """Select a coordinate or inclusive coordinate interval inside a Bilt equation."""
         raise _symbolic_operation_only()
 
     def convert_to(self, unit: Unit) -> typing.Self:

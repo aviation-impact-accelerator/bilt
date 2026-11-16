@@ -147,6 +147,32 @@ class DomainRegistry:
             self.bind_axis(CoordinateAxis(target, selected))
         self._derived_dimensions.add(target)
 
+    def coordinate_slice(self, dimension: Dim, selector: slice) -> slice:
+        """Resolve inclusive coordinate labels into a positional Python slice.
+
+        Labels are looked up in axis order, including for reverse slices.
+        Endpoint labels must exist rather than being clipped.
+        """
+        self.axis(dimension)
+        stride = 1 if selector.step is None else selector.step
+        if type(stride) is not int or stride == 0:
+            message = "Coordinate slice step must be a non-zero integer."
+            raise BiltDomainBindingError(message)
+        start = None if selector.start is None else self.position(dimension, selector.start)
+        stop_position = None if selector.stop is None else self.position(dimension, selector.stop)
+        if stop_position is None:
+            stop = None
+        elif stride > 0:
+            stop = stop_position + 1
+        else:
+            # In a reverse slice -1 indexes from the end, not before zero.
+            stop = None if stop_position == 0 else stop_position - 1
+        return slice(start, stop, selector.step)
+
+    def bind_sel_slice(self, source: Dim, target: Dim, selector: slice) -> None:
+        """Register the extent and coordinate labels of an inclusive slice."""
+        self.bind_slice(source, target, self.coordinate_slice(source, selector))
+
     def size(self, dimension: Dim) -> int:
         """Return the size bound to a dimension."""
         binding = self._binding(dimension)

@@ -21,7 +21,7 @@ from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
-from bilt.symbolic._atoms import ConcatDimOpType, SliceDimOpType
+from bilt.symbolic._atoms import ConcatDimOpType, SelSliceDimOpType, SliceDimOpType
 from bilt.symbolic._domains import Domain
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltIsolationError
@@ -88,7 +88,7 @@ def _register_plan_domain_transforms(plan: AnalysisPlan) -> RealizationFailure |
         pending.extend(
             (step, node)
             for node in subtrees(isolated.rhs.tree)
-            if node.head.atom_type in (ConcatDimOpType, SliceDimOpType)
+            if node.head.atom_type in (ConcatDimOpType, SelSliceDimOpType, SliceDimOpType)
         )
     while pending:
         delayed: list[tuple[PlanStep, Tree]] = []
@@ -117,11 +117,13 @@ def _register_derived_axis(tree: Tree, registry: DomainRegistry) -> None:
     if tree.head.atom_type is ConcatDimOpType:
         sources, target = typing.cast("tuple[tuple[Dim, ...], Dim]", tree.head.value)
         registry.bind_concat(sources, target)
-    elif tree.head.atom_type is SliceDimOpType:
-        source, target, start, stop, step = typing.cast(
-            "tuple[Dim, Dim, int | None, int | None, int | None]", tree.head.value
-        )
-        registry.bind_slice(source, target, slice(start, stop, step))
+    elif tree.head.atom_type in (SliceDimOpType, SelSliceDimOpType):
+        source, target, start, stop, step = typing.cast("tuple[Dim, Dim, object, object, int | None]", tree.head.value)
+        selector = slice(start, stop, step)
+        if tree.head.atom_type is SelSliceDimOpType:
+            registry.bind_sel_slice(source, target, selector)
+        else:
+            registry.bind_slice(source, target, selector)
 
 
 def _realize_plan_steps(
