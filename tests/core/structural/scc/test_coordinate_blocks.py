@@ -77,11 +77,11 @@ def test_mixed_scalar_tensor_block_is_discovered(output: str) -> None:
     snapshot = _snapshot(
         (boundary, total),
         {"circulation", "alpha"},
-        {"matrix", "rhs", "total_value"},
+        {"matrix", "rhs", "weight", "total_value"},
     )
     result = discover_coordinate_blocks(
         snapshot,
-        {"matrix": domain(TARGET, SOURCE), "rhs": domain(TARGET), "total_value": domain()},
+        {"matrix": domain(TARGET, SOURCE), "rhs": domain(TARGET), "weight": domain(SOURCE), "total_value": domain()},
         _registry(),
         output,
     )
@@ -167,9 +167,9 @@ def dimensioned_boundary(
 
 
 @equation
-def dimensioned_balance(circulation: SourceQuantity, total_value: ScalarQuantity) -> bool:
-    """Fix the total circulation independently of the target boundary condition."""
-    return circulation.sum(SOURCE) == total_value  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-union-attribute]
+def dimensioned_balance(circulation: SourceQuantity, weight: SourceQuantity, total_value: ScalarQuantity) -> bool:
+    """Constrain weighted total circulation independently of the boundary."""
+    return (circulation * weight).sum(SOURCE) == total_value  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-union-attribute]
 
 
 @equation
