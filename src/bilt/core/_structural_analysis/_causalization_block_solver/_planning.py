@@ -4,19 +4,25 @@ __all__ = ["plan_blocks"]
 
 import typing
 
+from bilt.core._equation import BasicEquation
+
 from bilt.core._structural_analysis._causalization_block_solver._blocks import ordered_blocks
 from bilt.core._structural_analysis._causalization_block_solver._dependency_graph import build_dependency_graph
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._structural_analysis._causalization_block_solver._settle_assignments import settle_assignments
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._linear_operator import extract_supported_linear_block
+from bilt.core._structural_analysis._plan import PlanBlock
+from bilt.symbolic._expressions import Expr
+from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
+from bilt.symbolic._isolation._isolate import isolate
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt._backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
-    from bilt.core._structural_analysis._plan import PlanBlock, PlanStep
+    from bilt.core._structural_analysis._plan import PlanStep
 
 
 def plan_blocks(
@@ -66,7 +72,7 @@ def plan_blocks(
         msg = f"Unresolved execution dependencies: {unresolved}."
         raise BiltExecutionPlanError(msg)
 
-    blocks = ordered_blocks(graph)
+    blocks = _promote_linear_operator_chains(ordered_blocks(graph))
     for block in blocks:
         if not block.is_cyclic:
             continue
@@ -81,3 +87,59 @@ def plan_blocks(
             raise BiltExecutionPlanError(msg) from error
 
     return blocks
+
+
+def _requires_linear_operator(block: PlanBlock) -> bool:
+    """A primitive equality is linear but cannot be inverted as a single expression."""
+    if block.is_cyclic or len(block.steps) != 1:
+        return False
+    step = block.steps[0]
+    if not isinstance(step.operation, BasicEquation):
+        return False
+    try:
+        isolate(step.operation.__bilt_equation_tree__, Expr.symbol(step.output))
+    except BiltUnsupportedIsolationError:
+        return True
+    return False
+
+
+def _promote_linear_operator_chains(blocks: tuple[PlanBlock, ...]) -> tuple[PlanBlock, ...]:
+    """Prototype: group consecutive non-invertible linear equations with their consumer.
+
+    A reduction can be linear without being individually invertible. If its
+    intermediate output is needed by the next primitive equation, retaining
+    those equations as one block permits normal operator lowering to assemble
+    and eliminate the intermediate numerically.
+
+    This intentionally handles only a contiguous chain; branch/fan-out
+    analysis is out of scope for this prototype.
+    """
+    pending = list(blocks)
+    result: list[PlanBlock] = []
+    while pending:
+        block = pending.pop(0)
+        if not _requires_linear_operator(block):
+            result.append(block)
+            continue
+
+        chain = [block]
+        while (
+            pending
+            and not pending[0].is_cyclic
+            and len(pending[0].steps) == 1
+            and isinstance(pending[0].steps[0].operation, BasicEquation)
+            and chain[-1].outputs & pending[0].inputs
+        ):
+            chain.append(pending.pop(0))
+
+        candidate = PlanBlock(
+            steps=tuple(step for part in chain for step in part.steps),
+            is_cyclic=True,
+        )
+        try:
+            extract_supported_linear_block(candidate)
+        except BiltLinearBlockError:
+            result.extend(chain)
+        else:
+            result.append(candidate)
+    return tuple(result)
