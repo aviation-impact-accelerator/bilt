@@ -37,6 +37,7 @@ class DomainRegistry:
     def __init__(self) -> None:
         self._bindings: dict[Dim, int | CoordinateAxis] = {}
         self._locked_against_new_dimensions = False
+        self._derived_dimensions: set[Dim] = set()
 
     def bind(self, value: object) -> None:
         """Bind any domain information exposed by a value."""
@@ -91,6 +92,42 @@ class DomainRegistry:
         if existing.coordinates != axis.coordinates:
             message = f"Dimension {axis.dimension!s} has conflicting coordinate definitions."
             raise BiltDomainBindingError(message)
+
+    def clone(self) -> DomainRegistry:
+        """Copy registry state for an alternative structural route."""
+        cloned = DomainRegistry()
+        cloned._bindings = self._bindings.copy()
+        cloned._locked_against_new_dimensions = self._locked_against_new_dimensions
+        cloned._derived_dimensions = self._derived_dimensions.copy()
+        return cloned
+
+    def dimension_order(self) -> Domain:
+        """Read currently bound dimensions without freezing the registry."""
+        from bilt.symbolic._domains import Domain  # noqa: PLC0415
+
+        return Domain(tuple(self._bindings))
+
+    @property
+    def has_derived_dimensions(self) -> bool:
+        """Whether this evaluation has derived new axis bindings."""
+        return bool(self._derived_dimensions)
+
+    def bind_concat(self, sources: tuple[Dim, ...], target: Dim) -> None:
+        """Derive the extent and coordinate labels of a concatenated dimension."""
+        if target in sources:
+            message = f"Concatenation output {target} must differ from its source dimensions."
+            raise BiltDomainBindingError(message)
+        bindings = tuple(self._binding(source) for source in sources)
+        coordinates = tuple(binding for binding in bindings if isinstance(binding, CoordinateAxis))
+        if coordinates and len(coordinates) != len(bindings):
+            message = "Cannot concatenate a mix of labelled and unlabelled source axes."
+            raise BiltDomainBindingError(message)
+        if coordinates:
+            all_coordinates = tuple(label for axis in coordinates for label in axis.coordinates)
+            self.bind_axis(CoordinateAxis(target, all_coordinates))
+        else:
+            self._bind_size(target, sum(binding for binding in bindings if isinstance(binding, int)))
+        self._derived_dimensions.add(target)
 
     def size(self, dimension: Dim) -> int:
         """Return the size bound to a dimension."""

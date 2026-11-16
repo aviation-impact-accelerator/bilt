@@ -161,7 +161,7 @@ class Implementation:
             backend=backend,
         )
         compilation_context = _CompilationContext(
-            canonical_order=evaluation.canonical_order,
+            canonical_order=evaluation.__dict__.get("canonical_order", evaluation.domains.dimension_order()),
             coordinate_signature=evaluation.domains.coordinate_signature(),
         )
 
@@ -169,6 +169,7 @@ class Implementation:
         if cached_evaluations is not None:
             cached = cached_evaluations.get(compilation_context)
             if cached is not None:
+                _ = evaluation.canonical_order
                 return cached
 
         planned_case = self.analyser_for(backend).analyse(request)
@@ -185,10 +186,13 @@ class Implementation:
 
         backend_callable.output_domain = output_domain
 
-        self._evaluation_cache.setdefault(
-            compilation_request,
-            {},
-        )[compilation_context] = backend_callable
+        # Derived axes depend on the evaluation's input extents and coordinates.
+        # Do not cache plans until their axis registrations can be replayed.
+        if not evaluation.domains.has_derived_dimensions:
+            self._evaluation_cache.setdefault(
+                compilation_request,
+                {},
+            )[compilation_context] = backend_callable
 
         return backend_callable
 
