@@ -77,11 +77,11 @@ def test_mixed_scalar_tensor_block_is_discovered(output: str) -> None:
     snapshot = _snapshot(
         (boundary, total),
         {"circulation", "alpha"},
-        {"matrix", "rhs", "weight", "total_value"},
+        {"matrix", "rhs", "total_value"},
     )
     result = discover_coordinate_blocks(
         snapshot,
-        {"matrix": domain(TARGET, SOURCE), "rhs": domain(TARGET), "weight": domain(SOURCE), "total_value": domain()},
+        {"matrix": domain(TARGET, SOURCE), "rhs": domain(TARGET), "total_value": domain()},
         _registry(),
         output,
     )
@@ -182,11 +182,16 @@ def test_scalar_quantity_is_resolved_in_mixed_tensor_coordinate_block() -> None:
     snapshot = _snapshot(
         (dimensioned_boundary, dimensioned_balance),
         {"circulation", "alpha"},
-        {"matrix", "rhs", "total_value"},
+        {"matrix", "rhs", "weight", "total_value"},
     )
     result = discover_coordinate_blocks(
         snapshot,
-        {"matrix": domain(TARGET, SOURCE), "rhs": domain(TARGET), "total_value": domain()},
+        {
+            "matrix": domain(TARGET, SOURCE),
+            "rhs": domain(TARGET),
+            "weight": domain(SOURCE),
+            "total_value": domain(),
+        },
         _registry(),
         "alpha",
     )
