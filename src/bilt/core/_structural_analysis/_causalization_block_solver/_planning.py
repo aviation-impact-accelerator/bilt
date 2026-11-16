@@ -11,7 +11,7 @@ from bilt.core._structural_analysis._causalization_block_solver._errors import B
 from bilt.core._structural_analysis._causalization_block_solver._settle_assignments import settle_assignments
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._linear_operator import extract_supported_linear_block
-from bilt.core._structural_analysis._plan import PlanBlock
+from bilt.core._structural_analysis._plan import PlanBlock, PlanStep
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
 from bilt.symbolic._isolation._isolate import isolate
@@ -21,7 +21,6 @@ if typing.TYPE_CHECKING:
 
     from bilt._backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
-    from bilt.core._structural_analysis._plan import PlanStep
 
 
 def plan_blocks(
@@ -62,6 +61,8 @@ def plan_blocks(
 
         selected[attribute] = step
         pending.extend(step.consumed)
+
+    _include_related_linear_constraints(selected, assignments, available)
 
     graph, unresolved = build_dependency_graph(
         tuple(selected.values()),
@@ -142,3 +143,38 @@ def _promote_linear_operator_chains(blocks: tuple[PlanBlock, ...]) -> tuple[Plan
         else:
             result.append(candidate)
     return tuple(result)
+
+
+def _include_related_linear_constraints(
+    selected: dict[str, PlanStep],
+    assignments: collections.abc.Mapping[str, BiltModelConstituent],
+    available: set[str],
+) -> None:
+    """Prototype: retain the neighbouring row that closes an inverse tensor operator.
+
+    Matching is at the port level, rather than per tensor coordinate. A
+    non-invertible reduction may be selected as the only producer for a
+    tensor output even though another matched equation is required to
+    constrain its individual coordinates. Extend such a one-row request
+    with one directly connected matched equation, when the pair is linear.
+    """
+    if len(selected) != 1:
+        return
+    original = next(iter(selected.values()))
+    if not _requires_linear_operator(PlanBlock((original,))):
+        return
+    for name, operation in sorted(assignments.items()):
+        if name in selected or name in available or not isinstance(operation, BasicEquation):
+            continue
+        candidate = PlanStep(operation=operation, output=name)
+        if original.output not in candidate.consumed:
+            continue
+        if any(dep not in available and dep != original.output for dep in candidate.consumed):
+            continue
+        block = PlanBlock((original, candidate), is_cyclic=True)
+        try:
+            extract_supported_linear_block(block)
+        except BiltLinearBlockError:
+            continue
+        selected[name] = candidate
+        return
