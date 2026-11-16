@@ -1,7 +1,6 @@
-"""Cold source-to-target coordinate operator planning trials.
+"""Cold source-to-target coordinate operator planning trials."""
 
 # ruff: noqa: INP001 - benchmark helper, not an installed package
-"""
 
 import dataclasses
 import math
@@ -27,6 +26,8 @@ Velocity = typing.Annotated[Tensor, domain(TARGET)]
 
 @system
 class SourceTarget(metaclass=Interface):
+    """Simple inverse tensor operator used by the planning benchmarks."""
+
     influence: Influence = field()
     circulation: Circulation = field()
     velocity: Velocity = field()
@@ -34,6 +35,7 @@ class SourceTarget(metaclass=Interface):
 
 @equation
 def influence_equation(influence: Influence, circulation: Circulation, velocity: Velocity) -> bool:
+    """Express the target velocity as the sum of source contributions."""
     return (influence * circulation).sum(SOURCE) == velocity
 
 
