@@ -6,7 +6,10 @@ import numpy as np
 import pytest
 
 from bilt import Implementation, Interface, Tensor, dim, domain, equation, field, system, tensor
-from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError, BiltUnderconstrainedError
+from bilt.core._structural_analysis._causalization_block_solver._errors import (
+    BiltExecutionPlanError,
+    BiltUnderconstrainedError,
+)
 from bilt.errors import BiltLinearSolveError
 
 if typing.TYPE_CHECKING:
