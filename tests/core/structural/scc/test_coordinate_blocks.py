@@ -8,7 +8,6 @@ import pytest
 
 from bilt import Tensor, dim, domain, equation
 from bilt.core._domain_registry import DomainRegistry
-from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._causalization_block_solver._coordinate_blocks import discover_coordinate_blocks
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import (
@@ -18,6 +17,9 @@ from bilt.core._structural_analysis._causalization_block_solver._expand_structur
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_request_structure
 from bilt.symbolic._dimensions import coordinate_axis
+
+if typing.TYPE_CHECKING:
+    from bilt.core._equation import BasicEquation
 
 SOURCE = dim("source")
 TARGET = dim("target")
