@@ -7,6 +7,7 @@ uses exact named-domain declarations, and never executes model equations.
 
 __all__ = ["CoordinateBlockDiscovery", "discover_coordinate_blocks"]
 
+import collections
 import dataclasses
 import inspect
 import typing
@@ -48,6 +49,7 @@ class CoordinateBlockDiscovery:
 
     blocks: tuple[QualifiedBlock, ...]
     unknown_domains: tuple[tuple[str, Domain], ...]
+    requires_execution: bool = False
 
 
 def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request validation dispatch.
