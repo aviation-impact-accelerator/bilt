@@ -7,6 +7,8 @@ import pytest
 from bilt import Tensor, dim, domain, equation, tensor
 from bilt.core._domain_registry import DomainRegistry
 from bilt.core._structural_analysis._causalization_block_solver._coordinate_blocks import discover_coordinate_blocks
+from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
+from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_request_structure
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import (
     ExpandedConstraint,
     ExpansionSnapshot,
@@ -120,3 +122,29 @@ def test_no_operator_retains_existing_port_planner() -> None:
 
     snapshot = _snapshot((direct,), {"x"}, {"y"})
     assert discover_coordinate_blocks(snapshot, {"y": domain()}, _registry(), "x") is None
+
+
+def test_request_validation_uses_coordinate_matching_before_port_dm() -> None:
+    """Two scalar constraints determine both coordinates of one tensor unknown."""
+    result = validate_request_structure(
+        FullIncidenceGraph((first, second)),
+        {"first_value", "second_value"},
+        "circulation",
+        input_domains={"first_value": domain(), "second_value": domain()},
+        bindings=_registry(),
+    )
+    assert result is not None
+    assert result.coordinate_blocks is not None
+    assert result.coordinate_blocks.blocks[0].unknowns == ("circulation",)
+
+
+def test_request_validation_keeps_existing_path_without_domain_data() -> None:
+    """Earlier callers without domain bindings preserve port-level semantics."""
+    from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
+
+    with pytest.raises(BiltOverconstrainedError):
+        validate_request_structure(
+            FullIncidenceGraph((first, second)),
+            {"first_value", "second_value"},
+            "circulation",
+        )
