@@ -71,10 +71,14 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
     equations = tuple(
         QualifiedEquation(typing.cast("BasicEquation", row.operation), row.path) for row in structure.constraints
     )
-    if not any(_has_operator(equation.tree) for equation in equations):
+    unknowns = structure.attributes - structure.available
+    # A vector equality may determine several scalar ports without containing
+    # an explicit reduction or selection operator.
+    has_domain_operator = any(_has_operator(equation.tree) for equation in equations)
+    multi_port_vector = len(equations) != len(unknowns) and any(domain.dims for domain in input_domains.values())
+    if not (has_domain_operator or multi_port_vector):
         return None
 
-    unknowns = structure.attributes - structure.available
     if output not in unknowns:
         return None
     hints = merge_domain_hints(hint for equation in equations for hint in equation.domain_hints)
