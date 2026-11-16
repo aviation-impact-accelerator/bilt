@@ -14,6 +14,7 @@ import typing
 import rustworkx as rx
 
 from bilt.core._equation import BasicEquation
+from bilt.core._errors import BiltDomainBindingError
 from bilt.core._port_declaration import annotated_parts
 from bilt.core._structural_analysis._causalization_block_solver._coordinate_incidence import (
     CoordinateIncidence,
@@ -29,6 +30,7 @@ from bilt.core._structural_analysis._causalization_block_solver._errors import (
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._linear_domains import merge_domain_hints
 from bilt.core._structural_analysis._qualified_block import QualifiedBlock, QualifiedEquation
+from bilt.symbolic._algebra._affine import AffineAnalysisError
 from bilt.symbolic._atoms import ISEL, MEAN, SEL, SUM
 from bilt.symbolic._domains import Domain
 
@@ -94,7 +96,7 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
 
     try:
         incidence = build_coordinate_incidence(tuple(e.tree for e in equations), resolved, known, bindings)
-    except BiltLinearBlockError:
+    except (AffineAnalysisError, BiltDomainBindingError, BiltLinearBlockError):
         # Inference, operator support and expansion limits are independent of
         # the existing planner: it may still find a valid execution route.
         return None
