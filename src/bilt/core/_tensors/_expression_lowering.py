@@ -30,6 +30,8 @@ from bilt.symbolic._atoms import (
     QuantityType,
     ReductionOpType,
     RelationOpType,
+    RenameAxisOpType,
+    RenameDimOpType,
     SymbolType,
 )
 from bilt.symbolic._domains import Domain, union
@@ -122,6 +124,9 @@ def _lower_tree(  # noqa: PLR0911
 
     if tree.head.atom_type is ConcatDimOpType:
         return _lower_concat(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+
+    if tree.head.atom_type is RenameDimOpType:
+        return _lower_rename(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
 
     if tree.head.atom_type is ReductionOpType:
         return _lower_reduction(
@@ -295,6 +300,53 @@ def _lower_concat(
     return LoweredExpression(
         Tree(ConcatAxisOpType((source_axes, target_axis)), tuple(operand.tree for operand in operands)),
         output_domain,
+    )
+
+
+def _lower_rename(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    """Compute the result domain and complete canonical-axis move for a rename."""
+    value = _lower_tree(tree.args[0], symbol_domains=symbol_domains, canonical_order=canonical_order)
+    mapping = typing.cast("tuple[tuple[Dim, Dim], ...]", tree.head.value)
+    renamed = dict(mapping)
+    missing = [source for source in renamed if source not in value.domain.dims]
+    if missing:
+        message = f"Cannot rename dimensions absent from {value.domain}: {', '.join(map(str, missing))}."
+        raise BiltTensorDomainError(message)
+
+    output_dims = tuple(renamed.get(dim, dim) for dim in value.domain.dims)
+    if len(set(output_dims)) != len(output_dims):
+        message = "Renaming would produce duplicate tensor dimensions."
+        raise BiltTensorDomainError(message)
+    for dim in output_dims:
+        if dim not in canonical_order.dims:
+            message = f"Cannot rename to unbound output dimension {dim}."
+            raise BiltTensorDomainError(message)
+
+    # The execution arrays have one axis per canonical dimension, including
+    # singleton placeholders for absent axes. A rename must swap the old
+    # data-bearing slot into the new slot without shifting unrelated axes.
+    order = canonical_order.dims
+    permutation: list[int | None] = [None] * len(order)
+    for source, target in mapping:
+        permutation[order.index(target)] = order.index(source)
+    for dimension in value.domain.dims:
+        if dimension not in renamed:
+            index = order.index(dimension)
+            permutation[index] = index
+    unassigned = (index for index in range(len(order)) if index not in permutation)
+    for index, source in enumerate(permutation):
+        if source is None:
+            permutation[index] = next(unassigned)
+
+    output = canonicalized(Domain(output_dims), canonical_order).domain
+    return LoweredExpression(
+        Tree(RenameAxisOpType(tuple(typing.cast("int", axis) for axis in permutation)), (value.tree,)),
+        output,
     )
 
 

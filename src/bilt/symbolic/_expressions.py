@@ -1,3 +1,4 @@
+import collections.abc
 import typing
 
 from bilt.symbolic._atoms import (
@@ -24,6 +25,7 @@ from bilt.symbolic._tree import (
     prod_tree,
     quantity_tree,
     relation_tree,
+    rename_tree,
     sel_tree,
     sum_tree,
     symbol_tree,
@@ -247,6 +249,20 @@ class TensorExpr(Expr):
     def prod(self, dim: Dim) -> TensorExpr:
         """Return the symbolic product over a dimension."""
         return TensorExpr(prod_tree(self.tree, dim))
+
+    def rename(self, mapping: collections.abc.Mapping[Dim, Dim]) -> TensorExpr:
+        """Rename tensor dimensions simultaneously, preserving the data."""
+        from bilt.symbolic._dimensions import Dim  # noqa: PLC0415
+
+        if not mapping:
+            return self
+        if any(not isinstance(old, Dim) or not isinstance(new, Dim) for old, new in mapping.items()):
+            message = "Tensor.rename requires a mapping of Dim to Dim."
+            raise TypeError(message)
+        if len(set(mapping.values())) != len(mapping):
+            message = "Tensor.rename cannot map multiple dimensions to the same destination."
+            raise ValueError(message)
+        return TensorExpr(rename_tree(self.tree, tuple(mapping.items())))
 
     def isel(self, dim: Dim, index: int | Expr) -> TensorExpr:
         """Select a position along a symbolic dimension."""

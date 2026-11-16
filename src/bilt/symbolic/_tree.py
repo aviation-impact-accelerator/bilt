@@ -16,6 +16,7 @@ from bilt.symbolic._atoms import (
     IndexOpType,
     ReductionOpType,
     RelationOpType,
+    RenameDimOpType,
     axis,
     coordinate,
     dimension,
@@ -55,6 +56,7 @@ __all__ = [
     "quantity_tree",
     "reduction_tree",
     "relation_tree",
+    "rename_tree",
     "sel_tree",
     "sum_tree",
     "symbol_tree",
@@ -185,6 +187,11 @@ class Tree:
 def concat_tree(values: tuple[Tree, ...], sources: tuple[Dim, ...], target: Dim) -> Tree:
     """Represent concatenation into a distinct named dimension."""
     return Tree(ConcatDimOpType((sources, target)), values)
+
+
+def rename_tree(value: Tree, mapping: tuple[tuple[Dim, Dim], ...]) -> Tree:
+    """Represent a simultaneous, symbolic dimension rename."""
+    return Tree(RenameDimOpType(mapping), (value,))
 
 
 def symbol_tree(name: str) -> Tree:

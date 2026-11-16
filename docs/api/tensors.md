@@ -115,6 +115,27 @@ Concatenation currently supports forward calculations in `@equation`.
 Reverse isolation, coupled linear blocks, and `@transform` support
 are not included in this first implementation.
 
+## Renaming dimensions
+
+Use `x.rename({old_dim: new_dim})` inside an `@equation` to change
+a tensor's named axis without changing its physical units, data values,
+extent or coordinates.
+
+```python exec="off"
+@equation
+def rename_time(series: Tensor, result: Tensor) -> bool:
+    return result == series.rename({historical_time: combined_time})
+```
+
+The mapping is simultaneous. All source axes must exist in the receiver's
+domain, and resulting dimension names must be unique. A target already
+bound to incompatible coordinates or extent is rejected. Derived axes are registered through the same domain-transformation mechanism
+used by concatenation, before canonical alignment.
+
+This initial implementation supports forward computation in `@equation`.
+Reverse solving, coupled linear blocks and `@transform` remain out of scope.
+Like reductions and selection, the operation is symbolic-only, not an
+eager method on returned concrete tensors.
 
 ## Indexing
 

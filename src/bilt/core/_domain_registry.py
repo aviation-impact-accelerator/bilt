@@ -129,6 +129,17 @@ class DomainRegistry:
             self._bind_size(target, sum(binding for binding in bindings if isinstance(binding, int)))
         self._derived_dimensions.add(target)
 
+    def bind_rename(self, source: Dim, target: Dim) -> None:
+        """Copy a source axis's extent and coordinates onto a target dimension."""
+        binding = self._binding(source)
+        if source == target:
+            return
+        if isinstance(binding, int):
+            self._bind_size(target, binding)
+        else:
+            self.bind_axis(CoordinateAxis(target, binding.coordinates))
+        self._derived_dimensions.add(target)
+
     def size(self, dimension: Dim) -> int:
         """Return the size bound to a dimension."""
         binding = self._binding(dimension)

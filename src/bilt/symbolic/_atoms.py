@@ -43,6 +43,8 @@ __all__ = [
     "QuantityType",
     "ReductionOpType",
     "RelationOpType",
+    "RenameAxisOpType",
+    "RenameDimOpType",
     "SymbolType",
     "atom_cache_size",
     "axis",
@@ -95,6 +97,8 @@ RelationOpType = AtomType("RelationOp")
 ReductionOpType = AtomType("ReductionOp")
 ConcatDimOpType = AtomType("ConcatDimOp")
 ConcatAxisOpType = AtomType("ConcatAxisOp")
+RenameDimOpType = AtomType("RenameDimOp")
+RenameAxisOpType = AtomType("RenameAxisOp")
 IndexOpType = AtomType("IndexOp")
 CoordinateType = AtomType("Coordinate")
 DimensionType = AtomType("Dimension")

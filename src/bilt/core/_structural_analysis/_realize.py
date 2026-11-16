@@ -21,7 +21,7 @@ from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
-from bilt.symbolic._atoms import ConcatDimOpType
+from bilt.symbolic._atoms import ConcatDimOpType, RenameDimOpType
 from bilt.symbolic._domains import Domain
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltIsolationError
@@ -85,7 +85,11 @@ def _register_plan_domain_transforms(plan: AnalysisPlan) -> RealizationFailure |
             isolated = isolate(step.operation.__bilt_equation_tree__, Expr.symbol(step.output))
         except BiltIsolationError:
             continue
-        pending.extend((step, node) for node in subtrees(isolated.rhs.tree) if node.head.atom_type is ConcatDimOpType)
+        pending.extend(
+            (step, node)
+            for node in subtrees(isolated.rhs.tree)
+            if node.head.atom_type in (RenameDimOpType, ConcatDimOpType)
+        )
     while pending:
         delayed: list[tuple[PlanStep, Tree]] = []
         progressed = False
@@ -110,7 +114,11 @@ def _register_plan_domain_transforms(plan: AnalysisPlan) -> RealizationFailure |
 
 def _register_derived_axis(tree: Tree, registry: DomainRegistry) -> None:
     """Dispatch supported derived-axis constraints through a shared registry."""
-    if tree.head.atom_type is ConcatDimOpType:
+    if tree.head.atom_type is RenameDimOpType:
+        mapping = typing.cast("tuple[tuple[Dim, Dim], ...]", tree.head.value)
+        for source, target in mapping:
+            registry.bind_rename(source, target)
+    elif tree.head.atom_type is ConcatDimOpType:
         sources, target = typing.cast("tuple[tuple[Dim, ...], Dim]", tree.head.value)
         registry.bind_concat(sources, target)
 

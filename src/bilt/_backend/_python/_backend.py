@@ -45,6 +45,7 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
         self.intrinsic_bindings = PythonIntrinsicBindings(
             isel=_isel,
             concat=_concat,
+            rename=np.transpose,
             mean=np.mean,
             sum=np.sum,
             min=np.min,
