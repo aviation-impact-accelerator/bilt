@@ -13,6 +13,8 @@ from bilt import Implementation, Interface, Tensor, dim, domain, equation, field
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
+from bilt.core._system._lowering_and_lifting import lower_inputs
+from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 
 if typing.TYPE_CHECKING:
     from bilt._backend import BackendCase
@@ -87,7 +89,10 @@ class CoordinateOperatorTrial:
         if self.result is None:
             message = "Coordinate operator trial returned no compiled plan."
             raise AssertionError(message)
-        parameters = {name: np.asarray(value.values) for name, value in self.values.items()}
+        parameters = PYTHON_BACKEND.apply_alignment(
+            lower_inputs(self.values),
+            generate_alignment_plan(self.values),
+        )
         result = np.asarray(PYTHON_BACKEND.chain_case(self.result).callable(**parameters))
         if not np.allclose(result, self.expected, rtol=1e-8, atol=1e-8):
             message = f"Incorrect {self.size}-panel circulation: {result!r}"
