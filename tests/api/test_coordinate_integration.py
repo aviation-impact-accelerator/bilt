@@ -94,9 +94,7 @@ def test_higher_rank_integration_preserves_other_named_dimensions(backend: Backe
     with EvaluationContext() as evaluation:
         evaluation.domains.bind_axis(coordinate_axis(elapsed, (0.0, 2.0, 5.0)))
         with backend, implementation:
-            result = Model(
-                response=tensor([[0.0, 2.0, 5.0], [0.0, 4.0, 10.0]], over=(region, elapsed))
-            ).area
+            result = Model(response=tensor([[0.0, 2.0, 5.0], [0.0, 4.0, 10.0]], over=(region, elapsed))).area
 
     assert result.domain == domain(region)
     np.testing.assert_allclose(result.values, [12.5, 25.0])
@@ -116,9 +114,7 @@ def test_cyof_gwp20_integrates_response_with_time_units(backend: Backend) -> Non
 
     @equation
     def integrate(response: ForceResponse, gwp: IntegratedResponse) -> bool:
-        return gwp == response.sel(elapsed, slice(0, 20), into=window).integrate(
-            window, coordinate_unit=year
-        )
+        return gwp == response.sel(elapsed, slice(0, 20), into=window).integrate(window, coordinate_unit=year)
 
     implementation = Implementation(Model, [integrate])
     dates = tuple(range(101))
