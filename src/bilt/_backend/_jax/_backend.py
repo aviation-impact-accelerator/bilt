@@ -69,6 +69,19 @@ def _validate_linear_status(inputs_finite: object, solution_finite: object) -> N
         raise BiltLinearSolveError(message)
 
 
+def _slice(
+    value: jax.Array,
+    *,
+    bounds: tuple[int | None, int | None, int | None],
+    source_axis: int,
+    target_axis: int,
+) -> jax.Array:
+    """Use static JAX slicing without expanding every selected index."""
+    selectors = [slice(None)] * value.ndim
+    selectors[source_axis] = slice(*bounds)
+    return jnp.swapaxes(value[tuple(selectors)], source_axis, target_axis)
+
+
 def _concat(
     values: tuple[jax.Array, ...],
     *,
@@ -95,6 +108,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
         self.intrinsic_bindings = PythonIntrinsicBindings(
             isel=_isel,
             concat=_concat,
+            slice=_slice,
             mean=jnp.mean,
             sum=jnp.sum,
             min=jnp.min,

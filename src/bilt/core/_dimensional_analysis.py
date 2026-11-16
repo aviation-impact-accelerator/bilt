@@ -14,6 +14,7 @@ from bilt.symbolic._atoms import (
     FloatType,
     IntType,
     QuantityType,
+    SliceDimOpType,
     SymbolType,
 )
 from bilt.units._errors import BiltDimensionalityError
@@ -49,6 +50,8 @@ def dimensionality_of(
     operands = [dimensionality_of(operand, dimensionalities) for operand in tree.args]
     if tree.head.atom_type is ConcatDimOpType:
         return _shared(operands)
+    if tree.head.atom_type is SliceDimOpType:
+        return operands[0]
     return _dimensionality_at(tree, operands)
 
 
@@ -141,7 +144,7 @@ def _power(base: Dimension | None, exponent: Dimension | None) -> Dimension:
     return DIMENSIONLESS
 
 
-def absoluteness_of(
+def absoluteness_of(  # noqa: PLR0911
     equation_name: str,
     tree: Tree,
     declarations: collections.abc.Mapping[str, PortDeclaration],
@@ -162,6 +165,8 @@ def absoluteness_of(
     operands = [absoluteness_of(equation_name, operand, declarations) for operand in tree.args]
     if tree.head.atom_type is ConcatDimOpType:
         return _concat_absoluteness(equation_name, operands)
+    if tree.head.atom_type is SliceDimOpType:
+        return operands[0]
     if tree.is_relation:
         if not operands[0] & operands[1]:
             msg = "relates an absolute quantity to a relative one: both sides must be absolute, or both relative."

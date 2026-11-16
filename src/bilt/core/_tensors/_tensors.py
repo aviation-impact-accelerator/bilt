@@ -167,8 +167,11 @@ class Tensor:
         """Return the product over a named dimension in a Bilt model."""
         raise _symbolic_operation_only()
 
-    def isel(self, dim: Dim, index: int) -> Tensor:  # noqa: ARG002
-        """Select a position along a named dimension in a Bilt model."""
+    def isel(self, dim: Dim, index: int | slice, *, into: Dim | None = None) -> Tensor:  # noqa: ARG002
+        """Select a position or a positional slice along a named dimension in a Bilt model.
+
+        Positional slices require a distinct destination dimension via 'into'.
+        """
         raise _symbolic_operation_only()
 
     def sel(self, dim: Dim, coordinate: Coordinate) -> Tensor:  # noqa: ARG002

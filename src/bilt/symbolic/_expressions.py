@@ -25,6 +25,7 @@ from bilt.symbolic._tree import (
     quantity_tree,
     relation_tree,
     sel_tree,
+    slice_tree,
     sum_tree,
     symbol_tree,
 )
@@ -248,8 +249,28 @@ class TensorExpr(Expr):
         """Return the symbolic product over a dimension."""
         return TensorExpr(prod_tree(self.tree, dim))
 
-    def isel(self, dim: Dim, index: int | Expr) -> TensorExpr:
-        """Select a position along a symbolic dimension."""
+    def isel(self, dim: Dim, index: int | Expr | slice, *, into: Dim | None = None) -> TensorExpr:
+        """Select a scalar position or slice into a distinct named dimension."""
+        if isinstance(index, slice):
+            from bilt.symbolic._dimensions import Dim  # noqa: PLC0415
+
+            if not isinstance(dim, Dim) or not isinstance(into, Dim):
+                msg = "Slicing requires a source dimension and an explicit 'into' dimension."
+                raise TypeError(msg)
+            if dim == into:
+                msg = "A sliced tensor requires a new dimension distinct from the source."
+                raise ValueError(msg)
+            if any(bound is not None and type(bound) is not int for bound in (index.start, index.stop, index.step)):
+                msg = "Positional slices require literal integer or None bounds."
+                raise TypeError(msg)
+            if index.step == 0:
+                msg = "Slice step cannot be zero."
+                raise ValueError(msg)
+            return TensorExpr(slice_tree(self.tree, dim, into, index))
+
+        if into is not None:
+            msg = "'into' is only valid when selecting a slice."
+            raise ValueError(msg)
         return TensorExpr(isel_tree(self.tree, dim, as_tree(index)))
 
     def sel(self, dim: Dim, coordinate: Coordinate) -> TensorExpr:

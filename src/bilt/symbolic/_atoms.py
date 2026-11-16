@@ -43,6 +43,8 @@ __all__ = [
     "QuantityType",
     "ReductionOpType",
     "RelationOpType",
+    "SliceAxisOpType",
+    "SliceDimOpType",
     "SymbolType",
     "atom_cache_size",
     "axis",
@@ -96,6 +98,8 @@ ReductionOpType = AtomType("ReductionOp")
 ConcatDimOpType = AtomType("ConcatDimOp")
 ConcatAxisOpType = AtomType("ConcatAxisOp")
 IndexOpType = AtomType("IndexOp")
+SliceDimOpType = AtomType("SliceDimOp")
+SliceAxisOpType = AtomType("SliceAxisOp")
 CoordinateType = AtomType("Coordinate")
 DimensionType = AtomType("Dimension")
 AxisType = AtomType("Axis")
