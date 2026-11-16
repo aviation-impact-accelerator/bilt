@@ -231,10 +231,6 @@ def fix_total_circulation(circulation: Tensor, total: float) -> bool:
     return circulation.sum(SOURCE) == total
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Joint mixed source-domain and scalar inverse currently fails linear domain inference",
-)
 def test_mixed_scalar_and_source_tensor_unknowns(backend: Backend) -> None:
     """Two target equations plus one integral solve two circulations and one angle."""
     a = np.array([[2.0, 1.0], [1.0, 3.0]])
@@ -252,8 +248,8 @@ def test_mixed_scalar_and_source_tensor_unknowns(backend: Backend) -> None:
     np.testing.assert_allclose(result.values, expected_gamma, rtol=1e-5, atol=1e-6)
 
 
-# The exact domain-hint experiment deliberately leaves the original mixed
-# test above as xfail: it distinguishes known-layout lowering from inference.
+# Keep the explicit-hint variant as a separate regression alongside automatic
+# inference of mixed tensor and scalar unknowns.
 SourceCirculation = typing.Annotated[Tensor, domain(SOURCE)]
 SharedAngle = typing.Annotated[float, domain()]
 
