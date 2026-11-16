@@ -178,6 +178,7 @@ def test_one_tensor_equation_determines_two_scalar_ports(backend: Backend, outpu
 @system
 class SelectedUnknown(metaclass=Interface):
     x: WingGamma = field()
+    reference: WingGamma = field()
     first_value: float = field()
     second_value: float = field()
 
@@ -195,7 +196,11 @@ def second_coordinate(x: WingGamma, second_value: float) -> bool:
 def test_two_scalar_equations_determine_one_tensor_port(backend: Backend) -> None:
     """Two primitive equations constrain different coordinates of one port."""
     with backend, Implementation(SelectedUnknown, [first_coordinate, second_coordinate]):
-        result = SelectedUnknown(first_value=2.5, second_value=-1.5).x
+        result = SelectedUnknown(
+            first_value=2.5,
+            second_value=-1.5,
+            reference=tensor([0.0, 0.0], over=WS),
+        ).x
     assert isinstance(result, Tensor)
     assert result.domain == domain(WS)
     np.testing.assert_allclose(result.values, [2.5, -1.5], atol=1e-6)
