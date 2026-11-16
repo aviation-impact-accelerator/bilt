@@ -8,6 +8,7 @@ import pytest
 
 from bilt import Tensor, dim, domain, equation
 from bilt.core._domain_registry import DomainRegistry
+from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._causalization_block_solver._coordinate_blocks import discover_coordinate_blocks
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import (
@@ -46,12 +47,12 @@ def second(circulation: SourceTensor, second_value: float) -> bool:
 
 
 def _snapshot(
-    rows: tuple[object, ...],
+    rows: tuple[BasicEquation, ...],
     unknowns: set[str],
     known: set[str],
 ) -> ExpansionSnapshot:
     constraints = tuple(
-        ExpandedConstraint((), typing.cast("typing.Any", row), frozenset(row.__bilt_parameters__)) for row in rows
+        ExpandedConstraint((), row, frozenset(row.__bilt_parameters__)) for row in rows
     )
     return ExpansionSnapshot(
         constraints=constraints,
