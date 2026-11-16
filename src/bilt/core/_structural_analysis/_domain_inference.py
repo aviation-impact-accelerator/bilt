@@ -150,7 +150,7 @@ class _Constraints:
         )
 
 
-def infer_linear_domains(
+def infer_linear_domains(  # noqa: PLR0913 - solver context includes layout and mode.
     names: tuple[str, ...],
     rows: tuple[tuple[Tree, Tree], ...],
     known: Mapping[str, Domain],
