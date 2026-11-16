@@ -66,9 +66,10 @@ parameters in the geometry fixture, not hard-coded in the Bilt equations.
 
 ## Dependency and future work
 
-This is stacked on the general source-to-target/mixed-domain linear solver
-prototype in PR #440, and should remain a draft example until the solver's
-structural matching heuristic has been properly generalised.
+This uses Bilt's general coordinate-aware structural matching and linear
+operator lowering (PRs #444, #446, #448, #450 and #454). Unlike the
+earlier prototype in PR #440, the example does not rely on
+operator-specific structural matching heuristics.
 
 Possible follow-ups: refine spanwise discretisation and convergence, introduce
 chordwise vortex panels, model variable chord and sweep, and compare against a
