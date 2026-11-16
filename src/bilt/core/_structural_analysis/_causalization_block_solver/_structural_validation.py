@@ -77,7 +77,7 @@ def validate_request_structure(
     available: collections.abc.Set[str],
     output: str,
     *,
-    input_domains: collections.abc.Mapping[str, Domain] | None = None,
+    input_domains: typing.Mapping[str, Domain] | None = None,
     bindings: DomainRegistry | None = None,
 ) -> ValidatedStructure | None:
     """Expand relevant children structurally, then validate the combined scope.
