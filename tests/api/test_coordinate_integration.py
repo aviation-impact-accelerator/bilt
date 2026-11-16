@@ -14,7 +14,7 @@ from bilt.errors import BiltAnalysisError, BiltDomainBindingError
 from bilt.symbolic._dimensions import coordinate_axis
 from bilt.symbolic._domains import domain
 from bilt.symbolic._expressions import tensor_symbol_expr
-from bilt.units import kilogram, meter, second, teragram, watt, year
+from bilt.units import absolute_year, meter, teragram, watt, year
 from bilt.units.dimensions import MASS
 
 if TYPE_CHECKING:
@@ -121,7 +121,7 @@ def test_cyof_gwp20_integrates_response_with_time_units(backend: Backend) -> Non
         )
 
     implementation = Implementation(Model, [integrate])
-    dates = tuple(range(0, 101))
+    dates = tuple(range(101))
     forcing = np.exp(-np.asarray(dates) / 36.54)
     with EvaluationContext() as evaluation:
         evaluation.domains.bind_axis(coordinate_axis(elapsed, dates))
@@ -185,13 +185,13 @@ def test_integral_resolves_new_weights_per_evaluation(backend: Backend) -> None:
 
 @pytest.mark.parametrize(
     ("coordinates", "reason"),
-    [
+    (
         ((0.0,), "at least two"),
         ((0.0, 0.0, 1.0), "strictly monotonic"),
         ((0.0, 2.0, 1.0), "strictly monotonic"),
         ((0.0, float("nan")), "finite numerical"),
         (("a", "b"), "finite numerical"),
-    ],
+    ),
 )
 def test_registry_rejects_invalid_coordinate_axes(coordinates: tuple[object, ...], reason: str) -> None:
     elapsed = dim("elapsed")
@@ -210,8 +210,6 @@ def test_unlabelled_axis_cannot_be_integrated() -> None:
 
 
 def test_coordinate_unit_is_relative_and_required_for_physical_time() -> None:
-    from bilt.units import absolute_year
-
     elapsed = dim("elapsed")
     expression = tensor_symbol_expr("x")
     with pytest.raises(TypeError, match="must be a Unit"):
