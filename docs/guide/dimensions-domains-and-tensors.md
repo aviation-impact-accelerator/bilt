@@ -1,6 +1,6 @@
 ## Domains and tensors
 
-For constructors, reductions, indexing and their current limitations, see the [Tensor API reference](../api/tensors.md).
+For constructors, reductions, indexing and their current limitations, see the [Tensor API reference](../api/tensors.md). For quantity-related type annotations, see [Quantity annotations and typing](../api/quantity-annotations.md).
 
 So far, every value in our examples has been a scalar:
 
@@ -175,6 +175,110 @@ cost      (location, time)
 ```
 
 Bilt can align the values using the **names of their dimensions**, rather than requiring the user to arrange axes purely by position.
+
+### Scalar or tensor values at system boundaries
+
+When a system can accept either a plain scalar or a **unitless** tensor,
+a union is sufficient. There is no need for an additional Bilt protocol:
+
+```python exec="off"
+from bilt import Interface, Tensor, field, system
+
+type Value = float | Tensor
+
+
+@system
+class Scale(metaclass=Interface):
+    x: Value = field()
+    doubled: Value = field()
+```
+
+Both `Scale(x=2.0)` and `Scale(x=tensor([1.0, 2.0], over=time))`
+are accepted. An equation can still use `float` annotations and Bilt will
+lift it over the input's named domain. This keeps the system's accepted
+value types separate from the local operations of the equation.
+
+**Limit of static typing:** The concrete `QuantityTensor` class currently
+inherits `Tensor`. Python type checkers therefore also consider a
+unit-bearing tensor valid wherever a `Tensor` is annotated. Bilt rejects
+it **at runtime** at a plain, unitless port. A static guarantee that the
+tensor has no unit would require a separate tensor typing design; a
+`float | Tensor` union cannot provide that guarantee.
+
+### Requiring a minimum domain
+
+A system input can require a particular named dimension without fixing the
+complete shape of the input. For a unit-bearing tensor quantity:
+
+```python exec="off"
+import typing
+
+from bilt import Interface, Quantity, QuantityTensor, Tensor, dim, field, system
+from bilt.symbolic._domains import Domain
+from bilt.units.dimensions import MASS
+
+time = dim("time")
+scenario = dim("scenario")
+type TimeMass = typing.Annotated[QuantityTensor, MASS, Domain((time,))]
+
+
+@system
+class Demand(metaclass=Interface):
+    mass: TimeMass = field()
+```
+
+A tensor over `(time,)` satisfies that requirement, as does one over
+`(scenario, time)`. A tensor over only `(scenario,)` does not: it lacks
+the required `time` dimension. The order of axes does not matter.
+
+This is a **minimum** domain requirement, not an exact-domain restriction.
+Bilt checks it when values enter a system and when a computed system output
+has a declared minimum domain. Domain metadata is checked by Bilt at runtime;
+Python type checkers do not interpret the dimensions in `Annotated`.
+
+This form applies to the unit-bearing `QuantityTensor` annotation. The
+pointwise `Quantity | QuantityTensor` union permits scalars and therefore cannot declare a
+required tensor dimension. Existing unitless `Annotated[Tensor, Domain(...)]`
+annotations remain available as exact hints for unitless structural domain
+inference. Scalar equation annotations may also use `Quantity` with
+`Domain.scalar()` as an exact linear-solver hint. Dimensioned `Tensor`
+annotations are no longer supported.
+Equation-local minimum requirements are checked on the route Bilt selects,
+as described below.
+
+### Minimum domains on equation parameters
+
+An equation can also require a dimension that is not mentioned on its
+enclosing system field. This is useful when the system itself accepts many
+possible shapes but one equation needs a specific axis:
+
+```python exec="off"
+import typing
+
+from bilt import Quantity, QuantityTensor, equation
+from bilt.symbolic._domains import Domain
+from bilt.units.dimensions import MASS
+
+type Mass = typing.Annotated[Quantity | QuantityTensor, MASS]
+type TimeMass = typing.Annotated[QuantityTensor, MASS, Domain((time,))]
+
+
+@equation
+def copy_over_time(x: TimeMass, result: Mass) -> bool:
+    return result == x
+```
+
+When Bilt chooses this equation to compute an output, it checks the
+**inferred domains** of the values the equation reads and produces.
+The `time` dimension must be present, but additional axes such as
+`scenario` are allowed. If the equation is not selected for a particular
+evaluation, its domain requirement does not constrain that evaluation.
+
+These are minimum-domain **requirements**, unlike exact `Domain` **hints**
+on pointwise `Quantity | QuantityTensor` equation parameters or unitless `Tensor` parameters. In
+particular, they are not passed to the linear-block inference algorithm as
+exact layouts. A mismatch rejects the selected evaluation route with an
+explanation naming the equation, port and missing dimensions.
 
 ### Broadcasting rules
 

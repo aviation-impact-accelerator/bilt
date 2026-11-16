@@ -33,6 +33,7 @@ nav = [
         { "Systems and implementations" = "api/systems.md" },
         { "Equations and transforms" = "api/relationships.md" },
         { "Units" = "api/units.md" },
+        { "Quantity annotations and typing" = "api/quantity-annotations.md" },
         { "Tensors" = "api/tensors.md" },
         { "Backends" = "api/backends.md" },
     ] },

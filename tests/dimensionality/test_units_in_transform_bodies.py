@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, field, system, transform
+from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, QuantityTensor, field, system, transform
 from bilt.errors import BiltDefinitionError
 from bilt.units import Quantity, meter, units
 from bilt.units.dimensions import LENGTH
@@ -16,16 +16,17 @@ if typing.TYPE_CHECKING:
     from bilt.core._transform import BasicTransform
 
 Length = typing.Annotated[Quantity, LENGTH]
+LengthField = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 
 
 @system
 class Stretch(metaclass=Interface):
-    length: Length = field()
-    stretched: Length = field()
+    length: LengthField = field()
+    stretched: LengthField = field()
     span_km: float = field()
 
 
-def _stretch(stretched: BasicTransform) -> Quantity:
+def _stretch(stretched: BasicTransform) -> Quantity | QuantityTensor:
     with Implementation(Stretch, [stretched]):
         return Stretch(length=1.0 * kilometer).stretched
 
@@ -258,7 +259,7 @@ def test_converting_a_parameter_to_a_unit_of_another_dimensionality_is_refused()
 def test_value_on_a_plain_parameter_fails_as_python_fails_it() -> None:
     @transform
     def stretched(span_km: float) -> Length:
-        return span_km.value * kilometer  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
+        return span_km.value * kilometer  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
     with (
         Implementation(Stretch, [stretched]),

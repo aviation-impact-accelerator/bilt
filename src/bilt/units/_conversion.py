@@ -17,16 +17,6 @@ class Conversion:
         return value * self.scale + self.offset
 
 
-class QuantityLike(typing.Protocol):
-    @property
-    def value(self) -> float: ...
-
-    @property
-    def unit(self) -> Unit: ...
-
-    def __str__(self) -> str: ...
-
-
 def _create_absolute_unit_stack(unit: Unit) -> list[Unit]:
     stack = [unit]
     relative_unit = unit.relation.composition[0].unit

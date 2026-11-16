@@ -4,24 +4,39 @@ import typing
 
 import pytest
 
-from bilt import PYTHON_BACKEND, Implementation, Interface, Tensor, equation, field, system, transform
+from bilt import (
+    PYTHON_BACKEND,
+    Implementation,
+    Interface,
+    QuantityTensor,
+    equation,
+    field,
+    system,
+    transform,
+)
 from bilt.errors import BiltInputDimensionalityError
 from bilt.units import Quantity, absolute_celsius, ampere, kelvin, meter, ohm, second
 from bilt.units.dimensions import ABSOLUTE, CURRENT, LENGTH, RESISTANCE, TEMPERATURE, VOLTAGE
 
 Current = typing.Annotated[Quantity, CURRENT]
+CurrentField = typing.Annotated[Quantity | QuantityTensor, CURRENT]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
+ResistanceField = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
+VoltageField = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
 Length = typing.Annotated[Quantity, LENGTH]
-LengthSeries = typing.Annotated[Tensor, LENGTH]
+LengthField = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+LengthSeries = typing.Annotated[QuantityTensor, LENGTH]
+LengthSeriesField = typing.Annotated[QuantityTensor, LENGTH]
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
+AbsoluteTemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
 
 
 @system
 class Resistor(metaclass=Interface):
-    i: Current = field()
-    r: Resistance = field()
-    v: Voltage = field()
+    i: CurrentField = field()
+    r: ResistanceField = field()
+    v: VoltageField = field()
 
 
 @equation
@@ -56,7 +71,7 @@ def test_direct_evaluate_validates_before_returning_an_existing_output() -> None
 
 @system
 class TemperatureProbe(metaclass=Interface):
-    reading: AbsoluteTemperature = field()
+    reading: AbsoluteTemperatureField = field()
 
 
 def test_direct_evaluate_rejects_a_relative_temperature_at_an_absolute_port() -> None:
@@ -87,8 +102,8 @@ def test_direct_evaluate_rejects_a_quantity_at_a_plain_port() -> None:
 
 @system
 class Stretch(metaclass=Interface):
-    x: Length = field()
-    y: Length = field()
+    x: LengthField = field()
+    y: LengthField = field()
 
 
 @transform
@@ -122,8 +137,8 @@ def test_direct_evaluate_lifts_a_declared_intermediate_output() -> None:
 
 @system
 class TensorStretch(metaclass=Interface):
-    x: LengthSeries = field()
-    y: LengthSeries = field()
+    x: LengthSeriesField = field()
+    y: LengthSeriesField = field()
 
 
 @equation

@@ -19,9 +19,9 @@ from bilt.core._errors import (
 )
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
-from bilt.core._port_declaration import PortDeclaration, annotated_parts, port_declarations
+from bilt.core._port_declaration import PortDeclaration, annotated_parts, port_declarations, quantity_magnitude_kind
 from bilt.core._sub_system import validate_name
-from bilt.core._tensors._tensors import Tensor
+from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.core._validation import validate_independently
 from bilt.symbolic import _atoms as ops
 from bilt.symbolic._atoms import QuantityType, SymbolType
@@ -151,8 +151,9 @@ def _build_symbols(
 ) -> dict[str, Expr | SubSystemExpr]:
     """Bind each parameter to what the equation function sees when called symbolically.
 
-    A parameter over a domain gets the tensor symbol, so a declared `Annotated[Tensor, DIM]` port reduces and
-    indexes as a plain `Tensor` one does.
+    Tensor-specific annotations get tensor symbols for named reductions and
+    selections. Pointwise scalar-or-tensor quantities use ordinary symbols,
+    which Bilt can lift over compatible domains.
     """
     symbols: dict[str, Expr | SubSystemExpr] = {}
 
@@ -163,7 +164,7 @@ def _build_symbols(
                 name,
                 {port: QualifiedPort(name, port).dotted for port in sub_systems[name].__bilt_parameters__},
             )
-        elif base_type is Tensor:
+        elif base_type in (Tensor, QuantityTensor) or quantity_magnitude_kind(base_type) == "tensor":
             symbols[name] = tensor_symbol_expr(name)
         else:
             symbols[name] = symbol_expr(name)

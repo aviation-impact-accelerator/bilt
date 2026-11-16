@@ -3,7 +3,7 @@ import typing
 
 import pytest
 
-from bilt import Implementation, Interface, Tensor, dim, domain, equation, field, system, transform
+from bilt import Implementation, Interface, QuantityTensor, Tensor, dim, domain, equation, field, system, transform
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._errors import BiltAnalysisError
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import StructuralExpansion
@@ -33,7 +33,7 @@ OverSite = typing.Annotated[Tensor, domain(SITE)]
 Grid = typing.Annotated[Tensor, domain(SITE, TIME)]
 ReverseGrid = typing.Annotated[Tensor, domain(TIME, SITE)]
 Shared = typing.Annotated[float, Domain.scalar()]
-LengthArray = typing.Annotated[Tensor, LENGTH, domain(TIME)]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH, domain(TIME)]
 
 
 @system
@@ -171,7 +171,9 @@ def test_quantity_constants_and_unit_declarations_are_preserved() -> None:
     assert quantities
     assert quantities <= subtrees(row.tree)
     assert row.source.__bilt_port_declarations__["x"].dimensionality is LENGTH
-    assert dict(row.domain_hints) == {"inner.x": domain(TIME), "inner.p": domain(TIME)}
+    assert dict(row.domain_hints) == {}
+    assert row.source.__bilt_port_declarations__["x"].required_domain == domain(TIME)
+    assert row.source.__bilt_port_declarations__["p"].required_domain == domain(TIME)
 
 
 @equation

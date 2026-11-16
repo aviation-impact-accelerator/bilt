@@ -60,7 +60,7 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
                 inputs[intermediate.name] = result
             return inputs[case.return_name]
 
-        final_callable.__signature__ = (  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
+        final_callable.__signature__ = (  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
             expected_signature
         )
         return BackendCallable(name=case.name, parameters=case.parameters, callable=final_callable)

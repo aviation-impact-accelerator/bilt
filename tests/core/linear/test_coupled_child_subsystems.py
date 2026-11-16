@@ -3,7 +3,19 @@ import typing
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, Quantity, Tensor, dim, equation, field, system, tensor, transform
+from bilt import (
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityTensor,
+    Tensor,
+    dim,
+    equation,
+    field,
+    system,
+    tensor,
+    transform,
+)
 from bilt._backend._errors import BiltUnsupportedNodeError
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
@@ -21,8 +33,8 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable
 
 TIME = dim("time")
-LengthArray = typing.Annotated[Tensor, LENGTH]
-LengthScalar = typing.Annotated[Quantity, LENGTH]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
+LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 
 
 @system

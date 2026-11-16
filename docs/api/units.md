@@ -1,26 +1,25 @@
 # Units API
 
 Reference for `bilt.units`, `bilt.units.dimensions` and unit-related exceptions in
-`bilt.errors`. For model declarations and a guided example, see [Units in models](../guide/units.md).
+`bilt.errors`. For a walkthrough, see [Units in models](../guide/units.md).
+For choosing scalar, tensor and pointwise field annotations, see
+[Quantity annotations and typing](quantity-annotations.md).
 
-## Imports and declarations
+## Imports and dimensions
 
 ```python exec="on" session="units-api"
 from typing import Annotated
 
-from bilt import Quantity, Tensor, tensor
+from bilt import Quantity, tensor
 from bilt.units import Metadata, Prefix, Unit, kilometer, meter
-from bilt.units.dimensions import ABSOLUTE, LENGTH, TEMPERATURE
+from bilt.units.dimensions import LENGTH
 
 Length = Annotated[Quantity, LENGTH]
-LengthSeries = Annotated[Tensor, LENGTH]
-AbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]
 ```
 
-Declare dimensions, not units, on model ports. A bare `Quantity` is refused;
-a bare `Tensor` declares no physical dimension. A declared quantity port can accept a compatible
-unit-carrying tensor; a declared tensor port requires a tensor.
-Plain ports, such as `float`, stand outside the unit system.
+Model annotations use physical dimensions such as `LENGTH`, not units such as `meter`.
+For tensor-capable fields, named aliases and equation typing, see
+[Quantity annotations and typing](quantity-annotations.md).
 
 ## Built-in units
 
@@ -220,6 +219,10 @@ Import `tensor` and `Tensor` from `bilt`.
 | `t * unit` | Label an unlabelled tensor, or compose with its existing unit, without rescaling its values. |
 | `t / unit` | Divide an existing tensor unit by another unit, without rescaling values. |
 
+With an explicit unit, `tensor(..., unit=...)` returns a `QuantityTensor`;
+without one, it returns a `Tensor`. For how to annotate these values on
+model fields and equations, see [Quantity annotations and typing](quantity-annotations.md).
+
 Unit multiplication labels values; `convert_to()` rescales them. Concrete tensor
 arithmetic is otherwise dispatched through Bilt models. Tensors do not expose
 the quantity helpers `cast_to()` or `strip_metadata()`.
@@ -238,7 +241,7 @@ message strings; messages include the offending ports, quantities and units.
 | `BiltEquationDimensionalityError` | An equation is dimensionally inconsistent. Check operations, constants, tags and absolute/relative quantities. |
 | `BiltImplementationDimensionalityError` | Shared ports have conflicting declarations or the implementation makes an equation inconsistent. Declare the same dimension everywhere. |
 | `BiltInputDimensionalityError` | An input has the wrong dimension, tags, absolute/relative kind or scalar/tensor carrier, or is unlabelled. |
-| `BiltPortDeclarationError` | Invalid annotation: use exactly one dimension on a quantity/tensor, not a unit. This is a `BiltDefinitionError`, not a `BiltUnitsError`. |
+| `BiltPortDeclarationError` | Invalid quantity annotation: declare a physical dimension, not a unit. Use `Quantity` or `QuantityTensor` (or their union), not dimensioned `Tensor`. This is a `BiltDefinitionError`, not a `BiltUnitsError`. |
 | `BiltDefinitionError` | Unsupported unit operations inside a transform, including bare quantity `.value` or `cast_to()`. |
 | `BiltUnresolvedAnnotationError` | An annotation name is missing when the decorator runs. Import or define it at runtime, outside `if TYPE_CHECKING:`. |
 

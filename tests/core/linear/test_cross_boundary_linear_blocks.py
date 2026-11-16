@@ -4,7 +4,19 @@ import jax
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, Quantity, Tensor, dim, equation, field, system, tensor, transform
+from bilt import (
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityTensor,
+    Tensor,
+    dim,
+    equation,
+    field,
+    system,
+    tensor,
+    transform,
+)
 from bilt._backend._errors import BiltUnsupportedNodeError
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
@@ -19,7 +31,7 @@ if typing.TYPE_CHECKING:
 
     from bilt._backend import Backend, BackendCallable
 
-Length = typing.Annotated[Quantity, LENGTH]
+Length = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 
 
 @system

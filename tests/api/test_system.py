@@ -1,4 +1,5 @@
 import contextlib
+import typing
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -19,9 +20,11 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.errors import (
     BiltAnalysisError,
+    BiltInputDimensionalityError,
     BiltSystemDefinitionError,
     BiltUnknownSystemAttributeError,
 )
+from bilt.units import kilogram
 
 if TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
@@ -505,3 +508,35 @@ def test_default_causalization_keeps_supplied_inputs_separate_from_cached_output
             else:
                 assert result == pytest.approx(expected[name], abs=1e-5)
             assert getattr(instance, name) is result
+
+
+type FlexibleValue = float | Tensor
+
+
+@system
+class FlexiblePlainScale(metaclass=Interface):
+    x: FlexibleValue = field()
+    doubled: FlexibleValue = field()
+
+
+@equation
+def flexible_plain_doubling(x: float, doubled: float) -> bool:
+    return doubled == 2.0 * x
+
+
+def test_unitless_union_system_field_accepts_scalar_and_tensors() -> None:
+    scalar = FlexiblePlainScale(x=2.0)
+    varied = FlexiblePlainScale(x=tensor([1.0, 2.0], over=dim("time")))
+    typing.assert_type(scalar.x, FlexibleValue)
+    typing.assert_type(varied.x, FlexibleValue)
+
+    with Implementation(FlexiblePlainScale, [flexible_plain_doubling]):
+        assert FlexiblePlainScale(x=2.0).doubled == pytest.approx(4.0)
+        values = FlexiblePlainScale(x=tensor([[1.0, 2.0]], over=(dim("scenario"), dim("time")))).doubled
+    assert isinstance(values, Tensor)
+    np.testing.assert_array_equal(values.values, [[2.0, 4.0]])
+
+
+def test_unitless_union_rejects_unit_bearing_tensor_at_runtime() -> None:
+    with pytest.raises(BiltInputDimensionalityError, match="plain port"):
+        FlexiblePlainScale(x=tensor([1.0, 2.0], over=dim("time"), unit=kilogram))

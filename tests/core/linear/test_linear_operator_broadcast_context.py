@@ -6,7 +6,20 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from bilt import Domain, Implementation, Interface, Quantity, Tensor, dim, domain, equation, field, system, tensor
+from bilt import (
+    Domain,
+    Implementation,
+    Interface,
+    Quantity,
+    QuantityTensor,
+    Tensor,
+    dim,
+    domain,
+    equation,
+    field,
+    system,
+    tensor,
+)
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
@@ -27,10 +40,11 @@ SITE = dim("site")
 Shared = typing.Annotated[Tensor, Domain.scalar()]
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
-LengthArray = typing.Annotated[Tensor, LENGTH]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
 SharedLength = typing.Annotated[Quantity, LENGTH, Domain.scalar()]
-LengthScalar = typing.Annotated[Quantity, LENGTH]
-RatioArray = typing.Annotated[Tensor, DIMENSIONLESS]
+SharedLengthField = typing.Annotated[Quantity, LENGTH]
+LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+RatioArray = typing.Annotated[QuantityTensor, DIMENSIONLESS]
 
 
 @system
@@ -220,7 +234,7 @@ def test_broadcast_context_preserves_units(backend: Backend, output: str) -> Non
     @system
     class Lengths(metaclass=Interface):
         x: LengthArray = field()
-        y: SharedLength = field()
+        y: SharedLengthField = field()
         p: LengthArray = field()
         q: LengthScalar = field()
         weights: RatioArray = field()

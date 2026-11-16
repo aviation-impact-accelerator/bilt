@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, Tensor, dim, equation, field, system, tensor
+from bilt import Implementation, Interface, QuantityTensor, Tensor, dim, equation, field, system, tensor
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
@@ -27,7 +27,7 @@ if typing.TYPE_CHECKING:
 
 TIME = dim("time")
 SITE = dim("site")
-LengthArray = typing.Annotated[Tensor, LENGTH]
+LengthArray = typing.Annotated[QuantityTensor, LENGTH]
 
 
 @equation
@@ -149,6 +149,7 @@ def test_tensor_units_are_lowered_and_lifted_in_coherent_units(backend: Backend)
         result = Lengths(
             p=tensor([0.01, 0.02], over=TIME, unit=kilometer), q=tensor([2.0, 2.0], over=TIME, unit=meter)
         ).x
+    assert isinstance(result, QuantityTensor)
     assert result.unit == meter
     assert result.domain == domain(TIME)
     np.testing.assert_allclose(result.values, [6, 11], rtol=1e-5)

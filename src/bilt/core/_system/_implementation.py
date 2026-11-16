@@ -141,6 +141,9 @@ class Implementation:
                 lifting_plan = generate_lifting_plan(output_domain, output_declaration)
                 output_value = lift_output(raw_output_value, lifting_plan)
 
+            output_declaration = self._port_declarations.get(output)
+            if output_declaration is not None and output_declaration.required_domain is not None:
+                validate_inputs(self._system.__bilt_name__, {output: output_declaration}, {output: output_value})
             evaluation.domains.bind(output_value)
 
         return output_value

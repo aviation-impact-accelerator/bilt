@@ -7,7 +7,7 @@ import jax
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, equation, field, system, transform
+from bilt import Implementation, Interface, QuantityTensor, equation, field, system, transform
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCase
     from bilt.core._model_constituent import BiltModelConstituent
 
-Length = typing.Annotated[Quantity, LENGTH]
+Length = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 
 
 @system

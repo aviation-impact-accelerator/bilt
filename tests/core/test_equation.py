@@ -221,7 +221,7 @@ def test_equation_rejects_an_unknown_sub_system_port_at_definition_time() -> Non
 
         @equation
         def bad_eq(resistor: Resistor) -> bool:
-            return resistor.typo == 1  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
+            return resistor.typo == 1  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
 
 
 def test_equation_accepts_a_sub_system_port_with_a_leading_underscore() -> None:

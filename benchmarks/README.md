@@ -486,3 +486,45 @@ hint policy, coordinate count, wrapper depth, target and timing scope.
 
 No existing benchmark models, outcomes or timing boundaries change. No solver,
 backend, dependency configuration or default analyser changes are required.
+
+## Nested coupled planning regression
+
+`test_nested_coupled_plan_search.py` exercises three connected subsystems:
+an input calculation, a coupled calculation with two jointly determined
+unknowns, and an output calculation. Parent equations connect subsystem ports
+and introduce alternative producers, making the planning choices non-trivial.
+
+Both variants use the same subsystem graph, supplied values and expected output.
+Only the middle-stage equations differ:
+
+- **Coupled:** two linear relationships jointly determine both unknowns.
+- **Explicit:** the algebra is rearranged to compute one unknown, then the other.
+
+The expected result is **10.53 MW**. The comparison tests whether planning
+performance depends on how equivalent equations are expressed.
+
+The benchmark has a **1,000-plan-attempt limit**, including nested child
+requests. Reaching the limit is recorded as `budget_exceeded`, not as a
+successful calculation. Other planning failures fail the benchmark. As
+planning improves, both formulations should be required to succeed.
+
+```sh
+uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_nested_coupled_plan_search.py --benchmark-only --search-rounds=5 --timeout=30
+```
+
+The original application-specific reproduction is archived in the
+[benchmark investigation](https://github.com/aviation-impact-accelerator/bilt-fuels/pull/5).
+These synthetic equations are for testing structural planning, not validating
+a physical process. pytest-benchmark 5.3.1 is used for compatibility with
+pytest 9.2.
+
+## Larger coupled groups
+
+`test_coupled_group_planning.py` benchmarks complete 3×3 and 4×4 sparse
+linear systems, using fresh implementations and evaluation contexts in each
+round. The answer is independently checked (x = 1). These cases check that
+coupled-group recognition works beyond the two-equation syngas example.
+
+```sh
+uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_coupled_group_planning.py --benchmark-only --search-rounds=5 --timeout=30
+```

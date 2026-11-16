@@ -2,7 +2,7 @@ __all__ = ["CausalizationStructuralAnalyzer"]
 
 import typing
 
-from bilt.core._errors import BiltAnalysisError
+from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
 from bilt.core._structural_analysis._causalization_block_solver import _planning as planning
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
@@ -153,6 +153,10 @@ class CausalizationStructuralAnalyzer:
             # No individual constituent assignment has been proven invalid.
             return False
         step = failure.failed_plan_step
+        if isinstance(failure.cause, BiltEquationDomainRequirementError):
+            # Domain mismatch is specific to this request. Try another
+            # candidate route, but don't blacklist this equation permanently.
+            return False
         if isinstance(step.operation, SubSystemConstituent):
             # Child analysis may have rejected an internal step. Query it again
             # before abandoning this assignment.
