@@ -189,7 +189,7 @@ def test_integral_resolves_new_weights_per_evaluation(backend: Backend) -> None:
         (("a", "b"), "finite numerical"),
     ),
 )
-def test_registry_rejects_invalid_coordinate_axes(coordinates: tuple[object, ...], reason: str) -> None:
+def test_registry_rejects_invalid_coordinate_axes(coordinates: tuple[float | str, ...], reason: str) -> None:
     elapsed = dim("elapsed")
     registry = DomainRegistry()
     registry.bind_axis(coordinate_axis(elapsed, coordinates))
@@ -209,7 +209,7 @@ def test_coordinate_unit_is_relative_and_required_for_physical_time() -> None:
     elapsed = dim("elapsed")
     expression = tensor_symbol_expr("x")
     with pytest.raises(TypeError, match="must be a Unit"):
-        expression.integrate(elapsed, coordinate_unit="year")
+        expression.integrate(elapsed, coordinate_unit="year")  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
     with pytest.raises(ValueError, match="relative"):
         expression.integrate(elapsed, coordinate_unit=absolute_year)
 
