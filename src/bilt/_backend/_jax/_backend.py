@@ -26,6 +26,12 @@ if typing.TYPE_CHECKING:
     from bilt._backend import BackendCallable, BackendCase
 
 
+def _integrate(value: jax.Array, *, weights: tuple[float, ...], axis: int) -> jax.Array:
+    """Differentiable JAX trapezoidal quadrature over a static labelled axis."""
+    shape = (1,) * axis + (len(weights),) + (1,) * (value.ndim - axis - 1)
+    return jnp.sum(value * jnp.asarray(weights).reshape(shape), axis=axis, keepdims=True)
+
+
 def _isel(
     value: jax.Array,
     index: int | jax.Array,
@@ -107,6 +113,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
         }
         self.intrinsic_bindings = PythonIntrinsicBindings(
             isel=_isel,
+            integrate=_integrate,
             concat=_concat,
             slice=_slice,
             mean=jnp.mean,
