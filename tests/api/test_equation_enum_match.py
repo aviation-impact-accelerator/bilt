@@ -7,7 +7,7 @@ import pytest
 
 from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, equation, field, system
 from bilt.errors import BiltDefinitionError, BiltEvaluationError, BiltImplementationDimensionalityError
-from bilt.symbolic._atoms import EnumType
+from bilt.symbolic._atoms import CONDITIONAL, EnumType
 from bilt.symbolic._expressions import as_tree
 from bilt.symbolic._walk import subtrees
 
@@ -220,8 +220,6 @@ def test_symbolic_enum_members_retain_declared_class_and_member() -> None:
 
 
 def test_numeric_and_enum_match_use_one_conditional_representation() -> None:
-    from bilt.symbolic._atoms import CONDITIONAL
-
     assert any(node.head is CONDITIONAL for node in subtrees(int_output.__bilt_equation_tree__))
     assert any(node.head is CONDITIONAL for node in subtrees(enum_output.__bilt_equation_tree__))
 

@@ -307,12 +307,9 @@ def as_tree(value: object) -> Tree:
         msg = "Boolean values cannot be converted to symbolic expressions."
         raise BiltSymbolicConversionError(msg)
 
-    # Check before int: IntEnum subclasses int, but must retain category identity.
-    if isinstance(value, enum.Enum):
-        return enum_tree(value)
-
-    if isinstance(value, int):
-        return int_tree(value)
+    # IntEnum is an int subclass; preserve its categorical identity.
+    if isinstance(value, int | enum.Enum):
+        return enum_tree(value) if isinstance(value, enum.Enum) else int_tree(value)
 
     if isinstance(value, float):
         return float_tree(value)

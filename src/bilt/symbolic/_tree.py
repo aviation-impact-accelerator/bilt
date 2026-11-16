@@ -1,6 +1,6 @@
 import typing
-lazy import enum
 import weakref
+lazy import enum
 
 from bilt.symbolic._atoms import (
     CONDITIONAL,

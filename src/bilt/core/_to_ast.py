@@ -1,9 +1,10 @@
 import ast
 import typing
+lazy import enum
 
 from bilt.core._enum_matching import enum_code
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._atoms import AxisType, FloatType, IntType, QuantityType, SymbolType
+from bilt.symbolic._atoms import AxisType, EnumType, FloatType, IntType, QuantityType, SymbolType
 from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
 
 if typing.TYPE_CHECKING:
@@ -154,6 +155,10 @@ def _leaf_to_ast(tree: Tree) -> ast.expr:
         return ast.Constant(
             value=typing.cast("int | float", tree.head.value),
         )
+
+    if tree.head.atom_type is EnumType:
+        enum_type, member_name = typing.cast("tuple[type[enum.Enum], str]", tree.head.value)
+        return ast.Constant(value=enum_code(enum_type[member_name]))
 
     if tree.head.atom_type is QuantityType:
         return ast.Constant(value=typing.cast("tuple[float, Dimension, bool]", tree.head.value)[0])
