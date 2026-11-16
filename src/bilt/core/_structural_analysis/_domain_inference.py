@@ -97,6 +97,7 @@ class _Constraints:
                 if included & (1 << (axis * width + index)):
                     outputs[index] |= 1 << axis
         if self.allow_mixed:
+
             def size(bits: int) -> int:
                 return math.prod(extent for axis, extent in enumerate(self.sizes) if bits & (1 << axis))
 
