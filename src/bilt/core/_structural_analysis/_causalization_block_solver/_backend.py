@@ -2,7 +2,8 @@ __all__ = ["CausalizationStructuralAnalyzer"]
 
 import typing
 
-from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
+from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError, BiltNoActiveEvaluationError
+from bilt.core._evaluation_context import current_evaluation
 from bilt.core._structural_analysis._causalization_block_solver import _planning as planning
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
@@ -43,11 +44,20 @@ if typing.TYPE_CHECKING:
     import rustworkx as rx
 
     from bilt._backend import Backend, BackendCase
+    from bilt.core._domain_registry import DomainRegistry
     from bilt.core._evaluation_request import EvaluationRequest
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis._causalization_block_solver._expand_structure import ExpansionSnapshot
     from bilt.core._structural_analysis._causalization_block_solver._structural_validation import ValidatedStructure
     from bilt.core._structural_analysis._plan import PlanStep
+
+
+def _active_coordinate_bindings() -> DomainRegistry | None:
+    """Optional concrete domain bindings for execution-independent queries."""
+    try:
+        return current_evaluation().domains
+    except BiltNoActiveEvaluationError:
+        return None
 
 
 class CausalizationStructuralAnalyzer:
@@ -74,6 +84,8 @@ class CausalizationStructuralAnalyzer:
             self.full_incidence_graph,
             available,
             request.output,
+            input_domains=request.input_domains,
+            bindings=_active_coordinate_bindings(),
         )
         expanded = self._preflight(request, structure)
         if expanded is not None:
