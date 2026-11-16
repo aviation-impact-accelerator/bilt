@@ -53,9 +53,7 @@ def _snapshot(
     unknowns: set[str],
     known: set[str],
 ) -> ExpansionSnapshot:
-    constraints = tuple(
-        ExpandedConstraint((), row, frozenset(row.__bilt_parameters__)) for row in rows
-    )
+    constraints = tuple(ExpandedConstraint((), row, frozenset(row.__bilt_parameters__)) for row in rows)
     return ExpansionSnapshot(
         constraints=constraints,
         attributes=frozenset(unknowns | known),
