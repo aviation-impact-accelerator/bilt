@@ -59,8 +59,7 @@ def test_inverse_source_to_target_linear_operator(backend: Backend, *, split: bo
     with backend, implementation:
         model = LiftingLine(influence=influence, velocity=velocity)
         circulation = model.circulation
-        if split:
-            contribution = model.contribution
+        contribution = model.contribution if split else None
 
     assert isinstance(circulation, Tensor)
     assert circulation.domain == domain(SOURCE)
