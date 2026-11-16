@@ -20,7 +20,6 @@ import typing
 
 import rustworkx as rx
 
-from bilt.core._domain_registry import DomainRegistry
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._linear_operator import _validate_linear
 from bilt.symbolic._atoms import ADD, ISEL, MEAN, MUL, NEG, SEL, SUM, DimensionType, IntType, SymbolType
@@ -29,6 +28,7 @@ from bilt.symbolic._domains import Domain, union
 if typing.TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
 
+    from bilt.core._domain_registry import DomainRegistry
     from bilt.symbolic._dimensions import Dim
     from bilt.symbolic._tree import Tree
 
@@ -75,7 +75,7 @@ class CoordinateIncidence:
         return graph, frozenset(unknown_nodes.values())
 
 
-def build_coordinate_incidence(
+def build_coordinate_incidence(  # noqa: PLR0913 - request layouts and safety limits are independent inputs.
     equations: Sequence[Tree],
     unknown_domains: Mapping[str, Domain],
     input_domains: Mapping[str, Domain],
@@ -187,7 +187,7 @@ class _CoordinateTracer:
             return Domain(tuple(dim for dim in source.dims if dim != dimension.head.value))
         return union(*(self.domain(arg) for arg in tree.args))
 
-    def dependencies(
+    def dependencies(  # noqa: C901, PLR0912 - explicit operator dispatch makes coordinate semantics auditable.
         self,
         tree: Tree,
         positions: Mapping[Dim, int],
