@@ -67,8 +67,10 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
     through the existing inexpensive port matching.
     """
     if not structure.complete or output in structure.available:
+        print('COORD DIAG incomplete/supplied', output)
         return None
     if not structure.constraints or any(not isinstance(row.operation, BasicEquation) for row in structure.constraints):
+        print('COORD DIAG non-eq', output, len(structure.constraints))
         return None
     equations = tuple(
         QualifiedEquation(typing.cast("BasicEquation", row.operation), row.path) for row in structure.constraints
@@ -79,6 +81,7 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
     has_domain_operator = any(_has_operator(equation.tree) for equation in equations)
     multi_port_vector = len(equations) != len(unknowns) and any(domain.dims for domain in input_domains.values())
     if not (has_domain_operator or multi_port_vector):
+        print('COORD DIAG no operator', output)
         return None
 
     if output not in unknowns:
@@ -92,6 +95,7 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
             resolved[name] = Domain.scalar()
         else:
             # Exact tensor shape cannot be guessed from a type or a port-level match.
+            print('COORD DIAG unknown domain', output, name, sorted(unknowns), sorted(hints))
             return None
 
     # A single scalar-declared equation port can still lift pointwise over
@@ -105,11 +109,13 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
     parameters = {name for equation in equations for name in equation.parameters}
     known = {name: input_domains[name] for name in parameters & structure.available if name in input_domains}
     if parameters - unknowns - known.keys():
+        print('COORD DIAG missing params', output, parameters - unknowns - known.keys())
         return None
 
     try:
         incidence = build_coordinate_incidence(tuple(e.tree for e in equations), resolved, known, bindings)
-    except AffineAnalysisError, BiltDomainBindingError, BiltLinearBlockError:
+    except AffineAnalysisError, BiltDomainBindingError, BiltLinearBlockError as error:
+        print('COORD DIAG incidence failed', output, type(error).__name__, str(error), {k: v.dims for k, v in resolved.items()})
         # Inference, operator support and expansion limits are independent of
         # the existing planner: it may still find a valid execution route.
         return None
@@ -137,6 +143,7 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
         raise BiltUnderconstrainedError(message)
 
     if partition.underdetermined or len(incidence.residuals) != len(incidence.unknowns):
+        print('COORD DIAG bad partition', output, len(incidence.residuals), len(incidence.unknowns))
         # The port planner still handles other structurally determined regions.
         return None
 
