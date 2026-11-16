@@ -20,10 +20,10 @@ if typing.TYPE_CHECKING:
 
     from bilt.core._domain_registry import DomainRegistry
     from bilt.core._structural_analysis._causalization_block_solver._coordinate_blocks import CoordinateBlockDiscovery
-    from bilt.symbolic._domains import Domain
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import (
         FullIncidenceGraph,
     )
+    from bilt.symbolic._domains import Domain
 
 
 @dataclasses.dataclass(frozen=True)
