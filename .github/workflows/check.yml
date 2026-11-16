@@ -73,6 +73,8 @@ jobs:
       - name: Verify larger coupled linear benchmarks
         run: uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_coupled_group_planning.py --benchmark-disable --search-rounds=1 --timeout=30
 
+      - name: Verify coordinate-aware inverse operator benchmarks
+        run: uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_coordinate_operator_planning.py --benchmark-disable --search-rounds=1 --timeout=30
       - name: Format with rustfmt
         run: cargo fmt --all -- --check
 
