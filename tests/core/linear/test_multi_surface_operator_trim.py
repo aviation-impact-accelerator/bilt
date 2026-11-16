@@ -70,7 +70,7 @@ def tail_boundary(  # noqa: PLR0913, PLR0917 - physical named ports.
 
 
 @equation
-def total_balance(  # noqa: PLR0913, PLR0917 - physical named ports.
+def total_balance(
     wing: WingGamma,
     tail: TailGamma,
     wing_width: WingGamma,
