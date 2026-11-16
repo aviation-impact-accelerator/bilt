@@ -154,6 +154,7 @@ def test_request_validation_keeps_existing_path_without_domain_data() -> None:
 
 ScalarQuantity = typing.Annotated[Quantity, DIMENSIONLESS]
 SourceQuantity = typing.Annotated[Quantity | QuantityTensor, DIMENSIONLESS, domain(SOURCE)]
+SourceWeight = typing.Annotated[QuantityTensor, DIMENSIONLESS, domain(SOURCE)]
 MatrixQuantity = typing.Annotated[QuantityTensor, DIMENSIONLESS, domain(TARGET, SOURCE)]
 TargetQuantity = typing.Annotated[QuantityTensor, DIMENSIONLESS, domain(TARGET)]
 
@@ -167,9 +168,9 @@ def dimensioned_boundary(
 
 
 @equation
-def dimensioned_balance(circulation: SourceQuantity, weight: SourceQuantity, total_value: ScalarQuantity) -> bool:
+def dimensioned_balance(circulation: SourceQuantity, weight: SourceWeight, total_value: ScalarQuantity) -> bool:
     """Constrain weighted total circulation independently of the boundary."""
-    return (circulation * weight).sum(SOURCE) == total_value  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-union-attribute]
+    return (circulation * weight).sum(SOURCE) == total_value
 
 
 @equation
