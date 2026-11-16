@@ -169,7 +169,7 @@ def dimensioned_boundary(
 @equation
 def dimensioned_balance(circulation: SourceQuantity, total_value: ScalarQuantity) -> bool:
     """Fix the total circulation independently of the target boundary condition."""
-    return circulation.sum(SOURCE) == total_value  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]
+    return circulation.sum(SOURCE) == total_value  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-union-attribute]
 
 
 @equation
