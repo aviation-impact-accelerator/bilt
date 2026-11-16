@@ -162,7 +162,6 @@ def test_rejects_unsupported_match_patterns(source: str, message: str) -> None:
         _normalise(source)
 
 
-
 @pytest.mark.parametrize("member", ("Mode.ACTIVE", "StrMode.ACTIVE", "IntMode.ACTIVE"))
 def test_enum_member_patterns_are_rejected_until_categorical_support_exists(member: str) -> None:
     # Qualified Enum, StrEnum and IntEnum patterns all use MatchValue(Attribute).
