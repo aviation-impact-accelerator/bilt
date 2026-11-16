@@ -75,7 +75,7 @@ class CoordinateIncidence:
         return graph, frozenset(unknown_nodes.values())
 
 
-def build_coordinate_incidence(  # noqa: PLR0913 - request layouts and safety limits are independent inputs.
+def build_coordinate_incidence(  # noqa: C901, PLR0913 - explicit constraints and safety limits for structural tracing.
     equations: Sequence[Tree],
     unknown_domains: Mapping[str, Domain],
     input_domains: Mapping[str, Domain],
@@ -187,7 +187,7 @@ class _CoordinateTracer:
             return Domain(tuple(dim for dim in source.dims if dim != dimension.head.value))
         return union(*(self.domain(arg) for arg in tree.args))
 
-    def dependencies(  # noqa: C901, PLR0912 - explicit operator dispatch makes coordinate semantics auditable.
+    def dependencies(  # noqa: C901, PLR0911, PLR0912 - explicit operator dispatch makes coordinate semantics auditable.
         self,
         tree: Tree,
         positions: Mapping[Dim, int],
