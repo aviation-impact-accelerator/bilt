@@ -206,7 +206,6 @@ def test_two_scalar_equations_determine_one_tensor_port(backend: Backend) -> Non
     np.testing.assert_allclose(result.values, [2.5, -1.5], atol=1e-6)
 
 
-
 @pytest.mark.parametrize("size", (3, 5))
 @pytest.mark.parametrize("output", ("wing", "elevator"))
 def test_larger_wing_tail_trim_uses_general_block_discovery(backend: Backend, size: int, output: str) -> None:
