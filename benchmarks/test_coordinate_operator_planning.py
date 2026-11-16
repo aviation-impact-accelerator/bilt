@@ -1,7 +1,6 @@
 """Benchmark inverse source-to-target planning over increasingly large tensors."""
 
 import pytest
-
 from benchmark_trials import benchmark_trials
 from coordinate_operator_planning import CoordinateOperatorTrial
 from pytest_benchmark.fixture import BenchmarkFixture  # noqa: TC002 - runtime fixture reflection
