@@ -2,7 +2,7 @@ __all__ = ["CausalizationStructuralAnalyzer"]
 
 import typing
 
-from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
+from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError, BiltNoActiveEvaluationError
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._structural_analysis._causalization_block_solver import _planning as planning
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
@@ -71,12 +71,17 @@ class CausalizationStructuralAnalyzer:
     def _analyse(self, request: EvaluationRequest) -> BackendCase:
         """Search within the current request's cache scopes."""
         available = set(request.input_domains)
+        try:
+            bindings = current_evaluation().domains
+        except BiltNoActiveEvaluationError:
+            # Structural analyser queries also run outside a concrete evaluation.
+            bindings = None
         structure = validate_request_structure(
             self.full_incidence_graph,
             available,
             request.output,
             input_domains=request.input_domains,
-            bindings=current_evaluation().domains,
+            bindings=bindings,
         )
         expanded = self._preflight(request, structure)
         if expanded is not None:
