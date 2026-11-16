@@ -128,7 +128,7 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
         return None
 
     return CoordinateBlockDiscovery(
-        _ordered_coordinate_blocks(incidence, equations, output),
+        _ordered_coordinate_blocks(incidence, equations, output, resolved),
         tuple(sorted(resolved.items())),
     )
 
@@ -156,6 +156,7 @@ def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate mat
     incidence: CoordinateIncidence,
     equations: tuple[QualifiedEquation, ...],
     output: str,
+    resolved: Mapping[str, Domain],
 ) -> tuple[QualifiedBlock, ...]:
     """Match coordinates, coalesce their equation/port owners, then take SCCs.
 
@@ -222,7 +223,11 @@ def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate mat
         members = [row for row in incidence.residuals if root(residual_index[row]) in group_ids]
         row_ids = sorted({row.equation for row in members})
         ports = sorted({matched[row].name for row in members})
-        block = QualifiedBlock(tuple(equations[index] for index in row_ids), tuple(ports))
+        block = QualifiedBlock(
+            tuple(equations[index] for index in row_ids),
+            tuple(ports),
+            resolved_domains=tuple((name, resolved[name]) for name in ports),
+        )
         node = condensed.add_node((ports[0], block))
         node_mapping.update(dict.fromkeys(component, node))
 
