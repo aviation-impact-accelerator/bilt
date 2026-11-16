@@ -3,6 +3,7 @@ import typing
 
 from bilt.symbolic import _atoms as ops
 from bilt.symbolic._atoms import (
+    ArangeAxisOpType,
     AxisType,
     ConcatAxisOpType,
     FloatType,
@@ -18,6 +19,7 @@ if typing.TYPE_CHECKING:
     from bilt.units import Dimension
 
 __all__ = [
+    "ARANGE_INTRINSIC_NAME",
     "CONCAT_INTRINSIC_NAME",
     "SLICE_INTRINSIC_NAME",
     "isel_intrinsic_ast",
@@ -33,6 +35,7 @@ PROD_INTRINSIC_NAME = "__bilt_prod__"
 
 ISEL_INTRINSIC_NAME = "__bilt_isel__"
 CONCAT_INTRINSIC_NAME = "__bilt_concat__"
+ARANGE_INTRINSIC_NAME = "__bilt_arange__"
 SLICE_INTRINSIC_NAME = "__bilt_slice__"
 
 _REDUCTION_INTRINSICS = {
@@ -73,8 +76,11 @@ def tree_to_functiondef(
     return function_def
 
 
-def _tree_to_ast_expr(tree: Tree) -> ast.expr:
+def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
     """Convert a symbolic tree to Python AST."""
+    if tree.head.atom_type is ArangeAxisOpType:
+        return _arange_to_ast(tree)
+
     if tree.is_leaf:
         return _leaf_to_ast(tree)
 
@@ -195,6 +201,26 @@ def _reduction_to_ast(
         intrinsic_name,
         _tree_to_ast_expr(value_tree),
         axis,
+    )
+
+
+def _arange_to_ast(tree: Tree) -> ast.expr:
+    """Lower statically resolved range bounds, units and canonical alignment."""
+    first, stop, step, scale, offset, axis, rank = typing.cast(
+        "tuple[int, int, int, float, float, int, int]", tree.head.value
+    )
+    return ast.Call(
+        func=ast.Name(id=ARANGE_INTRINSIC_NAME, ctx=ast.Load()),
+        args=[ast.Constant(value=first), ast.Constant(value=stop), ast.Constant(value=step)],
+        keywords=[
+            ast.keyword(
+                arg="conversion",
+                value=ast.Tuple(elts=[ast.Constant(value=scale), ast.Constant(value=offset)], ctx=ast.Load()),
+            ),
+            ast.keyword(
+                arg="layout", value=ast.Tuple(elts=[ast.Constant(value=axis), ast.Constant(value=rank)], ctx=ast.Load())
+            ),
+        ],
     )
 
 

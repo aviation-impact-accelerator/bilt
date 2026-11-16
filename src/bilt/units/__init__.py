@@ -14,6 +14,7 @@ __all__ = [
     "absolute_celsius",
     "absolute_fahrenheit",
     "absolute_kelvin",
+    "absolute_second",
     "absolute_year",
     "acre",
     "ampere",
@@ -106,6 +107,7 @@ from .units import UNITLESS as UNITLESS
 from .units import absolute_celsius as absolute_celsius
 from .units import absolute_fahrenheit as absolute_fahrenheit
 from .units import absolute_kelvin as absolute_kelvin
+from .units import absolute_second as absolute_second
 from .units import absolute_year as absolute_year
 from .units import acre as acre
 from .units import ampere as ampere

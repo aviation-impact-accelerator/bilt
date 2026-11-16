@@ -24,6 +24,7 @@ class EvaluationContext:
 
     def __init__(self) -> None:
         self.domains = DomainRegistry()
+        self.direct_scalar_inputs: dict[str, object] = {}
 
     @functools.cached_property
     def canonical_order(self) -> Domain:

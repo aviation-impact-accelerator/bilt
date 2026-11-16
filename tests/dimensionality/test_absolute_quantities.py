@@ -12,6 +12,7 @@ from bilt.units.units import (
     absolute_celsius,
     absolute_fahrenheit,
     absolute_kelvin,
+    absolute_second,
     absolute_year,
     celsius,
     fahrenheit,
@@ -396,13 +397,9 @@ def test_a_coherent_conversion_in_the_iterable_of_a_comprehension_is_still_erase
         assert Probe(reading=Quantity(10.0, absolute_celsius)).degrees == pytest.approx(50.0)
 
 
-def test_an_absolute_unit_with_no_coherent_counterpart_is_refused_in_a_transform() -> None:
-    with pytest.raises(
-        BiltDefinitionError,
-        match=r"`absolute_year` cannot be converted to a coherent unit, so `Quantity\(elapsed, absolute_year\)` "
-        r"cannot use it",
-    ):
+def test_absolute_year_can_be_converted_to_coherent_absolute_seconds_in_a_transform() -> None:
+    @transform
+    def started(elapsed: float) -> typing.Annotated[Quantity, TIME, ABSOLUTE]:
+        return Quantity(elapsed, absolute_year)
 
-        @transform
-        def started(elapsed: float) -> typing.Annotated[Quantity, TIME]:
-            return Quantity(elapsed, absolute_year)
+    assert started.__bilt_port_declarations__["started"].coherent_unit is absolute_second

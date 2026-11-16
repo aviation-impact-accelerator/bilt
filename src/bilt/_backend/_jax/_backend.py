@@ -26,6 +26,22 @@ if typing.TYPE_CHECKING:
     from bilt._backend import BackendCallable, BackendCase
 
 
+def _arange(
+    start: int,
+    stop: int,
+    step: int,
+    *,
+    conversion: tuple[float, float],
+    layout: tuple[int, int],
+) -> jax.Array:
+    """Generate a statically sized range compatible with JAX compilation."""
+    scale, offset = conversion
+    axis, rank = layout
+    values = jnp.arange(start, stop, step) * scale + offset
+    shape = (1,) * axis + (values.size,) + (1,) * (rank - axis - 1)
+    return values.reshape(shape)
+
+
 def _isel(
     value: jax.Array,
     index: int | jax.Array,
@@ -107,6 +123,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
         }
         self.intrinsic_bindings = PythonIntrinsicBindings(
             isel=_isel,
+            arange=_arange,
             concat=_concat,
             slice=_slice,
             mean=jnp.mean,

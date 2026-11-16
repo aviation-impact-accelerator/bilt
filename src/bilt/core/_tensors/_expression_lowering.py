@@ -19,6 +19,8 @@ from bilt.symbolic._atoms import (
     NEG,
     POW,
     SEL,
+    ArangeAxisOpType,
+    ArangeDimOpType,
     AxisType,
     ConcatAxisOpType,
     ConcatDimOpType,
@@ -43,6 +45,7 @@ if typing.TYPE_CHECKING:
 
     from bilt.symbolic._dimensions import Dim
     from bilt.symbolic._expressions import Expr
+    from bilt.units import Unit
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -111,7 +114,7 @@ def _remove_dimension(
     return output_domain, axis
 
 
-def _lower_tree(  # noqa: PLR0911
+def _lower_tree(  # noqa: C901, PLR0911
     tree: Tree,
     *,
     symbol_domains: Mapping[str, Domain],
@@ -122,6 +125,9 @@ def _lower_tree(  # noqa: PLR0911
 
     if tree.head is CONDITIONAL or tree.head.atom_type is RelationOpType:
         return _lower_predicate_or_conditional(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+
+    if tree.head.atom_type is ArangeDimOpType:
+        return _lower_arange(tree, canonical_order=canonical_order)
 
     if tree.head.atom_type is SelSliceDimOpType:
         return _lower_coordinate_slice(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
@@ -264,6 +270,32 @@ def _lower_leaf(
 
 
 _MIN_CONCAT_OPERANDS = 2
+
+
+def _lower_arange(tree: Tree, *, canonical_order: Domain) -> LoweredExpression:
+    """Compile a range against the concrete axis bindings for this evaluation."""
+    dimension, unit, step, inclusive = typing.cast("tuple[Dim, Unit | None, int, bool]", tree.head.value)
+    registry = current_evaluation().domains
+    first, last, resolved_step, scale, offset = registry.resolve_arange(
+        dimension,
+        tree.args[0],
+        tree.args[1],
+        values=current_evaluation().direct_scalar_inputs,
+        step=step,
+        inclusive=inclusive,
+        unit=unit,
+    )
+    if dimension not in canonical_order.dims:
+        message = f"Generated dimension {dimension} is not registered for evaluation."
+        raise BiltTensorDomainError(message)
+    axis = canonical_order.dims.index(dimension)
+    rank = len(canonical_order.dims)
+    # Deliberately keep a non-empty child list: lower-expression checks
+    # treat empty-argument trees as leaves.
+    return LoweredExpression(
+        Tree(ArangeAxisOpType((first, last, resolved_step, scale, offset, axis, rank)), tree.args),
+        Domain((dimension,)),
+    )
 
 
 def _lower_coordinate_slice(
