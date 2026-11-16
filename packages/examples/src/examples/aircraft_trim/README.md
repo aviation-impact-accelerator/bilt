@@ -60,7 +60,7 @@ From the Bilt repository root:
     uv run python -m examples.aircraft_trim.demo
     uv run pytest packages/examples/tests/test_aircraft_trim.py
 
-The demo shows 6 wing and 4 tail panels. Tests cover the original 2+2
+The demo uses 6 wing and 4 tail panels, with a 12-by-12 inverse trim system. Tests cover the original 2+2
 configuration, 6+4, and several geometric invariants. The panel counts are
 parameters in the geometry fixture, not hard-coded in the Bilt equations.
 
