@@ -146,3 +146,57 @@ def test_two_source_tensors_and_two_global_scalars(backend: Backend, output: str
         assert float(result) == pytest.approx(reference[4], abs=1e-6)
     else:
         assert float(result) == pytest.approx(reference[5], abs=1e-6)
+
+
+
+@system
+class ScalarCoefficients(metaclass=Interface):
+    a: WingRHS = field()
+    b: WingRHS = field()
+    rhs: WingRHS = field()
+    x: float = field()
+    y: float = field()
+
+
+@equation
+def two_scalar_coefficients(a: WingRHS, b: WingRHS, rhs: WingRHS, x: float, y: float) -> bool:
+    """One vector equality supplies two independent scalar residual rows."""
+    return a * x + b * y == rhs
+
+
+@pytest.mark.parametrize("output", ("x", "y"))
+def test_one_tensor_equation_determines_two_scalar_ports(backend: Backend, output: str) -> None:
+    """No explicit sum is needed for vector-valued equations to constrain scalars."""
+    a = np.array([2.0, 1.0])
+    b = np.array([1.0, 3.0])
+    rhs = 1.5 * a - 0.5 * b
+    with backend, Implementation(ScalarCoefficients, [two_scalar_coefficients]):
+        model = ScalarCoefficients(a=tensor(a, over=WT), b=tensor(b, over=WT), rhs=tensor(rhs, over=WT))
+        result = getattr(model, output)
+    assert float(result) == pytest.approx({"x": 1.5, "y": -0.5}[output], abs=1e-6)
+
+
+@system
+class SelectedUnknown(metaclass=Interface):
+    x: WingGamma = field()
+    first_value: float = field()
+    second_value: float = field()
+
+
+@equation
+def first_coordinate(x: WingGamma, first_value: float) -> bool:
+    return x.isel(WS, 0) == first_value
+
+
+@equation
+def second_coordinate(x: WingGamma, second_value: float) -> bool:
+    return x.isel(WS, 1) == second_value
+
+
+def test_two_scalar_equations_determine_one_tensor_port(backend: Backend) -> None:
+    """Two primitive equations constrain different coordinates of one port."""
+    with backend, Implementation(SelectedUnknown, [first_coordinate, second_coordinate]):
+        result = SelectedUnknown(first_value=2.5, second_value=-1.5).x
+    assert isinstance(result, Tensor)
+    assert result.domain == domain(WS)
+    np.testing.assert_allclose(result.values, [2.5, -1.5], atol=1e-6)
