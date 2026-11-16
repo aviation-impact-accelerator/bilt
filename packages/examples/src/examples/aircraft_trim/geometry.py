@@ -47,12 +47,8 @@ class RectangularSurface:
 class AircraftGeometry:
     """A wing and downstream horizontal tail, with a fixed trailing wake."""
 
-    wing: RectangularSurface = field(
-        default_factory=lambda: RectangularSurface(12.0, 1.5, 0.0, 0.0, 2, 0.002, -0.008)
-    )
-    tail: RectangularSurface = field(
-        default_factory=lambda: RectangularSurface(4.5, 0.9, 5.5, 0.5, 2, 0.0, -0.003)
-    )
+    wing: RectangularSurface = field(default_factory=lambda: RectangularSurface(12.0, 1.5, 0.0, 0.0, 2, 0.002, -0.008))
+    tail: RectangularSurface = field(default_factory=lambda: RectangularSurface(4.5, 0.9, 5.5, 0.5, 2, 0.0, -0.003))
     cg_x_m: float = 1.0
     wake_length_m: float = 400.0
 
@@ -124,9 +120,7 @@ def finite_vortex_velocity(point: np.ndarray, start: np.ndarray, end: np.ndarray
     return cross * (np.dot(direction, r1 / norm1 - r2 / norm2) / (4.0 * np.pi * squared))
 
 
-def horseshoe_velocity(
-    point: np.ndarray, left: np.ndarray, right: np.ndarray, *, wake_length_m: float
-) -> np.ndarray:
+def horseshoe_velocity(point: np.ndarray, left: np.ndarray, right: np.ndarray, *, wake_length_m: float) -> np.ndarray:
     """Velocity due to a horseshoe: left trailing leg, bound span, right leg.
 
     Positive unit circulation runs from negative to positive span along the
@@ -140,9 +134,7 @@ def horseshoe_velocity(
     )
 
 
-def influence_block(
-    targets: SurfacePanels, sources: SurfacePanels, *, wake_length_m: float
-) -> np.ndarray:
+def influence_block(targets: SurfacePanels, sources: SurfacePanels, *, wake_length_m: float) -> np.ndarray:
     """Vertical induced velocity per unit circulation, target-by-source (m^-1)."""
     return np.array(
         [

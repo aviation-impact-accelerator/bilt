@@ -49,27 +49,17 @@ def example_aircraft(
     geometry = geometry if geometry is not None else example_geometry()
     coefficients = calculate_influences(geometry)
     known: _AircraftInputs = {
-        "wing_from_wing": tensor(
-            coefficients.wing_from_wing, over=(WING_TARGET, WING_SOURCE), unit=meter**-1
-        ),
-        "wing_from_tail": tensor(
-            coefficients.wing_from_tail, over=(WING_TARGET, TAIL_SOURCE), unit=meter**-1
-        ),
-        "tail_from_wing": tensor(
-            coefficients.tail_from_wing, over=(TAIL_TARGET, WING_SOURCE), unit=meter**-1
-        ),
-        "tail_from_tail": tensor(
-            coefficients.tail_from_tail, over=(TAIL_TARGET, TAIL_SOURCE), unit=meter**-1
-        ),
+        "wing_from_wing": tensor(coefficients.wing_from_wing, over=(WING_TARGET, WING_SOURCE), unit=meter**-1),
+        "wing_from_tail": tensor(coefficients.wing_from_tail, over=(WING_TARGET, TAIL_SOURCE), unit=meter**-1),
+        "tail_from_wing": tensor(coefficients.tail_from_wing, over=(TAIL_TARGET, WING_SOURCE), unit=meter**-1),
+        "tail_from_tail": tensor(coefficients.tail_from_tail, over=(TAIL_TARGET, TAIL_SOURCE), unit=meter**-1),
         "wing_width": tensor(coefficients.wing.width_m, over=WING_SOURCE, unit=meter),
         "tail_width": tensor(coefficients.tail.width_m, over=TAIL_SOURCE, unit=meter),
         "wing_arm": tensor(coefficients.wing.arm_m, over=WING_SOURCE, unit=meter),
         "tail_arm": tensor(coefficients.tail.arm_m, over=TAIL_SOURCE, unit=meter),
         "wing_twist": tensor(coefficients.wing.twist_rad, over=WING_TARGET, unit=radian),
         "tail_twist": tensor(coefficients.tail.twist_rad, over=TAIL_TARGET, unit=radian),
-        "tail_control": tensor(
-            [1.0] * geometry.tail.panels, over=TAIL_TARGET, unit=radian / radian
-        ),
+        "tail_control": tensor([1.0] * geometry.tail.panels, over=TAIL_TARGET, unit=radian / radian),
         "density": 1.225 * kilogram / meter**3,
         "speed": 70.0 * meter / second,
         "gravity": 9.81 * meter / second**2,

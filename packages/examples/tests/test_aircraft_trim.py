@@ -17,7 +17,9 @@ from bilt import QuantityTensor
 from bilt.units import degree, meter, newton, second
 
 
-def _reference_operator(wing_panels: int, tail_panels: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def _reference_operator(
+    wing_panels: int, tail_panels: int
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Assemble a dense system independently from the four physical influences."""
     geometry = example_geometry(wing_panels=wing_panels, tail_panels=tail_panels)
     data = calculate_influences(geometry)
