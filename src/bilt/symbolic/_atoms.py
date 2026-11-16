@@ -39,6 +39,8 @@ __all__ = [
     "FloatType",
     "IndexOpType",
     "IntType",
+    "IntegrateAxisOpType",
+    "IntegrateDimOpType",
     "OpType",
     "QuantityType",
     "ReductionOpType",
@@ -99,6 +101,8 @@ ReductionOpType = AtomType("ReductionOp")
 ConcatDimOpType = AtomType("ConcatDimOp")
 ConcatAxisOpType = AtomType("ConcatAxisOp")
 IndexOpType = AtomType("IndexOp")
+IntegrateDimOpType = AtomType("IntegrateDimOp")
+IntegrateAxisOpType = AtomType("IntegrateAxisOp")
 SliceDimOpType = AtomType("SliceDimOp")
 SelSliceDimOpType = AtomType("SelSliceDimOp")
 SliceAxisOpType = AtomType("SliceAxisOp")

@@ -151,6 +151,15 @@ class Tensor:
         """Return the mean over a named dimension in a Bilt model."""
         raise _symbolic_operation_only()
 
+    def integrate(self, dim: Dim, *, coordinate_unit: Unit | None = None) -> Tensor:  # noqa: ARG002
+        """Integrate along a labelled axis in a Bilt equation.
+
+        Coordinate labels must be numeric. `coordinate_unit` specifies the
+        relative unit of their spacing; omitting it gives a dimensionless
+        integration measure.
+        """
+        raise _symbolic_operation_only()
+
     def sum(self, dim: Dim) -> Tensor:  # noqa: ARG002
         """Return the sum over a named dimension in a Bilt model."""
         raise _symbolic_operation_only()

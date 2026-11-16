@@ -26,6 +26,8 @@ from bilt.symbolic._atoms import (
     DimensionType,
     FloatType,
     IndexOpType,
+    IntegrateAxisOpType,
+    IntegrateDimOpType,
     IntType,
     QuantityType,
     ReductionOpType,
@@ -43,6 +45,7 @@ if typing.TYPE_CHECKING:
 
     from bilt.symbolic._dimensions import Dim
     from bilt.symbolic._expressions import Expr
+    from bilt.units import Unit
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -111,7 +114,7 @@ def _remove_dimension(
     return output_domain, axis
 
 
-def _lower_tree(  # noqa: PLR0911
+def _lower_tree(  # noqa: C901, PLR0911
     tree: Tree,
     *,
     symbol_domains: Mapping[str, Domain],
@@ -131,6 +134,9 @@ def _lower_tree(  # noqa: PLR0911
 
     if tree.head.atom_type is ConcatDimOpType:
         return _lower_concat(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+
+    if tree.head.atom_type is IntegrateDimOpType:
+        return _lower_integral(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
 
     if tree.head.atom_type is ReductionOpType:
         return _lower_reduction(
@@ -351,6 +357,28 @@ def _lower_concat(
     return LoweredExpression(
         Tree(ConcatAxisOpType((source_axes, target_axis)), tuple(operand.tree for operand in operands)),
         output_domain,
+    )
+
+
+def _lower_integral(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    """Resolve named coordinates to static trapezoidal weights."""
+    value_tree, dim_tree = tree.args
+    if not dim_tree.is_leaf or dim_tree.head.atom_type is not DimensionType:
+        message = "Integration requires a named dimension."
+        raise BiltTensorDomainError(message)
+    dimension = typing.cast("Dim", dim_tree.head.value)
+    value = _lower_tree(value_tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+    domain, axis = reduce_dimension(value.domain, dimension, canonical_order=canonical_order)
+    unit = typing.cast("Unit | None", tree.head.value)
+    weights = current_evaluation().domains.integration_weights(dimension, coordinate_unit=unit)
+    return LoweredExpression(
+        tree=Tree(IntegrateAxisOpType((weights, axis)), (value.tree,)),
+        domain=domain,
     )
 
 

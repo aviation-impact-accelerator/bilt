@@ -18,6 +18,7 @@ from bilt.symbolic._tree import (
     coordinate_tree,
     float_tree,
     int_tree,
+    integrate_tree,
     isel_tree,
     max_tree,
     mean_tree,
@@ -234,6 +235,21 @@ class TensorExpr(Expr):
     def mean(self, dim: Dim) -> TensorExpr:
         """Return the symbolic mean over a dimension."""
         return TensorExpr(mean_tree(self.tree, dim))
+
+    def integrate(self, dim: Dim, *, coordinate_unit: Unit | None = None) -> TensorExpr:
+        """Integrate over a labelled coordinate axis using trapezoidal quadrature."""
+        from bilt.symbolic._dimensions import Dim  # noqa: PLC0415
+
+        if not isinstance(dim, Dim):
+            msg = "Tensor.integrate requires a named dimension."
+            raise TypeError(msg)
+        if coordinate_unit is not None and not isinstance(coordinate_unit, Unit):
+            msg = "Tensor.integrate coordinate_unit must be a Unit or None."
+            raise TypeError(msg)
+        if coordinate_unit is not None and coordinate_unit.category is UnitCategory.ABSOLUTE:
+            msg = "Tensor.integrate coordinate_unit must be relative, not absolute."
+            raise ValueError(msg)
+        return TensorExpr(integrate_tree(self.tree, dim, coordinate_unit))
 
     def sum(self, dim: Dim) -> TensorExpr:
         """Return the symbolic sum over a dimension."""

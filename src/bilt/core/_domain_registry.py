@@ -2,18 +2,23 @@ __all__ = [
     "DomainRegistry",
 ]
 
+import itertools
+import math
 import typing
 
 import numpy as np
 
 from bilt.core._errors import BiltDomainBindingError, BiltDomainRegistryLockedError
 from bilt.symbolic._dimensions import CoordinateAxis
+from bilt.units._conversion import conversion_between
+from bilt.units._units import BASE_UNIT_SYSTEM
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt.symbolic._dimensions import Coordinate, Dim
     from bilt.symbolic._domains import Domain
+    from bilt.units import Unit
 
 
 @typing.runtime_checkable
@@ -206,6 +211,47 @@ class DomainRegistry:
 
         message = f"Coordinate {coordinate!r} is not present on dimension {dim!r}."
         raise BiltDomainBindingError(message)
+
+    def integration_weights(self, dimension: Dim, *, coordinate_unit: Unit | None) -> tuple[float, ...]:
+        """Trapezoidal weights for a labelled, strictly monotonic numerical axis.
+
+        Coordinates are values in the explicitly supplied relative unit, or
+        dimensionless when no unit is given. Weights use coherent units so
+        multiplying a coherent tensor yields the correct output dimension.
+        """
+        from bilt.units._category import UnitCategory  # noqa: PLC0415
+
+        axis = self.axis(dimension)
+        if coordinate_unit is not None and coordinate_unit.category is UnitCategory.ABSOLUTE:
+            message = "Integration coordinate_unit must be a relative unit, not an absolute unit."
+            raise BiltDomainBindingError(message)
+        coordinates = axis.coordinates
+        minimum_points = 2
+        if len(coordinates) < minimum_points:
+            message = f"Integration over {dimension} requires at least two coordinates."
+            raise BiltDomainBindingError(message)
+        if any(
+            isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)
+            for value in coordinates
+        ):
+            message = f"Integration over {dimension} requires finite numerical coordinates."
+            raise BiltDomainBindingError(message)
+        numeric_coordinates = typing.cast("tuple[int | float, ...]", coordinates)
+        increments = tuple(float(right) - float(left) for left, right in itertools.pairwise(numeric_coordinates))
+        if not (all(dx > 0 for dx in increments) or all(dx < 0 for dx in increments)):
+            message = f"Integration over {dimension} requires strictly monotonic coordinates."
+            raise BiltDomainBindingError(message)
+        conversion = (
+            1.0
+            if coordinate_unit is None
+            else conversion_between(coordinate_unit, BASE_UNIT_SYSTEM.coherent_unit(coordinate_unit.dimension)).scale
+        )
+        weights = (
+            increments[0] / 2,
+            *((left + right) / 2 for left, right in itertools.pairwise(increments)),
+            increments[-1] / 2,
+        )
+        return tuple(weight * conversion for weight in weights)
 
     def coordinate_signature(
         self,

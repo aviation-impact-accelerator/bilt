@@ -140,6 +140,52 @@ Like concatenation, positional slicing is a forward-only `@equation`
 operation, not an eager method on a concrete tensor or a general reshape.
 Coordinate-based slice selection with `sel()` is separate follow-up work.
 
+## Coordinate-aware integration
+
+Inside an `@equation`, use `value.integrate(dim, coordinate_unit=...)`
+to integrate values along a **labelled numeric axis** using the trapezoidal
+rule. Unlike `.sum(dim)`, integration uses each interval's actual width;
+nonuniform spacing is supported.
+
+```python exec="off"
+@equation
+def gwp20(response: QuantityTensor, gwp20: Quantity) -> bool:
+    selected = response.sel(
+        emissions_period,
+        slice(0, 20),
+        into=gwp_period,
+    )
+    return gwp20 == selected.integrate(gwp_period, coordinate_unit=year)
+```
+
+`coordinate_unit` describes the unit of the numeric *labels*, not the
+integrand. It must be a relative unit, e.g. `year` rather than
+`absolute_year`. The backend converts intervals to coherent units
+before quadrature: integrating a forcing response in
+`W / m² / Tg` over years produces units of `W · s / m² / Tg`,
+convertible to `W · year / m² / Tg` when returned.
+
+The operator accepts strictly increasing or decreasing finite numeric
+coordinates, with at least two points. Descending axes produce a signed
+negative integral, consistent with mathematical integration.
+Nonmonotonic axes, duplicate labels, non-numeric coordinates and axes
+without bound labels are rejected. The result removes the integrated
+named axis and preserves all other axes.
+
+Quadrature weights are resolved during evaluation and lowered to
+NumPy/JAX as fixed constants. Consequently, each evaluation may use
+different coordinate spacing and both backends retain support for
+automatic differentiation with respect to the input values.
+The first prototype is **forward-only** and does not support
+integration as an inverse equation or in coupled linear blocks.
+
+**CYOF migration note:** The previous `integrate()` helper summed a
+selected time series and then multiplied by a one-year timestep.
+Trapezoidal quadrature gives a different endpoint weighting. Compare
+GWP20/GWP50/GWP100 numerical outputs against the existing model and
+decide whether the new mathematical convention is intended before
+replacing that code.
+
 ## Coordinate-aware slicing
 
 Use `sel(dim, slice(start_label, stop_label), into=new_dim)` in an
