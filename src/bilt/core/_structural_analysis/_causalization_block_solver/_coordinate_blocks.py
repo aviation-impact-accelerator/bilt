@@ -133,10 +133,14 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
         # The port planner still handles other structurally determined regions.
         return None
 
-    return CoordinateBlockDiscovery(
-        _ordered_coordinate_blocks(incidence, equations, output, resolved),
-        tuple(sorted(resolved.items())),
+    blocks = _ordered_coordinate_blocks(incidence, equations, output, resolved)
+    requires_execution = any(
+        len(block.rows) != len(block.unknowns)
+        or collections.Counter(incidence.residual_domains[equations.index(row)] for row in block.rows)
+        != collections.Counter(resolved[name] for name in block.unknowns)
+        for block in blocks
     )
+    return CoordinateBlockDiscovery(blocks, tuple(sorted(resolved.items())), requires_execution)
 
 
 def _has_operator(tree: Tree) -> bool:
