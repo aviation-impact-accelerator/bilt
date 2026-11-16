@@ -243,13 +243,13 @@ class DomainRegistry:
         conversion = (
             1.0
             if coordinate_unit is None
-            else conversion_between(
-                coordinate_unit, BASE_UNIT_SYSTEM.coherent_unit(coordinate_unit.dimension)
-            ).scale
+            else conversion_between(coordinate_unit, BASE_UNIT_SYSTEM.coherent_unit(coordinate_unit.dimension)).scale
         )
-        weights = (increments[0] / 2, *(
-            (left + right) / 2 for left, right in itertools.pairwise(increments)
-        ), increments[-1] / 2)
+        weights = (
+            increments[0] / 2,
+            *((left + right) / 2 for left, right in itertools.pairwise(increments)),
+            increments[-1] / 2,
+        )
         return tuple(weight * conversion for weight in weights)
 
     def coordinate_signature(
