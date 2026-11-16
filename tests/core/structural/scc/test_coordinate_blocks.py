@@ -1,5 +1,7 @@
 """Test request-scoped coordinate block discovery independently of execution."""
 
+# ruff: noqa: PLR2004 - Fixed panel cardinalities are the subject of these tests.
+
 import typing
 
 import pytest
@@ -7,12 +9,13 @@ import pytest
 from bilt import Tensor, dim, domain, equation
 from bilt.core._domain_registry import DomainRegistry
 from bilt.core._structural_analysis._causalization_block_solver._coordinate_blocks import discover_coordinate_blocks
-from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
-from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_request_structure
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import (
     ExpandedConstraint,
     ExpansionSnapshot,
 )
+from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
+from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_request_structure
 from bilt.symbolic._dimensions import coordinate_axis
 
 SOURCE = dim("source")
@@ -140,8 +143,6 @@ def test_request_validation_uses_coordinate_matching_before_port_dm() -> None:
 
 def test_request_validation_keeps_existing_path_without_domain_data() -> None:
     """Earlier callers without domain bindings preserve port-level semantics."""
-    from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
-
     with pytest.raises(BiltOverconstrainedError):
         validate_request_structure(
             FullIncidenceGraph((first, second)),
