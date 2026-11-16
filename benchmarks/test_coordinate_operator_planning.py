@@ -7,9 +7,7 @@ from pytest_benchmark.fixture import BenchmarkFixture  # noqa: TC002 - runtime f
 
 
 @pytest.mark.parametrize("size", (2, 4, 8, 12))
-def test_coordinate_operator_planning(
-    benchmark: BenchmarkFixture, request: pytest.FixtureRequest, size: int
-) -> None:
+def test_coordinate_operator_planning(benchmark: BenchmarkFixture, request: pytest.FixtureRequest, size: int) -> None:
     """Time fresh structural analysis and realisation, checking every solve."""
     benchmark.group = "coordinate-operator-planning"
     benchmark.extra_info["timing_scope"] = "cold structural analysis and realisation"
