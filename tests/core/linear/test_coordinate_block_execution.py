@@ -184,13 +184,13 @@ class SelectedUnknown(metaclass=Interface):
 
 
 @equation
-def first_coordinate(x: WingGamma, first_value: float) -> bool:
-    return x.isel(WS, 0) == first_value
+def first_coordinate(x: WingGamma, first_value: float, reference: WingGamma) -> bool:
+    return x.isel(WS, 0) == first_value + reference.isel(WS, 0)
 
 
 @equation
-def second_coordinate(x: WingGamma, second_value: float) -> bool:
-    return x.isel(WS, 1) == second_value
+def second_coordinate(x: WingGamma, second_value: float, reference: WingGamma) -> bool:
+    return x.isel(WS, 1) == second_value + reference.isel(WS, 1)
 
 
 def test_two_scalar_equations_determine_one_tensor_port(backend: Backend) -> None:
