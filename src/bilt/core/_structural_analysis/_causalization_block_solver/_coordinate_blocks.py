@@ -112,7 +112,7 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
 
     try:
         incidence = build_coordinate_incidence(tuple(e.tree for e in equations), resolved, known, bindings)
-    except AffineAnalysisError, BiltDomainBindingError, BiltLinearBlockError as error:
+    except (AffineAnalysisError, BiltDomainBindingError, BiltLinearBlockError):
         # Inference, operator support and expansion limits are independent of
         # the existing planner: it may still find a valid execution route.
         return None
