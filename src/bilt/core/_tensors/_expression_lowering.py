@@ -45,6 +45,7 @@ if typing.TYPE_CHECKING:
 
     from bilt.symbolic._dimensions import Dim
     from bilt.symbolic._expressions import Expr
+    from bilt.units import Unit
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -113,7 +114,7 @@ def _remove_dimension(
     return output_domain, axis
 
 
-def _lower_tree(  # noqa: PLR0911
+def _lower_tree(  # noqa: C901, PLR0911
     tree: Tree,
     *,
     symbol_domains: Mapping[str, Domain],
@@ -373,8 +374,6 @@ def _lower_integral(
     dimension = typing.cast("Dim", dim_tree.head.value)
     value = _lower_tree(value_tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
     domain, axis = reduce_dimension(value.domain, dimension, canonical_order=canonical_order)
-    from bilt.units import Unit  # noqa: PLC0415
-
     unit = typing.cast("Unit | None", tree.head.value)
     weights = current_evaluation().domains.integration_weights(dimension, coordinate_unit=unit)
     return LoweredExpression(
