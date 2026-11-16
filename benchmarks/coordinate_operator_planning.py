@@ -89,9 +89,10 @@ class CoordinateOperatorTrial:
         if self.result is None:
             message = "Coordinate operator trial returned no compiled plan."
             raise AssertionError(message)
+        values: dict[str, object] = dict(self.values)
         parameters = PYTHON_BACKEND.apply_alignment(
-            lower_inputs(self.values),
-            generate_alignment_plan(self.values),
+            lower_inputs(values),
+            generate_alignment_plan(values),
         )
         result = np.asarray(PYTHON_BACKEND.chain_case(self.result).callable(**parameters))
         if not np.allclose(result, self.expected, rtol=1e-8, atol=1e-8):
