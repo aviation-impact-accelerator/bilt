@@ -320,7 +320,7 @@ def _infer_defined_domains(
     pending = set(unknowns) - resolved.keys()
     while pending:
         progress = False
-        tracer = _CoordinateTracer(inputs | resolved, frozenset(), bindings)
+        tracer = _CoordinateTracer(dict(inputs) | resolved, frozenset(), bindings)
         for equation in equations:
             tree = equation.tree
             if not tree.is_equality:
