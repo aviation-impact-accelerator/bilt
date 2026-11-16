@@ -236,7 +236,8 @@ class DomainRegistry:
         ):
             message = f"Integration over {dimension} requires finite numerical coordinates."
             raise BiltDomainBindingError(message)
-        increments = tuple(float(right) - float(left) for left, right in itertools.pairwise(coordinates))
+        numeric_coordinates = typing.cast("tuple[int | float, ...]", coordinates)
+        increments = tuple(float(right) - float(left) for left, right in itertools.pairwise(numeric_coordinates))
         if not (all(dx > 0 for dx in increments) or all(dx < 0 for dx in increments)):
             message = f"Integration over {dimension} requires strictly monotonic coordinates."
             raise BiltDomainBindingError(message)
