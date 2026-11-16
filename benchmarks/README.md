@@ -528,3 +528,42 @@ coupled-group recognition works beyond the two-equation syngas example.
 ```sh
 uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_coupled_group_planning.py --benchmark-only --search-rounds=5 --timeout=30
 ```
+
+
+## Coordinate-aware inverse operator planning
+
+The source-to-target operator benchmark measures **cold structural analysis and
+realisation**, not runtime \`np.linalg.solve\` throughput. Each round creates
+a fresh evaluation context, a fresh implementation, and a dense \`n × n\`
+influence map. It requests an unknown source tensor from a target tensor using
+
+\`\`\`python
+(influence * circulation).sum(SOURCE) == velocity
+\`\`\`
+
+with separate named source and target dimensions. The benchmark covers
+2, 4, 8 and 12 source/target panels. A diagonally dominant dense matrix
+provides a known nonsingular solution; each timed round checks the compiled
+result against that solution **outside** the timer. The benchmark's per-round
+metadata records panel count, scalar unknowns/residuals, and maximum error.
+All cases use the existing coordinate-aware discovery and linear execution
+path, without the draft operator-specific chain or boundary heuristics.
+
+Run the correctness check without benchmark timing:
+
+\`\`\`sh
+uv run --all-extras pytest benchmarks/test_coordinate_operator_planning.py --benchmark-disable --search-rounds=1
+\`\`\`
+
+For timing:
+
+\`\`\`sh
+uv run --all-extras pytest benchmarks/test_coordinate_operator_planning.py --benchmark-columns=median,min,max
+\`\`\`
+
+Compare measurements across commits in the same environment. Increasing
+panel counts here also increases numerical matrix assembly and Python
+compilation work; it does not isolate graph matching complexity. The
+\`build_coordinate_incidence\` limits remain bounded, and larger requests
+must use a more compact representation rather than silently accepting an
+unbounded coordinate graph.
