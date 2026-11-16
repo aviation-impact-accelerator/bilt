@@ -5,6 +5,7 @@ import enum
 import inspect
 import typing
 
+from bilt.core._enum_matching import enum_port_types
 from bilt.core._errors import BiltUnresolvedAnnotationError
 from bilt.core._interface import Interface
 from bilt.core._port_declaration import port_declarations
@@ -62,6 +63,7 @@ def _create_bilt_system_class_attribute(cls: Interface) -> None:
     setattr(cls, "__bilt_system_attributes__", attributes)  # noqa: B010
     setattr(cls, "__bilt_parameters__", tuple(attributes.keys()))  # noqa: B010
     setattr(cls, "__bilt_port_declarations__", declarations)  # noqa: B010
+    setattr(cls, "__bilt_enum_ports__", enum_port_types({name: attr.annotation for name, attr in attributes.items()}))  # noqa: B010
 
 
 def _create_initialize_method(cls: Interface) -> None:
@@ -86,7 +88,7 @@ def _create_initialize_method(cls: Interface) -> None:
 
 def _check_inputs(cls: Interface, values: collections.abc.Mapping[str, object]) -> None:
     """Ensure supplied values satisfy the declarations on the system interface."""
-    validate_inputs(cls.__bilt_name__, cls.__bilt_port_declarations__, values)
+    validate_inputs(cls.__bilt_name__, cls.__bilt_port_declarations__, values, enum_types=cls.__bilt_enum_ports__)
 
 
 def _create_properties(cls: Interface) -> None:

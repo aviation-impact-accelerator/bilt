@@ -1,6 +1,7 @@
 import ast
 import types
 import typing
+lazy import enum
 
 from bilt.core._equation_ast import BiltEquationSyntaxError, extract_equation_ast, normalise_equation_ast
 from bilt.symbolic._expressions import conditional_expr
@@ -11,6 +12,8 @@ if typing.TYPE_CHECKING:
 
 def validated_symbolic_function(
     function: collections.abc.Callable[..., object],
+    *,
+    enum_types: collections.abc.Mapping[str, type[enum.Enum]] | None = None,
 ) -> collections.abc.Callable[..., object]:
     if not isinstance(function, types.FunctionType):
         msg = "Equations require an inspectable Python function."
@@ -18,7 +21,7 @@ def validated_symbolic_function(
 
     source = extract_equation_ast(function)
     has_conditional = any(isinstance(statement, (ast.If, ast.Match)) for statement in source.body)
-    validated = normalise_equation_ast(source)
+    validated = normalise_equation_ast(source, enum_types=enum_types, enum_namespace=function.__globals__)
 
     if not has_conditional:
         return function

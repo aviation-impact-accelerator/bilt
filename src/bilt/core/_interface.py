@@ -1,6 +1,7 @@
 __all__ = ["Interface"]
 
 import typing
+lazy import enum
 
 if typing.TYPE_CHECKING:
     from bilt.core._port_declaration import PortDeclaration
@@ -14,6 +15,7 @@ if typing.TYPE_CHECKING:
 class Interface(type):
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
+    __bilt_enum_ports__: dict[str, type[enum.Enum]]
     __bilt_system_registry__: set[Implementation]
     __bilt_system_implementation_default__: list[Implementation]
 

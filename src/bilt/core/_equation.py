@@ -8,8 +8,10 @@ __all__ = [
 import inspect
 import types
 import typing
+lazy import enum
 
 from bilt.core._dimensional_analysis import absoluteness_of, dimensionality_of
+from bilt.core._enum_matching import enum_port_types
 from bilt.core._equation_tracing import validated_symbolic_function
 from bilt.core._errors import (
     BiltEquationDimensionalityError,
@@ -42,6 +44,7 @@ class Equation[R, **P](typing.Protocol):
     __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
+    __bilt_enum_ports__: dict[str, type[enum.Enum]]
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
@@ -53,6 +56,7 @@ class BasicEquation[R, **P]:
     __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
+    __bilt_enum_ports__: dict[str, type[enum.Enum]]
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
     _function: collections.abc.Callable[P, R]
 
@@ -66,14 +70,16 @@ class BasicEquation[R, **P]:
         _validate_equation_signature(name, signature)
 
         sub_systems = _sub_system_parameters(signature)
+        enum_types = enum_port_types({name: parameter.annotation for name, parameter in signature.parameters.items()})
         symbols = _build_symbols(signature, sub_systems)
-        traced_function = validated_symbolic_function(function)
+        traced_function = validated_symbolic_function(function, enum_types=enum_types)
         tree = _build_equation_tree(name, traced_function, symbols)
         occurring = subtrees(tree)
         equation_symbols, referenced_sub_systems, sub_system_declarations = _expand_sub_system_parameters(
             symbols, sub_systems, occurring
         )
 
+        self.__bilt_enum_ports__ = enum_types
         self.__bilt_name__ = name
         self.__bilt_parameters__ = tuple(equation_symbols)
         self.__bilt_port_declarations__ = (
