@@ -20,6 +20,8 @@ from bilt.symbolic._atoms import (
     POW,
     SEL,
     AxisType,
+    ConcatAxisOpType,
+    ConcatDimOpType,
     CoordinateType,
     DimensionType,
     FloatType,
@@ -106,7 +108,7 @@ def _remove_dimension(
     return output_domain, axis
 
 
-def _lower_tree(
+def _lower_tree(  # noqa: PLR0911
     tree: Tree,
     *,
     symbol_domains: Mapping[str, Domain],
@@ -117,6 +119,9 @@ def _lower_tree(
 
     if tree.head is CONDITIONAL or tree.head.atom_type is RelationOpType:
         return _lower_predicate_or_conditional(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+
+    if tree.head.atom_type is ConcatDimOpType:
+        return _lower_concat(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
 
     if tree.head.atom_type is ReductionOpType:
         return _lower_reduction(
@@ -247,6 +252,50 @@ def _lower_leaf(
 
     message = f"Cannot lower symbolic leaf {tree.head!r}."
     raise NotImplementedError(message)
+
+
+_MIN_CONCAT_OPERANDS = 2
+
+
+def _lower_concat(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    """Lower a multi-input domain transform to a named-axis concatenation."""
+    sources, target = typing.cast("tuple[tuple[Dim, ...], Dim]", tree.head.value)
+    operands = tuple(
+        _lower_tree(child, symbol_domains=symbol_domains, canonical_order=canonical_order) for child in tree.args
+    )
+    if len(operands) != len(sources) or len(operands) < _MIN_CONCAT_OPERANDS:
+        message = "Concatenation requires at least two tensors and a source axis for each."
+        raise BiltTensorDomainError(message)
+
+    remaining: tuple[Dim, ...] | None = None
+    for operand, source in zip(operands, sources, strict=True):
+        dims = operand.domain.dims
+        if source not in dims:
+            message = f"Concatenation source {source} is absent from operand domain {operand.domain}."
+            raise BiltTensorDomainError(message)
+        if target in dims:
+            message = f"Concatenation target {target} already occurs in operand domain {operand.domain}."
+            raise BiltTensorDomainError(message)
+        shared = tuple(dim for dim in dims if dim != source)
+        if remaining is None:
+            remaining = shared
+        elif set(remaining) != set(shared):
+            message = "All concatenated operands must share the same non-concatenated dimensions."
+            raise BiltTensorDomainError(message)
+
+    output_domain = canonicalized(Domain((*typing.cast("tuple[Dim, ...]", remaining), target)), canonical_order).domain
+    positions = canonical_order.dims
+    source_axes = tuple(positions.index(source) for source in sources)
+    target_axis = positions.index(target)
+    return LoweredExpression(
+        Tree(ConcatAxisOpType((source_axes, target_axis)), tuple(operand.tree for operand in operands)),
+        output_domain,
+    )
 
 
 def _lower_reduction(

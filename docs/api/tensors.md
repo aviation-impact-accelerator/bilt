@@ -79,6 +79,43 @@ def averaged(values: Tensor) -> Tensor:
     return values.mean(time) * 2.0
 ```
 
+## Concatenating domains
+
+Use `Tensor.concat(..., along=..., into=...)` in an `@equation`
+to join data from different named dimensions onto a new dimension.
+This operation changes both the output domain and its extent.
+
+```python exec="off"
+@equation
+def combine(
+    historical: Tensor,
+    projected: Tensor,
+    combined: Tensor,
+) -> bool:
+    return combined == Tensor.concat(
+        (historical, projected),
+        along=(historical_date, modeling_date),
+        into=combined_date,
+    )
+```
+
+In this example, `size(combined_date) = size(historical_date)
++ size(modeling_date)`. The input axes may be of different lengths.
+All *other* axes must match by name; their lengths are already validated
+by Bilt's domain registry. Inputs must have compatible physical units.
+The output retains the physical unit and absolute/relative kind.
+
+If every source axis has coordinate labels, Bilt concatenates those labels
+in order and registers a coordinate axis for the destination. If none
+has labels, only the new extent is registered. Mixed labelled/unlabelled
+axes are rejected rather than silently dropping some coordinates.
+
+The destination axis must have a different name from the source axes.
+Concatenation currently supports forward calculations in `@equation`.
+Reverse isolation, coupled linear blocks, and `@transform` support
+are not included in this first implementation.
+
+
 ## Indexing
 
 Use selection in **equations**; `.isel()` and `.sel()` are not lowered in transforms.

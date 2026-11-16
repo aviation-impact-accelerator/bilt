@@ -7,7 +7,15 @@ import typing
 
 from bilt.core._errors import BiltEquationDimensionalityError
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._atoms import CoordinateType, DimensionType, FloatType, IntType, QuantityType, SymbolType
+from bilt.symbolic._atoms import (
+    ConcatDimOpType,
+    CoordinateType,
+    DimensionType,
+    FloatType,
+    IntType,
+    QuantityType,
+    SymbolType,
+)
 from bilt.units._errors import BiltDimensionalityError
 from bilt.units.dimensions import DIMENSIONLESS
 
@@ -39,6 +47,8 @@ def dimensionality_of(
     if tree.is_leaf:
         return _leaf(tree, dimensionalities)
     operands = [dimensionality_of(operand, dimensionalities) for operand in tree.args]
+    if tree.head.atom_type is ConcatDimOpType:
+        return _shared(operands)
     return _dimensionality_at(tree, operands)
 
 
@@ -150,12 +160,23 @@ def absoluteness_of(
             return frozenset({int(typing.cast("tuple[float, Dimension, bool]", tree.head.value)[2])})
         return _EITHER
     operands = [absoluteness_of(equation_name, operand, declarations) for operand in tree.args]
+    if tree.head.atom_type is ConcatDimOpType:
+        return _concat_absoluteness(equation_name, operands)
     if tree.is_relation:
         if not operands[0] & operands[1]:
             msg = "relates an absolute quantity to a relative one: both sides must be absolute, or both relative."
             raise BiltEquationDimensionalityError(equation_name, msg)
         return frozenset({0})
     return _absoluteness_operation(equation_name, tree, operands)
+
+
+def _concat_absoluteness(equation_name: str, operands: list[frozenset[int]]) -> frozenset[int]:
+    """Require all concatenated operands to have a common absolute/relative kind."""
+    compatible = frozenset.intersection(*operands)
+    if not compatible:
+        msg = "concatenation requires compatible absolute/relative quantity kinds."
+        raise BiltEquationDimensionalityError(equation_name, msg)
+    return compatible
 
 
 def _absoluteness_operation(equation_name: str, tree: Tree, operands: list[frozenset[int]]) -> frozenset[int]:
