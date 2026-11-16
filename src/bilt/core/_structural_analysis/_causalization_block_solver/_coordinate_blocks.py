@@ -114,10 +114,7 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
     }
     if requested & partition.underdetermined:
         names = sorted(
-            {
-                typing.cast("UnknownCoordinate", graph[node]).name
-                for node in partition.underdetermined & attribute_nodes
-            }
+            {typing.cast("UnknownCoordinate", graph[node]).name for node in partition.underdetermined & attribute_nodes}
         )
         message = f"Underconstrained coordinate-level unknowns: {', '.join(names)}."
         raise BiltUnderconstrainedError(message)
@@ -210,11 +207,7 @@ def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate mat
         if consumed != produced and not dependency.has_edge(nodes[consumed], nodes[produced]):
             dependency.add_edge(nodes[consumed], nodes[produced], None)
 
-    selected = {
-        nodes[root(coordinate_owner[unknown])]
-        for unknown in incidence.unknowns
-        if unknown.name == output
-    }
+    selected = {nodes[root(coordinate_owner[unknown])] for unknown in incidence.unknowns if unknown.name == output}
     required = selected | {node for target in selected for node in rx.ancestors(dependency, target)}
     condensed = rx.PyDiGraph(multigraph=False)
     node_mapping = {}
@@ -222,9 +215,7 @@ def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate mat
         if not component & required:
             continue
         group_ids = {typing.cast("int", dependency[node]) for node in component}
-        members = [
-            row for row in incidence.residuals if root(residual_index[row]) in group_ids
-        ]
+        members = [row for row in incidence.residuals if root(residual_index[row]) in group_ids]
         row_ids = sorted({row.equation for row in members})
         ports = sorted({matched[row].name for row in members})
         block = QualifiedBlock(tuple(equations[index] for index in row_ids), tuple(ports))
@@ -232,8 +223,12 @@ def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate mat
         node_mapping.update(dict.fromkeys(component, node))
 
     for first, second in dependency.edge_list():
-        if (first in node_mapping and second in node_mapping and node_mapping[first] != node_mapping[second]
-            and not condensed.has_edge(node_mapping[first], node_mapping[second])):
+        if (
+            first in node_mapping
+            and second in node_mapping
+            and node_mapping[first] != node_mapping[second]
+            and not condensed.has_edge(node_mapping[first], node_mapping[second])
+        ):
             condensed.add_edge(node_mapping[first], node_mapping[second], None)
 
     return tuple(item[1] for item in rx.lexicographical_topological_sort(condensed, lambda item: item[0]))
