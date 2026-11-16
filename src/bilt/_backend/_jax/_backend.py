@@ -95,6 +95,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
         self.intrinsic_bindings = PythonIntrinsicBindings(
             isel=_isel,
             concat=_concat,
+            rename=jnp.transpose,
             mean=jnp.mean,
             sum=jnp.sum,
             min=jnp.min,

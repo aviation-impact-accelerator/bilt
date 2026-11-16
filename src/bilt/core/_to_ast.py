@@ -8,6 +8,7 @@ from bilt.symbolic._atoms import (
     FloatType,
     IntType,
     QuantityType,
+    RenameAxisOpType,
     SymbolType,
 )
 from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
@@ -18,6 +19,7 @@ if typing.TYPE_CHECKING:
 
 __all__ = [
     "CONCAT_INTRINSIC_NAME",
+    "RENAME_INTRINSIC_NAME",
     "isel_intrinsic_ast",
     "reduction_intrinsic_ast",
     "tree_to_functiondef",
@@ -30,6 +32,7 @@ MAX_INTRINSIC_NAME = "__bilt_max__"
 PROD_INTRINSIC_NAME = "__bilt_prod__"
 
 ISEL_INTRINSIC_NAME = "__bilt_isel__"
+RENAME_INTRINSIC_NAME = "__bilt_rename__"
 CONCAT_INTRINSIC_NAME = "__bilt_concat__"
 
 _REDUCTION_INTRINSICS = {
@@ -77,6 +80,9 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:
 
     if tree.head.atom_type is ConcatAxisOpType:
         return _concat_to_ast(tree)
+
+    if tree.head.atom_type is RenameAxisOpType:
+        return _rename_to_ast(tree)
 
     if tree.head in _REDUCTION_INTRINSICS:
         return _reduction_to_ast(tree, _REDUCTION_INTRINSICS[tree.head])
@@ -206,6 +212,21 @@ def _concat_to_ast(tree: Tree) -> ast.expr:
                 value=ast.Tuple(elts=[ast.Constant(value=axis) for axis in source_axes], ctx=ast.Load()),
             ),
             ast.keyword(arg="target_axis", value=ast.Constant(value=target_axis)),
+        ],
+    )
+
+
+def _rename_to_ast(tree: Tree) -> ast.expr:
+    """Lower a simultaneous axis move to the backend's intrinsic."""
+    permutation = typing.cast("tuple[int, ...]", tree.head.value)
+    return ast.Call(
+        func=ast.Name(id=RENAME_INTRINSIC_NAME, ctx=ast.Load()),
+        args=[_tree_to_ast_expr(tree.args[0])],
+        keywords=[
+            ast.keyword(
+                arg="axes",
+                value=ast.Tuple(elts=[ast.Constant(value=i) for i in permutation], ctx=ast.Load()),
+            ),
         ],
     )
 
