@@ -1,6 +1,7 @@
 import dataclasses
 import typing
 
+from bilt.core._structural_analysis._causalization_block_solver._coordinate_blocks import discover_coordinate_blocks
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltOverconstrainedError,
     BiltUnderconstrainedError,
@@ -17,6 +18,9 @@ if typing.TYPE_CHECKING:
 
     import rustworkx as rx
 
+    from bilt.core._domain_registry import DomainRegistry
+    from bilt.core._structural_analysis._causalization_block_solver._coordinate_blocks import CoordinateBlockDiscovery
+    from bilt.symbolic._domains import Domain
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import (
         FullIncidenceGraph,
     )
@@ -28,6 +32,7 @@ class ValidatedStructure:
 
     snapshot: ExpansionSnapshot
     well_determined: ExpansionSnapshot
+    coordinate_blocks: CoordinateBlockDiscovery | None = None
 
 
 def validate_structure(
@@ -71,6 +76,9 @@ def validate_request_structure(
     incidence: FullIncidenceGraph,
     available: collections.abc.Set[str],
     output: str,
+    *,
+    input_domains: collections.abc.Mapping[str, Domain] | None = None,
+    bindings: DomainRegistry | None = None,
 ) -> ValidatedStructure | None:
     """Expand relevant children structurally, then validate the combined scope.
 
@@ -85,6 +93,18 @@ def validate_request_structure(
 
     expansion = StructuralExpansion(incidence, available, output)
     graph, attributes = expansion.collect()
+    snapshot = expansion.snapshot()
+    refined = (
+        discover_coordinate_blocks(snapshot, input_domains, bindings, output)
+        if input_domains is not None and bindings is not None
+        else None
+    )
+    # An exact coordinate-level matching is stronger evidence than the
+    # port-level row/attribute cardinalities. Keep the complete structural
+    # scope for subsequent execution planning; integration with numerical
+    # lowering remains a separate change.
+    if refined is not None:
+        return ValidatedStructure(snapshot=snapshot, well_determined=snapshot, coordinate_blocks=refined)
     try:
         partition = validate_structure(
             graph,
@@ -96,7 +116,6 @@ def validate_request_structure(
         message = f"Cannot compute {output} from available inputs {sorted(available)}. {error}"
         raise type(error)(message) from error
 
-    snapshot = expansion.snapshot()
     attribute_nodes = frozenset(attributes.values())
     well_attributes = frozenset(name for name, node in attributes.items() if node in partition.well_determined)
     # to_incidence inserts primitive rows in snapshot order after the attributes.
