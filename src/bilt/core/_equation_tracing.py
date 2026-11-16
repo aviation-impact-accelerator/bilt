@@ -1,7 +1,7 @@
 import ast
-lazy import enum
 import types
 import typing
+lazy import enum
 
 from bilt.core._equation_ast import BiltEquationSyntaxError, extract_equation_ast, normalise_equation_ast
 from bilt.symbolic._expressions import conditional_expr

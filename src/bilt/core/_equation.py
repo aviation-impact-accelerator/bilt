@@ -5,10 +5,10 @@ __all__ = [
     "equation",
 ]
 
-lazy import enum
 import inspect
 import types
 import typing
+lazy import enum
 
 from bilt.core._dimensional_analysis import absoluteness_of, dimensionality_of
 from bilt.core._enum_matching import enum_port_types

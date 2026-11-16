@@ -1,11 +1,11 @@
 import ast
 import copy
-lazy import enum
 import inspect
 import linecache
 import sys
 import textwrap
 import typing
+lazy import enum
 
 from bilt.core._errors import BiltDefinitionError
 
