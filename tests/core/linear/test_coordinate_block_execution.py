@@ -204,3 +204,44 @@ def test_two_scalar_equations_determine_one_tensor_port(backend: Backend) -> Non
     assert isinstance(result, Tensor)
     assert result.domain == domain(WS)
     np.testing.assert_allclose(result.values, [2.5, -1.5], atol=1e-6)
+
+
+@pytest.mark.parametrize("size", (3, 5))
+@pytest.mark.parametrize("output", ("wing", "elevator"))
+def test_larger_wing_tail_trim_uses_general_block_discovery(backend: Backend, size: int, output: str) -> None:
+    """Dense coupled panel blocks scale beyond the original six-DOF example."""
+    panels = 2 * size
+    coefficient = np.zeros((panels + 2, panels + 2))
+    coefficient[:panels, :panels] = -4 * np.eye(panels) + 0.03 * np.ones((panels, panels))
+    coefficient[:panels, panels] = 1.0
+    coefficient[size:panels, panels + 1] = 1.0
+    widths = np.ones(panels)
+    arms = np.r_[np.ones(size), -2 * np.ones(size)]
+    coefficient[panels, :panels] = widths
+    coefficient[panels + 1, :panels] = widths * arms
+    expected = np.r_[np.linspace(0.5, 1.4, panels), 0.07, -0.04]
+    rhs = coefficient @ expected
+
+    with backend, Implementation(TrimBlock, [wing_boundary, tail_boundary, total_balance, moment_balance]):
+        model = TrimBlock(
+            ww=tensor(coefficient[:size, :size], over=(WT, WS)),
+            wt=tensor(coefficient[:size, size:panels], over=(WT, TS)),
+            tw=tensor(coefficient[size:panels, :size], over=(TT, WS)),
+            tt=tensor(coefficient[size:panels, size:panels], over=(TT, TS)),
+            wing_width=tensor(widths[:size], over=WS),
+            tail_width=tensor(widths[size:], over=TS),
+            wing_arm=tensor(arms[:size], over=WS),
+            tail_arm=tensor(arms[size:], over=TS),
+            wing_rhs=tensor(rhs[:size], over=WT),
+            tail_rhs=tensor(rhs[size:panels], over=TT),
+            total=float(rhs[panels]),
+            moment=float(rhs[panels + 1]),
+        )
+        result = getattr(model, output)
+
+    if output == "wing":
+        assert isinstance(result, Tensor)
+        assert result.domain == domain(WS)
+        np.testing.assert_allclose(result.values, expected[:size], atol=1e-6)
+    else:
+        assert float(result) == pytest.approx(float(expected[-1]), abs=1e-6)

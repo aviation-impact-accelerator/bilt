@@ -133,7 +133,10 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
         # The port planner still handles other structurally determined regions.
         return None
 
-    blocks = _ordered_coordinate_blocks(incidence, equations, output, resolved)
+    blocks = _coalesce_axis_provenance(
+        _ordered_coordinate_blocks(incidence, equations, output, resolved),
+        known,
+    )
     requires_execution = any(
         len(block.rows) != len(block.unknowns)
         or collections.Counter(incidence.residual_domains[equations.index(row)] for row in block.rows)
@@ -251,3 +254,39 @@ def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate mat
             condensed.add_edge(node_mapping[first], node_mapping[second], None)
 
     return tuple(item[1] for item in rx.lexicographical_topological_sort(condensed, lambda item: item[0]))
+
+
+def _coalesce_axis_provenance(
+    blocks: tuple[QualifiedBlock, ...],
+    known: Mapping[str, Domain],
+) -> tuple[QualifiedBlock, ...]:
+    """Preserve the inputs that establish the extents of a tensor unknown.
+
+    Coordinate matching may find two acyclic blocks even though the first
+    block's residual eliminates an axis absent from its external inputs.
+    Its numerical basis cannot infer that axis's extent from those inputs
+    alone. When the immediately dependent block has an input carrying the
+    missing axes, retain both equations in one qualified linear solve.
+
+    This is domain provenance, not an operator-specific pattern or a
+    numerical choice: unrelated or self-contained blocks remain separate.
+    """
+    ordered = list(blocks)
+    index = 0
+    while index + 1 < len(ordered):
+        first, second = ordered[index : index + 2]
+        first_axes = {dim for name in first.inputs if name in known for dim in known[name].dims}
+        output_axes = {dim for _, layout in first.resolved_domains for dim in layout.dims}
+        missing_axes = output_axes - first_axes
+        second_axes = {dim for name in second.inputs if name in known for dim in known[name].dims}
+        if missing_axes and missing_axes <= second_axes and set(first.unknowns) & second.inputs:
+            joined = QualifiedBlock(
+                first.rows + second.rows,
+                first.unknowns + second.unknowns,
+                resolved_domains=first.resolved_domains + second.resolved_domains,
+            )
+            ordered[index : index + 2] = [joined]
+            index = max(index - 1, 0)
+        else:
+            index += 1
+    return tuple(ordered)
