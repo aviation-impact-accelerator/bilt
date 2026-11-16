@@ -48,7 +48,7 @@ class CoordinateBlockDiscovery:
     unknown_domains: tuple[tuple[str, Domain], ...]
 
 
-def discover_coordinate_blocks(
+def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request validation dispatch.
     structure: ExpansionSnapshot,
     input_domains: Mapping[str, Domain],
     bindings: DomainRegistry,
@@ -151,7 +151,7 @@ def _declared_scalar(name: str, equations: tuple[QualifiedEquation, ...]) -> boo
     return bool(annotations) and all(annotation is float for annotation in annotations)
 
 
-def _ordered_coordinate_blocks(
+def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate matching and SCC projection.
     incidence: CoordinateIncidence,
     equations: tuple[QualifiedEquation, ...],
     output: str,
@@ -162,7 +162,7 @@ def _ordered_coordinate_blocks(
     residual coordinates and one tensor unknown can span many scalar columns.
     A block may therefore contain different counts of equation and port objects.
     """
-    graph, unknown_nodes = incidence.to_graph()
+    graph, _unknown_nodes = incidence.to_graph()
     matching = rx.max_weight_matching(graph, max_cardinality=True)
     if len(matching) != len(incidence.residuals):
         message = "Coordinate block discovery requires a complete structural matching."
@@ -232,8 +232,8 @@ def _ordered_coordinate_blocks(
         node_mapping.update(dict.fromkeys(component, node))
 
     for first, second in dependency.edge_list():
-        if first in node_mapping and second in node_mapping and node_mapping[first] != node_mapping[second]:
-            if not condensed.has_edge(node_mapping[first], node_mapping[second]):
-                condensed.add_edge(node_mapping[first], node_mapping[second], None)
+        if (first in node_mapping and second in node_mapping and node_mapping[first] != node_mapping[second]
+            and not condensed.has_edge(node_mapping[first], node_mapping[second])):
+            condensed.add_edge(node_mapping[first], node_mapping[second], None)
 
     return tuple(item[1] for item in rx.lexicographical_topological_sort(condensed, lambda item: item[0]))
