@@ -6,6 +6,7 @@ from bilt.symbolic._atoms import (
     AxisType,
     ConcatAxisOpType,
     FloatType,
+    IntegrateAxisOpType,
     IntType,
     QuantityType,
     SliceAxisOpType,
@@ -19,6 +20,7 @@ if typing.TYPE_CHECKING:
 
 __all__ = [
     "CONCAT_INTRINSIC_NAME",
+    "INTEGRATE_INTRINSIC_NAME",
     "SLICE_INTRINSIC_NAME",
     "isel_intrinsic_ast",
     "reduction_intrinsic_ast",
@@ -34,6 +36,7 @@ PROD_INTRINSIC_NAME = "__bilt_prod__"
 ISEL_INTRINSIC_NAME = "__bilt_isel__"
 CONCAT_INTRINSIC_NAME = "__bilt_concat__"
 SLICE_INTRINSIC_NAME = "__bilt_slice__"
+INTEGRATE_INTRINSIC_NAME = "__bilt_integrate__"
 
 _REDUCTION_INTRINSICS = {
     ops.MEAN: MEAN_INTRINSIC_NAME,
@@ -77,6 +80,9 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:
     """Convert a symbolic tree to Python AST."""
     if tree.is_leaf:
         return _leaf_to_ast(tree)
+
+    if tree.head.atom_type is IntegrateAxisOpType:
+        return _integrate_to_ast(tree)
 
     if tree.head.atom_type is SliceAxisOpType:
         return _slice_to_ast(tree)
@@ -195,6 +201,22 @@ def _reduction_to_ast(
         intrinsic_name,
         _tree_to_ast_expr(value_tree),
         axis,
+    )
+
+
+def _integrate_to_ast(tree: Tree) -> ast.expr:
+    """Embed coherent trapezoidal weights into a backend reduction."""
+    weights, axis = typing.cast("tuple[tuple[float, ...], int]", tree.head.value)
+    return ast.Call(
+        func=ast.Name(id=INTEGRATE_INTRINSIC_NAME, ctx=ast.Load()),
+        args=[_tree_to_ast_expr(tree.args[0])],
+        keywords=[
+            ast.keyword(
+                arg="weights",
+                value=ast.Tuple(elts=[ast.Constant(value=weight) for weight in weights], ctx=ast.Load()),
+            ),
+            ast.keyword(arg="axis", value=ast.Constant(value=axis)),
+        ],
     )
 
 
