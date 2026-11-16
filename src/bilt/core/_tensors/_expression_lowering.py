@@ -30,7 +30,8 @@ from bilt.symbolic._atoms import (
     RelationOpType,
     SymbolType,
 )
-from bilt.symbolic._domains import Domain, union
+from bilt.symbolic._domains import Domain
+from bilt.symbolic._operator_semantics import describe_operator, without_axis
 from bilt.symbolic._tree import Tree, axis_tree, int_tree
 
 if typing.TYPE_CHECKING:
@@ -101,7 +102,7 @@ def _remove_dimension(
         message = f"Dimension {dim!s} is not present in canonical order {canonical_order!s}."
         raise BiltTensorDomainError(message) from None
 
-    output_domain = Domain(tuple(domain_dim for domain_dim in value_domain.dims if domain_dim != dim))
+    output_domain = without_axis(value_domain, dim)
 
     return output_domain, axis
 
@@ -141,7 +142,7 @@ def _lower_tree(
 
         return LoweredExpression(
             tree=Tree(tree.head, (child.tree,)),
-            domain=child.domain,
+            domain=describe_operator(tree, (child.domain,)).output_domain,
         )
 
     if tree.head in (ADD, MUL, POW):
@@ -155,7 +156,7 @@ def _lower_tree(
         )
 
         output_domain = canonicalized(
-            union(*(child.domain for child in children)),
+            describe_operator(tree, tuple(child.domain for child in children)).output_domain,
             canonical_order,
         ).domain
 
@@ -197,7 +198,8 @@ def _lower_relation(
     if len(operands) != _RELATION_ARITY or any(not operand.domain.is_scalar for operand in operands):
         message = "Conditional predicates require scalar comparison operands."
         raise BiltTensorDomainError(message)
-    return LoweredExpression(Tree(tree.head, tuple(operand.tree for operand in operands)), Domain.scalar())
+    output_domain = describe_operator(tree, tuple(operand.domain for operand in operands)).output_domain
+    return LoweredExpression(Tree(tree.head, tuple(operand.tree for operand in operands)), output_domain)
 
 
 def _lower_conditional(
@@ -215,9 +217,13 @@ def _lower_conditional(
     if not when_true.domain.is_scalar or not when_false.domain.is_scalar:
         message = "Conditional branches must both be scalar expressions."
         raise BiltTensorDomainError(message)
+    output_domain = describe_operator(
+        tree,
+        (predicate.domain, when_true.domain, when_false.domain),
+    ).output_domain
     return LoweredExpression(
         Tree(CONDITIONAL, (predicate.tree, when_true.tree, when_false.tree)),
-        Domain.scalar(),
+        output_domain,
     )
 
 
@@ -274,7 +280,6 @@ def _lower_reduction(
         dim,
         canonical_order=canonical_order,
     )
-
     return LoweredExpression(
         tree=Tree(
             tree.head,
