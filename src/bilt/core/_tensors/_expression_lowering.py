@@ -30,6 +30,8 @@ from bilt.symbolic._atoms import (
     QuantityType,
     ReductionOpType,
     RelationOpType,
+    SliceAxisOpType,
+    SliceDimOpType,
     SymbolType,
 )
 from bilt.symbolic._domains import Domain, union
@@ -119,6 +121,9 @@ def _lower_tree(  # noqa: PLR0911
 
     if tree.head is CONDITIONAL or tree.head.atom_type is RelationOpType:
         return _lower_predicate_or_conditional(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+
+    if tree.head.atom_type is SliceDimOpType:
+        return _lower_slice(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
 
     if tree.head.atom_type is ConcatDimOpType:
         return _lower_concat(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
@@ -255,6 +260,37 @@ def _lower_leaf(
 
 
 _MIN_CONCAT_OPERANDS = 2
+
+
+def _lower_slice(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    """Lower a named positional slice into static source and target axes."""
+    source, target, start, stop, step = typing.cast(
+        "tuple[Dim, Dim, int | None, int | None, int | None]", tree.head.value
+    )
+    value = _lower_tree(tree.args[0], symbol_domains=symbol_domains, canonical_order=canonical_order)
+    if source not in value.domain.dims:
+        message = f"Cannot slice absent dimension {source} in domain {value.domain}."
+        raise BiltTensorDomainError(message)
+    if target in value.domain.dims:
+        message = f"Slice destination {target} already exists in source domain {value.domain}."
+        raise BiltTensorDomainError(message)
+    if target not in canonical_order.dims:
+        message = f"Slice destination {target} has not been registered."
+        raise BiltTensorDomainError(message)
+
+    source_axis = canonical_order.dims.index(source)
+    target_axis = canonical_order.dims.index(target)
+    output_dims = tuple(target if dim == source else dim for dim in value.domain.dims)
+    domain = canonicalized(Domain(output_dims), canonical_order).domain
+    return LoweredExpression(
+        Tree(SliceAxisOpType((source_axis, target_axis, start, stop, step)), (value.tree,)),
+        domain,
+    )
 
 
 def _lower_concat(

@@ -21,6 +21,19 @@ def _isel(
     return np.take(value, [index], axis=axis)
 
 
+def _slice(
+    value: np.ndarray,
+    *,
+    bounds: tuple[int | None, int | None, int | None],
+    source_axis: int,
+    target_axis: int,
+) -> np.ndarray:
+    """Slice one axis without materialising a potentially large index array."""
+    selectors = [slice(None)] * value.ndim
+    selectors[source_axis] = slice(*bounds)
+    return np.swapaxes(value[tuple(selectors)], source_axis, target_axis)
+
+
 def _concat(
     values: tuple[np.ndarray, ...],
     *,
@@ -45,6 +58,7 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
         self.intrinsic_bindings = PythonIntrinsicBindings(
             isel=_isel,
             concat=_concat,
+            slice=_slice,
             mean=np.mean,
             sum=np.sum,
             min=np.min,

@@ -8,6 +8,7 @@ from bilt.symbolic._atoms import (
     FloatType,
     IntType,
     QuantityType,
+    SliceAxisOpType,
     SymbolType,
 )
 from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
@@ -18,6 +19,7 @@ if typing.TYPE_CHECKING:
 
 __all__ = [
     "CONCAT_INTRINSIC_NAME",
+    "SLICE_INTRINSIC_NAME",
     "isel_intrinsic_ast",
     "reduction_intrinsic_ast",
     "tree_to_functiondef",
@@ -31,6 +33,7 @@ PROD_INTRINSIC_NAME = "__bilt_prod__"
 
 ISEL_INTRINSIC_NAME = "__bilt_isel__"
 CONCAT_INTRINSIC_NAME = "__bilt_concat__"
+SLICE_INTRINSIC_NAME = "__bilt_slice__"
 
 _REDUCTION_INTRINSICS = {
     ops.MEAN: MEAN_INTRINSIC_NAME,
@@ -74,6 +77,9 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:
     """Convert a symbolic tree to Python AST."""
     if tree.is_leaf:
         return _leaf_to_ast(tree)
+
+    if tree.head.atom_type is SliceAxisOpType:
+        return _slice_to_ast(tree)
 
     if tree.head.atom_type is ConcatAxisOpType:
         return _concat_to_ast(tree)
@@ -189,6 +195,28 @@ def _reduction_to_ast(
         intrinsic_name,
         _tree_to_ast_expr(value_tree),
         axis,
+    )
+
+
+def _slice_to_ast(tree: Tree) -> ast.expr:
+    """Lower an already resolved positional slice to the backend intrinsic."""
+    source_axis, target_axis, start, stop, step = typing.cast(
+        "tuple[int, int, int | None, int | None, int | None]", tree.head.value
+    )
+    return ast.Call(
+        func=ast.Name(id=SLICE_INTRINSIC_NAME, ctx=ast.Load()),
+        args=[_tree_to_ast_expr(tree.args[0])],
+        keywords=[
+            ast.keyword(
+                arg="bounds",
+                value=ast.Tuple(
+                    elts=[ast.Constant(value=bound) for bound in (start, stop, step)],
+                    ctx=ast.Load(),
+                ),
+            ),
+            ast.keyword(arg="source_axis", value=ast.Constant(value=source_axis)),
+            ast.keyword(arg="target_axis", value=ast.Constant(value=target_axis)),
+        ],
     )
 
 

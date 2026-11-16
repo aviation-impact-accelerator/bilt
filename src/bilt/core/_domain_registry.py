@@ -129,6 +129,24 @@ class DomainRegistry:
             self._bind_size(target, sum(binding for binding in bindings if isinstance(binding, int)))
         self._derived_dimensions.add(target)
 
+    def bind_slice(self, source: Dim, target: Dim, selector: slice) -> None:
+        """Derive extent and optional coordinates from a Python positional slice."""
+        if source == target:
+            message = "The destination slice dimension must differ from the source."
+            raise BiltDomainBindingError(message)
+        binding = self._binding(source)
+        size = binding if isinstance(binding, int) else len(binding)
+        # Python's slice.indices matches NumPy's handling of omitted,
+        # negative, and out-of-range positional bounds.
+        start, stop, step = selector.indices(size)
+        selected_length = len(range(start, stop, step))
+        if isinstance(binding, int):
+            self._bind_size(target, selected_length)
+        else:
+            selected = binding.coordinates[selector]
+            self.bind_axis(CoordinateAxis(target, selected))
+        self._derived_dimensions.add(target)
+
     def size(self, dimension: Dim) -> int:
         """Return the size bound to a dimension."""
         binding = self._binding(dimension)

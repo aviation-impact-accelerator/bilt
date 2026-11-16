@@ -10,6 +10,7 @@ from bilt.symbolic._atoms import (
     DimensionType,
     IndexOpType,
     ReductionOpType,
+    SliceDimOpType,
     SymbolType,
 )
 from bilt.symbolic._domains import Domain
@@ -217,7 +218,7 @@ class _AxisCompiler:
         return self.cache[tree]
 
     def _presence(self, tree: Tree) -> _Presence:
-        if tree.head.atom_type is ConcatDimOpType:
+        if tree.head.atom_type in (ConcatDimOpType, SliceDimOpType):
             message = "Domain transformations in coupled linear blocks are not yet supported."
             raise BiltLinearBlockError(message)
         if tree.is_leaf:

@@ -116,6 +116,30 @@ Reverse isolation, coupled linear blocks, and `@transform` support
 are not included in this first implementation.
 
 
+## Positional slicing
+
+The existing `isel(dim, index)` API selects one scalar position and removes
+the selected axis. Pass a Python `slice` and an `into=` dimension to select
+multiple positions and retain a named axis with a newly derived extent:
+
+```python exec="off"
+@equation
+def select_period(values: Tensor, result: Tensor) -> bool:
+    return result == values.isel(time, slice(1, 10, 2), into=selected_time)
+```
+
+The slice follows Python's positional semantics: the stop is exclusive;
+omitted, negative and out-of-range bounds are supported, including negative
+steps and empty selections. Bounds and steps must be literal integers or
+`None`, and a zero step is invalid. A slice must use a different output
+dimension name, while other named axes and physical units are preserved.
+
+The derived dimension receives the sliced coordinate labels if the input
+dimension has coordinate labels, otherwise Bilt infers only its new extent.
+Like concatenation, positional slicing is a forward-only `@equation`
+operation, not an eager method on a concrete tensor or a general reshape.
+Coordinate-based slice selection with `sel()` is separate follow-up work.
+
 ## Indexing
 
 Use selection in **equations**; `.isel()` and `.sel()` are not lowered in transforms.
