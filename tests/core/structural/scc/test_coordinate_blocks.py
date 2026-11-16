@@ -36,7 +36,7 @@ def boundary(matrix: Influence, circulation: SourceTensor, alpha: float, rhs: Ta
 
 @equation
 def total(circulation: SourceTensor, total_value: float) -> bool:
-    return circulation.sum(SOURCE) == total_value  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
+    return circulation.sum(SOURCE) == total_value
 
 
 @equation
@@ -169,7 +169,7 @@ def dimensioned_boundary(
 @equation
 def dimensioned_balance(circulation: SourceQuantity, total_value: ScalarQuantity) -> bool:
     """Fix the total circulation independently of the target boundary condition."""
-    return circulation.sum(SOURCE) == total_value
+    return circulation.sum(SOURCE) == total_value  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
 
 
 @equation
