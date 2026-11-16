@@ -9,6 +9,7 @@ from bilt.symbolic._atoms import (
     ConcatDimOpType,
     DimensionType,
     IndexOpType,
+    IntegrateDimOpType,
     ReductionOpType,
     SelSliceDimOpType,
     SliceDimOpType,
@@ -229,7 +230,7 @@ class _AxisCompiler:
                     return _Presence(self.variables[name])
                 return _Presence(fixed=name in self.known and self.dim in self.known[name].dims)
             return _Presence()
-        if tree.head.atom_type in (ReductionOpType, IndexOpType):
+        if tree.head.atom_type in (ReductionOpType, IntegrateDimOpType, IndexOpType):
             axis = tree.args[1]
             if axis.head.atom_type is not DimensionType or axis.head.value not in self.available:
                 message = (
