@@ -127,11 +127,11 @@ def test_str_enum_is_encoded_to_numeric_backend_values(
 
 def test_input_must_be_member_of_the_exact_enum_type() -> None:
     with pytest.raises(BiltEvaluationError, match="Mode enum member"):
-        EnumRig(mode=Speed.CRUISE, power=10.0)
+        EnumRig(mode=Speed.CRUISE, power=10.0)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
     with pytest.raises(BiltEvaluationError, match="Mode enum member"):
-        EnumRig(mode="cruise", power=10.0)
+        EnumRig(mode="cruise", power=10.0)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
     with pytest.raises(BiltEvaluationError, match="Speed enum member"):
-        IntRig(mode=27, power=10.0)
+        IntRig(mode=27, power=10.0)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
 
 
 def test_plain_fields_reject_enum_inputs() -> None:
@@ -184,7 +184,7 @@ def test_enum_parameter_cannot_be_used_in_arithmetic() -> None:
 
         @equation
         def bad_arithmetic(mode: Mode, result: float) -> bool:
-            return result == mode + 1
+            return result == mode + 1  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
 
 
 def test_enum_port_cannot_be_solved_backwards() -> None:
