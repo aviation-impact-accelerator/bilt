@@ -94,6 +94,13 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
             # Exact tensor shape cannot be guessed from a type or a port-level match.
             return None
 
+    # A single scalar-declared equation port can still lift pointwise over
+    # dimensions retained by known tensor inputs (e.g. sum(time) over a
+    # (scenario, time) tensor). Do not interpret its scalar annotation as an
+    # exact coordinate count: the established pointwise route handles it.
+    if len(equations) == len(unknowns) == 1 and all(not layout.dims for layout in resolved.values()):
+        return None
+
     # A complete operator candidate must have layouts for every external input.
     parameters = {name for equation in equations for name in equation.parameters}
     known = {name: input_domains[name] for name in parameters & structure.available if name in input_domains}
