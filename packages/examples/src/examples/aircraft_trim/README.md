@@ -1,64 +1,75 @@
-# Acausal wing-and-tail spanwise trim
+# Geometry-based acausal wing-and-tail lifting-line example
 
-This example models **four independently solved panel circulations**, two on
-the wing and two on the horizontal tail. All four panels interact through
-four fixed influence blocks: wing-from-wing, wing-from-tail, tail-from-wing
-and tail-from-tail.
+This example solves individual bound-vortex circulations on a finite wing and
+horizontal tail. It is a **horseshoe-vortex lifting-line-style model**, with
+a geometric influence matrix rather than prescribed aerodynamic coefficients.
 
-It is a *lifting-line-style linear demonstration*, not geometry-derived VLM:
-the coefficients are illustrative and have not been calculated using
-horseshoe vortices or Biot-Savart.
+The wing and tail have separate named source and target dimensions. Every
+source vortex induces normal velocity at every target collocation point,
+including aerodynamic interference between the wing and tail.
 
-## Acausal equations
+## Geometry and assumptions
 
-The two wing-target boundary conditions are expressed as a named-tensor
-contraction:
+Each lifting surface is a flat rectangular wing discretised spanwise. Bound
+vortices sit at quarter-chord, collocation points at three-quarter-chord,
+and the two trailing wake legs run downstream (+x) over a finite length.
+The model uses x aft, y right and z up, with positive circulation directed
+from negative to positive span on the bound segment. Induced velocities are
+calculated with the finite-segment Biot-Savart formula, in units of 1/metre
+per unit circulation.
+
+A normal-velocity approximation is used for small incidence angles.
+Panel lift uses the sectional Kutta-Joukowski relationship. The result is
+not a full vortex-lattice or viscous aerodynamic model: chordwise panels,
+wake roll-up, induced drag, compressibility, stall and fuselage effects are
+outside scope. Geometric influences are generated once as model inputs,
+rather than solved inside an equation.
+
+## Acausal Bilt equations
+
+The four influence tensors have axes:
+wing-from-wing (wing_target, wing_source), wing-from-tail
+(wing_target, tail_source), tail-from-wing (tail_target, wing_source) and
+tail-from-tail (tail_target, tail_source).
+
+The wing boundary condition is:
 
     (wing_from_wing * wing_circulation).sum(wing_source)
         + (wing_from_tail * tail_circulation).sum(tail_source)
         == -speed * (alpha + wing_twist)
 
-The tail-target equations are analogous, including the tail control:
+The tail boundary condition also includes elevator and tail twist. Global
+longitudinal trim imposes:
 
-    (tail_from_wing * wing_circulation).sum(wing_source)
-        + (tail_from_tail * tail_circulation).sum(tail_source)
-        == -speed * (alpha + tail_twist + tail_control * elevator)
+    total panel lift == mass * gravity
+    sum(panel lift * moment arm) == pitch_moment
 
-These equations retain the wing_target and tail_target axes, respectively.
+In inverse trim, Bilt determines all wing and tail circulations, the
+aircraft angle of attack and the elevator deflection from a prescribed
+weight and zero pitching moment. Forward evaluation instead specifies both
+angles and determines the panel circulations and forces.
 
-Two scalar balance equations constrain the panel circulations:
-
-    density * speed * (
-        (wing_circulation * wing_width).sum(wing_source)
-        + (tail_circulation * tail_width).sum(tail_source)
-    ) == mass * gravity
-
-    density * speed * (
-        (wing_circulation * wing_width * wing_arm).sum(wing_source)
-        + (tail_circulation * tail_width * tail_arm).sum(tail_source)
-    ) == pitch_moment
-
-The panel forces are independently available from Kutta-Joukowski loading.
-For inverse trim the known aircraft weight and zero pitching moment determine
-**two wing circulations, two tail circulations, angle of attack and elevator**.
-For forward evaluation the two angles determine panel circulations and loads.
-
-Both directions use the same Bilt equations; the tests assemble the independent
-six-by-six dense reference in NumPy, never in the model.
+With N wing and M tail panels, inverse trim is an (N+M+2)-unknown
+linear problem. A separate NumPy assembly is used only as an independent
+test reference, not in the acausal model.
 
 ## Run
+
+From the Bilt repository root:
 
     uv run python -m examples.aircraft_trim.demo
     uv run pytest packages/examples/tests/test_aircraft_trim.py
 
-## Stack
+The demo shows 6 wing and 4 tail panels. Tests cover the original 2+2
+configuration, 6+4, and several geometric invariants. The panel counts are
+parameters in the geometry fixture, not hard-coded in the Bilt equations.
 
-This PR is stacked on the linear tensor operator and mixed scalar/tensor
-solver prototype in PR #440. Review that implementation first.
+## Dependency and future work
 
-## Limitations
+This is stacked on the general source-to-target/mixed-domain linear solver
+prototype in PR #440, and should remain a draft example until the solver's
+structural matching heuristic has been properly generalised.
 
-Small-angle steady incompressible flow, prescribed influences rather than
-geometry-derived aerodynamics, no induced drag, optimisation or viscous models.
-Next: derive influence blocks from vortex geometry, then compare against
-AeroSandbox VLM using matching geometry and discretisation.
+Possible follow-ups: refine spanwise discretisation and convergence, introduce
+chordwise vortex panels, model variable chord and sweep, and compare against a
+matching AeroSandbox configuration with the same horseshoe and wake conventions.

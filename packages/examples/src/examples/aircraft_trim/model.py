@@ -1,7 +1,8 @@
 """Acausal wing-and-tail spanwise trim with four independent panel circulations.
 
-Two wing and two tail circulation unknowns are coupled by four prescribed
-source-to-target influence blocks. This is not a geometry-derived VLM solver.
+Wing and tail panel circulations are coupled by four geometry-derived
+horseshoe-vortex influence blocks. This is a spanwise lifting-line-style
+model rather than a chordwise vortex-lattice method.
 """
 
 from typing import Annotated
@@ -37,7 +38,7 @@ type Moment = Annotated[Quantity, FORCE * LENGTH]
 
 @system
 class WingTailTrim(metaclass=Interface):
-    """Four lifting panels coupled aerodynamically and by longitudinal trim."""
+    """Wing and tail source panels coupled by geometric induced velocities."""
 
     wing_from_wing: WingInfluence = field()
     wing_from_tail: WingTailInfluence = field()
