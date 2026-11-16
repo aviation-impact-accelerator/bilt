@@ -62,8 +62,8 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend
 
 
-@pytest.mark.parametrize("n", [1, 3, 7])
-@pytest.mark.parametrize("split", [False, True])
+@pytest.mark.parametrize("n", (1, 3, 7))
+@pytest.mark.parametrize("split", (False, True))
 def test_larger_dense_operators_match_numpy(backend: Backend, n: int, *, split: bool) -> None:
     """The solve must not be special-cased to two source and target panels."""
     a = 4.0 * np.eye(n) + 0.3 * np.ones((n, n))
@@ -188,7 +188,7 @@ def test_dimensioned_operator_preserves_units(backend: Backend) -> None:
     )
 
 
-@pytest.mark.parametrize("split", [False, True])
+@pytest.mark.parametrize("split", (False, True))
 def test_singular_operator_is_rejected(backend: Backend, *, split: bool) -> None:
     """A mathematically singular square system must not return arbitrary values."""
     with (
