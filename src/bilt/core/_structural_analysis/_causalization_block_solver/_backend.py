@@ -3,6 +3,7 @@ __all__ = ["CausalizationStructuralAnalyzer"]
 import typing
 
 from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
+from bilt.core._evaluation_context import current_evaluation
 from bilt.core._structural_analysis._causalization_block_solver import _planning as planning
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
@@ -74,6 +75,8 @@ class CausalizationStructuralAnalyzer:
             self.full_incidence_graph,
             available,
             request.output,
+            input_domains=request.input_domains,
+            bindings=current_evaluation().domains,
         )
         expanded = self._preflight(request, structure)
         if expanded is not None:
