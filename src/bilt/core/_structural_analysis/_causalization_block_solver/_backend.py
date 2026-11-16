@@ -145,7 +145,7 @@ class CausalizationStructuralAnalyzer:
 
     def _preflight(self, request: EvaluationRequest, structure: ValidatedStructure | None) -> BackendCase | None:
         """Prefer coordinate-resolved blocks; otherwise retain existing causalisation."""
-        if structure is not None and structure.coordinate_blocks is not None:
+        if structure is not None and structure.coordinate_blocks is not None and structure.coordinate_blocks.requires_execution:
             coordinate_result = realize_qualified_plan(
                 QualifiedPlan(request, structure.coordinate_blocks.blocks),
                 self.backend,
