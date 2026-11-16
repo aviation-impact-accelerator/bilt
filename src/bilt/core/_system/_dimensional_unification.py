@@ -49,7 +49,8 @@ def _check_port(
     declaring = [owner for owner in naming if port in owner.__bilt_port_declarations__]
     categorical = [
         (owner, getattr(owner, "__bilt_enum_ports__", {})[port])
-        for owner in naming if port in getattr(owner, "__bilt_enum_ports__", {})
+        for owner in naming
+        if port in getattr(owner, "__bilt_enum_ports__", {})
     ]
     if categorical:
         expected_type = categorical[0][1]

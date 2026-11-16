@@ -120,12 +120,8 @@ def _normalise_branch(
     if not isinstance(statement, ast.If):
         return _assignment_name(statement), _assignment_value(statement)
 
-    true_name, when_true = _normalise_branch(
-        statement.body[0], enum_types=enum_types, enum_namespace=enum_namespace
-    )
-    _, when_false = _normalise_branch(
-        statement.orelse[0], enum_types=enum_types, enum_namespace=enum_namespace
-    )
+    true_name, when_true = _normalise_branch(statement.body[0], enum_types=enum_types, enum_namespace=enum_namespace)
+    _, when_false = _normalise_branch(statement.orelse[0], enum_types=enum_types, enum_namespace=enum_namespace)
     expression = ast.Call(
         func=ast.Name(id="_bilt_conditional", ctx=ast.Load()),
         args=[statement.test, when_true, when_false],
@@ -230,13 +226,9 @@ def _validate_branch_arm(
     enum_namespace: collections.abc.Mapping[str, object],
 ) -> str:
     if isinstance(statement, ast.If):
-        return _validate_branch(
-            statement, params, assigned, enum_types=enum_types, enum_namespace=enum_namespace
-        )
+        return _validate_branch(statement, params, assigned, enum_types=enum_types, enum_namespace=enum_namespace)
     if isinstance(statement, ast.Match):
-        return _validate_match(
-            statement, params, assigned, enum_types=enum_types, enum_namespace=enum_namespace
-        )
+        return _validate_match(statement, params, assigned, enum_types=enum_types, enum_namespace=enum_namespace)
     name = _assignment_name(statement)
     _validate_expression(_assignment_value(statement))
     return name
@@ -297,11 +289,7 @@ def _validate_match(
         if index < len(statement.cases) - 1:
             _match_literal(case.pattern, subject_type, enum_namespace)
         body = _branch_statement(case.body, statement)
-        names.add(
-            _validate_branch_arm(
-                body, params, assigned, enum_types=enum_types, enum_namespace=enum_namespace
-            )
-        )
+        names.add(_validate_branch_arm(body, params, assigned, enum_types=enum_types, enum_namespace=enum_namespace))
     if len(names) != 1:
         _reject(statement, "all branches must assign the same local variable")
     name = next(iter(names))
@@ -326,12 +314,18 @@ def _validate_branch(
         _reject(statement.test, "conditional predicate must be one symbolic comparison")
 
     left = _validate_branch_arm(
-        _branch_statement(statement.body, statement), params, assigned,
-        enum_types=enum_types, enum_namespace=enum_namespace,
+        _branch_statement(statement.body, statement),
+        params,
+        assigned,
+        enum_types=enum_types,
+        enum_namespace=enum_namespace,
     )
     right = _validate_branch_arm(
-        _branch_statement(statement.orelse, statement), params, assigned,
-        enum_types=enum_types, enum_namespace=enum_namespace,
+        _branch_statement(statement.orelse, statement),
+        params,
+        assigned,
+        enum_types=enum_types,
+        enum_namespace=enum_namespace,
     )
     if left != right:
         _reject(statement, "all branches must assign the same local variable")
@@ -430,9 +424,7 @@ def _validate_function(
 ) -> None:
     _validate_return(function)
     params = _parameter_names(function)
-    assigned = _validate_bindings(
-        function, params, enum_types=enum_types, enum_namespace=enum_namespace
-    )
+    assigned = _validate_bindings(function, params, enum_types=enum_types, enum_namespace=enum_namespace)
     _check_local_reads(function, params, assigned)
     if enum_types:
         allowed_subjects = {

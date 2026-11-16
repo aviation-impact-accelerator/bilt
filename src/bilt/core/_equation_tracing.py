@@ -21,9 +21,7 @@ def validated_symbolic_function(
 
     source = extract_equation_ast(function)
     has_conditional = any(isinstance(statement, (ast.If, ast.Match)) for statement in source.body)
-    validated = normalise_equation_ast(
-        source, enum_types=enum_types, enum_namespace=function.__globals__
-    )
+    validated = normalise_equation_ast(source, enum_types=enum_types, enum_namespace=function.__globals__)
 
     if not has_conditional:
         return function

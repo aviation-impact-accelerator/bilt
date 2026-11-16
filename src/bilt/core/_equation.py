@@ -70,9 +70,7 @@ class BasicEquation[R, **P]:
         _validate_equation_signature(name, signature)
 
         sub_systems = _sub_system_parameters(signature)
-        enum_types = enum_port_types(
-            {name: parameter.annotation for name, parameter in signature.parameters.items()}
-        )
+        enum_types = enum_port_types({name: parameter.annotation for name, parameter in signature.parameters.items()})
         symbols = _build_symbols(signature, sub_systems)
         traced_function = validated_symbolic_function(function, enum_types=enum_types)
         tree = _build_equation_tree(name, traced_function, symbols)
