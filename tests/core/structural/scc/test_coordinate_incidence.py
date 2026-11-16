@@ -15,9 +15,12 @@ from bilt.symbolic._dimensions import coordinate_axis, dim
 from bilt.symbolic._domains import domain
 from bilt.symbolic._tree import (
     Tree,
+    coordinate_tree,
     equality_tree,
     int_tree,
     isel_tree,
+    mean_tree,
+    sel_tree,
     sum_tree,
     symbol_tree,
 )
@@ -260,4 +263,56 @@ def test_edge_limit_fails_explicitly() -> None:
             {"influence": domain(TARGET, SOURCE), "rhs": domain(TARGET)},
             _registry(source=3, target=3),
             max_edges=4,
+        )
+
+
+def test_mean_uses_all_source_coordinates() -> None:
+    equation = equality_tree(mean_tree(symbol_tree("x"), SOURCE), symbol_tree("rhs"))
+    result = build_coordinate_incidence(
+        (equation,),
+        {"x": domain(SOURCE)},
+        {"rhs": domain()},
+        _registry(source=3),
+    )
+    assert len(result.edges) == 3
+
+
+def test_label_selection_uses_registered_coordinates() -> None:
+    registry = DomainRegistry()
+    registry.bind_axis(coordinate_axis(SOURCE, ("inboard", "outboard")))
+    equation = equality_tree(
+        sel_tree(symbol_tree("x"), SOURCE, coordinate_tree("outboard")),
+        symbol_tree("rhs"),
+    )
+    result = build_coordinate_incidence(
+        (equation,),
+        {"x": domain(SOURCE)},
+        {"rhs": domain()},
+        registry,
+    )
+    assert result.edges == frozenset({(ResidualCoordinate(0, ()), UnknownCoordinate("x", (1,)))})
+
+
+def test_negative_index_selection_uses_last_coordinate() -> None:
+    equation = equality_tree(
+        isel_tree(symbol_tree("x"), SOURCE, int_tree(-1)),
+        symbol_tree("rhs"),
+    )
+    result = build_coordinate_incidence(
+        (equation,),
+        {"x": domain(SOURCE)},
+        {"rhs": domain()},
+        _registry(source=3),
+    )
+    assert result.edges == frozenset({(ResidualCoordinate(0, ()), UnknownCoordinate("x", (2,)))})
+
+
+def test_unknown_domain_must_be_resolved_before_refinement() -> None:
+    equation = equality_tree(symbol_tree("x"), symbol_tree("rhs"))
+    with pytest.raises(BiltLinearBlockError, match="No domain supplied"):
+        build_coordinate_incidence(
+            (equation,),
+            {"y": domain()},
+            {},
+            _registry(),
         )
