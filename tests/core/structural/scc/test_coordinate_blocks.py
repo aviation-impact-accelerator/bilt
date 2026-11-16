@@ -4,7 +4,7 @@ import typing
 
 import pytest
 
-from bilt import Tensor, dim, domain, equation, tensor
+from bilt import Tensor, dim, domain, equation
 from bilt.core._domain_registry import DomainRegistry
 from bilt.core._structural_analysis._causalization_block_solver._coordinate_blocks import discover_coordinate_blocks
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
