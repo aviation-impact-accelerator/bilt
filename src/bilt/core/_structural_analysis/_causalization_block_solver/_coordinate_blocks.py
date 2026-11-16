@@ -18,6 +18,7 @@ from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltDomainBindingError
 from bilt.core._port_declaration import annotated_parts, quantity_magnitude_kind
 from bilt.core._structural_analysis._causalization_block_solver._coordinate_incidence import (
+    _CoordinateTracer,
     CoordinateIncidence,
     ResidualCoordinate,
     UnknownCoordinate,
@@ -32,7 +33,7 @@ from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._linear_domains import merge_domain_hints
 from bilt.core._structural_analysis._qualified_block import QualifiedBlock, QualifiedEquation
 from bilt.symbolic._algebra._affine import AffineAnalysisError
-from bilt.symbolic._atoms import ISEL, MEAN, SEL, SUM
+from bilt.symbolic._atoms import ISEL, MEAN, SEL, SUM, SymbolType
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
@@ -67,10 +68,8 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
     through the existing inexpensive port matching.
     """
     if not structure.complete or output in structure.available:
-        print('COORD DIAG incomplete/supplied', output)
         return None
     if not structure.constraints or any(not isinstance(row.operation, BasicEquation) for row in structure.constraints):
-        print('COORD DIAG non-eq', output, len(structure.constraints))
         return None
     equations = tuple(
         QualifiedEquation(typing.cast("BasicEquation", row.operation), row.path) for row in structure.constraints
@@ -81,22 +80,16 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
     has_domain_operator = any(_has_operator(equation.tree) for equation in equations)
     multi_port_vector = len(equations) != len(unknowns) and any(domain.dims for domain in input_domains.values())
     if not (has_domain_operator or multi_port_vector):
-        print('COORD DIAG no operator', output)
         return None
 
     if output not in unknowns:
         return None
     hints = merge_domain_hints(hint for equation in equations for hint in equation.domain_hints)
-    resolved: dict[str, Domain] = {}
-    for name in sorted(unknowns):
-        if name in hints:
-            resolved[name] = hints[name]
-        elif _declared_scalar(name, equations):
-            resolved[name] = Domain.scalar()
-        else:
-            # Exact tensor shape cannot be guessed from a type or a port-level match.
-            print('COORD DIAG unknown domain', output, name, sorted(unknowns), sorted(hints))
-            return None
+    resolved: dict[str, Domain] = {
+        name: hints[name] if name in hints else Domain.scalar()
+        for name in sorted(unknowns)
+        if name in hints or _declared_scalar(name, equations)
+    }
 
     # A single scalar-declared equation port can still lift pointwise over
     # dimensions retained by known tensor inputs (e.g. sum(time) over a
@@ -109,13 +102,17 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
     parameters = {name for equation in equations for name in equation.parameters}
     known = {name: input_domains[name] for name in parameters & structure.available if name in input_domains}
     if parameters - unknowns - known.keys():
-        print('COORD DIAG missing params', output, parameters - unknowns - known.keys())
+        return None
+
+    # Derived output layouts follow exact defining expressions, not minimum
+    # Domain requirements on quantity-only tensor declarations.
+    _infer_defined_domains(equations, unknowns, resolved, known, bindings)
+    if set(resolved) != unknowns:
         return None
 
     try:
         incidence = build_coordinate_incidence(tuple(e.tree for e in equations), resolved, known, bindings)
     except AffineAnalysisError, BiltDomainBindingError, BiltLinearBlockError as error:
-        print('COORD DIAG incidence failed', output, type(error).__name__, str(error), {k: v.dims for k, v in resolved.items()})
         # Inference, operator support and expansion limits are independent of
         # the existing planner: it may still find a valid execution route.
         return None
@@ -143,7 +140,6 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
         raise BiltUnderconstrainedError(message)
 
     if partition.underdetermined or len(incidence.residuals) != len(incidence.unknowns):
-        print('COORD DIAG bad partition', output, len(incidence.residuals), len(incidence.unknowns))
         # The port planner still handles other structurally determined regions.
         return None
 
@@ -306,3 +302,42 @@ def _coalesce_axis_provenance(
         else:
             index += 1
     return tuple(ordered)
+
+
+def _infer_defined_domains(
+    equations: tuple[QualifiedEquation, ...],
+    unknowns: frozenset[str],
+    resolved: dict[str, Domain],
+    inputs: Mapping[str, Domain],
+    bindings: DomainRegistry,
+) -> None:
+    """Infer layouts of directly defined outputs from fully resolved expressions.
+
+    Only a bare output on one side of an equality qualifies, and the other
+    side's domain must already be known. This never promotes a tensor's
+    minimum-domain declaration into an assumed exact tensor layout.
+    """
+    pending = set(unknowns) - resolved.keys()
+    while pending:
+        progress = False
+        tracer = _CoordinateTracer(inputs | resolved, frozenset(), bindings)
+        for equation in equations:
+            tree = equation.tree
+            if not tree.is_equality:
+                continue
+            for side, other in ((tree.left, tree.right), (tree.right, tree.left)):
+                if not side.is_leaf or side.head.atom_type is not SymbolType:
+                    continue
+                name = typing.cast("str", side.head.value)
+                if name not in pending:
+                    continue
+                try:
+                    inferred = tracer.domain(other)
+                except BiltLinearBlockError:
+                    continue
+                resolved[name] = inferred
+                pending.remove(name)
+                progress = True
+                break
+        if not progress:
+            return
