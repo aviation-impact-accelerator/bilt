@@ -1,6 +1,6 @@
 import ast
 import copy
-import enum
+lazy import enum
 import inspect
 import linecache
 import sys

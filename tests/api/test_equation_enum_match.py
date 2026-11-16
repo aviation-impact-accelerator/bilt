@@ -1,8 +1,7 @@
 """Prototype categorical enum match/case support in equations."""
 
-# ruff: noqa: PLR2004
 import enum
-from contextlib import AbstractContextManager
+lazy from contextlib import AbstractContextManager
 
 import pytest
 

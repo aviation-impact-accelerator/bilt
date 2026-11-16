@@ -5,7 +5,7 @@ __all__ = [
     "equation",
 ]
 
-import enum
+lazy import enum
 import inspect
 import types
 import typing

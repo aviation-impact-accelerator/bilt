@@ -1,5 +1,5 @@
 import ast
-import enum
+lazy import enum
 import types
 import typing
 

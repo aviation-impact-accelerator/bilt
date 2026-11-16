@@ -1,6 +1,6 @@
 __all__ = ["Interface"]
 
-import enum
+lazy import enum
 import typing
 
 if typing.TYPE_CHECKING:
