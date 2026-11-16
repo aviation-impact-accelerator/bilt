@@ -15,6 +15,7 @@ from bilt._backend._linear_solve import (
     LINEAR_ZERO_INTRINSIC_NAME,
 )
 from bilt.core._to_ast import (
+    CONCAT_INTRINSIC_NAME,
     ISEL_INTRINSIC_NAME,
     MAX_INTRINSIC_NAME,
     MEAN_INTRINSIC_NAME,
@@ -29,6 +30,7 @@ class PythonIntrinsicBindings:
     """Backend implementations of Bilt intrinsics."""
 
     isel: typing.Callable[..., typing.Any]
+    concat: typing.Callable[..., typing.Any]
     mean: typing.Callable[..., typing.Any]
     sum: typing.Callable[..., typing.Any]
     min: typing.Callable[..., typing.Any]
@@ -42,6 +44,7 @@ class PythonIntrinsicBindings:
 
     def namespace(self) -> dict[str, typing.Any]:
         namespace = {
+            CONCAT_INTRINSIC_NAME: self.concat,
             ISEL_INTRINSIC_NAME: self.isel,
             MEAN_INTRINSIC_NAME: self.mean,
             SUM_INTRINSIC_NAME: self.sum,

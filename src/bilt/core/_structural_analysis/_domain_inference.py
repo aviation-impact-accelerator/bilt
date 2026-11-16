@@ -5,7 +5,13 @@ import dataclasses
 import typing
 
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
-from bilt.symbolic._atoms import DimensionType, IndexOpType, ReductionOpType, SymbolType
+from bilt.symbolic._atoms import (
+    ConcatDimOpType,
+    DimensionType,
+    IndexOpType,
+    ReductionOpType,
+    SymbolType,
+)
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
@@ -211,6 +217,9 @@ class _AxisCompiler:
         return self.cache[tree]
 
     def _presence(self, tree: Tree) -> _Presence:
+        if tree.head.atom_type is ConcatDimOpType:
+            message = "Domain transformations in coupled linear blocks are not yet supported."
+            raise BiltLinearBlockError(message)
         if tree.is_leaf:
             if tree.head.atom_type is SymbolType:
                 name = typing.cast("str", tree.head.value)

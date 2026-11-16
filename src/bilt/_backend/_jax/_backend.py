@@ -69,6 +69,19 @@ def _validate_linear_status(inputs_finite: object, solution_finite: object) -> N
         raise BiltLinearSolveError(message)
 
 
+def _concat(
+    values: tuple[jax.Array, ...],
+    *,
+    source_axes: tuple[int, ...],
+    target_axis: int,
+) -> jax.Array:
+    """Concatenate aligned tensors along an explicitly derived axis."""
+    relocated = tuple(
+        jnp.swapaxes(value, source, target_axis) for value, source in zip(values, source_axes, strict=True)
+    )
+    return jnp.concatenate(relocated, axis=target_axis)
+
+
 class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignmentMixin):
     """JAX backend implementation of the Bilt backend interface."""
 
@@ -81,6 +94,7 @@ class JAXBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignment
         }
         self.intrinsic_bindings = PythonIntrinsicBindings(
             isel=_isel,
+            concat=_concat,
             mean=jnp.mean,
             sum=jnp.sum,
             min=jnp.min,

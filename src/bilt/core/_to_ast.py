@@ -2,7 +2,14 @@ import ast
 import typing
 
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._atoms import AxisType, FloatType, IntType, QuantityType, SymbolType
+from bilt.symbolic._atoms import (
+    AxisType,
+    ConcatAxisOpType,
+    FloatType,
+    IntType,
+    QuantityType,
+    SymbolType,
+)
 from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
 
 if typing.TYPE_CHECKING:
@@ -10,6 +17,7 @@ if typing.TYPE_CHECKING:
     from bilt.units import Dimension
 
 __all__ = [
+    "CONCAT_INTRINSIC_NAME",
     "isel_intrinsic_ast",
     "reduction_intrinsic_ast",
     "tree_to_functiondef",
@@ -22,6 +30,7 @@ MAX_INTRINSIC_NAME = "__bilt_max__"
 PROD_INTRINSIC_NAME = "__bilt_prod__"
 
 ISEL_INTRINSIC_NAME = "__bilt_isel__"
+CONCAT_INTRINSIC_NAME = "__bilt_concat__"
 
 _REDUCTION_INTRINSICS = {
     ops.MEAN: MEAN_INTRINSIC_NAME,
@@ -65,6 +74,9 @@ def _tree_to_ast_expr(tree: Tree) -> ast.expr:
     """Convert a symbolic tree to Python AST."""
     if tree.is_leaf:
         return _leaf_to_ast(tree)
+
+    if tree.head.atom_type is ConcatAxisOpType:
+        return _concat_to_ast(tree)
 
     if tree.head in _REDUCTION_INTRINSICS:
         return _reduction_to_ast(tree, _REDUCTION_INTRINSICS[tree.head])
@@ -177,6 +189,24 @@ def _reduction_to_ast(
         intrinsic_name,
         _tree_to_ast_expr(value_tree),
         axis,
+    )
+
+
+def _concat_to_ast(tree: Tree) -> ast.expr:
+    """Call the backend with aligned operands and source/target axis positions."""
+    source_axes, target_axis = typing.cast("tuple[tuple[int, ...], int]", tree.head.value)
+    return ast.Call(
+        func=ast.Name(id=CONCAT_INTRINSIC_NAME, ctx=ast.Load()),
+        args=[
+            ast.Tuple(elts=[_tree_to_ast_expr(value) for value in tree.args], ctx=ast.Load()),
+        ],
+        keywords=[
+            ast.keyword(
+                arg="source_axes",
+                value=ast.Tuple(elts=[ast.Constant(value=axis) for axis in source_axes], ctx=ast.Load()),
+            ),
+            ast.keyword(arg="target_axis", value=ast.Constant(value=target_axis)),
+        ],
     )
 
 

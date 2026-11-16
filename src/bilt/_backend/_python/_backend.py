@@ -21,6 +21,19 @@ def _isel(
     return np.take(value, [index], axis=axis)
 
 
+def _concat(
+    values: tuple[np.ndarray, ...],
+    *,
+    source_axes: tuple[int, ...],
+    target_axis: int,
+) -> np.ndarray:
+    """Move each source axis to the derived dimension and concatenate."""
+    relocated = tuple(
+        np.swapaxes(value, source, target_axis) for value, source in zip(values, source_axes, strict=True)
+    )
+    return np.concatenate(relocated, axis=target_axis)
+
+
 class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignmentMixin):
     """Python backend implementation of the Bilt backend interface."""
 
@@ -31,6 +44,7 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
         }
         self.intrinsic_bindings = PythonIntrinsicBindings(
             isel=_isel,
+            concat=_concat,
             mean=np.mean,
             sum=np.sum,
             min=np.min,

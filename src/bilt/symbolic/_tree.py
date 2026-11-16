@@ -12,6 +12,7 @@ from bilt.symbolic._atoms import (
     SEL,
     SUM,
     Atom,
+    ConcatDimOpType,
     IndexOpType,
     ReductionOpType,
     RelationOpType,
@@ -38,6 +39,7 @@ _tree_cache: weakref.WeakValueDictionary[
 __all__ = [
     "Tree",
     "axis_tree",
+    "concat_tree",
     "conditional_tree",
     "coordinate_tree",
     "dimension_tree",
@@ -178,6 +180,11 @@ class Tree:
 
         args_str = ", ".join(str(a) for a in self.args)
         return f"{self.head}({args_str})"
+
+
+def concat_tree(values: tuple[Tree, ...], sources: tuple[Dim, ...], target: Dim) -> Tree:
+    """Represent concatenation into a distinct named dimension."""
+    return Tree(ConcatDimOpType((sources, target)), values)
 
 
 def symbol_tree(name: str) -> Tree:

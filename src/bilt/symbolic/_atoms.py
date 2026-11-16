@@ -32,6 +32,8 @@ __all__ = [
     "Atom",
     "AtomType",
     "AxisType",
+    "ConcatAxisOpType",
+    "ConcatDimOpType",
     "CoordinateType",
     "DimensionType",
     "FloatType",
@@ -91,6 +93,8 @@ SymbolType = AtomType("Symbol")
 OpType = AtomType("Op")
 RelationOpType = AtomType("RelationOp")
 ReductionOpType = AtomType("ReductionOp")
+ConcatDimOpType = AtomType("ConcatDimOp")
+ConcatAxisOpType = AtomType("ConcatAxisOp")
 IndexOpType = AtomType("IndexOp")
 CoordinateType = AtomType("Coordinate")
 DimensionType = AtomType("Dimension")

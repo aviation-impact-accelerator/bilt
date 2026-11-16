@@ -9,7 +9,7 @@ from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
-from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
+from bilt.core._errors import BiltAnalysisError, BiltDomainBindingError, BiltEquationDomainRequirementError
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_name
@@ -21,16 +21,21 @@ from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
+from bilt.symbolic._atoms import ConcatDimOpType
 from bilt.symbolic._domains import Domain
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltIsolationError
 from bilt.symbolic._isolation._isolate import isolate
+from bilt.symbolic._walk import subtrees
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt._backend._base_backend import Backend
+    from bilt.core._domain_registry import DomainRegistry
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanBlock, PlanStep
+    from bilt.symbolic._dimensions import Dim
+    from bilt.symbolic._tree import Tree
 
 
 type BlockRealizationKey = tuple[
@@ -40,6 +45,77 @@ type BlockRealizationKey = tuple[
 
 
 def realize_plan(
+    plan: AnalysisPlan,
+    backend: Backend,
+    *,
+    block_failures: dict[BlockRealizationKey, BlockRealizationFailure] | None = None,
+) -> BackendCase | RealizationFailure | BlockRealizationFailure:
+    """Realise a plan with transactional derived-dimension bindings."""
+    evaluation = current_evaluation()
+    old_domains = evaluation.domains
+    old_order = evaluation.__dict__.get("canonical_order")
+    evaluation.domains = old_domains.clone()
+    try:
+        failure = _register_plan_domain_transforms(plan)
+        result = failure if failure is not None else _realize_plan_steps(plan, backend, block_failures=block_failures)
+    except Exception:
+        evaluation.domains = old_domains
+        if old_order is None:
+            evaluation.__dict__.pop("canonical_order", None)
+        else:
+            evaluation.__dict__["canonical_order"] = old_order
+        raise
+    if not isinstance(result, BackendCase):
+        evaluation.domains = old_domains
+        if old_order is None:
+            evaluation.__dict__.pop("canonical_order", None)
+        else:
+            evaluation.__dict__["canonical_order"] = old_order
+    return result
+
+
+def _register_plan_domain_transforms(plan: AnalysisPlan) -> RealizationFailure | None:
+    """Register new axes introduced by selected symbolic domain transformations."""
+    registry = current_evaluation().domains
+    pending: list[tuple[PlanStep, Tree]] = []
+    for step in plan.steps:
+        if not isinstance(step.operation, BasicEquation):
+            continue
+        try:
+            isolated = isolate(step.operation.__bilt_equation_tree__, Expr.symbol(step.output))
+        except BiltIsolationError:
+            continue
+        pending.extend((step, node) for node in subtrees(isolated.rhs.tree) if node.head.atom_type is ConcatDimOpType)
+    while pending:
+        delayed: list[tuple[PlanStep, Tree]] = []
+        progressed = False
+        for step, node in pending:
+            try:
+                _register_derived_axis(node, registry)
+            except BiltDomainBindingError as error:
+                if "is not bound" in str(error):
+                    delayed.append((step, node))
+                    continue
+                return RealizationFailure(failed_plan_step=step, cause=error)
+            progressed = True
+        if not progressed:
+            step, node = delayed[0]
+            return RealizationFailure(
+                failed_plan_step=step,
+                cause=BiltDomainBindingError(f"Cannot derive {node.head}: source dimension is not bound."),
+            )
+        pending = delayed
+    return None
+
+
+def _register_derived_axis(tree: Tree, registry: DomainRegistry) -> None:
+    """Dispatch supported derived-axis constraints through a shared registry."""
+    if tree.head.atom_type is ConcatDimOpType:
+        sources, target = typing.cast("tuple[tuple[Dim, ...], Dim]", tree.head.value)
+        registry.bind_concat(sources, target)
+
+
+def _realize_plan_steps(
     plan: AnalysisPlan,
     backend: Backend,
     *,

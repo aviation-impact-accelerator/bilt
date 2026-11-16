@@ -19,6 +19,8 @@ from bilt.units._conversion import conversion_between
 from bilt.units._errors import BiltUnitError
 from bilt.units._units import Unit
 
+_MIN_CONCAT_OPERANDS = 2
+
 OverArg = Dim | collections.abc.Iterable[Dim]
 
 
@@ -35,6 +37,38 @@ class Tensor:
         object.__setattr__(self, "values", values)
 
         _check_rank(values, self.domain)
+
+    @classmethod
+    def concat(
+        cls,
+        values: collections.abc.Sequence[Tensor],
+        *,
+        along: collections.abc.Sequence[Dim],
+        into: Dim,
+    ) -> Tensor:
+        """Symbolically concatenate two or more tensors into a new named axis.
+
+        This method is used inside Bilt equations, not on concrete tensors.
+        """
+        from bilt.symbolic._expressions import TensorExpr, as_tree  # noqa: PLC0415
+        from bilt.symbolic._tree import concat_tree  # noqa: PLC0415
+
+        sources = tuple(along)
+        if len(values) < _MIN_CONCAT_OPERANDS or len(values) != len(sources):
+            msg = "Tensor.concat requires at least two tensors and one source dimension per tensor."
+            raise ValueError(msg)
+        if not isinstance(into, Dim) or any(not isinstance(source, Dim) for source in sources):
+            msg = "Tensor.concat requires named source and destination dimensions."
+            raise TypeError(msg)
+        if into in sources:
+            msg = "Tensor.concat requires a destination distinct from its source dimensions."
+            raise ValueError(msg)
+        if any(isinstance(value, Tensor) for value in values):
+            raise _symbolic_operation_only()
+        return typing.cast(
+            "Tensor",
+            TensorExpr(concat_tree(tuple(as_tree(value) for value in values), sources, into)),
+        )
 
     @classmethod
     def scalar(cls, value: object, unit: Unit | None = None) -> Tensor:
