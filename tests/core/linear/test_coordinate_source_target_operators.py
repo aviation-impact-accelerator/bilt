@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from bilt import Implementation, Interface, Tensor, dim, domain, equation, field, system, tensor
-from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError, BiltUnderconstrainedError
 from bilt.errors import BiltLinearSolveError
 
 if typing.TYPE_CHECKING:
@@ -98,6 +98,6 @@ def test_non_square_source_to_target_system_is_rejected(backend: Backend, *, spl
     with (
         backend,
         Implementation(LiftingLine, [product, reduction] if split else [direct]),
-        pytest.raises((BiltExecutionPlanError, BiltLinearSolveError)),
+        pytest.raises((BiltUnderconstrainedError, BiltExecutionPlanError, BiltLinearSolveError)),
     ):
         _ = LiftingLine(influence=influence, velocity=velocity).circulation
