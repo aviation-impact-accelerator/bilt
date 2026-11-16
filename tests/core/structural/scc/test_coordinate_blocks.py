@@ -36,7 +36,7 @@ def boundary(matrix: Influence, circulation: SourceTensor, alpha: float, rhs: Ta
 
 @equation
 def total(circulation: SourceTensor, total_value: float) -> bool:
-    return circulation.sum(SOURCE) == total_value
+    return circulation.sum(SOURCE) == total_value  # pyrefly: ignore[missing-attribute]  # ty: ignore[unresolved-attribute]
 
 
 @equation
