@@ -9,6 +9,9 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+_SINGULARITY_TOLERANCE_M = 1e-12
+_SINGULARITY_CROSS_SQUARED = _SINGULARITY_TOLERANCE_M**4
+
 
 @dataclass(frozen=True, slots=True)
 class RectangularSurface:
@@ -115,7 +118,7 @@ def finite_vortex_velocity(point: np.ndarray, start: np.ndarray, end: np.ndarray
     squared = float(np.dot(cross, cross))
     norm1 = float(np.linalg.norm(r1))
     norm2 = float(np.linalg.norm(r2))
-    if squared <= 1e-24 or norm1 <= 1e-12 or norm2 <= 1e-12:
+    if squared <= _SINGULARITY_CROSS_SQUARED or norm1 <= _SINGULARITY_TOLERANCE_M or norm2 <= _SINGULARITY_TOLERANCE_M:
         msg = "Vortex evaluation point lies on or too near a filament."
         raise ValueError(msg)
     return cross * (np.dot(direction, r1 / norm1 - r2 / norm2) / (4.0 * np.pi * squared))
