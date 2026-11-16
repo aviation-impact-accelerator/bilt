@@ -159,7 +159,9 @@ TargetQuantity = typing.Annotated[QuantityTensor, DIMENSIONLESS, domain(TARGET)]
 
 
 @equation
-def dimensioned_boundary(matrix: MatrixQuantity, circulation: SourceQuantity, alpha: ScalarQuantity, rhs: TargetQuantity) -> bool:
+def dimensioned_boundary(
+    matrix: MatrixQuantity, circulation: SourceQuantity, alpha: ScalarQuantity, rhs: TargetQuantity
+) -> bool:
     """A scalar Quantity participates in a vector-valued mixed linear block."""
     return (matrix * circulation).sum(SOURCE) + alpha == rhs
 
