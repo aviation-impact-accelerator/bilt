@@ -1,3 +1,4 @@
+import datetime as dt
 import typing
 
 from bilt.symbolic._atoms import (
@@ -24,6 +25,7 @@ from bilt.symbolic._tree import (
     prod_tree,
     quantity_tree,
     relation_tree,
+    sel_slice_tree,
     sel_tree,
     slice_tree,
     sum_tree,
@@ -273,15 +275,35 @@ class TensorExpr(Expr):
             raise ValueError(msg)
         return TensorExpr(isel_tree(self.tree, dim, as_tree(index)))
 
-    def sel(self, dim: Dim, coordinate: Coordinate) -> TensorExpr:
-        """Select a coordinate along a symbolic dimension."""
-        return TensorExpr(
-            sel_tree(
-                self.tree,
-                dim,
-                coordinate_tree(coordinate),
-            )
-        )
+    def sel(self, dim: Dim, coordinate: Coordinate | slice, *, into: Dim | None = None) -> TensorExpr:
+        """Select a coordinate or an inclusive, labelled interval."""
+        if isinstance(coordinate, slice):
+            from bilt.symbolic._dimensions import Dim  # noqa: PLC0415
+
+            if not isinstance(dim, Dim) or not isinstance(into, Dim):
+                msg = "Coordinate slicing requires a source dimension and an explicit 'into' dimension."
+                raise TypeError(msg)
+            if dim == into:
+                msg = "A coordinate slice requires a destination dimension distinct from the source."
+                raise ValueError(msg)
+            if any(
+                label is not None and (isinstance(label, bool) or not isinstance(label, (str, int, float, dt.date)))
+                for label in (coordinate.start, coordinate.stop)
+            ):
+                msg = "Coordinate slice endpoints must be literal coordinate labels or None."
+                raise TypeError(msg)
+            if coordinate.step is not None and type(coordinate.step) is not int:
+                msg = "Coordinate slice step must be a literal integer or None."
+                raise TypeError(msg)
+            if coordinate.step == 0:
+                msg = "Coordinate slice step cannot be zero."
+                raise ValueError(msg)
+            return TensorExpr(sel_slice_tree(self.tree, dim, into, coordinate))
+
+        if into is not None:
+            msg = "'into' is only valid when selecting a coordinate slice."
+            raise ValueError(msg)
+        return TensorExpr(sel_tree(self.tree, dim, coordinate_tree(coordinate)))
 
 
 class SubSystemExpr:

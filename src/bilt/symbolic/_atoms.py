@@ -43,6 +43,7 @@ __all__ = [
     "QuantityType",
     "ReductionOpType",
     "RelationOpType",
+    "SelSliceDimOpType",
     "SliceAxisOpType",
     "SliceDimOpType",
     "SymbolType",
@@ -99,6 +100,7 @@ ConcatDimOpType = AtomType("ConcatDimOp")
 ConcatAxisOpType = AtomType("ConcatAxisOp")
 IndexOpType = AtomType("IndexOp")
 SliceDimOpType = AtomType("SliceDimOp")
+SelSliceDimOpType = AtomType("SelSliceDimOp")
 SliceAxisOpType = AtomType("SliceAxisOp")
 CoordinateType = AtomType("Coordinate")
 DimensionType = AtomType("Dimension")

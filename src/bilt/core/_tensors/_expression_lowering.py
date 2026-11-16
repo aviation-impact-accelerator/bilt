@@ -30,6 +30,7 @@ from bilt.symbolic._atoms import (
     QuantityType,
     ReductionOpType,
     RelationOpType,
+    SelSliceDimOpType,
     SliceAxisOpType,
     SliceDimOpType,
     SymbolType,
@@ -121,6 +122,9 @@ def _lower_tree(  # noqa: PLR0911
 
     if tree.head is CONDITIONAL or tree.head.atom_type is RelationOpType:
         return _lower_predicate_or_conditional(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+
+    if tree.head.atom_type is SelSliceDimOpType:
+        return _lower_coordinate_slice(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
 
     if tree.head.atom_type is SliceDimOpType:
         return _lower_slice(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
@@ -260,6 +264,22 @@ def _lower_leaf(
 
 
 _MIN_CONCAT_OPERANDS = 2
+
+
+def _lower_coordinate_slice(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    """Resolve inclusive coordinate labels, then reuse positional slicing."""
+    source, target, first, last, step = typing.cast("tuple[Dim, Dim, object, object, int | None]", tree.head.value)
+    selector = current_evaluation().domains.coordinate_slice(source, slice(first, last, step))
+    positional = Tree(
+        SliceDimOpType((source, target, selector.start, selector.stop, selector.step)),
+        tree.args,
+    )
+    return _lower_slice(positional, symbol_domains=symbol_domains, canonical_order=canonical_order)
 
 
 def _lower_slice(

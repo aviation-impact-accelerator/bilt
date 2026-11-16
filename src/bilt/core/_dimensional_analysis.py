@@ -14,6 +14,7 @@ from bilt.symbolic._atoms import (
     FloatType,
     IntType,
     QuantityType,
+    SelSliceDimOpType,
     SliceDimOpType,
     SymbolType,
 )
@@ -50,7 +51,7 @@ def dimensionality_of(
     operands = [dimensionality_of(operand, dimensionalities) for operand in tree.args]
     if tree.head.atom_type is ConcatDimOpType:
         return _shared(operands)
-    if tree.head.atom_type is SliceDimOpType:
+    if tree.head.atom_type in (SelSliceDimOpType, SliceDimOpType):
         return operands[0]
     return _dimensionality_at(tree, operands)
 

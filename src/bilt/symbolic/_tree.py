@@ -16,6 +16,7 @@ from bilt.symbolic._atoms import (
     IndexOpType,
     ReductionOpType,
     RelationOpType,
+    SelSliceDimOpType,
     SliceDimOpType,
     axis,
     coordinate,
@@ -56,6 +57,7 @@ __all__ = [
     "quantity_tree",
     "reduction_tree",
     "relation_tree",
+    "sel_slice_tree",
     "sel_tree",
     "slice_tree",
     "sum_tree",
@@ -287,6 +289,19 @@ def slice_tree(
     """Represent a positional slice that produces a distinct named dimension."""
     return Tree(
         SliceDimOpType((source, target, selector.start, selector.stop, selector.step)),
+        (value,),
+    )
+
+
+def sel_slice_tree(
+    value: Tree,
+    source: Dim,
+    target: Dim,
+    selector: slice,
+) -> Tree:
+    """Represent an inclusive coordinate interval with a new named dimension."""
+    return Tree(
+        SelSliceDimOpType((source, target, selector.start, selector.stop, selector.step)),
         (value,),
     )
 

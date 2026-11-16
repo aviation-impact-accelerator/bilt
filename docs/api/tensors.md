@@ -140,15 +140,45 @@ Like concatenation, positional slicing is a forward-only `@equation`
 operation, not an eager method on a concrete tensor or a general reshape.
 Coordinate-based slice selection with `sel()` is separate follow-up work.
 
+## Coordinate-aware slicing
+
+Use `sel(dim, slice(start_label, stop_label), into=new_dim)` in an
+`@equation` to select a labelled interval while creating a new named
+dimension. **Both coordinate endpoints are inclusive**, unlike positional
+`isel()` slices. Labels are looked up on a bound coordinate axis, and
+selection follows their existing order rather than numerically sorting them:
+
+```python exec="off"
+@equation
+def select_years(values: Tensor, selected: Tensor) -> bool:
+    return selected == values.sel(
+        time,
+        slice(2025, 2050),
+        into=selected_time,
+    )
+```
+
+Both endpoints may be omitted. An optional integer step selects every
+`step`-th position; negative steps reverse the traversal. A coordinate
+endpoint that is not found raises a binding error rather than being clipped.
+The result retains physical units and the names of unaffected dimensions,
+and its new extent and coordinate labels are derived automatically.
+
+This operation requires a labelled source axis and an explicit, distinct
+`into` dimension. Existing single-label `sel(dim, label)` is unchanged:
+it selects one value and removes that axis. Coordinate slicing is currently
+forward-only and is not supported within coupled linear solves or transforms.
+
 ## Indexing
 
 Use selection in **equations**; `.isel()` and `.sel()` are not lowered in transforms.
-Both select one element along a dimension and remove that dimension from the result.
+With scalar selectors, both select one element along a dimension and remove that dimension from the result.
 
 | Method | Selector |
 | --- | --- |
 | `x.isel(dim, index)` | Zero-based integer position or symbolic scalar integer expression. Valid negative positions count from the end. |
 | `x.sel(dim, coordinate)` | Literal coordinate, including a captured Python constant, on a bound coordinate axis. |
+| `x.sel(dim, slice(start, stop, step), into=new_dim)` | Inclusive coordinate interval on a labelled axis, with a new dimension. |
 
 `isel` delegates bounds handling to the backend; invalid-index behaviour may differ.
 `sel` requires a matching label. Coordinates may be strings, integers, floats,
@@ -177,8 +207,9 @@ with EvaluationContext() as evaluation:
 ### Intermediate values
 
 Selection works on **named intermediate ports over known dimensions**.
-Dimensions, extents and coordinate axes must be established before calculation;
-Bilt cannot infer new dimensions or changed extents on the fly.
+Source dimensions and coordinate axes must be established before calculation.
+For supported domain transformations such as slicing or concatenation, Bilt
+can derive the output dimension and its extent during structural planning.
 
 Supported tensor arithmetic and reduction/selection expressions retain tensor
 methods in equations, so composed receivers such as `(weights*x+y).sum(time)`
