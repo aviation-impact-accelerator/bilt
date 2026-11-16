@@ -76,7 +76,7 @@ def tree_to_functiondef(
     return function_def
 
 
-def _tree_to_ast_expr(tree: Tree) -> ast.expr:
+def _tree_to_ast_expr(tree: Tree) -> ast.expr:  # noqa: PLR0911
     """Convert a symbolic tree to Python AST."""
     if tree.is_leaf:
         return _leaf_to_ast(tree)
