@@ -150,6 +150,23 @@ def test_rejects_unsupported_match_patterns(source: str, message: str) -> None:
         _normalise(source)
 
 
+
+@pytest.mark.parametrize("member", ("Mode.ACTIVE", "StrMode.ACTIVE", "IntMode.ACTIVE"))
+def test_enum_member_patterns_are_rejected_until_categorical_support_exists(member: str) -> None:
+    # Qualified Enum, StrEnum and IntEnum patterns all use MatchValue(Attribute).
+    source = (
+        "def relation(mode, result):\n"
+        "    match mode:\n"
+        f"        case {member}:\n"
+        "            selected = 1\n"
+        "        case _:\n"
+        "            selected = 0\n"
+        "    return result == selected"
+    )
+    with pytest.raises(BiltEquationSyntaxError, match="numeric literals"):
+        _normalise(source)
+
+
 def test_normalisation_does_not_modify_original_match() -> None:
     source = """
         def relation(mode, y):
