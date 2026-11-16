@@ -1,3 +1,4 @@
+import enum
 import typing
 
 from bilt.symbolic._atoms import (
@@ -15,6 +16,7 @@ from bilt.symbolic._tree import (
     Tree,
     conditional_tree,
     coordinate_tree,
+    enum_tree,
     float_tree,
     int_tree,
     isel_tree,
@@ -304,6 +306,10 @@ def as_tree(value: object) -> Tree:
     if isinstance(value, bool):
         msg = "Boolean values cannot be converted to symbolic expressions."
         raise BiltSymbolicConversionError(msg)
+
+    # Check before int: IntEnum subclasses int, but must retain category identity.
+    if isinstance(value, enum.Enum):
+        return enum_tree(value)
 
     if isinstance(value, int):
         return int_tree(value)

@@ -239,29 +239,34 @@ def _match_literal(
     subject_type: type[enum.Enum] | None = None,
     enum_namespace: collections.abc.Mapping[str, object] | None = None,
 ) -> ast.expr:
-    if isinstance(pattern, ast.MatchValue):
-        value = pattern.value
-        if subject_type is not None:
-            if (
-                isinstance(value, ast.Attribute)
-                and isinstance(value.value, ast.Name)
-                and enum_namespace is not None
-                and enum_namespace.get(value.value.id) is subject_type
-            ):
-                member = subject_type.__members__.get(value.attr)
-                if member is not None:
-                    return ast.copy_location(ast.Constant(value=tuple(subject_type).index(member)), value)
-            _reject(pattern, "enum cases must name members of the match subject's enum type")
+    """Resolve numeric or typed enum cases using one validation path.
 
-        if isinstance(value, ast.Constant) and type(value.value) in (int, float):
-            return value
+    Enum members remain qualified values here. Their type and member identity
+    are preserved by the symbolic tree, not replaced by an ordinal in the AST.
+    """
+    if not isinstance(pattern, ast.MatchValue):
+        _reject(pattern, "match cases require numeric literals or members of the subject's enum type")
+    value = pattern.value
+    if subject_type is not None:
         if (
-            isinstance(value, ast.UnaryOp)
-            and isinstance(value.op, ast.USub)
-            and isinstance(value.operand, ast.Constant)
-            and type(value.operand.value) in (int, float)
+            isinstance(value, ast.Attribute)
+            and isinstance(value.value, ast.Name)
+            and enum_namespace is not None
+            and enum_namespace.get(value.value.id) is subject_type
+            and value.attr in subject_type.__members__
         ):
-            return value
+            return copy.deepcopy(value)
+        _reject(pattern, "enum cases must name members of the match subject's enum type")
+
+    if isinstance(value, ast.Constant) and type(value.value) in (int, float):
+        return copy.deepcopy(value)
+    if (
+        isinstance(value, ast.UnaryOp)
+        and isinstance(value.op, ast.USub)
+        and isinstance(value.operand, ast.Constant)
+        and type(value.operand.value) in (int, float)
+    ):
+        return copy.deepcopy(value)
     _reject(pattern, "match cases must be numeric literals followed by a final case _")
 
 

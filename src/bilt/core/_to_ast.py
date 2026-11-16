@@ -1,6 +1,7 @@
 import ast
 import typing
 
+from bilt.core._enum_matching import enum_code
 from bilt.symbolic import _atoms as ops
 from bilt.symbolic._atoms import AxisType, FloatType, IntType, QuantityType, SymbolType
 from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError

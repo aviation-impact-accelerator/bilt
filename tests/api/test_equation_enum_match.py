@@ -7,6 +7,9 @@ import pytest
 
 from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, equation, field, system
 from bilt.errors import BiltDefinitionError, BiltEvaluationError, BiltImplementationDimensionalityError
+from bilt.symbolic._atoms import EnumType
+from bilt.symbolic._expressions import as_tree
+from bilt.symbolic._walk import subtrees
 
 
 class Mode(enum.Enum):
@@ -196,3 +199,50 @@ def test_enum_port_cannot_be_solved_backwards() -> None:
 def test_original_python_equation_retains_enum_matching() -> None:
     assert enum_output(Mode.CRUISE, 10.0, 5.0)
     assert not enum_output(Mode.CRUISE, 10.0, 10.0)
+
+
+class OtherSpeed(enum.IntEnum):
+    OFF = 11
+    CRUISE = 27
+    BOOST = 53
+
+
+def test_symbolic_enum_members_retain_declared_class_and_member() -> None:
+    # Enum identity survives tracing, rather than being flattened to an ordinal.
+    leaves = [
+        node for node in subtrees(int_output.__bilt_equation_tree__)
+        if node.is_leaf and node.head.atom_type is EnumType
+    ]
+    assert {node.head.value for node in leaves} == {
+        (Speed, "OFF"),
+        (Speed, "CRUISE"),
+    }
+
+
+def test_numeric_and_enum_match_use_one_conditional_representation() -> None:
+    from bilt.symbolic._atoms import CONDITIONAL
+
+    assert any(node.head is CONDITIONAL for node in subtrees(int_output.__bilt_equation_tree__))
+    assert any(node.head is CONDITIONAL for node in subtrees(enum_output.__bilt_equation_tree__))
+
+
+def test_distinct_int_enum_types_do_not_alias_symbolic_constants() -> None:
+    left = as_tree(Speed.CRUISE)
+    right = as_tree(OtherSpeed.CRUISE)
+    assert left is not right
+    assert left.head.value == (Speed, "CRUISE")
+    assert right.head.value == (OtherSpeed, "CRUISE")
+
+
+def test_enum_member_is_not_a_numeric_symbolic_literal() -> None:
+    assert as_tree(Speed.OFF).head.atom_type is EnumType
+    assert as_tree(Speed.OFF) is not as_tree(11)
+
+
+def test_enum_alias_canonicalises_to_original_member() -> None:
+    class Aliased(enum.IntEnum):
+        FIRST = 100
+        SECOND = 100
+
+    assert as_tree(Aliased.SECOND) is as_tree(Aliased.FIRST)
+    assert as_tree(Aliased.SECOND).head.value == (Aliased, "FIRST")

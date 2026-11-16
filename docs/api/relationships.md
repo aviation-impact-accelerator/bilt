@@ -62,8 +62,7 @@ currently supported.
 A scalar input annotated with a specific `enum.Enum`, `enum.IntEnum` or
 `enum.StrEnum` subclass can be matched against members of **the same enum
 class**. Bilt accepts enum instances at the system boundary, validates the
-exact class, and translates enum members into stable, zero-based numeric codes
-internally for NumPy and JAX execution.
+exact class, and retains the enum class and member identity in the symbolic\nrepresentation. Numerical ordinals are generated only when lowering to NumPy\nand JAX execution.
 
 ```python exec="off"
 import enum
