@@ -8,6 +8,7 @@ import typing
 from bilt.core._errors import BiltEquationDimensionalityError
 from bilt.symbolic import _atoms as ops
 from bilt.symbolic._atoms import (
+    ArangeDimOpType,
     ConcatDimOpType,
     CoordinateType,
     DimensionType,
@@ -18,6 +19,7 @@ from bilt.symbolic._atoms import (
     SliceDimOpType,
     SymbolType,
 )
+from bilt.units._category import UnitCategory
 from bilt.units._errors import BiltDimensionalityError
 from bilt.units.dimensions import DIMENSIONLESS
 
@@ -26,7 +28,7 @@ if typing.TYPE_CHECKING:
 
     from bilt.core._port_declaration import PortDeclaration
     from bilt.symbolic._tree import Tree
-    from bilt.units import Dimension
+    from bilt.units import Dimension, Unit
 
 
 _EITHER = frozenset({0, 1})
@@ -49,11 +51,19 @@ def dimensionality_of(
     if tree.is_leaf:
         return _leaf(tree, dimensionalities)
     operands = [dimensionality_of(operand, dimensionalities) for operand in tree.args]
+    if tree.head.atom_type is ArangeDimOpType:
+        unit = _arange_unit(tree)
+        return unit.dimension if unit is not None else DIMENSIONLESS
     if tree.head.atom_type is ConcatDimOpType:
         return _shared(operands)
     if tree.head.atom_type in (SelSliceDimOpType, SliceDimOpType):
         return operands[0]
     return _dimensionality_at(tree, operands)
+
+
+def _arange_unit(tree: Tree) -> Unit | None:
+    """Read the type-checked unit metadata from a symbolic generated axis."""
+    return typing.cast("tuple[object, Unit | None, int, bool]", tree.head.value)[1]
 
 
 def _leaf(tree: Tree, dimensionalities: collections.abc.Mapping[str, Dimension]) -> Dimension | None:
@@ -164,6 +174,9 @@ def absoluteness_of(  # noqa: PLR0911
             return frozenset({int(typing.cast("tuple[float, Dimension, bool]", tree.head.value)[2])})
         return _EITHER
     operands = [absoluteness_of(equation_name, operand, declarations) for operand in tree.args]
+    if tree.head.atom_type is ArangeDimOpType:
+        unit = _arange_unit(tree)
+        return frozenset({int(unit.category is UnitCategory.ABSOLUTE)}) if unit is not None else frozenset({0})
     if tree.head.atom_type is ConcatDimOpType:
         return _concat_absoluteness(equation_name, operands)
     if tree.head.atom_type is SliceDimOpType:

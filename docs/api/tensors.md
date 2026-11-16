@@ -140,6 +140,48 @@ Like concatenation, positional slicing is a forward-only `@equation`
 operation, not an eager method on a concrete tensor or a general reshape.
 Coordinate-based slice selection with `sel()` is separate follow-up work.
 
+## Generate dimensions from model inputs
+
+`Tensor.arange(start, stop, over=..., inclusive=...)` creates a named axis
+whose extent is derived from scalar input values. Unlike ordinary tensor
+operations, the length is resolved before numerical execution and the backend
+receives a statically sized range:
+
+```python exec="off"
+@equation
+def modeling_years(start: float, end: float, years: Tensor) -> bool:
+    return years == Tensor.arange(
+        start,
+        end,
+        over=modeling_date,
+        inclusive=True,
+    )
+```
+
+For `start=2025` and `end=2030`, the result has six elements and
+coordinate labels `(2025, 2026, 2027, 2028, 2029, 2030)`. By default the
+stop is exclusive, matching Python `range`. Positive and negative literal
+integer steps are supported.
+
+A `unit=` can be supplied when generating a physical quantity, including
+`absolute_year` for calendar dates. Inputs may be ordinary scalars or
+unit-bearing scalar quantities; the latter are converted to the requested unit.
+The output values are represented in coherent units inside the numerical
+backend while coordinate labels retain the requested values.
+
+**Current limitations:** start and stop must be integer-valued literals or
+**directly supplied scalar inputs**. Scalar intermediates calculated by another
+equation cannot yet determine a generated axis. Non-integral, infinite and
+unresolved boundaries raise a domain binding error. The generated axis is
+limited to 100,000 values to prevent excessive planning allocations.
+Cycles involving an axis and its own generation are unsupported.
+
+This first implementation targets forward `@equation` execution. Static
+specialisation occurs separately for each evaluation so inputs may yield
+different output lengths; NumPy and JAX both receive a fixed shape after
+structural planning. Arbitrary dynamic dimensions and transforms remain
+follow-up work.
+
 ## Coordinate-aware slicing
 
 Use `sel(dim, slice(start_label, stop_label), into=new_dim)` in an

@@ -9,7 +9,7 @@ from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.errors import BiltEquationDimensionalityError, BiltPortDeclarationError
 from bilt.symbolic._domains import Domain
 from bilt.units import Metadata, Quantity, kilogram
-from bilt.units.dimensions import ABSOLUTE, AREA, DIMENSIONLESS, LENGTH, MASS, TEMPERATURE, TIME
+from bilt.units.dimensions import ABSOLUTE, AREA, CURRENT, DIMENSIONLESS, LENGTH, MASS, TEMPERATURE, TIME
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -25,6 +25,7 @@ type MassAliasAlias = MassAlias
 Temperature = typing.Annotated[Quantity, TEMPERATURE]
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
 AbsoluteTime = typing.Annotated[Quantity, TIME, ABSOLUTE]
+AbsoluteCurrent = typing.Annotated[Quantity, CURRENT, ABSOLUTE]
 AbsoluteTemperatureRate = typing.Annotated[Quantity, TEMPERATURE / TIME, ABSOLUTE]
 AbsoluteFloat = typing.Annotated[float, ABSOLUTE]
 TaggedMass = typing.Annotated[Quantity, MASS * Metadata("co2")]
@@ -399,7 +400,7 @@ def test_a_tag_beside_the_dimensionality_raises(
 
 
 @pytest.mark.parametrize(("declare", "owner", "port"), SITES)
-@pytest.mark.parametrize("annotation", (AbsoluteTime, AbsoluteTemperatureRate))
+@pytest.mark.parametrize("annotation", (AbsoluteCurrent, AbsoluteTemperatureRate))
 def test_an_absolute_marker_where_the_coherent_unit_has_no_absolute_counterpart_raises(
     declare: collections.abc.Callable[[object], None],
     owner: str,

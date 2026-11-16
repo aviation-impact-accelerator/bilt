@@ -21,7 +21,7 @@ from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._tensors._transform_lowering import lower_transform
 from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
-from bilt.symbolic._atoms import ConcatDimOpType, SelSliceDimOpType, SliceDimOpType
+from bilt.symbolic._atoms import ArangeDimOpType, ConcatDimOpType, SelSliceDimOpType, SliceDimOpType
 from bilt.symbolic._domains import Domain
 from bilt.symbolic._expressions import Expr
 from bilt.symbolic._isolation._errors import BiltIsolationError
@@ -36,6 +36,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._structural_analysis._plan import AnalysisPlan, PlanBlock, PlanStep
     from bilt.symbolic._dimensions import Dim
     from bilt.symbolic._tree import Tree
+    from bilt.units import Unit
 
 
 type BlockRealizationKey = tuple[
@@ -88,7 +89,7 @@ def _register_plan_domain_transforms(plan: AnalysisPlan) -> RealizationFailure |
         pending.extend(
             (step, node)
             for node in subtrees(isolated.rhs.tree)
-            if node.head.atom_type in (ConcatDimOpType, SelSliceDimOpType, SliceDimOpType)
+            if node.head.atom_type in (ArangeDimOpType, ConcatDimOpType, SelSliceDimOpType, SliceDimOpType)
         )
     while pending:
         delayed: list[tuple[PlanStep, Tree]] = []
@@ -114,7 +115,18 @@ def _register_plan_domain_transforms(plan: AnalysisPlan) -> RealizationFailure |
 
 def _register_derived_axis(tree: Tree, registry: DomainRegistry) -> None:
     """Dispatch supported derived-axis constraints through a shared registry."""
-    if tree.head.atom_type is ConcatDimOpType:
+    if tree.head.atom_type is ArangeDimOpType:
+        dimension, unit, step, inclusive = typing.cast("tuple[Dim, Unit | None, int, bool]", tree.head.value)
+        registry.bind_arange(
+            dimension,
+            tree.args[0],
+            tree.args[1],
+            values=current_evaluation().direct_scalar_inputs,
+            step=step,
+            inclusive=inclusive,
+            unit=unit,
+        )
+    elif tree.head.atom_type is ConcatDimOpType:
         sources, target = typing.cast("tuple[tuple[Dim, ...], Dim]", tree.head.value)
         registry.bind_concat(sources, target)
     elif tree.head.atom_type in (SliceDimOpType, SelSliceDimOpType):

@@ -11,6 +11,7 @@ from bilt.symbolic._atoms import (
     PROD,
     SEL,
     SUM,
+    ArangeDimOpType,
     Atom,
     ConcatDimOpType,
     IndexOpType,
@@ -31,7 +32,7 @@ from bilt.symbolic._errors import BiltTreeMutationError
 
 if typing.TYPE_CHECKING:
     from bilt.symbolic._dimensions import Coordinate, Dim
-    from bilt.units import Dimension
+    from bilt.units import Dimension, Unit
 
 _tree_cache: weakref.WeakValueDictionary[
     tuple[Atom, tuple[Tree, ...]],
@@ -40,6 +41,7 @@ _tree_cache: weakref.WeakValueDictionary[
 
 __all__ = [
     "Tree",
+    "arange_tree",
     "axis_tree",
     "concat_tree",
     "conditional_tree",
@@ -184,6 +186,19 @@ class Tree:
 
         args_str = ", ".join(str(a) for a in self.args)
         return f"{self.head}({args_str})"
+
+
+def arange_tree(  # noqa: PLR0913
+    start: Tree,
+    stop: Tree,
+    *,
+    over: Dim,
+    unit: Unit | None,
+    step: int,
+    inclusive: bool,
+) -> Tree:
+    """Describe an axis generated from direct scalar boundary values."""
+    return Tree(ArangeDimOpType((over, unit, step, inclusive)), (start, stop))
 
 
 def concat_tree(values: tuple[Tree, ...], sources: tuple[Dim, ...], target: Dim) -> Tree:

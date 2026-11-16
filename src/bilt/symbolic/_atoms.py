@@ -29,6 +29,8 @@ __all__ = [
     "PROD",
     "SEL",
     "SUM",
+    "ArangeAxisOpType",
+    "ArangeDimOpType",
     "Atom",
     "AtomType",
     "AxisType",
@@ -96,6 +98,8 @@ SymbolType = AtomType("Symbol")
 OpType = AtomType("Op")
 RelationOpType = AtomType("RelationOp")
 ReductionOpType = AtomType("ReductionOp")
+ArangeDimOpType = AtomType("ArangeDimOp")
+ArangeAxisOpType = AtomType("ArangeAxisOp")
 ConcatDimOpType = AtomType("ConcatDimOp")
 ConcatAxisOpType = AtomType("ConcatAxisOp")
 IndexOpType = AtomType("IndexOp")

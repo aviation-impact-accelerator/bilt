@@ -2,18 +2,26 @@ __all__ = [
     "DomainRegistry",
 ]
 
+import math
 import typing
 
 import numpy as np
 
 from bilt.core._errors import BiltDomainBindingError, BiltDomainRegistryLockedError
+from bilt.symbolic._atoms import FloatType, IntType, QuantityType, SymbolType
 from bilt.symbolic._dimensions import CoordinateAxis
+from bilt.units import Quantity
+from bilt.units._category import UnitCategory
+from bilt.units._conversion import conversion_between
+from bilt.units._units import BASE_UNIT_SYSTEM
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt.symbolic._dimensions import Coordinate, Dim
     from bilt.symbolic._domains import Domain
+    from bilt.symbolic._tree import Tree
+    from bilt.units import Unit
 
 
 @typing.runtime_checkable
@@ -172,6 +180,101 @@ class DomainRegistry:
     def bind_sel_slice(self, source: Dim, target: Dim, selector: slice) -> None:
         """Register the extent and coordinate labels of an inclusive slice."""
         self.bind_slice(source, target, self.coordinate_slice(source, selector))
+
+    def bind_arange(  # noqa: PLR0913
+        self,
+        dimension: Dim,
+        start: Tree,
+        stop: Tree,
+        *,
+        values: collections.abc.Mapping[str, object],
+        step: int,
+        inclusive: bool,
+        unit: Unit | None,
+    ) -> tuple[int, int, int, float, float]:
+        """Bind a labelled axis from direct scalar boundaries before compilation.
+
+        The returned numeric parameters are fixed for this evaluation. The
+        backend must use them instead of recreating a dynamic-sized result.
+        """
+        start_value, stop_value, resolved_step, scale, offset = self.resolve_arange(
+            dimension, start, stop, values=values, step=step, inclusive=inclusive, unit=unit
+        )
+        self.bind_axis(CoordinateAxis(dimension, tuple(range(start_value, stop_value, resolved_step))))
+        self._derived_dimensions.add(dimension)
+        return start_value, stop_value, resolved_step, scale, offset
+
+    def resolve_arange(  # noqa: PLR0913
+        self,
+        dimension: Dim,
+        start: Tree,
+        stop: Tree,
+        *,
+        values: collections.abc.Mapping[str, object],
+        step: int,
+        inclusive: bool,
+        unit: Unit | None,
+    ) -> tuple[int, int, int, float, float]:
+        """Compute static range parameters without rebinding the dimension."""
+        first = self._range_boundary(start, values=values, unit=unit)
+        last = self._range_boundary(stop, values=values, unit=unit)
+        exclusive = last + (1 if step > 0 else -1) if inclusive else last
+        limit = 100_000
+        if len(range(first, exclusive, step)) > limit:
+            message = f"Generated dimension {dimension} exceeds the {limit} element safety limit."
+            raise BiltDomainBindingError(message)
+
+        if unit is None:
+            return first, exclusive, step, 1.0, 0.0
+        coherent = BASE_UNIT_SYSTEM.coherent_unit(unit.dimension)
+        if unit.category is UnitCategory.ABSOLUTE:
+            coherent = abs(coherent)
+        conversion = conversion_between(unit, coherent)
+        return first, exclusive, step, conversion.scale, conversion.offset
+
+    @staticmethod
+    def _range_boundary(
+        tree: Tree,
+        *,
+        values: collections.abc.Mapping[str, object],
+        unit: Unit | None,
+    ) -> int:
+        """Accept only literal constants or directly supplied scalar inputs."""
+        if not tree.is_leaf:
+            message = (
+                "Tensor.arange boundaries must be literals or direct scalar inputs; derived inputs are not supported."
+            )
+            raise BiltDomainBindingError(message)
+        if tree.head.atom_type is SymbolType:
+            name = typing.cast("str", tree.head.value)
+            if name not in values:
+                message = (
+                    f"Tensor.arange boundary {name!r} requires a directly supplied scalar input. "
+                    "Intermediate scalar results cannot determine dimension extents yet."
+                )
+                raise BiltDomainBindingError(message)
+            value = values[name]
+        elif tree.head.atom_type in (IntType, FloatType):
+            value = tree.head.value
+        elif tree.head.atom_type is QuantityType:
+            message = "Tensor.arange does not currently support quantity-valued literal boundary expressions."
+            raise BiltDomainBindingError(message)
+        else:
+            message = "Tensor.arange boundary must be a literal or directly supplied scalar input."
+            raise BiltDomainBindingError(message)
+
+        if isinstance(value, Quantity):
+            if unit is None:
+                message = "Tensor.arange needs a unit when its boundaries carry physical units."
+                raise BiltDomainBindingError(message)
+            value = value.convert_to(unit).value
+        if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
+            message = "Tensor.arange requires finite integer-valued scalar boundaries."
+            raise BiltDomainBindingError(message)
+        if not float(value).is_integer():
+            message = f"Tensor.arange boundary {value!r} is not an integer."
+            raise BiltDomainBindingError(message)
+        return int(value)
 
     def size(self, dimension: Dim) -> int:
         """Return the size bound to a dimension."""

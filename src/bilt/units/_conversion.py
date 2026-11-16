@@ -92,7 +92,7 @@ def _absolute_conversion(
     offset = 0.0
 
     for via_unit in reversed(start_unit_stack[index:]):
-        via_scale = via_unit.relation.composition[0].unit.relation.scale
+        via_scale = via_unit.relation.composition[0].unit.to_si_base_units().relation.scale
 
         scale *= via_scale
         offset *= via_scale
@@ -104,7 +104,7 @@ def _absolute_conversion(
         if via_unit.offset is not None:
             offset -= via_unit.offset.scale
 
-        via_scale = via_unit.relation.composition[0].unit.relation.scale
+        via_scale = via_unit.relation.composition[0].unit.to_si_base_units().relation.scale
 
         scale /= via_scale
         offset /= via_scale

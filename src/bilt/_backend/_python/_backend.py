@@ -12,6 +12,22 @@ from bilt._backend._linear_solve import numpy_solve_linear
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
 
+def _arange(
+    start: int,
+    stop: int,
+    step: int,
+    *,
+    conversion: tuple[float, float],
+    layout: tuple[int, int],
+) -> np.ndarray:
+    """Construct a range with fixed length in canonical tensor-axis order."""
+    scale, offset = conversion
+    axis, rank = layout
+    values = np.arange(start, stop, step, dtype=np.float64) * scale + offset
+    shape = (1,) * axis + (values.size,) + (1,) * (rank - axis - 1)
+    return values.reshape(shape)
+
+
 def _isel(
     value: np.ndarray,
     index: int,
@@ -57,6 +73,7 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
         }
         self.intrinsic_bindings = PythonIntrinsicBindings(
             isel=_isel,
+            arange=_arange,
             concat=_concat,
             slice=_slice,
             mean=np.mean,

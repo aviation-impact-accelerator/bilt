@@ -24,7 +24,7 @@ from bilt.core._sub_system import validate_name
 from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.core._validation import validate_independently
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._atoms import QuantityType, SymbolType
+from bilt.symbolic._atoms import ArangeDimOpType, QuantityType, SymbolType
 from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr, tensor_symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
 from bilt.symbolic._walk import subtrees
@@ -291,6 +291,8 @@ def _carried_under(
             return frozenset(), frozenset({typing.cast("tuple[float, Dimension, bool]", tree.head.value)[1]})
         return frozenset(), frozenset()
 
+    if tree.head.atom_type is ArangeDimOpType:
+        return frozenset(), frozenset()
     under = [_carried_under(equation_name, operand, dimensionalities) for operand in tree.args]
     if tree.head is ops.CONDITIONAL:
         carried = under[1:]

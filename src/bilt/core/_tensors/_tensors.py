@@ -19,6 +19,9 @@ from bilt.units._conversion import conversion_between
 from bilt.units._errors import BiltUnitError
 from bilt.units._units import Unit
 
+if typing.TYPE_CHECKING:
+    from bilt.units._quantities import Quantity
+
 _MIN_CONCAT_OPERANDS = 2
 
 OverArg = Dim | collections.abc.Iterable[Dim]
@@ -37,6 +40,46 @@ class Tensor:
         object.__setattr__(self, "values", values)
 
         _check_rank(values, self.domain)
+
+    @classmethod
+    def arange(  # noqa: PLR0913
+        cls,
+        start: float | Quantity,
+        stop: float | Quantity,
+        *,
+        over: Dim,
+        step: int = 1,
+        inclusive: bool = False,
+        unit: Unit | None = None,
+    ) -> Tensor:
+        """Generate a named coordinate axis from scalar boundary inputs.
+
+        The bounds must be integer-valued direct inputs or literal constants.
+        The generated values use the specified unit when supplied.
+        """
+        from bilt.symbolic._expressions import TensorExpr, as_tree  # noqa: PLC0415
+        from bilt.symbolic._tree import arange_tree  # noqa: PLC0415
+
+        if not isinstance(over, Dim):
+            msg = "Tensor.arange requires a named 'over' dimension."
+            raise TypeError(msg)
+        if type(step) is not int or step == 0:
+            msg = "Tensor.arange step must be a non-zero literal integer."
+            raise ValueError(msg)
+        if type(inclusive) is not bool:
+            msg = "Tensor.arange inclusive must be a literal bool."
+            raise TypeError(msg)
+        if unit is not None and not isinstance(unit, Unit):
+            msg = "Tensor.arange unit must be a Unit or None."
+            raise TypeError(msg)
+        if isinstance(start, Tensor) or isinstance(stop, Tensor):
+            raise _symbolic_operation_only()
+        return typing.cast(
+            "Tensor",
+            TensorExpr(
+                arange_tree(as_tree(start), as_tree(stop), over=over, unit=unit, step=step, inclusive=inclusive)
+            ),
+        )
 
     @classmethod
     def concat(

@@ -116,6 +116,9 @@ class Implementation:
 
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
+            evaluation.direct_scalar_inputs.update(
+                (name, value) for name, value in inputs.items() if not isinstance(value, Tensor)
+            )
 
             if output in inputs:
                 output_value = inputs[output]
