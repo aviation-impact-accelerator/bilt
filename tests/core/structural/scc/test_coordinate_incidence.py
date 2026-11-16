@@ -1,5 +1,7 @@
 """Tests for symbolic coordinate incidence before integration into planning."""
 
+# ruff: noqa: PLR2004 - Coordinate counts and small panel sizes are test expectations.
+
 import pytest
 
 from bilt.core._domain_registry import DomainRegistry
