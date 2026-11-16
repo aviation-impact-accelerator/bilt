@@ -16,7 +16,7 @@ import rustworkx as rx
 
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltDomainBindingError
-from bilt.core._port_declaration import annotated_parts
+from bilt.core._port_declaration import annotated_parts, quantity_magnitude_kind
 from bilt.core._structural_analysis._causalization_block_solver._coordinate_incidence import (
     CoordinateIncidence,
     ResidualCoordinate,
@@ -94,6 +94,13 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
             # Exact tensor shape cannot be guessed from a type or a port-level match.
             return None
 
+    # A single scalar-declared equation port can still lift pointwise over
+    # dimensions retained by known tensor inputs (e.g. sum(time) over a
+    # (scenario, time) tensor). Do not interpret its scalar annotation as an
+    # exact coordinate count: the established pointwise route handles it.
+    if len(equations) == len(unknowns) == 1 and all(not layout.dims for layout in resolved.values()):
+        return None
+
     # A complete operator candidate must have layouts for every external input.
     parameters = {name for equation in equations for name in equation.parameters}
     known = {name: input_domains[name] for name in parameters & structure.available if name in input_domains}
@@ -151,7 +158,7 @@ def _has_operator(tree: Tree) -> bool:
 
 
 def _declared_scalar(name: str, equations: tuple[QualifiedEquation, ...]) -> bool:
-    """Only an unambiguously scalar float port may fill an absent exact hint."""
+    """Accept scalar-only ports without imposing a tensor domain on unions."""
     annotations = []
     for equation in equations:
         prefix = ".".join((*equation.path, "")) if equation.path else ""
@@ -162,7 +169,9 @@ def _declared_scalar(name: str, equations: tuple[QualifiedEquation, ...]) -> boo
         if local in parameters:
             base, _ = annotated_parts(parameters[local].annotation)
             annotations.append(base)
-    return bool(annotations) and all(annotation is float for annotation in annotations)
+    return bool(annotations) and all(
+        annotation is float or quantity_magnitude_kind(annotation) == "scalar" for annotation in annotations
+    )
 
 
 def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate matching and SCC projection.

@@ -6,7 +6,7 @@ import typing
 
 import pytest
 
-from bilt import Tensor, dim, domain, equation
+from bilt import Quantity, QuantityTensor, Tensor, dim, domain, equation
 from bilt.core._domain_registry import DomainRegistry
 from bilt.core._structural_analysis._causalization_block_solver._coordinate_blocks import discover_coordinate_blocks
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
@@ -17,6 +17,7 @@ from bilt.core._structural_analysis._causalization_block_solver._expand_structur
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_request_structure
 from bilt.symbolic._dimensions import coordinate_axis
+from bilt.units.dimensions import DIMENSIONLESS
 
 if typing.TYPE_CHECKING:
     from bilt.core._equation import BasicEquation
@@ -149,3 +150,65 @@ def test_request_validation_keeps_existing_path_without_domain_data() -> None:
             {"first_value", "second_value"},
             "circulation",
         )
+
+
+ScalarQuantity = typing.Annotated[Quantity, DIMENSIONLESS]
+SourceQuantity = typing.Annotated[Quantity | QuantityTensor, DIMENSIONLESS, domain(SOURCE)]
+SourceWeight = typing.Annotated[QuantityTensor, DIMENSIONLESS, domain(SOURCE)]
+MatrixQuantity = typing.Annotated[QuantityTensor, DIMENSIONLESS, domain(TARGET, SOURCE)]
+TargetQuantity = typing.Annotated[QuantityTensor, DIMENSIONLESS, domain(TARGET)]
+
+
+@equation
+def dimensioned_boundary(
+    matrix: MatrixQuantity, circulation: SourceQuantity, alpha: ScalarQuantity, rhs: TargetQuantity
+) -> bool:
+    """A scalar Quantity participates in a vector-valued mixed linear block."""
+    return (matrix * circulation).sum(SOURCE) + alpha == rhs
+
+
+@equation
+def dimensioned_balance(circulation: SourceQuantity, weight: SourceWeight, total_value: ScalarQuantity) -> bool:
+    """Constrain weighted total circulation independently of the boundary."""
+    return (circulation * weight).sum(SOURCE) == total_value
+
+
+@equation
+def lifted_reduction(m: typing.Annotated[QuantityTensor, DIMENSIONLESS], total: ScalarQuantity) -> bool:
+    """The declared scalar equation port may lift across an outer target axis."""
+    return total == m.sum(SOURCE)
+
+
+def test_scalar_quantity_is_resolved_in_mixed_tensor_coordinate_block() -> None:
+    snapshot = _snapshot(
+        (dimensioned_boundary, dimensioned_balance),
+        {"circulation", "alpha"},
+        {"matrix", "rhs", "weight", "total_value"},
+    )
+    result = discover_coordinate_blocks(
+        snapshot,
+        {
+            "matrix": domain(TARGET, SOURCE),
+            "rhs": domain(TARGET),
+            "weight": domain(SOURCE),
+            "total_value": domain(),
+        },
+        _registry(),
+        "alpha",
+    )
+    assert result is not None
+    assert len(result.blocks) == 1
+    assert set(result.blocks[0].unknowns) == {"circulation", "alpha"}
+
+
+def test_scalar_quantity_reduction_retains_pointwise_lifting() -> None:
+    """The scalar equation annotation must not erase retained target dimensions."""
+    result = validate_request_structure(
+        FullIncidenceGraph((lifted_reduction,)),
+        {"m"},
+        "total",
+        input_domains={"m": domain(TARGET, SOURCE)},
+        bindings=_registry(),
+    )
+    assert result is not None
+    assert result.coordinate_blocks is None
