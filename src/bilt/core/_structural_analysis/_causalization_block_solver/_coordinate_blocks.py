@@ -21,7 +21,6 @@ from bilt.core._structural_analysis._causalization_block_solver._coordinate_inci
     CoordinateIncidence,
     ResidualCoordinate,
     UnknownCoordinate,
-    _CoordinateTracer,
     build_coordinate_incidence,
 )
 from bilt.core._structural_analysis._causalization_block_solver._dm import dulmage_mendelsohn
@@ -33,7 +32,7 @@ from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._linear_domains import merge_domain_hints
 from bilt.core._structural_analysis._qualified_block import QualifiedBlock, QualifiedEquation
 from bilt.symbolic._algebra._affine import AffineAnalysisError
-from bilt.symbolic._atoms import ISEL, MEAN, SEL, SUM, SymbolType
+from bilt.symbolic._atoms import ISEL, MEAN, SEL, SUM
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
@@ -53,7 +52,7 @@ class CoordinateBlockDiscovery:
     requires_execution: bool = False
 
 
-def discover_coordinate_blocks(  # noqa: C901, PLR0911 - request validation dispatch.
+def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request validation dispatch.
     structure: ExpansionSnapshot,
     input_domains: Mapping[str, Domain],
     bindings: DomainRegistry,
@@ -85,11 +84,15 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911 - request validation disp
     if output not in unknowns:
         return None
     hints = merge_domain_hints(hint for equation in equations for hint in equation.domain_hints)
-    resolved: dict[str, Domain] = {
-        name: hints[name] if name in hints else Domain.scalar()
-        for name in sorted(unknowns)
-        if name in hints or _declared_scalar(name, equations)
-    }
+    resolved: dict[str, Domain] = {}
+    for name in sorted(unknowns):
+        if name in hints:
+            resolved[name] = hints[name]
+        elif _declared_scalar(name, equations):
+            resolved[name] = Domain.scalar()
+        else:
+            # Exact tensor shape cannot be guessed from a type or a port-level match.
+            return None
 
     # A single scalar-declared equation port can still lift pointwise over
     # dimensions retained by known tensor inputs (e.g. sum(time) over a
@@ -102,12 +105,6 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911 - request validation disp
     parameters = {name for equation in equations for name in equation.parameters}
     known = {name: input_domains[name] for name in parameters & structure.available if name in input_domains}
     if parameters - unknowns - known.keys():
-        return None
-
-    # Derived output layouts follow exact defining expressions, not minimum
-    # Domain requirements on quantity-only tensor declarations.
-    _infer_defined_domains(equations, unknowns, resolved, known, bindings)
-    if set(resolved) != unknowns:
         return None
 
     try:
@@ -302,42 +299,3 @@ def _coalesce_axis_provenance(
         else:
             index += 1
     return tuple(ordered)
-
-
-def _infer_defined_domains(
-    equations: tuple[QualifiedEquation, ...],
-    unknowns: frozenset[str],
-    resolved: dict[str, Domain],
-    inputs: Mapping[str, Domain],
-    bindings: DomainRegistry,
-) -> None:
-    """Infer layouts of directly defined outputs from fully resolved expressions.
-
-    Only a bare output on one side of an equality qualifies, and the other
-    side's domain must already be known. This never promotes a tensor's
-    minimum-domain declaration into an assumed exact tensor layout.
-    """
-    pending = set(unknowns) - resolved.keys()
-    while pending:
-        progress = False
-        tracer = _CoordinateTracer(dict(inputs) | resolved, frozenset(), bindings)
-        for equation in equations:
-            tree = equation.tree
-            if not tree.is_equality:
-                continue
-            for side, other in ((tree.left, tree.right), (tree.right, tree.left)):
-                if not side.is_leaf or side.head.atom_type is not SymbolType:
-                    continue
-                name = typing.cast("str", side.head.value)
-                if name not in pending:
-                    continue
-                try:
-                    inferred = tracer.domain(other)
-                except BiltLinearBlockError:
-                    continue
-                resolved[name] = inferred
-                pending.remove(name)
-                progress = True
-                break
-        if not progress:
-            return
