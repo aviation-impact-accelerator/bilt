@@ -13,6 +13,7 @@ from bilt.symbolic._atoms import (
     DimensionType,
     FloatType,
     IntType,
+    IntegrateDimOpType,
     QuantityType,
     SelSliceDimOpType,
     SliceDimOpType,
@@ -26,7 +27,7 @@ if typing.TYPE_CHECKING:
 
     from bilt.core._port_declaration import PortDeclaration
     from bilt.symbolic._tree import Tree
-    from bilt.units import Dimension
+    from bilt.units import Dimension, Unit
 
 
 _EITHER = frozenset({0, 1})
@@ -49,6 +50,11 @@ def dimensionality_of(
     if tree.is_leaf:
         return _leaf(tree, dimensionalities)
     operands = [dimensionality_of(operand, dimensionalities) for operand in tree.args]
+    if tree.head.atom_type is IntegrateDimOpType:
+        unit = typing.cast("Unit | None", tree.head.value)
+        if operands[0] is None:
+            return None
+        return operands[0] * (unit.dimension if unit is not None else DIMENSIONLESS)
     if tree.head.atom_type is ConcatDimOpType:
         return _shared(operands)
     if tree.head.atom_type in (SelSliceDimOpType, SliceDimOpType):
@@ -164,6 +170,8 @@ def absoluteness_of(  # noqa: PLR0911
             return frozenset({int(typing.cast("tuple[float, Dimension, bool]", tree.head.value)[2])})
         return _EITHER
     operands = [absoluteness_of(equation_name, operand, declarations) for operand in tree.args]
+    if tree.head.atom_type is IntegrateDimOpType:
+        return _summed_along_an_axis(equation_name, operands[0])
     if tree.head.atom_type is ConcatDimOpType:
         return _concat_absoluteness(equation_name, operands)
     if tree.head.atom_type is SliceDimOpType:
