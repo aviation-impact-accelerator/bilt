@@ -3,7 +3,6 @@
 # ruff: noqa: INP001 - benchmark helper, not an installed package
 
 import dataclasses
-import math
 import typing
 from contextlib import ExitStack
 
@@ -94,7 +93,7 @@ class CoordinateOperatorTrial:
             lower_inputs(values),
             generate_alignment_plan(values),
         )
-        result = np.asarray(PYTHON_BACKEND.chain_case(self.result).callable(**parameters))
+        result = np.asarray(PYTHON_BACKEND.chain_case(self.result).callable(**parameters)).reshape(-1)
         if not np.allclose(result, self.expected, rtol=1e-8, atol=1e-8):
             message = f"Incorrect {self.size}-panel circulation: {result!r}"
             raise AssertionError(message)
@@ -105,7 +104,7 @@ class CoordinateOperatorTrial:
             "unknown_coordinates": self.size,
             "residual_coordinates": self.size,
             "max_error": float(np.max(np.abs(result - self.expected))),
-            "finite": math.isfinite(float(result[0])),
+            "finite": bool(np.isfinite(result).all()),
         }
 
     def close(self) -> None:
