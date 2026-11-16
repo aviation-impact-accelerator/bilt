@@ -210,8 +210,7 @@ class OtherSpeed(enum.IntEnum):
 def test_symbolic_enum_members_retain_declared_class_and_member() -> None:
     # Enum identity survives tracing, rather than being flattened to an ordinal.
     leaves = [
-        node for node in subtrees(int_output.__bilt_equation_tree__)
-        if node.is_leaf and node.head.atom_type is EnumType
+        node for node in subtrees(int_output.__bilt_equation_tree__) if node.is_leaf and node.head.atom_type is EnumType
     ]
     assert {node.head.value for node in leaves} == {
         (Speed, "OFF"),
