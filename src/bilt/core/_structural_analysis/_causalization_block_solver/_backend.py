@@ -32,6 +32,8 @@ from bilt.core._structural_analysis._causalization_block_solver._structural_vali
 )
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._plan import AnalysisPlan
+from bilt.core._structural_analysis._qualified_block import QualifiedPlan
+from bilt.core._structural_analysis._realize_qualified import QualifiedRealizationFailure, realize_qualified_plan
 from bilt.core._structural_analysis._realize import (
     BlockRealizationFailure,
     BlockRealizationKey,
@@ -87,6 +89,15 @@ class CausalizationStructuralAnalyzer:
             input_domains=request.input_domains,
             bindings=_active_coordinate_bindings(),
         )
+        if structure is not None and structure.coordinate_blocks is not None:
+            coordinate_result = realize_qualified_plan(
+                QualifiedPlan(request, structure.coordinate_blocks.blocks),
+                self.backend,
+                {},
+            )
+            if not isinstance(coordinate_result, QualifiedRealizationFailure):
+                return coordinate_result
+
         expanded = self._preflight(request, structure)
         if expanded is not None:
             return expanded
