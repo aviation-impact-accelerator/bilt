@@ -5,7 +5,6 @@ __all__ = ["plan_blocks"]
 import typing
 
 from bilt.core._equation import BasicEquation
-
 from bilt.core._structural_analysis._causalization_block_solver._blocks import ordered_blocks
 from bilt.core._structural_analysis._causalization_block_solver._dependency_graph import build_dependency_graph
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
@@ -104,15 +103,15 @@ def _requires_linear_operator(block: PlanBlock) -> bool:
 
 
 def _promote_linear_operator_chains(blocks: tuple[PlanBlock, ...]) -> tuple[PlanBlock, ...]:
-    """Prototype: group consecutive non-invertible linear equations with their consumer.
+    """Prototype: lower non-invertible linear equations, including short chains, as blocks.
 
     A reduction can be linear without being individually invertible. If its
     intermediate output is needed by the next primitive equation, retaining
     those equations as one block permits normal operator lowering to assemble
     and eliminate the intermediate numerically.
 
-    This intentionally handles only a contiguous chain; branch/fan-out
-    analysis is out of scope for this prototype.
+    This intentionally handles only one equation or a contiguous chain;
+    branch/fan-out analysis is out of scope for this prototype.
     """
     pending = list(blocks)
     result: list[PlanBlock] = []

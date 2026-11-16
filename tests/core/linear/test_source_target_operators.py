@@ -7,6 +7,7 @@ import pytest
 
 from bilt import Implementation, Interface, Tensor, dim, domain, equation, field, system, tensor
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
+from bilt.errors import BiltLinearSolveError
 
 if typing.TYPE_CHECKING:
     from bilt._backend import Backend
@@ -91,6 +92,9 @@ def test_non_square_source_to_target_system_is_rejected(backend: Backend, *, spl
     """A 2x3 operator cannot uniquely recover its three circulation variables."""
     influence = tensor([[2.0, 1.0, 0.5], [1.0, 3.0, 0.5]], over=(TARGET, SOURCE))
     velocity = tensor([5.0, 7.0], over=TARGET)
-    with backend, Implementation(LiftingLine, [product, reduction] if split else [direct]):
-        with pytest.raises(BiltExecutionPlanError, match="Cannot compute"):
-            _ = LiftingLine(influence=influence, velocity=velocity).circulation
+    with (
+        backend,
+        Implementation(LiftingLine, [product, reduction] if split else [direct]),
+        pytest.raises((BiltExecutionPlanError, BiltLinearSolveError)),
+    ):
+        _ = LiftingLine(influence=influence, velocity=velocity).circulation
