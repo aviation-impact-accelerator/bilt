@@ -2,6 +2,7 @@ __all__ = [
     "DomainRegistry",
 ]
 
+import itertools
 import math
 import typing
 
@@ -225,7 +226,8 @@ class DomainRegistry:
             message = "Integration coordinate_unit must be a relative unit, not an absolute unit."
             raise BiltDomainBindingError(message)
         coordinates = axis.coordinates
-        if len(coordinates) < 2:
+        minimum_points = 2
+        if len(coordinates) < minimum_points:
             message = f"Integration over {dimension} requires at least two coordinates."
             raise BiltDomainBindingError(message)
         if any(
@@ -234,7 +236,7 @@ class DomainRegistry:
         ):
             message = f"Integration over {dimension} requires finite numerical coordinates."
             raise BiltDomainBindingError(message)
-        increments = tuple(float(right) - float(left) for left, right in zip(coordinates, coordinates[1:]))
+        increments = tuple(float(right) - float(left) for left, right in itertools.pairwise(coordinates))
         if not (all(dx > 0 for dx in increments) or all(dx < 0 for dx in increments)):
             message = f"Integration over {dimension} requires strictly monotonic coordinates."
             raise BiltDomainBindingError(message)
@@ -246,7 +248,7 @@ class DomainRegistry:
             ).scale
         )
         weights = (increments[0] / 2, *(
-            (left + right) / 2 for left, right in zip(increments, increments[1:])
+            (left + right) / 2 for left, right in itertools.pairwise(increments)
         ), increments[-1] / 2)
         return tuple(weight * conversion for weight in weights)
 
