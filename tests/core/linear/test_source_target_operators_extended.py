@@ -250,3 +250,44 @@ def test_mixed_scalar_and_source_tensor_unknowns(backend: Backend) -> None:
     assert isinstance(result, Tensor)
     assert result.domain == domain(SOURCE)
     np.testing.assert_allclose(result.values, expected_gamma, rtol=1e-5, atol=1e-6)
+
+
+# The exact domain-hint experiment deliberately leaves the original mixed
+# test above as xfail: it distinguishes known-layout lowering from inference.
+SourceCirculation = typing.Annotated[Tensor, domain(SOURCE)]
+SharedAngle = typing.Annotated[float, domain()]
+
+
+@equation
+def velocity_with_angle_hinted(
+    influence: Tensor,
+    circulation: SourceCirculation,
+    angle: SharedAngle,
+    velocity: Tensor,
+) -> bool:
+    """Map source circulation to target velocity plus a shared scalar."""
+    return (influence * circulation).sum(SOURCE) + angle == velocity
+
+
+@equation
+def fix_total_circulation_hinted(circulation: SourceCirculation, total: float) -> bool:
+    """A scalar equation closes the mixed-layout system."""
+    return circulation.sum(SOURCE) == total
+
+
+def test_mixed_source_tensor_and_shared_scalar_with_exact_hints(backend: Backend) -> None:
+    """Check whether mixed assembly already works once the domains are explicit."""
+    a = np.array([[2.0, 1.0], [1.0, 3.0]])
+    expected_gamma = np.array([1.6, 1.8])
+    expected_angle = 0.4
+    rhs = a @ expected_gamma + expected_angle
+    with backend, Implementation(TrimAugmented, [velocity_with_angle_hinted, fix_total_circulation_hinted]):
+        result = TrimAugmented(
+            influence=tensor(a, over=(TARGET, SOURCE)),
+            velocity=tensor(rhs, over=TARGET),
+            total=float(expected_gamma.sum()),
+        ).circulation
+
+    assert isinstance(result, Tensor)
+    assert result.domain == domain(SOURCE)
+    np.testing.assert_allclose(result.values, expected_gamma, rtol=1e-5, atol=1e-6)
