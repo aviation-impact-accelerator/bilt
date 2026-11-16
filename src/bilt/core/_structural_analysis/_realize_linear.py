@@ -172,6 +172,7 @@ class _LinearLowering:
                 {name: self.symbol_domains[name] for name in self.parameters},
                 hints,
                 self.canonical,
+                allow_mixed_layout=isinstance(self.linear, LinearOperatorBlock),
             )
             pointwise = isinstance(self.linear, LinearBlock) and all(domain == common for domain in result.values())
         return result, pointwise
