@@ -66,7 +66,9 @@ def discover_coordinate_blocks(  # noqa: C901, PLR0911, PLR0912 - request valida
         return None
     if not structure.constraints or any(not isinstance(row.operation, BasicEquation) for row in structure.constraints):
         return None
-    equations = tuple(QualifiedEquation(row.operation, row.path) for row in structure.constraints)
+    equations = tuple(
+        QualifiedEquation(typing.cast("BasicEquation", row.operation), row.path) for row in structure.constraints
+    )
     if not any(_has_operator(equation.tree) for equation in equations):
         return None
 
@@ -212,7 +214,7 @@ def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate mat
     condensed = rx.PyDiGraph(multigraph=False)
     node_mapping = {}
     for component in rx.strongly_connected_components(dependency):
-        if not component & required:
+        if not set(component) & required:
             continue
         group_ids = {typing.cast("int", dependency[node]) for node in component}
         members = [row for row in incidence.residuals if root(residual_index[row]) in group_ids]
