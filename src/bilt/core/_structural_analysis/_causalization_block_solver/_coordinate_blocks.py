@@ -256,7 +256,6 @@ def _ordered_coordinate_blocks(  # noqa: C901, PLR0912, PLR0915 - coordinate mat
     return tuple(item[1] for item in rx.lexicographical_topological_sort(condensed, lambda item: item[0]))
 
 
-
 def _coalesce_axis_provenance(
     blocks: tuple[QualifiedBlock, ...],
     known: Mapping[str, Domain],
