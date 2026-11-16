@@ -12,6 +12,12 @@ from bilt._backend._linear_solve import numpy_solve_linear
 from bilt._backend._ndarray_alignment_mixin import NDArrayAlignmentMixin
 
 
+def _integrate(value: np.ndarray, *, weights: tuple[float, ...], axis: int) -> np.ndarray:
+    """Trapezoidal quadrature with rank-preserving named-axis alignment."""
+    shape = (1,) * axis + (len(weights),) + (1,) * (value.ndim - axis - 1)
+    return np.sum(value * np.asarray(weights).reshape(shape), axis=axis, keepdims=True)
+
+
 def _isel(
     value: np.ndarray,
     index: int,
@@ -57,6 +63,7 @@ class PythonBackend(InProcessPythonMixin, ActivatableBackendMixin, NDArrayAlignm
         }
         self.intrinsic_bindings = PythonIntrinsicBindings(
             isel=_isel,
+            integrate=_integrate,
             concat=_concat,
             slice=_slice,
             mean=np.mean,
