@@ -32,6 +32,7 @@ def check_dimensional_consistency(
     for owner in owners:
         if isinstance(owner, BasicTransform):
             named[owner].add(owner.__bilt_name__)
+        named[owner].update(getattr(owner, "__bilt_enum_ports__", {}))
     validate_independently(
         lambda port=port: _check_port(system, port, owners, named) for port in sorted(set().union(*named.values()))
     )
@@ -46,6 +47,19 @@ def _check_port(
     """Validate a single port independently of the declarations of other ports."""
     naming = [owner for owner in owners if port in named[owner]]
     declaring = [owner for owner in naming if port in owner.__bilt_port_declarations__]
+    categorical = [
+        (owner, getattr(owner, "__bilt_enum_ports__", {})[port])
+        for owner in naming if port in getattr(owner, "__bilt_enum_ports__", {})
+    ]
+    if categorical:
+        expected_type = categorical[0][1]
+        if len(categorical) != len(naming) or any(enum_type is not expected_type for _, enum_type in categorical):
+            msg = f"gives categorical port {port!r} inconsistent enum types or mixes enum and numeric declarations."
+            raise BiltImplementationDimensionalityError(system.__bilt_name__, msg)
+        if declaring:
+            msg = f"gives categorical port {port!r} a physical dimensionality."
+            raise BiltImplementationDimensionalityError(system.__bilt_name__, msg)
+        return
     if not declaring:
         return
 

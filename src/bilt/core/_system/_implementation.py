@@ -8,6 +8,7 @@ import types
 import typing
 
 from bilt.core._equation import BasicEquation
+from bilt.core._errors import BiltEvaluationError
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs
@@ -74,6 +75,9 @@ class Implementation:
             named_components | sub_systems
         )
         check_dimensional_consistency(system, self._components.values())
+        self._enum_types = dict(system.__bilt_enum_ports__)
+        for component in self._components.values():
+            self._enum_types.update(getattr(component, "__bilt_enum_ports__", {}))
         self._port_declarations: dict[str, PortDeclaration] = {
             port: declaration
             for component in self._components.values()
@@ -112,7 +116,10 @@ class Implementation:
         backend: Backend,
     ) -> object:
         """Evaluate one output from supplied boundary values using the selected backend."""
-        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs, enum_types=self._enum_types)
+        if output in self._enum_types and output not in inputs:
+            msg = f"Cannot solve categorical enum port {output!r}; enum inputs are forward-only match selectors."
+            raise BiltEvaluationError(msg)
 
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
