@@ -49,7 +49,7 @@ Some notebooks and interactive environments may not make the source available.
 | Loops | `for`, `while` and comprehensions are not supported. |
 | Function calls | Allowed when Bilt understands the mathematical result. Bilt cannot detect every side effect inside a called function. |
 | Python `if/elif/else` | A single conditional chain may contain `elif` and nested `if/else`; all paths must end by assigning the same result name and end in an `else`; sequential local assignments are allowed in each branch. |
-| Python `match/case` | Numeric literal cases (integers or floats), followed by a final `case _`. All paths must end by assigning the same result name. Guards, captures and structural patterns are not supported. |
+| Python `match/case` | Numeric literal cases (integers or floats), followed by a final `case _`. All paths must end by assigning the same result name. Guards, captures, enum-member patterns and structural patterns are not supported. |
 | Inline `if` | Expressions such as `a if flag else b` work when `flag` is an ordinary Python value known when Bilt reads the equation, not a value being solved for. |
 
 Ordinary equations can use constants from outside the function, including
