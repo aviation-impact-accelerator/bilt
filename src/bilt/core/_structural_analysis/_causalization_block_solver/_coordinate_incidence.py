@@ -27,7 +27,7 @@ from bilt.symbolic._atoms import ADD, ISEL, MEAN, MUL, NEG, SEL, SUM, DimensionT
 from bilt.symbolic._domains import Domain, union
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Iterator, Mapping, Sequence
 
     from bilt.symbolic._dimensions import Dim
     from bilt.symbolic._tree import Tree
@@ -150,7 +150,7 @@ def _extent(domain: Domain, bindings: DomainRegistry) -> int:
     return math.prod(bindings.size(dim) for dim in domain.dims)
 
 
-def _coordinates(domain: Domain, bindings: DomainRegistry) -> itertools.product[tuple[int, ...]]:
+def _coordinates(domain: Domain, bindings: DomainRegistry) -> Iterator[tuple[int, ...]]:
     return itertools.product(*(range(bindings.size(dim)) for dim in domain.dims))
 
 
