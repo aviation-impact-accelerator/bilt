@@ -148,7 +148,6 @@ def test_two_source_tensors_and_two_global_scalars(backend: Backend, output: str
         assert float(result) == pytest.approx(reference[5], abs=1e-6)
 
 
-
 @system
 class ScalarCoefficients(metaclass=Interface):
     a: WingRHS = field()
