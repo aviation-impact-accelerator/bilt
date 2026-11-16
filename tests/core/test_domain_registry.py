@@ -183,7 +183,8 @@ def test_concat_derives_size_without_freezing_source_bindings() -> None:
     registry.bind(tensor([3.0, 4.0, 5.0], over=future))
     assert registry.dimension_order().dims == (past, future)
     registry.bind_concat((past, future), complete)
-    assert registry.size(complete) == 5
+    expected_size = 5
+    assert registry.size(complete) == expected_size
     assert registry.has_derived_dimensions
 
 
@@ -209,7 +210,8 @@ def test_derived_registry_clone_isolated_from_original() -> None:
     clone = original.clone()
     clone.bind(tensor([3.0], over=extra))
     clone.bind_concat((source, extra), combined)
-    assert clone.size(combined) == 3
+    expected_size = 3
+    assert clone.size(combined) == expected_size
     assert not original.has_derived_dimensions
     with pytest.raises(BiltDomainRegistryError, match="not bound"):
         original.size(combined)
