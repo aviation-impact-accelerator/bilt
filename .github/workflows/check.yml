@@ -79,6 +79,17 @@ jobs:
       - name: Verify compact regular tensor matching benchmarks
         run: uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_compact_matching.py --benchmark-disable --timeout=30
 
+      - name: Benchmark compact dense execution (Python and JAX)
+        run: uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_compact_dense_execution.py --benchmark-json=compact-dense-benchmarks.json --timeout=90
+
+      - name: Upload compact dense benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compact-dense-benchmarks
+          path: compact-dense-benchmarks.json
+          if-no-files-found: ignore
+
       - name: Format with rustfmt
         run: cargo fmt --all -- --check
 
