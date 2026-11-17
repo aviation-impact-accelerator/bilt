@@ -17,6 +17,8 @@ Annotations declare ports; `ClassVar` annotations are excluded.
 Use dimensions on pointwise unit-aware system ports, such as `Annotated[Quantity | QuantityTensor, LENGTH]`;
 see [Units](units.md). Supply known values at construction.
 
+For multiple related physical values, use ordinary system ports and relationships rather than creating a separate structured return type. See [Structured model values](../guide/structured-model-values.md).
+
 ## Implementations
 
 | API | Meaning |

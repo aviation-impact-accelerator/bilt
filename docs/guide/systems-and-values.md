@@ -87,6 +87,8 @@ For now, the important distinction is simpler:
 
 In the next chapter, we'll introduce **acausal modelling** and **equations**, before learning about the **implementations** that link these to a system.
 
+When you need several named physical results, the system itself can serve as a [structured model boundary](structured-model-values.md); you don't need a separate result dataclass.
+
 ---
 
 [Index](../index.md) · [Equations and acausal modelling →](equations-and-acausal-modelling.md)
