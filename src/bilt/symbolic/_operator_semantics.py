@@ -14,6 +14,7 @@ __all__ = [
     "SymbolCoordinate",
     "describe_expression",
     "describe_operator",
+    "without_axis",
 ]
 
 import dataclasses
@@ -245,6 +246,18 @@ def _arithmetic_operator(tree: Tree, operand_domains: tuple[Domain, ...]) -> Ope
     return OperatorSemantics(result, tuple(CoordinateRelation(item, result) for item in operand_domains))
 
 
+def without_axis(value_domain: Domain, dimension: Dim) -> Domain:
+    """Remove one named axis using the same domain rule as structural analysis.
+
+    This is independent of coordinate bindings or numerical axis positions,
+    so expression lowering can use it for both literal and symbolic selectors.
+    """
+    if dimension not in value_domain.dims:
+        message = f"Dimension {dimension!s} is not present in domain {value_domain!s}."
+        raise BiltOperatorSemanticsError(message)
+    return Domain(tuple(dim for dim in value_domain.dims if dim != dimension))
+
+
 def _axis_operator(tree: Tree, domains: tuple[Domain, ...]) -> OperatorSemantics:
     count = 3 if tree.head in (ISEL, SEL) else 2
     if len(domains) != count or len(tree.args) != count:
@@ -260,7 +273,7 @@ def _axis_operator(tree: Tree, domains: tuple[Domain, ...]) -> OperatorSemantics
     if dimension not in source.dims:
         message = f"Cannot apply {tree.head!s} to absent dimension {dimension!s}."
         raise BiltOperatorSemanticsError(message)
-    output = Domain(tuple(dim for dim in source.dims if dim != dimension))
+    output = without_axis(source, dimension)
 
     if tree.head in (ISEL, SEL):
         selector = tree.args[2]
