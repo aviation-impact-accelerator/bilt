@@ -16,10 +16,10 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
+from bilt.core._structural_analysis._causalization_block_solver._compact_execution import MAX_DENSE_UNKNOWNS
 from bilt.core._system._lowering_and_lifting import lower_inputs
 from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 from bilt.symbolic._domains import domain
-from bilt.core._structural_analysis._causalization_block_solver._compact_execution import MAX_DENSE_UNKNOWNS
 
 if typing.TYPE_CHECKING:
     from bilt._backend import Backend
