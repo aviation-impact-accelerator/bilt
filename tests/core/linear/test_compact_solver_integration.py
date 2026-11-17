@@ -10,6 +10,7 @@ from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
+from bilt.core._structural_analysis._causalization_block_solver import _compact_execution
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._compact_execution import (
     MAX_DENSE_UNKNOWNS,
@@ -109,15 +110,13 @@ def test_existing_direct_tensor_equations_do_not_use_compact_joint_solver() -> N
 
 def test_large_compact_match_does_not_compile_dense_solve(monkeypatch: pytest.MonkeyPatch) -> None:
     """Large compact graphs must not imply an affordable dense numerical solve."""
-    from bilt.core._structural_analysis._causalization_block_solver import _compact_execution
-
     size = MAX_DENSE_UNKNOWNS + 1
     values = {
         "coefficients": tensor(np.ones((size, size)), over=(TARGET, SOURCE)),
         "rhs": tensor(np.ones(size), over=TARGET),
     }
 
-    def unexpected_dense_solve(*args: object, **kwargs: object) -> None:
+    def unexpected_dense_solve(*_args: object, **_kwargs: object) -> None:
         pytest.fail("The compact path attempted to compile an oversized dense solve")
 
     monkeypatch.setattr(_compact_execution, "realize_linear_block", unexpected_dense_solve)
