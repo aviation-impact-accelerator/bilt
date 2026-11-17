@@ -5,6 +5,7 @@ import typing
 from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
 from bilt.core._structural_analysis._causalization_block_solver import _planning as planning
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
+from bilt.core._structural_analysis._causalization_block_solver._compact_execution import try_compact_linear_execution
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltExecutionPlanError,
@@ -75,9 +76,9 @@ class CausalizationStructuralAnalyzer:
             available,
             request.output,
         )
-        expanded = self._preflight(request, structure)
-        if expanded is not None:
-            return expanded
+        preliminary = self._preflight_or_compact(request, structure)
+        if preliminary is not None:
+            return preliminary
 
         graph = build_matching_graph(self.full_incidence_graph, available)
         self._prefer_child_producers(graph, available, request.output, structure.snapshot if structure else None)
@@ -128,6 +129,15 @@ class CausalizationStructuralAnalyzer:
             raise BiltExecutionPlanError(msg) from last_error
 
         raise BiltExecutionPlanError(msg)
+
+    def _preflight_or_compact(
+        self, request: EvaluationRequest, structure: ValidatedStructure | None
+    ) -> BackendCase | None:
+        """Try existing preflight first, then the narrow compact tensor solve."""
+        expanded = self._preflight(request, structure)
+        if expanded is not None:
+            return expanded
+        return try_compact_linear_execution(self.full_incidence_graph, request, self.backend)
 
     def _preflight(self, request: EvaluationRequest, structure: ValidatedStructure | None) -> BackendCase | None:
         """Keep local requests on their existing path; expand execution only for cross-boundary coupling."""
