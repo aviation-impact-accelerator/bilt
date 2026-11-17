@@ -269,6 +269,8 @@ def _equation_to_callable(
     return dataclasses.replace(
         callable_,
         output_domain=lowered.domain,
+        symbolic_tree=lowered.tree,
+        symbolic_parameters=equation.__bilt_parameters__,
     )
 
 

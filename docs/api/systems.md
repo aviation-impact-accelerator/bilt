@@ -53,6 +53,71 @@ and caches requested outputs. Use a fresh instance when comparing implementation
 inputs or backends. Registering an implementation alone does not activate it.
 Component order does not prescribe execution order.
 
+## Instance derivatives (experimental)
+
+Bilt can calculate exact scalar derivatives through supported acyclic equation
+routes without requiring JAX. Ordinary property access remains unchanged; use
+the `d` namespace to request a derivative of a field:
+
+```python exec="off"
+from bilt import Implementation, Interface, equation, field, system
+
+
+@system
+class Spring(metaclass=Interface):
+    force: float = field()
+    stiffness: float = field()
+    displacement: float = field()
+
+
+@equation
+def law(force: float, stiffness: float, displacement: float) -> bool:
+    return force == stiffness * displacement
+
+
+implementation = Implementation(Spring, [law])
+
+with implementation:
+    spring = Spring(force=100.0, stiffness=20.0)
+    assert spring.displacement == 5.0
+    assert spring.d.displacement(wrt=Spring.force) == 0.05
+    assert spring.d.displacement(wrt=Spring.stiffness) == -0.25
+```
+
+`spring.diff.displacement(wrt="force")` is equivalent. If a system
+already declares a field named `d`, that field takes precedence and `diff`
+remains available. If `diff` is also a declared field, neither convenience
+namespace is installed.
+
+Derivative queries use the constructor-supplied boundary inputs and the same
+selected implementation and backend as ordinary instance lookups. Previously
+calculated outputs do not become additional boundary inputs. The `wrt`
+argument must identify a supplied input on the same system interface.
+For a supplied output, its derivative with respect to itself is one and
+with respect to another supplied input is zero.
+
+This first prototype handles plain scalar inputs and supported `@equation`
+expressions across acyclic execution plans. It rejects derivatives that require
+unsupported transforms, subsystem computations or coupled solves, and
+unit-bearing or tensor inputs. It does not silently use finite differences.
+Derivatives are taken with respect to the numerical values in the model;
+the returned result currently has no separate derivative-unit wrapper.
+The generated `d` and `diff` properties are runtime additions and may
+require local suppression in static type-checking tools until their typing
+support is implemented.
+
+Conditional `@equation` expressions also support **branch-wise derivatives**.
+For a scalar `if/elif/else` or nested conditional, Bilt differentiates each
+branch and retains the original predicate, in both Python and JAX. For
+example, if the selected equation says `value = x**2` when `x > 0` and
+`value = -x` otherwise, then `instance.d.value(wrt=System.x)` is
+`2*x` for positive `x` and `-1` for negative `x`. Conditions are not
+differentiated: changing a threshold gives a zero local derivative away from
+a switching point. **At the switching point the result is the selected
+branch's derivative, not necessarily a mathematical derivative of the
+piecewise function.** Conditional equations still cannot be inverted
+through a predicate depending on the target variable.
+
 ## Evaluation and structural analysis
 
 `Implementation.evaluate` and instance evaluation use the causalization (SCC)

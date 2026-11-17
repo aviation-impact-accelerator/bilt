@@ -60,6 +60,7 @@ __all__ = [
     "BiltUnknownPortError",
     "BiltUnknownSystemAttributeError",
     "BiltUnresolvedAnnotationError",
+    "BiltUnsupportedDerivativeError",
     "BiltUnsupportedIsolationError",
     "BiltUnsupportedNodeError",
 ]
@@ -95,6 +96,7 @@ from bilt.core._system._errors import (
     BiltSubSystemUnreferencedEntryError,
     BiltSystemDefinitionError,
     BiltUnknownSystemAttributeError,
+    BiltUnsupportedDerivativeError,
 )
 from bilt.core._tensors._errors import BiltSymbolicLoweringError, BiltTensorDomainError
 from bilt.symbolic._errors import (

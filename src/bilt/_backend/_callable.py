@@ -5,6 +5,7 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt.symbolic._domains import Domain
+    from bilt.symbolic._tree import Tree
 
 
 @dataclasses.dataclass
@@ -13,6 +14,8 @@ class BackendCallable:
     parameters: tuple[str, ...]
     callable: collections.abc.Callable
     output_domain: Domain | None = None
+    symbolic_tree: Tree | None = None
+    symbolic_parameters: tuple[str, ...] = ()
 
     def evaluate(
         self,

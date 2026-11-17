@@ -10,6 +10,7 @@ __all__ = [
     "BiltSubSystemUnreferencedEntryError",
     "BiltSystemDefinitionError",
     "BiltUnknownSystemAttributeError",
+    "BiltUnsupportedDerivativeError",
 ]
 
 import typing
@@ -62,6 +63,10 @@ class BiltUnknownSystemAttributeError(BiltEvaluationError, AttributeError):
             name=name,
             obj=instance,
         )
+
+
+class BiltUnsupportedDerivativeError(BiltEvaluationError, ValueError):
+    """The selected model route has no supported exact derivative."""
 
 
 class BiltInputDimensionalityError(BiltDimensionalityError):

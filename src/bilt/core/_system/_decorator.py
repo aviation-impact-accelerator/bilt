@@ -11,6 +11,7 @@ from bilt.core._port_declaration import port_declarations
 from bilt.core._system._errors import BiltSystemDefinitionError
 from bilt.core._system._input_validation import validate_inputs
 
+from ._differentiation import DerivativeNamespace
 from ._dispatch import _dispatch_evaluation
 from ._sentinel import MISSING
 
@@ -32,6 +33,7 @@ def system[T: Interface](cls: T) -> T:
     _create_bilt_system_class_attribute(cls)
     _create_initialize_method(cls)
     _create_properties(cls)
+    _create_derivative_namespace(cls)
     _create_eq_method(cls)
     _create_repr_method(cls)
     _disable_hash(cls)
@@ -106,6 +108,13 @@ def _create_properties(cls: Interface) -> None:
             global_namespace=globals(),
             local_namespace=local_namespace,
         )
+
+
+def _create_derivative_namespace(cls: Interface) -> None:
+    # Existing system ports take precedence over convenience namespaces.
+    for name in ("diff", "d"):
+        if name not in cls.__bilt_system_attributes__:
+            setattr(cls, name, property(DerivativeNamespace))
 
 
 def _create_eq_method(cls: Interface) -> None:
