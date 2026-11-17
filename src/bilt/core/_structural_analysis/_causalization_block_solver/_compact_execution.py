@@ -24,6 +24,10 @@ from bilt.core._structural_analysis._realize_linear import realize_linear_block
 from bilt.core._tensors._errors import BiltSymbolicLoweringError, BiltTensorDomainError
 from bilt.symbolic._operator_semantics import BiltOperatorSemanticsError
 
+# The compact representation can be large, but its current numerical backend
+# constructs a dense matrix. Keep the experimental execution path bounded.
+MAX_DENSE_UNKNOWNS = 256
+
 if typing.TYPE_CHECKING:
     from bilt._backend import Backend
     from bilt.core._evaluation_request import EvaluationRequest
@@ -60,7 +64,11 @@ def try_compact_linear_execution(
             request.input_domains,
         )
         matched = match_compact_incidence(compact, current_evaluation().domains, max_nodes=4096, max_edges=100_000)
-        if matched.pattern != "complete" or not matched.well_determined:
+        if (
+            matched.pattern != "complete"
+            or not matched.well_determined
+            or matched.unknown_coordinates > MAX_DENSE_UNKNOWNS
+        ):
             return None
         block = PlanBlock((PlanStep(operation, request.output),), is_cyclic=True)
         callables = realize_linear_block(
