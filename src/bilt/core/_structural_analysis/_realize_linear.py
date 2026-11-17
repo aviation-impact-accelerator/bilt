@@ -3,6 +3,7 @@
 import ast
 import collections
 import dataclasses
+import math
 import typing
 
 from bilt._backend import LinearSolveBackend
@@ -48,6 +49,7 @@ def realize_linear_block(
     symbol_domains: dict[str, Domain],
     *,
     solution_name: str,
+    allow_distinct_row_domains: bool = False,
 ) -> tuple[BackendCallable, ...]:
     """Compile one solve, preserving each output's named tensor domain."""
     if not isinstance(backend, LinearSolveBackend):
@@ -57,7 +59,7 @@ def realize_linear_block(
         linear = extract_supported_qualified_block(block)
     else:
         linear = extract_supported_linear_block(block)
-    lowering = _LinearLowering(linear, symbol_domains, solution_name)
+    lowering = _LinearLowering(linear, symbol_domains, solution_name, allow_distinct_row_domains)
     batch_rank = len(lowering.canonical.dims)
     rhs = (
         [lowering.lower(tree, symbol_domains) for tree in lowering.linear.rhs]
@@ -118,6 +120,7 @@ class _LinearLowering:
     linear: LinearBlock | LinearOperatorBlock
     symbol_domains: dict[str, Domain]
     solution_name: str
+    allow_distinct_row_domains: bool = False
 
     @property
     def parameters(self) -> tuple[str, ...]:
@@ -175,6 +178,11 @@ class _LinearLowering:
             pointwise = isinstance(self.linear, LinearBlock) and all(domain == common for domain in result.values())
         return result, pointwise
 
+    def _scalar_count(self, domains: collections.abc.Iterable[Domain]) -> int:
+        """Count primitive coordinates only for a structurally matched joint solve."""
+        bindings = current_evaluation().domains
+        return sum(math.prod(bindings.size(dim) for dim in domain.dims) for domain in domains)
+
     def ordered(self, domain: Domain) -> Domain:
         return Domain(tuple(dim for dim in self.canonical.dims if dim in domain.dims))
 
@@ -217,7 +225,12 @@ class _LinearLowering:
             row_domains = [union(domain, rhs_domain) for (_, domain), (_, rhs_domain) in zip(lowered, rhs, strict=True)]
             constants = [_names(value, self.parameters) for value, _ in rhs]
             extra = []
-        if collections.Counter(domains.values()) != collections.Counter(self.ordered(domain) for domain in row_domains):
+        if collections.Counter(domains.values()) != collections.Counter(
+            self.ordered(domain) for domain in row_domains
+        ) and (
+            not self.allow_distinct_row_domains
+            or self._scalar_count(domains.values()) != self._scalar_count(row_domains)
+        ):
             message = "Tensor block scalar equations must have the same domain layout as its unknowns."
             raise BiltLinearBlockError(message)
         layout = (
