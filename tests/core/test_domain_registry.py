@@ -174,3 +174,54 @@ def test_domain_registry_copes_with_float_coordinates(index: int) -> None:
     expected_value = EXPECTED[index]
 
     assert registry.position(time, expected_value) == index
+
+
+def test_concat_derives_size_without_freezing_source_bindings() -> None:
+    past, future, complete = dim("past"), dim("future"), dim("complete")
+    registry = DomainRegistry()
+    registry.bind(tensor([1.0, 2.0], over=past))
+    registry.bind(tensor([3.0, 4.0, 5.0], over=future))
+    assert registry.dimension_order().dims == (past, future)
+    registry.bind_concat((past, future), complete)
+    expected_size = 5
+    assert registry.size(complete) == expected_size
+    assert registry.has_derived_dimensions
+
+
+def test_concat_derives_coordinates_and_rejects_partial_labels() -> None:
+    past, future, complete = dim("past"), dim("future"), dim("complete")
+    registry = DomainRegistry()
+    registry.bind_axis(coordinate_axis(past, (2023, 2024)))
+    registry.bind_axis(coordinate_axis(future, (2025, 2026)))
+    registry.bind_concat((past, future), complete)
+    assert registry.axis(complete).coordinates == (2023, 2024, 2025, 2026)
+
+    partial = DomainRegistry()
+    partial.bind_axis(coordinate_axis(past, (2023,)))
+    partial.bind(tensor([1.0], over=future))
+    with pytest.raises(BiltDomainRegistryError, match="labelled and unlabelled"):
+        partial.bind_concat((past, future), complete)
+
+
+def test_derived_registry_clone_isolated_from_original() -> None:
+    source, extra, combined = dim("source"), dim("extra"), dim("combined")
+    original = DomainRegistry()
+    original.bind(tensor([1.0, 2.0], over=source))
+    clone = original.clone()
+    clone.bind(tensor([3.0], over=extra))
+    clone.bind_concat((source, extra), combined)
+    expected_size = 3
+    assert clone.size(combined) == expected_size
+    assert not original.has_derived_dimensions
+    with pytest.raises(BiltDomainRegistryError, match="not bound"):
+        original.size(combined)
+
+
+def test_concat_rejects_conflicting_existing_target() -> None:
+    past, future, complete = dim("past"), dim("future"), dim("complete")
+    registry = DomainRegistry()
+    registry.bind(tensor([1.0, 2.0], over=past))
+    registry.bind(tensor([3.0], over=future))
+    registry.bind(tensor([10.0, 11.0], over=complete))
+    with pytest.raises(BiltDomainRegistryError, match="inconsistent sizes"):
+        registry.bind_concat((past, future), complete)

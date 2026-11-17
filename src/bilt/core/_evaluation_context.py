@@ -1,5 +1,3 @@
-import functools
-
 from bilt.core._canonical_ordering import _derive_canonical_order
 from bilt.core._errors import BiltNoActiveEvaluationError
 
@@ -24,11 +22,26 @@ class EvaluationContext:
 
     def __init__(self) -> None:
         self.domains = DomainRegistry()
+        self._canonical_order: Domain | None = None
 
-    @functools.cached_property
+    @property
     def canonical_order(self) -> Domain:
-        self.domains.lock_against_new_dimensions()
-        return _derive_canonical_order(self)
+        """Freeze and return the canonical order for executable operations."""
+        if self._canonical_order is None:
+            self.domains.lock_against_new_dimensions()
+            self._canonical_order = _derive_canonical_order(self)
+        return self._canonical_order
+
+    @canonical_order.setter
+    def canonical_order(self, order: Domain) -> None:
+        """Allow an explicit canonical order, including test-time overrides."""
+        self._canonical_order = order
+
+    def canonical_order_for_cache(self) -> Domain:
+        """Inspect the current order without preventing derived axes from binding."""
+        if self._canonical_order is not None:
+            return self._canonical_order
+        return self.domains.dimension_order()
 
     def __enter__(self) -> typing.Self:
         evaluation = _evaluation_stack[-1] if _evaluation_stack else self
