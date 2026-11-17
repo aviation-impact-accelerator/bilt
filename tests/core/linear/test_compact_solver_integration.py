@@ -11,6 +11,10 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
+from bilt.core._structural_analysis._causalization_block_solver._compact_execution import (
+    MAX_DENSE_UNKNOWNS,
+    try_compact_linear_execution,
+)
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._system._lowering_and_lifting import lower_inputs
 from bilt.core._tensors._tensor_alignment import generate_alignment_plan
@@ -101,3 +105,24 @@ def test_existing_direct_tensor_equations_do_not_use_compact_joint_solver() -> N
             PYTHON_BACKEND.apply_alignment(lower_inputs(values), generate_alignment_plan(values))
         )
         np.testing.assert_allclose(np.asarray(output).reshape(-1), [1.0, 2.0, 3.0])
+
+
+def test_large_compact_match_does_not_compile_dense_solve(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Large compact graphs must not imply an affordable dense numerical solve."""
+    from bilt.core._structural_analysis._causalization_block_solver import _compact_execution
+
+    size = MAX_DENSE_UNKNOWNS + 1
+    values = {
+        "coefficients": tensor(np.ones((size, size)), over=(TARGET, SOURCE)),
+        "rhs": tensor(np.ones(size), over=TARGET),
+    }
+
+    def unexpected_dense_solve(*args: object, **kwargs: object) -> None:
+        pytest.fail("The compact path attempted to compile an oversized dense solve")
+
+    monkeypatch.setattr(_compact_execution, "realize_linear_block", unexpected_dense_solve)
+    with EvaluationContext() as evaluation:
+        evaluation.domains.bind_all(values.values())
+        analyzer = CausalizationStructuralAnalyzer((influence,), PYTHON_BACKEND)
+        request = EvaluationRequest("x", {name: value.domain for name, value in values.items()})
+        assert try_compact_linear_execution(analyzer.full_incidence_graph, request, PYTHON_BACKEND) is None
