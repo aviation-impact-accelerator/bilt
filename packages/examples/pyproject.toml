@@ -8,9 +8,15 @@ authors = [
     { name = "James Emberton", email = "je484@cam.ac.uk" },
     { name = "Nicolas Seyedzadeh", email = "ns896@cam.ac.uk" },
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 dependencies = [
+    "bilt",
+    "bilt-proposals",
 ]
+
+[tool.uv.sources]
+bilt = { workspace = true }
+bilt-proposals = { workspace = true }
 
 [build-system]
 requires = [

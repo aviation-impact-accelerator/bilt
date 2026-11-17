@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.15"
 
 [options]
@@ -9,6 +9,7 @@ exclude-newer-span = "P3D"
 [manifest]
 members = [
     "bilt",
+    "bilt-proposals",
     "examples",
 ]
 
@@ -71,6 +72,17 @@ docs = [
     { name = "scipy", specifier = ">=1.18.1" },
     { name = "zensical", specifier = ">=0.0.73" },
 ]
+
+[[package]]
+name = "bilt-proposals"
+version = "0.0.1"
+source = { editable = "packages/bilt-proposals" }
+dependencies = [
+    { name = "bilt" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "bilt", editable = "." }]
 
 [[package]]
 name = "click"
@@ -137,6 +149,16 @@ wheels = [
 name = "examples"
 version = "0.0.1"
 source = { editable = "packages/examples" }
+dependencies = [
+    { name = "bilt" },
+    { name = "bilt-proposals" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "bilt", editable = "." },
+    { name = "bilt-proposals", editable = "packages/bilt-proposals" },
+]
 
 [[package]]
 name = "fonttools"
