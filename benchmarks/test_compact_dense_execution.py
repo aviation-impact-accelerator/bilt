@@ -35,14 +35,14 @@ def influence(x: OverSource, coefficients: Tensor, rhs: Tensor) -> bool:
 
 
 def _compute(backend: Backend, matrix: np.ndarray, rhs: np.ndarray) -> tuple[np.ndarray, tuple[str, ...]]:
-    values = {
+    values: dict[str, object] = {
         "coefficients": tensor(matrix, over=(TARGET, SOURCE)),
         "rhs": tensor(rhs, over=TARGET),
     }
     with EvaluationContext() as evaluation:
         evaluation.domains.bind_all(values.values())
         case = CausalizationStructuralAnalyzer((influence,), backend).analyse(
-            EvaluationRequest("x", {name: value.domain for name, value in values.items()})
+            EvaluationRequest("x", {name: value.domain for name, value in values.items() if isinstance(value, Tensor)})
         )
         aligned = backend.apply_alignment(lower_inputs(values), generate_alignment_plan(values))
         actual = backend.chain_case(case).evaluate(aligned)
