@@ -33,7 +33,7 @@ def test_distinct_components_with_the_same_name_are_rejected() -> None:
     with pytest.raises(BiltDuplicateComponentError, match="distinct components named 'y'"):
         Implementation(Model, [globals()["y"], y])
 
-    assert all(item._components.get('y') is not y for item in Model.__bilt_system_registry__)
+    assert all(item._components.get("y") is not y for item in Model.__bilt_system_registry__)
 
 
 def test_repeated_reference_to_the_same_component_is_deduplicated() -> None:
