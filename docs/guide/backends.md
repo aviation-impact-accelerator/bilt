@@ -175,9 +175,11 @@ def root(value: float) -> float:
 The JAX backend is well suited to array-based numerical calculations built from
 supported arithmetic and JAX operations.
 
-Both backends also support `if/elif/else` and nested conditions inside an
-`@equation`, provided they work with single numbers rather than arrays.
-See [Using `if/else` in an equation](equations-and-acausal-modelling.md#using-ifelse-in-an-equation).
+Both backends support `if/elif/else`, nested conditionals and numeric-literal
+`match/case` inside an `@equation`, provided the conditions and results are
+scalars rather than arrays.
+See [Using `if/else` in an equation](equations-and-acausal-modelling.md#using-ifelse-in-an-equation)
+and [Using `match/case` in an equation](equations-and-acausal-modelling.md#using-matchcase-in-an-equation).
 
 Some ordinary Python behaviour is not suitable for JAX execution. Examples
 include file or network access, Python side effects, and calls to libraries that
