@@ -17,7 +17,6 @@ from ._sentinel import MISSING
 
 if typing.TYPE_CHECKING:
     import collections.abc
-    import types
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
