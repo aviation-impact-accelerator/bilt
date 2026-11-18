@@ -19,7 +19,7 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
 class PortDeclaration:
     """What a declared port holds: a quantity of its dimensionality, absolute if marked and relative otherwise.
 
