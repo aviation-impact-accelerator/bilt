@@ -5,9 +5,9 @@ import itertools
 import pytest
 
 from bilt import Implementation, Interface, equation, field, system, transform
+from bilt.core._structural_analysis._causalization_block_solver import _structural_scope as scope_module
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import StructuralExpansion
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
-from bilt.core._structural_analysis._causalization_block_solver import _structural_scope as scope_module
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import (
     StructuralScope,
     _IncrementalStructuralScope,
