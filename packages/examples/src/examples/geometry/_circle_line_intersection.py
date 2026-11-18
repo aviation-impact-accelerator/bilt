@@ -9,8 +9,8 @@ shape, so nothing needs connecting.
 from bilt_proposals import field
 
 from bilt import Implementation, Interface, system
-from examples.geometry._circle import Circle, circle, on_circle
-from examples.geometry._line import Line, on_line
+from examples.geometry._circle import Circle, euclidean_circle, point_is_on_circle
+from examples.geometry._line import Line, point_is_on_line
 from examples.geometry._point import Point
 
 
@@ -23,8 +23,8 @@ class CircleLineIntersection(metaclass=Interface):
     point: Point = field()
 
 
-circle_line_intersection = Implementation(
+euclidean_circle_line_intersection = Implementation(
     CircleLineIntersection,
-    [on_circle, on_line],
-    internal_implementations={"circle": circle},
+    [point_is_on_circle, point_is_on_line],
+    internal_implementations={"circle": euclidean_circle},
 )

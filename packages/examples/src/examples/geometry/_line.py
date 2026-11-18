@@ -21,6 +21,6 @@ class Line(metaclass=Interface):
 
 
 @equation
-def on_line(point: Point, line: Line) -> bool:
+def point_is_on_line(point: Point, line: Line) -> bool:
     """`point` lies on `line`."""
     return point.y == line.gradient * point.x + line.intercept

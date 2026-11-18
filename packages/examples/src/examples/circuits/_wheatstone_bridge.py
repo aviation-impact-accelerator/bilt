@@ -22,10 +22,10 @@ are needed. The implementation is just the topology, one `@connection` per node.
 from bilt_proposals import connection, field
 
 from bilt import Implementation, Interface, system
-from examples.circuits._ground import Ground, ground
+from examples.circuits._ground import Ground, ideal_ground
 from examples.circuits._pin import Pin
-from examples.circuits._resistor import Resistor, resistor
-from examples.circuits._voltage_source import VoltageSource, voltage_source
+from examples.circuits._resistor import Resistor, ideal_resistor
+from examples.circuits._voltage_source import VoltageSource, ideal_voltage_source
 
 
 @system
@@ -65,16 +65,16 @@ def node_d(arm3: Resistor, arm4: Resistor, galvanometer: Resistor) -> tuple[Pin,
     return arm3.negative, arm4.positive, galvanometer.negative
 
 
-wheatstone_bridge = Implementation(
+ideal_wheatstone_bridge = Implementation(
     WheatstoneBridge,
     [node_a, node_b, node_c, node_d],
     internal_implementations={
-        "source": voltage_source,
-        "ground": ground,
-        "arm1": resistor,
-        "arm2": resistor,
-        "arm3": resistor,
-        "arm4": resistor,
-        "galvanometer": resistor,
+        "source": ideal_voltage_source,
+        "ground": ideal_ground,
+        "arm1": ideal_resistor,
+        "arm2": ideal_resistor,
+        "arm3": ideal_resistor,
+        "arm4": ideal_resistor,
+        "galvanometer": ideal_resistor,
     },
 )

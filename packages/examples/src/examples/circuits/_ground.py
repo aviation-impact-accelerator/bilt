@@ -22,9 +22,9 @@ class Ground(metaclass=Interface):
 
 
 @equation
-def ground_reference(terminal: Pin, potential: Annotated[Quantity, VOLTAGE]) -> bool:
+def terminal_is_at_ground_potential(terminal: Pin, potential: Annotated[Quantity, VOLTAGE]) -> bool:
     """The pin is at the reference potential."""
     return terminal.potential == potential
 
 
-ground = Implementation(Ground, [ground_reference])
+ideal_ground = Implementation(Ground, [terminal_is_at_ground_potential])

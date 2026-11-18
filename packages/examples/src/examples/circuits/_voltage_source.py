@@ -7,7 +7,11 @@ from bilt_proposals import field
 from bilt import Implementation, Interface, Quantity, QuantityTensor, system
 from bilt.units.dimensions import CURRENT, VOLTAGE
 from examples.circuits._pin import Pin
-from examples.circuits._two_terminal import current_conservation, current_through, potential_difference
+from examples.circuits._two_terminal import (
+    current_enters_at_positive_pin,
+    current_is_conserved,
+    voltage_is_potential_difference,
+)
 
 
 @system
@@ -20,4 +24,6 @@ class VoltageSource(metaclass=Interface):
     current: Annotated[Quantity | QuantityTensor, CURRENT] = field()
 
 
-voltage_source = Implementation(VoltageSource, [potential_difference, current_conservation, current_through])
+ideal_voltage_source = Implementation(
+    VoltageSource, [voltage_is_potential_difference, current_is_conserved, current_enters_at_positive_pin]
+)

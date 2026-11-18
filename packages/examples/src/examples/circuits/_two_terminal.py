@@ -16,18 +16,18 @@ from examples.circuits._pin import Pin
 
 
 @equation
-def potential_difference(positive: Pin, negative: Pin, voltage: Annotated[Quantity, VOLTAGE]) -> bool:
+def voltage_is_potential_difference(positive: Pin, negative: Pin, voltage: Annotated[Quantity, VOLTAGE]) -> bool:
     """Voltage across the component."""
     return voltage == positive.potential - negative.potential
 
 
 @equation
-def current_conservation(positive: Pin, negative: Pin) -> bool:
+def current_is_conserved(positive: Pin, negative: Pin) -> bool:
     """Current entering at the positive pin leaves at the negative pin."""
     return positive.current == -negative.current
 
 
 @equation
-def current_through(positive: Pin, current: Annotated[Quantity, CURRENT]) -> bool:
+def current_enters_at_positive_pin(positive: Pin, current: Annotated[Quantity, CURRENT]) -> bool:
     """Current through the component is the current entering at the positive pin."""
     return current == positive.current
