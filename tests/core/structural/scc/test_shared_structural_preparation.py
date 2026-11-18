@@ -3,7 +3,7 @@
 """Check structural preparation reuse without sharing execution decisions."""
 
 import pytest
-import rustworkx as rx
+lazy import rustworkx as rx
 
 from bilt import Implementation, Interface, equation, field, system, transform
 from bilt._backend._python._backend import PYTHON_BACKEND
@@ -94,7 +94,7 @@ def test_different_supplied_inputs_remain_independent(monkeypatch: pytest.Monkey
     original = _structural_validation.StructuralExpansion.collect
     calls = []
 
-    def collect(self: StructuralExpansion):
+    def collect(self: StructuralExpansion) -> tuple[rx.PyGraph, dict[str, int]]:
         calls.append(self)
         return original(self)
 
