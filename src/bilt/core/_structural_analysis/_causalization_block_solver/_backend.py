@@ -27,6 +27,7 @@ from bilt.core._structural_analysis._causalization_block_solver._route_cache imp
 )
 from bilt.core._structural_analysis._causalization_block_solver._structural_cache import structural_cache_scope
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import (
+    shares_equation_scope,
     validate_request_structure,
 )
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
@@ -61,6 +62,7 @@ class CausalizationStructuralAnalyzer:
         self.backend = backend
         self.full_incidence_graph = FullIncidenceGraph(constituents)
         self._failures: dict[PlanStep, RealizationFailure] = {}
+        self._prepared_scopes: list[tuple[frozenset[str], str, ExpansionSnapshot]] = []
 
     def analyse(self, request: EvaluationRequest) -> BackendCase:
         """Find and realise a plan, sharing request caches across nested analysis."""
@@ -70,11 +72,25 @@ class CausalizationStructuralAnalyzer:
     def _analyse(self, request: EvaluationRequest) -> BackendCase:
         """Search within the current request's cache scopes."""
         available = set(request.input_domains)
+        supplied = frozenset(available)
+        prepared = next(
+            (
+                snapshot
+                for inputs, original, snapshot in reversed(self._prepared_scopes)
+                if inputs == supplied and shares_equation_scope(snapshot, original, request.output)
+            ),
+            None,
+        )
         structure = validate_request_structure(
             self.full_incidence_graph,
             available,
             request.output,
+            prepared=prepared,
         )
+        if prepared is None and structure is not None:
+            self._prepared_scopes.append((supplied, request.output, structure.snapshot))
+            if len(self._prepared_scopes) > 8:
+                self._prepared_scopes.pop(0)
         expanded = self._preflight(request, structure)
         if expanded is not None:
             return expanded

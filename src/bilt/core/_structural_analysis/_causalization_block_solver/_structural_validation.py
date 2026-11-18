@@ -5,6 +5,7 @@ from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltOverconstrainedError,
     BiltUnderconstrainedError,
 )
+from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import (
     ExpansionSnapshot,
     StructuralExpansion,
@@ -67,10 +68,40 @@ def validate_structure(
     return partition
 
 
+def shares_equation_scope(snapshot: ExpansionSnapshot, original: str, requested: str) -> bool:
+    """Test conservative target equivalence without following directed transforms."""
+    if original == requested:
+        return True
+    if requested in snapshot.available or requested not in snapshot.attributes:
+        return False
+
+    adjacency: dict[str, set[str]] = {}
+    for constraint in snapshot.constraints:
+        if not isinstance(constraint.operation, BasicEquation):
+            continue
+        attributes = sorted(constraint.attributes - snapshot.available)
+        for attribute in attributes[1:]:
+            adjacency.setdefault(attributes[0], set()).add(attribute)
+            adjacency.setdefault(attribute, set()).add(attributes[0])
+
+    reached = {original}
+    pending = [original]
+    while pending:
+        for neighbor in adjacency.get(pending.pop(), ()):
+            if neighbor == requested:
+                return True
+            if neighbor not in reached:
+                reached.add(neighbor)
+                pending.append(neighbor)
+    return False
+
+
 def validate_request_structure(
     incidence: FullIncidenceGraph,
     available: collections.abc.Set[str],
     output: str,
+    *,
+    prepared: ExpansionSnapshot | None = None,
 ) -> ValidatedStructure | None:
     """Expand relevant children structurally, then validate the combined scope.
 
@@ -83,8 +114,13 @@ def validate_request_structure(
     if output in available:
         return None
 
-    expansion = StructuralExpansion(incidence, available, output)
-    graph, attributes = expansion.collect()
+    if prepared is None:
+        expansion = StructuralExpansion(incidence, available, output)
+        graph, attributes = expansion.collect()
+        snapshot = expansion.snapshot()
+    else:
+        graph, attributes = prepared.to_incidence()
+        snapshot = prepared
     try:
         partition = validate_structure(
             graph,
@@ -96,7 +132,6 @@ def validate_request_structure(
         message = f"Cannot compute {output} from available inputs {sorted(available)}. {error}"
         raise type(error)(message) from error
 
-    snapshot = expansion.snapshot()
     attribute_nodes = frozenset(attributes.values())
     well_attributes = frozenset(name for name, node in attributes.items() if node in partition.well_determined)
     # to_incidence inserts primitive rows in snapshot order after the attributes.
