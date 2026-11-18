@@ -2,6 +2,10 @@ __all__ = ["settle_assignments"]
 
 import typing
 
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
+from bilt.core._structural_analysis._causalization_block_solver._structural_validation import (
+    validate_request_structure,
+)
 from bilt.core._structural_analysis._plan import PlanStep
 from bilt.core._sub_system import SubSystemConstituent
 
@@ -56,6 +60,7 @@ class _TargetSettlement:
     ) -> None:
         self.assignments = assignments
         self.backend = backend
+        self.fixed = frozenset(available)
         self.established = set(available)
         self.candidates = self.established | set(assignments)
         self.steps: dict[str, PlanStep] = {}
@@ -113,7 +118,7 @@ class _TargetSettlement:
         for port in ports:
             if not isinstance(self.assignments.get(port), SubSystemConstituent):
                 yield port
-        step = _assignment_step(operation, output, self.established, self.backend)
+        step = self._child_route(operation, output)
         if step is not None:
             return step
         for port in ports:
@@ -128,3 +133,44 @@ class _TargetSettlement:
         # Preserve cyclic/unresolved candidates for explicit checks, without
         # claiming their dependencies have been established.
         return _assignment_step(operation, output, self.candidates, self.backend)
+
+    def _child_route(self, operation: SubSystemConstituent, output: str) -> PlanStep | None:
+        """Avoid constraining a child with its own already-computed sibling outputs.
+
+        Prefer the ordinary route. Only if the child's requested route is
+        structurally overconstrained do we retry without outputs produced by
+        this same child in the parent. Explicitly supplied ports stay fixed.
+        """
+        step = _assignment_step(operation, output, self.established, self.backend)
+        if step is None or step.child_inputs is None:
+            return step
+
+        sibling_outputs = {
+            port
+            for port in self.established
+            if port not in self.fixed and port != output and self.assignments.get(port) is operation
+        }
+        if not sibling_outputs or not any(operation.child_port(port) in step.child_inputs for port in sibling_outputs):
+            return step
+
+        child_incidence = operation.implementation.structural_analysis().incidence
+        try:
+            validate_request_structure(
+                child_incidence,
+                set(step.child_inputs),
+                operation.child_port(output),
+            )
+        except BiltOverconstrainedError:
+            reduced = _assignment_step(operation, output, self.established - sibling_outputs, self.backend)
+            if reduced is not None and reduced.child_inputs is not None:
+                try:
+                    validate_request_structure(
+                        child_incidence,
+                        set(reduced.child_inputs),
+                        operation.child_port(output),
+                    )
+                except BiltOverconstrainedError:
+                    pass
+                else:
+                    return reduced
+        return step

@@ -59,6 +59,11 @@ class StructuralAnalysis:
         self._incidence = FullIncidenceGraph(constituents)
 
     @property
+    def incidence(self) -> FullIncidenceGraph:
+        """The backend-independent incidence graph used for request validation."""
+        return self._incidence
+
+    @property
     def attribute_names(self) -> frozenset[str]:
         """Return local incidence names, including qualified child ports."""
         return frozenset(self._incidence.attribute_nodes)
