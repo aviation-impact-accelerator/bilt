@@ -33,6 +33,69 @@ def _edge_step(graph: rx.PyGraph, first: int, second: int) -> PlanStep:
     )
 
 
+def _target_matching_edges(
+    graph: rx.PyGraph,
+    edges: list[tuple[int, int]],
+    assignments: collections.abc.Mapping[str, BiltModelConstituent],
+    output: str,
+) -> set[tuple[int, int]]:
+    """Keep alternatives that can change the target's dependency route."""
+    attribute_nodes = {
+        typing.cast("str", graph[node]): node for node in graph.node_indices() if isinstance(graph[node], str)
+    }
+    matched_edges: dict[str, tuple[int, int]] = {}
+    matched_operations: dict[int, str] = {}
+    for first, second in edges:
+        step = _edge_step(graph, first, second)
+        if assignments.get(step.output) is not step.operation:
+            continue
+        matched_edges[step.output] = (first, second)
+        operation_node = second if isinstance(graph[first], str) else first
+        matched_operations[operation_node] = step.output
+
+    relevant: set[tuple[int, int]] = set()
+    pending = [output]
+    visited: set[str] = set()
+    while pending:
+        attribute = pending.pop()
+        if attribute in visited:
+            continue
+        visited.add(attribute)
+
+        if edge := matched_edges.get(attribute):
+            relevant.add(edge)
+            operation = assignments[attribute]
+            pending.extend(parameter for parameter in operation.__bilt_parameters__ if parameter != attribute)
+            continue
+
+        # If an input has no assignment, a candidate producer may be matched
+        # elsewhere. Freeing that producer can make the input computable.
+        node = attribute_nodes.get(attribute)
+        if node is not None:
+            pending.extend(
+                matched_operations[neighbor] for neighbor in graph.neighbors(node) if neighbor in matched_operations
+            )
+    return relevant
+
+
+def _alternatives(
+    graph: rx.PyGraph,
+    edges: list[tuple[int, int]],
+    assignments: collections.abc.Mapping[str, BiltModelConstituent],
+    output: str | None,
+) -> collections.abc.Iterator[rx.PyGraph]:
+    relevant = _target_matching_edges(graph, edges, assignments, output) if output is not None else None
+    for first, second in edges:
+        if relevant is not None and (first, second) not in relevant:
+            continue
+        step = _edge_step(graph, first, second)
+        if assignments.get(step.output) is not step.operation:
+            continue
+        alternative = graph.copy()
+        alternative.remove_edge(first, second)
+        yield alternative
+
+
 def candidate_assignments(
     graph: rx.PyGraph,
     failures: collections.abc.Mapping[PlanStep, RealizationFailure],
@@ -83,11 +146,4 @@ def candidate_assignments(
             pending.append(candidate_graph)
             continue
 
-        for first, second in edges:
-            step = _edge_step(candidate_graph, first, second)
-            if assignments.get(step.output) is not step.operation:
-                continue
-
-            alternative = candidate_graph.copy()
-            alternative.remove_edge(first, second)
-            pending.append(alternative)
+        pending.extend(_alternatives(candidate_graph, edges, assignments, output))

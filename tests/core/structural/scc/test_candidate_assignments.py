@@ -1,3 +1,4 @@
+import itertools
 import typing
 
 import pytest
@@ -78,8 +79,8 @@ def test_prunes_targetless_descendants_and_preserves_other_choices(monkeypatch: 
 
     monkeypatch.setattr(search, "find_matching", checked_matching)
     assignments = list(search.candidate_assignments(graph, {}, output="x"))
-    assert {frozenset(assignment) for assignment in assignments} == {frozenset({"x", "y"}), frozenset({"x"})}
-    expected_calls = 2
+    assert {frozenset(assignment) for assignment in assignments} == {frozenset({"x", "y"})}
+    expected_calls = 1
     assert len(calls) == expected_calls
     assert graph.edge_list() == original_edges
 
@@ -107,3 +108,155 @@ def test_supplied_target_needs_no_producer() -> None:
         case = analyser.analyse(EvaluationRequest(output="x", input_domains={"x": Domain.scalar()}))
         expected = 4.0
         assert PYTHON_BACKEND.chain_case(case).callable(x=expected) == expected
+
+
+def test_unrelated_matching_edges_do_not_spawn_target_retries(monkeypatch: pytest.MonkeyPatch) -> None:
+    graph = _graph()
+    for index in range(12):
+        attribute = graph.add_node(f"unused_{index}")
+        operation = graph.add_node(y)
+        graph.add_edge(attribute, operation, 0)
+
+    original = search.find_matching
+    calls = []
+
+    def counted_matching(candidate: rx.PyGraph) -> dict[str, BiltModelConstituent]:
+        calls.append(candidate)
+        return original(candidate)
+
+    monkeypatch.setattr(search, "find_matching", counted_matching)
+    candidates = list(search.candidate_assignments(graph, {}, output="x"))
+    assert len(candidates) == 1
+    assert candidates[0]["x"] is x
+    assert len(calls) == 1
+
+
+def test_target_dependency_producer_alternatives_still_get_searched() -> None:
+    @equation
+    def target(x: float, y: float) -> bool:
+        return x == y + 1
+
+    @equation
+    def source(y: float, z: float) -> bool:
+        return y == z + 2
+
+    graph = rx.PyGraph(multigraph=False)
+    x_node = graph.add_node("x")
+    y_node = graph.add_node("y")
+    z_node = graph.add_node("z")
+    target_node = graph.add_node(target)
+    source_node = graph.add_node(source)
+    graph.add_edge(x_node, target_node, 1)
+    graph.add_edge(y_node, target_node, 0)
+    graph.add_edge(y_node, source_node, 1)
+    graph.add_edge(z_node, source_node, 0)
+
+    assignments = list(search.candidate_assignments(graph, {}, output="x"))
+    assert assignments[0]["x"] is target
+    assert assignments[0]["y"] is source
+    assert any(candidate.get("x") is target and "y" not in candidate for candidate in assignments)
+
+
+def test_unmatched_target_can_reassign_competing_equation() -> None:
+    @equation
+    def relation(x: float, y: float) -> bool:
+        return x == y + 1
+
+    graph = rx.PyGraph(multigraph=False)
+    x_node = graph.add_node("x")
+    y_node = graph.add_node("y")
+    relation_node = graph.add_node(relation)
+    graph.add_edge(x_node, relation_node, 0)
+    graph.add_edge(y_node, relation_node, 1)
+
+    candidates = list(search.candidate_assignments(graph, {}, output="x"))
+    assert candidates[0] == {"y": relation}
+    assert any(candidate.get("x") is relation for candidate in candidates)
+
+
+class _SmallEquation:
+    def __init__(self, name: str, parameters: tuple[str, ...]) -> None:
+        self.__bilt_name__ = name
+        self.__bilt_parameters__ = parameters
+
+
+def _exhaustive_candidates(graph: rx.PyGraph, *, target: str) -> list[dict[str, BiltModelConstituent]]:
+    """Reference search that tries every matched edge, including unrelated ones."""
+    target_node = next(node for node in graph.node_indices() if graph[node] == target)
+    pending = [graph]
+    visited: set[frozenset[tuple[int, int]]] = set()
+    found = []
+    while pending:
+        candidate = pending.pop()
+        if candidate.degree(target_node) == 0:
+            continue
+        edges = list(candidate.edge_list())
+        signature = frozenset((min(a, b), max(a, b)) for a, b in edges)
+        if signature in visited:
+            continue
+        visited.add(signature)
+        assignments = search.find_matching(candidate)
+        found.append(assignments)
+        for first, second in edges:
+            name, operation = (
+                (candidate[first], candidate[second])
+                if isinstance(candidate[first], str)
+                else (candidate[second], candidate[first])
+            )
+            if assignments.get(name) is operation:
+                alternative = candidate.copy()
+                alternative.remove_edge(first, second)
+                pending.append(alternative)
+    return found
+
+
+def _target_route(assignments: dict[str, BiltModelConstituent], target: str) -> tuple[tuple[str, str | None], ...]:
+    route: dict[str, str | None] = {}
+    pending = [target]
+    while pending:
+        attribute = pending.pop()
+        if attribute in route:
+            continue
+        operation = assignments.get(attribute)
+        route[attribute] = None if operation is None else operation.__bilt_name__
+        if operation is not None:
+            pending.extend(parameter for parameter in operation.__bilt_parameters__ if parameter != attribute)
+    return tuple(sorted(route.items()))
+
+
+def test_exhaustive_small_matching_routes_match_unpruned_search() -> None:
+    """Retain target routes across all small incidence patterns, including cycles."""
+    names = ("x", "y", "z")
+    port_sets = [ports for size in range(1, len(names) + 1) for ports in itertools.combinations(names, size)]
+    for relations in itertools.product(port_sets, repeat=3):
+        if not any("x" in ports for ports in relations):
+            continue
+        graph = rx.PyGraph(multigraph=False)
+        attributes = {name: graph.add_node(name) for name in names}
+        for index, ports in enumerate(relations):
+            operation = graph.add_node(typing.cast("BiltModelConstituent", _SmallEquation(f"relation_{index}", ports)))
+            for name in ports:
+                graph.add_edge(attributes[name], operation, 0)
+
+        exhaustive = {_target_route(assignment, "x") for assignment in _exhaustive_candidates(graph, target="x")}
+        pruned = {_target_route(assignment, "x") for assignment in search.candidate_assignments(graph, {}, output="x")}
+        assert pruned == exhaustive, f"Target route missing for {relations!r}"
+
+
+def test_failed_preferred_producer_keeps_other_route_available() -> None:
+    @equation
+    def alternative(x: float, a: float) -> bool:
+        return x == a * 2
+
+    graph = rx.PyGraph(multigraph=False)
+    target = graph.add_node("x")
+    graph.add_edge(target, graph.add_node(x), 1)
+    graph.add_edge(target, graph.add_node(alternative), 1)
+
+    failures: dict[PlanStep, RealizationFailure] = {}
+    candidates = search.candidate_assignments(graph, failures, output="x")
+    first = next(candidates)
+    failures[PlanStep(operation=first["x"], output="x")] = RealizationFailure(
+        failed_plan_step=PlanStep(operation=first["x"], output="x")
+    )
+    assert any(candidate.get("x") is not first["x"] for candidate in candidates)
