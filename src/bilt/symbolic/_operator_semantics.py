@@ -26,6 +26,9 @@ from bilt.symbolic._atoms import (
     CONDITIONAL,
     INV,
     ISEL,
+    MASK_AND,
+    MASK_NOT,
+    MASK_OR,
     MAX,
     MEAN,
     MIN,
@@ -35,6 +38,7 @@ from bilt.symbolic._atoms import (
     PROD,
     SEL,
     SUM,
+    WHERE,
     CoordinateType,
     DimensionType,
     FloatType,
@@ -214,11 +218,21 @@ def describe_operator(
     if tree.head in (SUM, MEAN, MIN, MAX, PROD, ISEL, SEL):
         return _axis_operator(tree, operand_domains)
 
-    if tree.head is CONDITIONAL:
-        if len(operand_domains) != _CONDITIONAL_ARITY or any(not item.is_scalar for item in operand_domains):
-            message = "Conditional predicates and branches must have scalar domains."
+    if tree.head in (CONDITIONAL, WHERE):
+        if len(operand_domains) != _CONDITIONAL_ARITY:
+            message = "Conditional selection requires three operands."
             raise BiltOperatorSemanticsError(message)
-        result = Domain.scalar()
+        # A predicate and both branches may contribute at each output coordinate.
+        # Keep conservative dependencies, independent of runtime mask values.
+        result = union(*operand_domains)
+        return OperatorSemantics(result, tuple(CoordinateRelation(item, result) for item in operand_domains))
+
+    if tree.head in (MASK_AND, MASK_OR, MASK_NOT):
+        expected = 1 if tree.head is MASK_NOT else _BINARY_ARITY
+        if len(operand_domains) != expected:
+            message = f"Mask operation {tree.head!s} requires {expected} operand(s)."
+            raise BiltOperatorSemanticsError(message)
+        result = union(*operand_domains)
         return OperatorSemantics(result, tuple(CoordinateRelation(item, result) for item in operand_domains))
 
     if tree.is_relation:

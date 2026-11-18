@@ -4,10 +4,10 @@ import pytest
 
 from bilt.core._domain_registry import DomainRegistry
 from bilt.core._tensors._expression_lowering import lower_expression
-from bilt.symbolic._atoms import ADD, MUL, NEG, POW, axis
+from bilt.symbolic._atoms import ADD, CONDITIONAL, MUL, NEG, POW, WHERE, axis
 from bilt.symbolic._dimensions import coordinate_axis, dim
 from bilt.symbolic._domains import domain
-from bilt.symbolic._expressions import Expr
+from bilt.symbolic._expressions import Expr, conditional_expr
 from bilt.symbolic._operator_semantics import (
     BiltOperatorSemanticsError,
     SymbolCoordinate,
@@ -210,3 +210,34 @@ def test_coordinate_rank_is_checked_before_tracing() -> None:
     expression = describe_expression(Tree(NEG, (symbol_tree("x"),)), {"x": domain(TARGET)})
     with pytest.raises(BiltOperatorSemanticsError, match="coordinate rank"):
         list(expression.dependencies((), _registry()))
+
+
+def test_mask_conditions_track_named_coordinate_dependencies() -> None:
+    a, b = Expr.symbol("a"), Expr.symbol("b")
+    expression = conditional_expr((a > 0) & ~(b < 0), a, b)
+    inputs = {"a": domain(SOURCE), "b": domain(TARGET)}
+    described = describe_expression(expression.tree, inputs)
+    lowered = lower_expression(expression, symbol_domains=inputs, canonical_order=domain(SOURCE, TARGET))
+
+    assert described.domain == lowered.domain == domain(SOURCE, TARGET)
+    assert lowered.tree.head is WHERE
+    assert set(described.dependencies((1, 0), _registry())) == {
+        SymbolCoordinate("a", (1,)),
+        SymbolCoordinate("b", (0,)),
+    }
+
+
+def test_scalar_predicate_and_identical_tensor_branch_domains_remain_lazy() -> None:
+    selector, a, b = (Expr.symbol(name) for name in ("selector", "a", "b"))
+    expression = conditional_expr(selector > 0, a, b)
+    inputs = {"selector": domain(), "a": domain(SOURCE), "b": domain(SOURCE)}
+    described = describe_expression(expression.tree, inputs)
+    lowered = lower_expression(expression, symbol_domains=inputs, canonical_order=domain(SOURCE))
+
+    assert described.domain == lowered.domain == domain(SOURCE)
+    assert lowered.tree.head is CONDITIONAL
+    assert set(described.dependencies((1,), _registry())) == {
+        SymbolCoordinate("selector", ()),
+        SymbolCoordinate("a", (1,)),
+        SymbolCoordinate("b", (1,)),
+    }
