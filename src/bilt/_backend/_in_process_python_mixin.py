@@ -16,11 +16,15 @@ from bilt._backend._linear_solve import (
 )
 from bilt.core._to_ast import (
     ISEL_INTRINSIC_NAME,
+    MASK_AND_INTRINSIC_NAME,
+    MASK_NOT_INTRINSIC_NAME,
+    MASK_OR_INTRINSIC_NAME,
     MAX_INTRINSIC_NAME,
     MEAN_INTRINSIC_NAME,
     MIN_INTRINSIC_NAME,
     PROD_INTRINSIC_NAME,
     SUM_INTRINSIC_NAME,
+    WHERE_INTRINSIC_NAME,
 )
 
 
@@ -34,6 +38,10 @@ class PythonIntrinsicBindings:
     min: typing.Callable[..., typing.Any]
     max: typing.Callable[..., typing.Any]
     prod: typing.Callable[..., typing.Any]
+    where: typing.Callable[..., typing.Any]
+    mask_and: typing.Callable[..., typing.Any]
+    mask_or: typing.Callable[..., typing.Any]
+    mask_not: typing.Callable[..., typing.Any]
     linear_solve: typing.Callable[..., typing.Any] | None = None
 
     linear_basis: typing.Callable[..., typing.Any] | None = None
@@ -48,6 +56,10 @@ class PythonIntrinsicBindings:
             MIN_INTRINSIC_NAME: self.min,
             MAX_INTRINSIC_NAME: self.max,
             PROD_INTRINSIC_NAME: self.prod,
+            WHERE_INTRINSIC_NAME: self.where,
+            MASK_AND_INTRINSIC_NAME: self.mask_and,
+            MASK_OR_INTRINSIC_NAME: self.mask_or,
+            MASK_NOT_INTRINSIC_NAME: self.mask_not,
         }
         if self.linear_solve is not None:
             namespace[LINEAR_SOLVE_INTRINSIC_NAME] = self.linear_solve

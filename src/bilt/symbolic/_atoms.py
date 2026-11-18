@@ -19,6 +19,9 @@ __all__ = [
     "ISEL",
     "LESS_THAN",
     "LESS_THAN_OR_EQUALS",
+    "MASK_AND",
+    "MASK_NOT",
+    "MASK_OR",
     "MAX",
     "MEAN",
     "MIN",
@@ -29,6 +32,7 @@ __all__ = [
     "PROD",
     "SEL",
     "SUM",
+    "WHERE",
     "Atom",
     "AtomType",
     "AxisType",
@@ -188,6 +192,10 @@ POW = Atom(OpType, "pow")
 NEG = Atom(OpType, "neg")
 INV = Atom(OpType, "inv")
 CONDITIONAL = Atom(OpType, "conditional")
+WHERE = Atom(OpType, "where")
+MASK_AND = Atom(OpType, "mask_and")
+MASK_OR = Atom(OpType, "mask_or")
+MASK_NOT = Atom(OpType, "mask_not")
 
 MEAN = Atom(ReductionOpType, "mean")
 SUM = Atom(ReductionOpType, "sum")

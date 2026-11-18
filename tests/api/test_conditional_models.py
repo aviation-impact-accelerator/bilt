@@ -1,9 +1,10 @@
 # ruff: noqa: SIM108, PLR2004, PLR5501
 lazy from contextlib import AbstractContextManager
 
+import numpy as np
 import pytest
 
-from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, dim, equation, field, system, tensor
+from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, Tensor, dim, equation, field, system, tensor
 from bilt.errors import BiltAnalysisError
 
 
@@ -95,25 +96,29 @@ def test_inverse_through_conditional_is_reported_as_analysis_failure(backend: Ab
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_tensor_predicate_failure_is_reported_as_analysis_failure(backend: AbstractContextManager[object]) -> None:
+def test_tensor_predicate_selects_elementwise(backend: AbstractContextManager[object]) -> None:
     implementation = Implementation(Piecewise, [piecewise_value])
-    with backend, implementation, pytest.raises(BiltAnalysisError, match="Cannot compute value") as raised:
-        _ = Piecewise(x=tensor([1.0, -1.0], over=dim("site"))).value  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
-    assert "scalar" in str(raised.value)
+    with backend, implementation:
+        result = Piecewise(x=tensor([2.0, -3.0, 0.0], over=dim("site"))).value  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+    assert isinstance(result, Tensor)
+    np.testing.assert_allclose(result.values, [4.0, 3.0, 0.0])
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 @pytest.mark.parametrize("branch", ("positive", "negative"))
-def test_tensor_valued_conditional_branch_is_rejected(backend: AbstractContextManager[object], branch: str) -> None:
+def test_scalar_predicate_selects_tensor_and_broadcasts(backend: AbstractContextManager[object], branch: str) -> None:
     implementation = Implementation(SelectedValue, [selected_value])
     values = tensor([6.0, 7.0], over=dim("site"))
     if branch == "positive":
         model = SelectedValue(selector=2.0, threshold=0.0, positive=values, negative=9.0)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        expected = [6.0, 7.0]
     else:
-        model = SelectedValue(selector=2.0, threshold=0.0, positive=6.0, negative=values)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
-    with backend, implementation, pytest.raises(BiltAnalysisError, match="Cannot compute result") as raised:
-        _ = model.result
-    assert "scalar" in str(raised.value)
+        model = SelectedValue(selector=-2.0, threshold=0.0, positive=6.0, negative=values)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+        expected = [6.0, 7.0]
+    with backend, implementation:
+        result = model.result
+    assert isinstance(result, Tensor)
+    np.testing.assert_allclose(result.values, expected)
 
 
 @system

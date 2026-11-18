@@ -15,10 +15,14 @@ from bilt.symbolic._atoms import (
     CONDITIONAL,
     INV,
     ISEL,
+    MASK_AND,
+    MASK_NOT,
+    MASK_OR,
     MUL,
     NEG,
     POW,
     SEL,
+    WHERE,
     AxisType,
     CoordinateType,
     DimensionType,
@@ -32,7 +36,7 @@ from bilt.symbolic._atoms import (
 )
 from bilt.symbolic._domains import Domain
 from bilt.symbolic._operator_semantics import describe_operator, without_axis
-from bilt.symbolic._tree import Tree, axis_tree, int_tree
+from bilt.symbolic._tree import Tree, axis_tree, int_tree, where_tree
 
 if typing.TYPE_CHECKING:
     from collections.abc import Mapping
@@ -116,7 +120,7 @@ def _lower_tree(
     if tree.is_leaf:
         return _lower_leaf(tree, symbol_domains)
 
-    if tree.head is CONDITIONAL or tree.head.atom_type is RelationOpType:
+    if tree.head in (CONDITIONAL, WHERE, MASK_AND, MASK_OR, MASK_NOT) or tree.head.atom_type is RelationOpType:
         return _lower_predicate_or_conditional(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
 
     if tree.head.atom_type is ReductionOpType:
@@ -183,6 +187,8 @@ def _lower_predicate_or_conditional(
 ) -> LoweredExpression:
     if tree.head is CONDITIONAL:
         return _lower_conditional(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
+    if tree.head in (WHERE, MASK_AND, MASK_OR, MASK_NOT):
+        return _lower_mask_operation(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
     return _lower_relation(tree, symbol_domains=symbol_domains, canonical_order=canonical_order)
 
 
@@ -195,10 +201,29 @@ def _lower_relation(
     operands = tuple(
         _lower_tree(child, symbol_domains=symbol_domains, canonical_order=canonical_order) for child in tree.args
     )
-    if len(operands) != _RELATION_ARITY or any(not operand.domain.is_scalar for operand in operands):
-        message = "Conditional predicates require scalar comparison operands."
+    if len(operands) != _RELATION_ARITY:
+        message = "Symbolic comparisons require two operands."
         raise BiltTensorDomainError(message)
-    output_domain = describe_operator(tree, tuple(operand.domain for operand in operands)).output_domain
+    output_domain = canonicalized(
+        describe_operator(tree, tuple(operand.domain for operand in operands)).output_domain,
+        canonical_order,
+    ).domain
+    return LoweredExpression(Tree(tree.head, tuple(operand.tree for operand in operands)), output_domain)
+
+
+def _lower_mask_operation(
+    tree: Tree,
+    *,
+    symbol_domains: Mapping[str, Domain],
+    canonical_order: Domain,
+) -> LoweredExpression:
+    operands = tuple(
+        _lower_tree(child, symbol_domains=symbol_domains, canonical_order=canonical_order) for child in tree.args
+    )
+    output_domain = canonicalized(
+        describe_operator(tree, tuple(operand.domain for operand in operands)).output_domain,
+        canonical_order,
+    ).domain
     return LoweredExpression(Tree(tree.head, tuple(operand.tree for operand in operands)), output_domain)
 
 
@@ -211,16 +236,17 @@ def _lower_conditional(
     predicate, when_true, when_false = (
         _lower_tree(child, symbol_domains=symbol_domains, canonical_order=canonical_order) for child in tree.args
     )
-    if not tree.args[0].is_relation or not predicate.domain.is_scalar:
-        message = "Conditional predicates must be scalar relations."
+    if not tree.args[0].is_mask:
+        message = "Conditional predicates must be symbolic Boolean masks."
         raise BiltTensorDomainError(message)
-    if not when_true.domain.is_scalar or not when_false.domain.is_scalar:
-        message = "Conditional branches must both be scalar expressions."
-        raise BiltTensorDomainError(message)
-    output_domain = describe_operator(
-        tree,
-        (predicate.domain, when_true.domain, when_false.domain),
-    ).output_domain
+    output_domain = canonicalized(
+        describe_operator(tree, (predicate.domain, when_true.domain, when_false.domain)).output_domain,
+        canonical_order,
+    ).domain
+    if not predicate.domain.is_scalar or when_true.domain != when_false.domain:
+        # Tensor masks select elementwise. A scalar mask with differently shaped
+        # branches needs named-domain broadcasting rather than branching.
+        return LoweredExpression(where_tree(predicate.tree, when_true.tree, when_false.tree), output_domain)
     return LoweredExpression(
         Tree(CONDITIONAL, (predicate.tree, when_true.tree, when_false.tree)),
         output_domain,

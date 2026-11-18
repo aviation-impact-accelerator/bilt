@@ -149,6 +149,46 @@ Concrete tensor methods are
 model-only: calling them directly on a returned `Tensor` raises `TypeError`.
 Outside models, work with `t.values` for numerical operations.
 
+## Conditional selection in equations
+
+Equations can use ordinary `if/elif/else` to select values using scalar or
+tensor comparisons. When the predicate varies over a named dimension, Bilt
+selects elementwise and broadcasts the predicate and branches by dimension name.
+
+```python exec="off"
+from bilt import equation
+
+
+@equation
+def within_range(x: float, result: float) -> bool:
+    if (x > 0) & (x < 5):
+        selected = x
+    else:
+        selected = 0.0
+    return result == selected
+```
+
+The same equation works with a scalar or tensor `x`. Combine symbolic comparisons
+with `&` (and), `|` (or), and `~` (not). **Parenthesise each comparison**:
+Python's bitwise precedence differs from comparison precedence. Python's
+`and`, `or`, `not` and chained comparisons are not supported for symbolic
+predicates.
+
+A scalar predicate with branches on the same domain remains lazy, using Python
+branching or JAX `lax.cond`. A tensor predicate, or a scalar predicate selecting
+branches with different domains, lowers to internal elementwise selection
+(`numpy.where` / `jax.numpy.where`). **Both branches are evaluated** in that
+case, even where only one contributes to the result. Avoid expressions that
+fail or produce invalid intermediate values outside the selected region.
+
+The result domain is the union of the predicate and branch domains. Both branches
+must have compatible physical dimensionality and absolute/relative quantity
+kinds. Selection does not create a smaller or partially known tensor. Inverting
+an equation through a conditional is unsupported.
+
+This is equation syntax, **not** a public `bilt.where()` or `Tensor.where()`
+API. Selection masks are internal, not independent model ports.
+
 ## Errors
 
 Import exceptions from `bilt.errors`.

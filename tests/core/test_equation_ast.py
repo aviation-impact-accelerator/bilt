@@ -361,3 +361,44 @@ def test_nested_conditionals_normalise_recursively(source: str, expected_count: 
 def test_rejects_invalid_nested_conditionals(source: str, message: str) -> None:
     with pytest.raises(BiltEquationSyntaxError, match=message):
         _normalise(source)
+
+
+@pytest.mark.parametrize(
+    "predicate",
+    (
+        "x > 0 and x < 5",
+        "x > 0 or x < 5",
+        "not (x > 0)",
+        "0 < x < 5",
+        "(x > 0) ^ (x < 5)",
+        "x",
+        "True",
+    ),
+)
+def test_mask_predicates_reject_non_symbolic_boolean_syntax(predicate: str) -> None:
+    source = (
+        "def eq(x, y):\n"
+        f"    if {predicate}:\n"
+        "        selected = x\n"
+        "    else:\n"
+        "        selected = -x\n"
+        "    return y == selected"
+    )
+    with pytest.raises(BiltEquationSyntaxError, match="mask predicates"):
+        _normalise(source)
+
+
+def test_compound_mask_predicate_normalises_without_python_boolean_evaluation() -> None:
+    node = _normalise("""
+        def eq(x, y):
+            if ~(x == 0) & ((x > 1) | (x < -1)):
+                selected = x
+            else:
+                selected = 0
+            return y == selected
+    """)
+    assignment = node.body[0]
+    assert isinstance(assignment, ast.Assign)
+    assert isinstance(assignment.value, ast.Call)
+    assert isinstance(assignment.value.args[0], ast.BinOp)
+    compile(ast.Module(body=[node], type_ignores=[]), "<normalised equation>", "exec")

@@ -8,7 +8,7 @@ from bilt._backend._jax import JAX_BACKEND
 from bilt._backend._python import PYTHON_BACKEND
 from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._to_ast import tree_to_functiondef
-from bilt.errors import BiltTensorDomainError
+from bilt.symbolic._atoms import CONDITIONAL, WHERE
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain, domain
 from bilt.symbolic._expressions import Expr, conditional_expr
@@ -31,17 +31,30 @@ def test_scalar_conditional_lowers_with_scalar_domain() -> None:
 
 
 @pytest.mark.parametrize("non_scalar", ("x", "a", "b"))
-def test_scalar_conditional_rejects_tensor_predicate_or_branch(non_scalar: str) -> None:
+def test_tensor_conditional_lowers_to_elementwise_mask(non_scalar: str) -> None:
     x, a, b = (Expr.symbol(name) for name in ("x", "a", "b"))
     dimension = Dim("time")
     symbol_domains = dict.fromkeys(("x", "a", "b"), domain())
     symbol_domains[non_scalar] = domain(dimension)
-    with pytest.raises(BiltTensorDomainError, match="scalar"):
-        lower_expression(
-            _expression(x, a, b),
-            symbol_domains=symbol_domains,
-            canonical_order=domain(dimension),
-        )
+    lowered = lower_expression(
+        _expression(x, a, b),
+        symbol_domains=symbol_domains,
+        canonical_order=domain(dimension),
+    )
+    assert lowered.domain == domain(dimension)
+    assert lowered.tree.head is WHERE
+
+
+def test_scalar_predicate_and_equal_tensor_branch_domains_stay_lazy() -> None:
+    x, a, b = (Expr.symbol(name) for name in ("x", "a", "b"))
+    dimension = Dim("time")
+    lowered = lower_expression(
+        _expression(x, a, b),
+        symbol_domains={"x": domain(), "a": domain(dimension), "b": domain(dimension)},
+        canonical_order=domain(dimension),
+    )
+    assert lowered.tree.head is CONDITIONAL
+    assert lowered.domain == domain(dimension)
 
 
 def test_relation_predicate_with_arithmetic_lowers() -> None:
