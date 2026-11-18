@@ -68,6 +68,44 @@ class StructuralAnalysis:
         """Return local incidence names, including qualified child ports."""
         return frozenset(self._incidence.attribute_nodes)
 
+    def _walk(
+        self, targets: frozenset[str], supplied: frozenset[str]
+    ) -> tuple[set[str], set[int], dict[int, set[str]]]:
+            pending = sorted(targets, reverse=True)
+            attributes = set(targets)
+            new_constraints: set[int] = set()
+            new_child_ports: dict[int, set[str]] = {}
+            graph = self.incidence.graph
+
+            while pending:
+                attribute = pending.pop()
+                if attribute in supplied or attribute in self.visited:
+                    continue
+                self.visited.add(attribute)
+                node = self.incidence.attribute_nodes.get(attribute)
+                if node is None:
+                    continue
+                for constituent_node in graph.neighbors(node):
+                    constituent = graph[constituent_node]
+                    if isinstance(constituent, SubSystemConstituent):
+                        port = constituent.child_port(attribute)
+                        child_ports = self.child_ports.setdefault(constituent_node, set())
+                        if port not in child_ports:
+                            child_ports.add(port)
+                            new_child_ports.setdefault(constituent_node, set()).add(port)
+                        continue
+                    if isinstance(constituent, BasicTransform) and attribute != constituent.__bilt_name__:
+                        continue
+                    if constituent_node in self.selected:
+                        continue
+                    self.selected.add(constituent_node)
+                    new_constraints.add(constituent_node)
+                    connected = {graph[neighbor] for neighbor in graph.neighbors(constituent_node)}
+                    attributes.update(connected)
+                    pending.extend(sorted(connected - supplied, reverse=True))
+
+        return attributes, new_constraints, new_child_ports
+
     def inspect(
         self,
         available: collections.abc.Set[str],
@@ -156,38 +194,7 @@ class _IncrementalStructuralScope:
             self.child_ports.clear()
 
         targets = frozenset(required)
-        pending = sorted(targets, reverse=True)
-        attributes = set(targets)
-        new_constraints: set[int] = set()
-        new_child_ports: dict[int, set[str]] = {}
-        graph = self.incidence.graph
-
-        while pending:
-            attribute = pending.pop()
-            if attribute in supplied or attribute in self.visited:
-                continue
-            self.visited.add(attribute)
-            node = self.incidence.attribute_nodes.get(attribute)
-            if node is None:
-                continue
-            for constituent_node in graph.neighbors(node):
-                constituent = graph[constituent_node]
-                if isinstance(constituent, SubSystemConstituent):
-                    port = constituent.child_port(attribute)
-                    child_ports = self.child_ports.setdefault(constituent_node, set())
-                    if port not in child_ports:
-                        child_ports.add(port)
-                        new_child_ports.setdefault(constituent_node, set()).add(port)
-                    continue
-                if isinstance(constituent, BasicTransform) and attribute != constituent.__bilt_name__:
-                    continue
-                if constituent_node in self.selected:
-                    continue
-                self.selected.add(constituent_node)
-                new_constraints.add(constituent_node)
-                connected = {graph[neighbor] for neighbor in graph.neighbors(constituent_node)}
-                attributes.update(connected)
-                pending.extend(sorted(connected - supplied, reverse=True))
+        attributes, new_constraints, new_child_ports = self._walk(targets, supplied)
 
         constraints: dict[int, BasicEquation | BasicTransform] = {}
         for node in sorted(new_constraints, key=self.order.__getitem__):

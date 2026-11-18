@@ -7,7 +7,9 @@ import pytest
 from bilt import Implementation, Interface, equation, field, system, transform
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import StructuralExpansion
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
+from bilt.core._structural_analysis._causalization_block_solver import _structural_scope as scope_module
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import (
+    StructuralScope,
     _IncrementalStructuralScope,
     inspect_structure,
 )
@@ -47,8 +49,6 @@ def b(a: float) -> float:
 
 
 def _scope_signature(scope: object) -> tuple[object, ...]:
-    from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralScope
-
     assert isinstance(scope, StructuralScope)
     return (
         frozenset(id(operation) for operation in scope.constraints),
@@ -134,8 +134,6 @@ def test_incremental_scope_restarts_for_different_supplied_inputs() -> None:
 
 
 def test_full_nested_expansion_preserves_independent_scope_reference(monkeypatch: pytest.MonkeyPatch) -> None:
-    from bilt.core._structural_analysis._causalization_block_solver import _structural_scope as scope_module
-
     shared = Implementation(Ports, [first, second])
     child = SubSystemConstituent("child", shared)
 
@@ -146,7 +144,7 @@ def test_full_nested_expansion_preserves_independent_scope_reference(monkeypatch
     graph = FullIncidenceGraph([child, output])
     with monkeypatch.context() as patched:
         patched.setattr(
-            scope_module._IncrementalStructuralScope,
+            scope_module._IncrementalStructuralScope,  # noqa: SLF001
             "inspect",
             lambda self, available, required: inspect_structure(self.incidence, available, required),
         )
@@ -163,4 +161,5 @@ def test_full_nested_expansion_preserves_independent_scope_reference(monkeypatch
     assert frozenset((row.path, id(row.operation), row.attributes) for row in snapshot.constraints) == frozenset(
         (row.path, id(row.operation), row.attributes) for row in expected.constraints
     )
-    assert snapshot.complete and expected.complete
+    assert snapshot.complete
+    assert expected.complete
