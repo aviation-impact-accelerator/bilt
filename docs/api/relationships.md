@@ -68,20 +68,24 @@ def piecewise(x: float, result: float) -> bool:
     return result == selected
 ```
 
-Each condition must be a single comparison, such as `x > 0`. You can use
-`elif` or nest `if/else` blocks. Every path must assign to the **same name**
-exactly once, with a final `else` and the `return` outside the branches.
-Multiple separate `if` statements are not yet supported.
+Conditions may compare scalar or tensor-valued expressions. Combine symbolic
+comparisons with `&`, `|` or `~` (parenthesise comparisons); Python's
+`and`, `or`, `not` and chained comparisons are not supported for symbolic
+predicates. You can use `elif` or nest `if/else` blocks. Every path must
+assign the **same name** exactly once, with a final `else` and the `return`
+outside the branches. Multiple separate `if` statements are not supported.
 
-Each condition must compare scalar expressions, and every branch must produce
-a scalar result, not a tensor. Inputs used in **any** branch must be available,
-even though only one path is executed numerically.
+A tensor predicate selects elementwise, broadcasting the predicate and branches
+by named dimension. A scalar predicate with branches on the same domain stays
+lazy; elementwise selection evaluates both branches even where the mask excludes
+one. All inputs used in **any** branch must be available, and all branches must
+be valid symbolic expressions. Both Python and JAX support these conditionals.
+Branch results must have compatible physical dimensions and quantity kinds.
 
-All branches must be valid symbolic expressions because Bilt traces every path
-when building the equation. Both Python and JAX support these conditionals.
-
-Bilt can calculate `result` when `x` is known, but cannot currently work
-backwards through the `if/else` to find `x` from `result`.
+Bilt can calculate `result` when `x` is known, but cannot currently isolate
+`x` backwards through a conditional. See the
+[Tensor API](tensors.md#conditional-selection-in-equations) for full selection
+and broadcasting rules.
 
 See [Using `if/else` in an equation](../guide/equations-and-acausal-modelling.md#using-ifelse-in-an-equation)
 for a worked example.

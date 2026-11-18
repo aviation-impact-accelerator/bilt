@@ -45,7 +45,7 @@ with motion:
 
 ## Modelling rules
 
-- Equations specify relationships, not arbitrary Python programs. Keep them within Bilt's supported symbolic syntax: single-assignment locals, a final relationship return, and supported `if/elif/else` conditionals. Do not invent loop, mutation or tensor-predicate support in equations.
+- Equations specify relationships, not arbitrary Python programs. Keep them within Bilt's supported symbolic syntax: single-assignment locals, a final relationship return, and supported `if/elif/else` conditionals. Tensor predicates and compound masks using `&`, `|` and `~` are supported; elementwise selection evaluates both branches. Do not invent loop or mutation support in equations.
 - Avoid manually rearranging relationships or hard-coding their direction. Bilt can solve supported coupled **linear** blocks, including blocks crossing subsystem boundaries; do not assume arbitrary nonlinear coupled blocks work.
 - Use `Annotated[Quantity | QuantityTensor, DIMENSION]` for unit-aware system ports that may take scalar or named-tensor values. For scalar equations use `Annotated[Quantity, DIMENSION]` where appropriate. Prefer Bilt's named tensor operations to manual positional broadcasting.
 - Remember that `Implementation` selects equations and transforms; registering one alone does not activate it. Results are cached on a system instance. Use fresh instances when changing inputs or implementations.

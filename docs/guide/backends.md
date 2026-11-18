@@ -11,16 +11,20 @@ Bilt currently provides Python and JAX backends.
 
 ## Python backend
 
-The Python backend is available with the standard Bilt installation:
+The Python backend is included in Bilt's standard installation. Bilt currently
+installs from [GitHub](https://github.com/aviation-impact-accelerator/bilt), and
+requires Python 3.15 or newer and a Rust toolchain.
+
+With `uv`:
 
 ```console
-uv add bilt
+uv add "git+https://github.com/aviation-impact-accelerator/bilt.git"
 ```
 
-or:
+Or with `pip` in a Python 3.15 environment:
 
 ```console
-pip install bilt
+python -m pip install "bilt @ git+https://github.com/aviation-impact-accelerator/bilt.git"
 ```
 
 The Python backend is used by default, so for normal use you do not need to
@@ -49,13 +53,13 @@ JAX is an optional dependency.
 With `uv`:
 
 ```console
-uv add "bilt[jax]"
+uv add "bilt[jax] @ git+https://github.com/aviation-impact-accelerator/bilt.git"
 ```
 
-or with `pip`:
+Or with `pip`:
 
 ```console
-pip install "bilt[jax]"
+python -m pip install "bilt[jax] @ git+https://github.com/aviation-impact-accelerator/bilt.git"
 ```
 
 This installs Bilt together with its supported JAX dependency.
@@ -176,8 +180,12 @@ The JAX backend is well suited to array-based numerical calculations built from
 supported arithmetic and JAX operations.
 
 Both backends also support `if/elif/else` and nested conditions inside an
-`@equation`, provided they work with single numbers rather than arrays.
-See [Using `if/else` in an equation](equations-and-acausal-modelling.md#using-ifelse-in-an-equation).
+`@equation`. Conditions can select from scalar values or named tensors; a tensor
+predicate selects elementwise and broadcasts over named dimensions. The same
+equation syntax works on Python and JAX, but elementwise selection evaluates
+both branches, even where the mask excludes one. See
+[Using `if/else` in an equation](equations-and-acausal-modelling.md#using-ifelse-in-an-equation)
+and [Conditional selection](../api/tensors.md#conditional-selection-in-equations).
 
 Some ordinary Python behaviour is not suitable for JAX execution. Examples
 include file or network access, Python side effects, and calls to libraries that

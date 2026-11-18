@@ -325,14 +325,51 @@ with JAX_BACKEND, multi_range_model:
     assert Piecewise(x=12.0).result == 36.0
 ```
 
-Each condition must test a single comparison such as `x > 0`, and every path
-must assign the same name exactly once. Each chain needs an `else`, and the
-single `return` comes afterwards. Multiple separate `if` statements are not
-supported yet. Conditions and selected values must be **single numbers, not
-tensors (arrays of values)**. Inputs used in any branch must be available,
-even if only one branch is selected.
+Each condition can use a symbolic comparison such as `x > 0`. You can combine
+comparisons with `&` (and), `|` (or), and `~` (not), enclosing each comparison
+in parentheses. Python's `and`, `or`, `not` and chained comparisons do not
+work for symbolic predicates. Each branch must assign the same name exactly
+once. Each chain needs an `else`, with a single `return` afterwards.
+Multiple separate `if` statements are not supported yet.
 
-Bilt can calculate `result` from `x` in this example. It cannot currently work backwards through the `if/else` to calculate `x` from `result`.
+Conditions may also vary across a named tensor dimension. Bilt then selects
+elementwise and broadcasts the branches by dimension name. The equation itself
+can still use ordinary scalar annotations:
+
+```python exec="on" session="motion-equations"
+from bilt import Tensor, dim, tensor
+
+
+@system
+class MaskedRange(metaclass=Interface):
+    x: float | Tensor = field()
+    result: float | Tensor = field()
+
+
+@equation
+def within_range(x: float, result: float) -> bool:
+    if (x > 0) & (x < 5):
+        selected = x
+    else:
+        selected = 0.0
+    return result == selected
+
+
+with Implementation(MaskedRange, [within_range]):
+    selected = MaskedRange(x=tensor([-2.0, 3.0, 6.0], over=dim("location"))).result
+
+assert selected.values.tolist() == [0.0, 3.0, 0.0]
+```
+
+Inputs from **every** branch must be available. For tensor predicates, both
+branches are evaluated, including values outside the selected mask, so avoid
+operations that fail in an unselected region. Scalar predicates with branches
+on the same domain remain lazy. See
+[Conditional selection in equations](../api/tensors.md#conditional-selection-in-equations)
+for broadcasting and backend details.
+
+Bilt can calculate `result` from `x` in these examples. It cannot currently
+work backwards through a conditional to find `x` from `result`.
 
 ### Not every equation can simply be rearranged
 
