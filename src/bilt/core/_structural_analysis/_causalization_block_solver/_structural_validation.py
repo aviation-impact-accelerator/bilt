@@ -1,11 +1,11 @@
 import dataclasses
 import typing
 
+from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltOverconstrainedError,
     BiltUnderconstrainedError,
 )
-from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import (
     ExpansionSnapshot,
     StructuralExpansion,
