@@ -76,7 +76,7 @@ class BasicEquation[R, **P]:
 
         self.__bilt_name__ = name
         self.__bilt_parameters__ = tuple(equation_symbols)
-        self.__bilt_port_declarations__ = (
+        self.__bilt_port_declarations__ = types.MappingProxyType(
             port_declarations(
                 name,
                 {
