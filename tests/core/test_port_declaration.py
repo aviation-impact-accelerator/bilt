@@ -93,15 +93,15 @@ def test_transform_without_a_return_annotation_does_not_declare_its_output() -> 
 def test_quoted_annotations_are_resolved() -> None:
     @system
     class Rig(metaclass=Interface):
-        mass: "Mass" = field()  # noqa: UP037
-        limit: "typing.ClassVar[float]" = 1.0  # noqa: UP037
+        mass: "Mass" = field()
+        limit: "typing.ClassVar[float]" = 1.0
 
     @equation
-    def balance(m: "Mass", n: "Mass") -> bool:  # noqa: UP037
+    def balance(m: "Mass", n: "Mass") -> bool:
         return m == n
 
     @transform
-    def doubled(m: Mass) -> "Mass":  # noqa: UP037
+    def doubled(m: Mass) -> "Mass":
         return m * 2.0
 
     assert Rig.__bilt_port_declarations__ == {"mass": PortDeclaration(MASS)}

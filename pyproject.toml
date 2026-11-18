@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.15"
 dependencies = [
     "networkx>=3.6.1",
-    "rustworkx>=0.18.0"
+    "rustworkx>=0.18.0",
 ]
 
 [project.scripts]
@@ -89,6 +89,13 @@ ignore = [
 fixture-parentheses = false
 mark-parentheses = false
 parametrize-values-type = "tuple"
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-decorators = [
+    "bilt.equation",
+    "bilt.system",
+    "bilt.transform",
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["bilt"]
