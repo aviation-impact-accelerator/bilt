@@ -39,7 +39,7 @@ model = Implementation(Converter, [energy_balance])
 
 with model:
     print(Converter(energy_in=100.0, efficiency=0.4).energy_out)  # 40.0
-    print(Converter(energy_out=40.0, efficiency=0.4).energy_in)   # 100.0
+    print(Converter(energy_out=40.0, efficiency=0.4).energy_in)  # 100.0
 ```
 
 Run it with `uv run python main.py`. Both requests use the **same equation**; only the known values and the requested output change.
