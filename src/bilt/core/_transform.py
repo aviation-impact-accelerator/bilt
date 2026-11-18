@@ -2,8 +2,8 @@ __all__ = ["transform"]
 
 import ast
 import inspect
-import types
 import textwrap
+import types
 import typing
 
 from bilt.core._errors import BiltTransformSignatureError, BiltUnresolvedAnnotationError
