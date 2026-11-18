@@ -7,4 +7,5 @@ if typing.TYPE_CHECKING:
 class BiltModelConstituent(typing.Protocol):
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
-    __bilt_port_declarations__: typing.Mapping[str, PortDeclaration]
+    @property
+    def __bilt_port_declarations__(self) -> typing.Mapping[str, PortDeclaration]: ...
