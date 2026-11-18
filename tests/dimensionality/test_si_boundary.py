@@ -14,22 +14,17 @@ if typing.TYPE_CHECKING:
     from bilt._backend._base_backend import Backend
 
 Acceleration = typing.Annotated[Quantity, LENGTH / TIME**2]
-AccelerationField = typing.Annotated[Quantity | QuantityTensor, LENGTH / TIME**2]
 Area = typing.Annotated[Quantity, AREA]
-AreaField = typing.Annotated[Quantity | QuantityTensor, AREA]
 Force = typing.Annotated[Quantity, FORCE]
-ForceField = typing.Annotated[Quantity | QuantityTensor, FORCE]
 Length = typing.Annotated[Quantity, LENGTH]
-LengthField = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 Mass = typing.Annotated[Quantity, MASS]
-MassField = typing.Annotated[Quantity | QuantityTensor, MASS]
 
 
 @system
 class Route(metaclass=Interface):
-    outbound: LengthField = field()
-    inbound: LengthField = field()
-    total: LengthField = field()
+    outbound: Length = field()
+    inbound: Length = field()
+    total: Length = field()
 
 
 @equation
@@ -39,9 +34,9 @@ def journey(total: Length, outbound: Length, inbound: Length) -> bool:
 
 @system
 class Body(metaclass=Interface):
-    f: ForceField = field()
-    m: MassField = field()
-    a: AccelerationField = field()
+    f: Force = field()
+    m: Mass = field()
+    a: Acceleration = field()
 
 
 @equation
@@ -78,9 +73,9 @@ def test_a_rearranged_equation_answers_in_coherent_si_units() -> None:
 def test_quantities_that_contradict_a_declared_port_raise_at_instantiation() -> None:
     @system
     class Plot(metaclass=Interface):
-        width: LengthField = field()
-        depth: LengthField = field()
-        area: AreaField = field()
+        width: Length = field()
+        depth: Length = field()
+        area: Area = field()
 
     with pytest.raises(BiltInputDimensionalityError, match="'width'"):
         Plot(width=2.0 * kilogram, depth=3.0 * meter)

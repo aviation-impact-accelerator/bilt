@@ -31,7 +31,7 @@ OverTime = typing.Annotated[Tensor, domain(TIME)]
 Grid = typing.Annotated[Tensor, domain(TIME, SITE)]
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
 LengthOverTime = typing.Annotated[QuantityTensor, LENGTH, domain(TIME)]
-LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+LengthScalar = typing.Annotated[Quantity, LENGTH]
 
 
 @equation

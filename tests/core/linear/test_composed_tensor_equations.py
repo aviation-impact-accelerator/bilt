@@ -31,7 +31,7 @@ if typing.TYPE_CHECKING:
 TIME = dim("time")
 BRANCH = dim("branch")
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
-LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+LengthScalar = typing.Annotated[Quantity, LENGTH]
 MassScalar = typing.Annotated[Quantity, MASS]
 RatioArray = typing.Annotated[QuantityTensor, DIMENSIONLESS]
 OverTime = typing.Annotated[Tensor, domain(TIME)]

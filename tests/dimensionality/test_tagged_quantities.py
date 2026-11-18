@@ -10,7 +10,6 @@ from bilt import (
     Implementation,
     Interface,
     Number,
-    QuantityTensor,
     equation,
     field,
     system,
@@ -40,30 +39,21 @@ carbon_monoxide = Metadata("carbon_monoxide")
 mass_fraction = fraction * mass
 
 Mass = typing.Annotated[Quantity, MASS]
-MassField = typing.Annotated[Quantity | QuantityTensor, MASS]
 FuelMass = typing.Annotated[Quantity, MASS * fuel]
-FuelMassField = typing.Annotated[Quantity | QuantityTensor, MASS * fuel]
 Co2Mass = typing.Annotated[Quantity, MASS * co2]
-Co2MassField = typing.Annotated[Quantity | QuantityTensor, MASS * co2]
 EmissionIndex = typing.Annotated[Quantity, (MASS * co2) / (MASS * fuel)]
-EmissionIndexField = typing.Annotated[Quantity | QuantityTensor, (MASS * co2) / (MASS * fuel)]
 MassFraction = typing.Annotated[Quantity, DIMENSIONLESS * mass]
-MassFractionField = typing.Annotated[Quantity | QuantityTensor, DIMENSIONLESS * mass]
 Hydrogen = typing.Annotated[Quantity, AMOUNT * hydrogen]
-HydrogenField = typing.Annotated[Quantity | QuantityTensor, AMOUNT * hydrogen]
 CarbonMonoxide = typing.Annotated[Quantity, AMOUNT * carbon_monoxide]
-CarbonMonoxideField = typing.Annotated[Quantity | QuantityTensor, AMOUNT * carbon_monoxide]
 SyngasRatio = typing.Annotated[Quantity, (AMOUNT * hydrogen) / (AMOUNT * carbon_monoxide)]
-SyngasRatioField = typing.Annotated[Quantity | QuantityTensor, (AMOUNT * hydrogen) / (AMOUNT * carbon_monoxide)]
 GasTemperature = typing.Annotated[Quantity, TEMPERATURE * gas]
-GasTemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE * gas]
 
 
 @system
 class Burn(metaclass=Interface):
-    burned: FuelMassField = field()
-    index: EmissionIndexField = field()
-    emitted: Co2MassField = field()
+    burned: FuelMass = field()
+    index: EmissionIndex = field()
+    emitted: Co2Mass = field()
 
 
 @equation
@@ -73,9 +63,9 @@ def emission(emitted: Co2Mass, burned: FuelMass, index: EmissionIndex) -> bool:
 
 @system
 class Split(metaclass=Interface):
-    total: MassField = field()
-    x: MassFractionField = field()
-    part: MassField = field()
+    total: Mass = field()
+    x: MassFraction = field()
+    part: Mass = field()
 
 
 @equation
@@ -85,15 +75,15 @@ def split(part: Mass, total: Mass, x: MassFraction) -> bool:
 
 @system
 class Fixed(metaclass=Interface):
-    burned: FuelMassField = field()
-    emitted: Co2MassField = field()
+    burned: FuelMass = field()
+    emitted: Co2Mass = field()
 
 
 @system
 class Weighed(metaclass=Interface):
-    burned: FuelMassField = field()
+    burned: FuelMass = field()
     grams: float = field()
-    emitted: Co2MassField = field()
+    emitted: Co2Mass = field()
 
 
 def test_a_tagged_port_answers_in_its_tagged_coherent_unit() -> None:
@@ -115,9 +105,9 @@ def test_an_equation_is_solved_for_a_tagged_port_it_multiplies() -> None:
 def test_a_quotient_of_tagged_ports_answers_with_each_tag() -> None:
     @system
     class Syngas(metaclass=Interface):
-        h2: HydrogenField = field()
-        co: CarbonMonoxideField = field()
-        ratio: SyngasRatioField = field()
+        h2: Hydrogen = field()
+        co: CarbonMonoxide = field()
+        ratio: SyngasRatio = field()
 
     @equation
     def syngas_ratio(ratio: SyngasRatio, h2: Hydrogen, co: CarbonMonoxide) -> bool:
@@ -168,7 +158,7 @@ def test_a_tagged_quantity_is_refused_at_an_untagged_port() -> None:
 def test_an_absolute_quantity_with_a_tag_is_refused() -> None:
     @system
     class Flue(metaclass=Interface):
-        temperature: GasTemperatureField = field()
+        temperature: GasTemperature = field()
 
     with pytest.raises(BiltInputDimensionalityError, match=r"Input 'temperature' of 'Flue'.*in a relative unit"):
         Flue(temperature=20.0 * absolute_celsius * gas)
@@ -179,7 +169,7 @@ def test_absolute_on_a_tagged_dimensionality_raises() -> None:
 
         @system
         class Flue(metaclass=Interface):
-            temperature: typing.Annotated[Quantity | QuantityTensor, TEMPERATURE * gas, ABSOLUTE] = field()
+            temperature: typing.Annotated[Quantity, TEMPERATURE * gas, ABSOLUTE] = field()
 
     assert "cannot be absolute" in str(raised.value)
 

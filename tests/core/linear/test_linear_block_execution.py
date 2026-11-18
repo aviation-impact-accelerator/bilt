@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCase
     from bilt.core._model_constituent import BiltModelConstituent
 
-Length = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+Length = typing.Annotated[Quantity, LENGTH]
 
 
 @system

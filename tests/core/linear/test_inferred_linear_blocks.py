@@ -7,6 +7,7 @@ from bilt import (
     Domain,
     Implementation,
     Interface,
+    Number,
     Quantity,
     QuantityTensor,
     Tensor,
@@ -34,17 +35,17 @@ Shared = typing.Annotated[float, Domain.scalar()]
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
 CurrentArray = typing.Annotated[QuantityTensor, CURRENT]
-Voltage = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
+Voltage = typing.Annotated[Quantity, VOLTAGE]
 VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
-Resistance = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
+Resistance = typing.Annotated[Quantity, RESISTANCE]
 
 
 @system
 class Pair(metaclass=Interface):
     x: Tensor = field()
     y: Tensor = field()
-    p: float | Tensor = field()
-    q: float | Tensor = field()
+    p: Number = field()
+    q: Number = field()
     weights: Tensor = field()
 
 

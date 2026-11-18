@@ -19,24 +19,18 @@ from bilt.units import Quantity, absolute_celsius, ampere, kelvin, meter, ohm, s
 from bilt.units.dimensions import ABSOLUTE, CURRENT, LENGTH, RESISTANCE, TEMPERATURE, VOLTAGE
 
 Current = typing.Annotated[Quantity, CURRENT]
-CurrentField = typing.Annotated[Quantity | QuantityTensor, CURRENT]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
-ResistanceField = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
-VoltageField = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
 Length = typing.Annotated[Quantity, LENGTH]
-LengthField = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 LengthSeries = typing.Annotated[QuantityTensor, LENGTH]
-LengthSeriesField = typing.Annotated[QuantityTensor, LENGTH]
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
-AbsoluteTemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
 
 
 @system
 class Resistor(metaclass=Interface):
-    i: CurrentField = field()
-    r: ResistanceField = field()
-    v: VoltageField = field()
+    i: Current = field()
+    r: Resistance = field()
+    v: Voltage = field()
 
 
 @equation
@@ -71,7 +65,7 @@ def test_direct_evaluate_validates_before_returning_an_existing_output() -> None
 
 @system
 class TemperatureProbe(metaclass=Interface):
-    reading: AbsoluteTemperatureField = field()
+    reading: AbsoluteTemperature = field()
 
 
 def test_direct_evaluate_rejects_a_relative_temperature_at_an_absolute_port() -> None:
@@ -102,8 +96,8 @@ def test_direct_evaluate_rejects_a_quantity_at_a_plain_port() -> None:
 
 @system
 class Stretch(metaclass=Interface):
-    x: LengthField = field()
-    y: LengthField = field()
+    x: Length = field()
+    y: Length = field()
 
 
 @transform
@@ -137,8 +131,8 @@ def test_direct_evaluate_lifts_a_declared_intermediate_output() -> None:
 
 @system
 class TensorStretch(metaclass=Interface):
-    x: LengthSeriesField = field()
-    y: LengthSeriesField = field()
+    x: LengthSeries = field()
+    y: LengthSeries = field()
 
 
 @equation

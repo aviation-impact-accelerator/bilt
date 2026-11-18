@@ -11,7 +11,6 @@ from bilt import (
     Implementation,
     Interface,
     Number,
-    QuantityTensor,
     field,
     system,
     transform,
@@ -26,17 +25,16 @@ if typing.TYPE_CHECKING:
     from bilt.core._transform import BasicTransform
 
 Length = typing.Annotated[Quantity, LENGTH]
-LengthField = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 
 
 @system
 class Stretch(metaclass=Interface):
-    length: LengthField = field()
-    stretched: LengthField = field()
+    length: Length = field()
+    stretched: Length = field()
     span_km: float = field()
 
 
-def _stretch(stretched: BasicTransform) -> Quantity | QuantityTensor:
+def _stretch(stretched: BasicTransform) -> Quantity:
     with Implementation(Stretch, [stretched]):
         return Stretch(length=1.0 * kilometer).stretched
 

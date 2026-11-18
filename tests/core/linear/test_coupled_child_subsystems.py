@@ -6,6 +6,7 @@ import pytest
 from bilt import (
     Implementation,
     Interface,
+    Number,
     Quantity,
     QuantityTensor,
     Tensor,
@@ -34,15 +35,15 @@ if typing.TYPE_CHECKING:
 
 TIME = dim("time")
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
-LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+LengthScalar = typing.Annotated[Quantity, LENGTH]
 
 
 @system
 class Pair(metaclass=Interface):
-    x: float | Tensor = field()
-    y: float | Tensor = field()
-    p: float | Tensor = field()
-    q: float | Tensor = field()
+    x: Number = field()
+    y: Number = field()
+    p: Number = field()
+    q: Number = field()
 
 
 @equation

@@ -19,14 +19,13 @@ from bilt.units import kilogram
 from bilt.units.dimensions import MASS
 
 Mass = typing.Annotated[Quantity, MASS]
-PointwiseMass = typing.Annotated[Quantity | QuantityTensor, MASS]
 time = dim("time")
 
 
 @system
 class DoubleMass(metaclass=Interface):
-    mass: PointwiseMass = field()
-    doubled: PointwiseMass = field()
+    mass: Mass = field()
+    doubled: Mass = field()
 
 
 @equation

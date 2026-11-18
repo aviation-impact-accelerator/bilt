@@ -4,22 +4,17 @@ import typing
 
 import pytest
 
-from bilt import Implementation, Interface, QuantityTensor, equation, field, system, transform
+from bilt import Implementation, Interface, equation, field, system, transform
 from bilt.errors import BiltImplementationDimensionalityError, BiltUnitsError
 from bilt.units import Quantity
 from bilt.units.dimensions import ABSOLUTE, CURRENT, FORCE, MASS, POWER, RESISTANCE, TEMPERATURE, VOLTAGE
 
 Current = typing.Annotated[Quantity, CURRENT]
-CurrentField = typing.Annotated[Quantity | QuantityTensor, CURRENT]
 Force = typing.Annotated[Quantity, FORCE]
-ForceField = typing.Annotated[Quantity | QuantityTensor, FORCE]
 Mass = typing.Annotated[Quantity, MASS]
-MassField = typing.Annotated[Quantity | QuantityTensor, MASS]
 Power = typing.Annotated[Quantity, POWER]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
-ResistanceField = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
-VoltageField = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
 
 
 @equation
@@ -40,10 +35,10 @@ def halving(halved: Voltage, scaled: Voltage) -> bool:
 def test_constituents_agreeing_on_a_shared_port_construct() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: VoltageField = field()
-        i: CurrentField = field()
-        r: ResistanceField = field()
-        scaled: VoltageField = field()
+        v: Voltage = field()
+        i: Current = field()
+        r: Resistance = field()
+        scaled: Voltage = field()
 
     Implementation(Rig, [ohms_law, doubling])
 
@@ -51,10 +46,10 @@ def test_constituents_agreeing_on_a_shared_port_construct() -> None:
 def test_a_port_only_one_constituent_declares_raises_naming_the_declaring_owner_and_the_plain_one() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: VoltageField = field()
-        i: CurrentField = field()
-        r: ResistanceField = field()
-        scaled: VoltageField = field()
+        v: Voltage = field()
+        i: Current = field()
+        r: Resistance = field()
+        scaled: Voltage = field()
 
     @equation
     def plain_doubling(scaled: float, v: float) -> bool:
@@ -73,9 +68,9 @@ def test_a_port_only_one_constituent_declares_raises_naming_the_declaring_owner_
 def test_a_declared_conflict_names_both_sources() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: VoltageField = field()
-        i: CurrentField = field()
-        r: ResistanceField = field()
+        v: Voltage = field()
+        i: Current = field()
+        r: Resistance = field()
 
     @equation
     def resting(v: Mass) -> bool:
@@ -92,11 +87,11 @@ def test_a_declared_conflict_names_both_sources() -> None:
 def test_a_conflict_reads_the_same_whatever_the_constituent_order() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: VoltageField = field()
-        i: CurrentField = field()
-        r: ResistanceField = field()
-        scaled: ForceField = field()
-        halved: VoltageField = field()
+        v: Voltage = field()
+        i: Current = field()
+        r: Resistance = field()
+        scaled: Force = field()
+        halved: Voltage = field()
 
     messages = set()
     for constituents in ([ohms_law, doubling, halving], [halving, doubling, ohms_law]):
@@ -110,9 +105,9 @@ def test_a_conflict_reads_the_same_whatever_the_constituent_order() -> None:
 def test_a_sub_system_holds_its_ports_to_their_declarations_under_their_dotted_names() -> None:
     @system
     class Resistor(metaclass=Interface):
-        v: VoltageField = field()
-        i: CurrentField = field()
-        r: ResistanceField = field()
+        v: Voltage = field()
+        i: Current = field()
+        r: Resistance = field()
 
     with pytest.raises(BiltUnitsError, match="wiring") as raised:
 
@@ -128,9 +123,9 @@ def test_a_sub_system_holds_its_ports_to_their_declarations_under_their_dotted_n
 def test_a_transform_output_takes_its_return_annotation() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: VoltageField = field()
-        i: CurrentField = field()
-        power: MassField = field()
+        v: Voltage = field()
+        i: Current = field()
+        power: Mass = field()
 
     @transform
     def power(v: Voltage, i: Current) -> Power:
@@ -147,7 +142,7 @@ def test_a_transform_output_takes_its_return_annotation() -> None:
 def test_a_port_one_owner_marks_absolute_and_another_leaves_relative_raises() -> None:
     @system
     class Engine(metaclass=Interface):
-        hot: typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE] = field()
+        hot: typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE] = field()
 
     @equation
     def resting(hot: typing.Annotated[Quantity, TEMPERATURE]) -> bool:

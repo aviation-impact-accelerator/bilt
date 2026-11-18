@@ -10,6 +10,7 @@ from bilt import (
     Domain,
     Implementation,
     Interface,
+    Number,
     Quantity,
     QuantityTensor,
     Tensor,
@@ -46,18 +47,18 @@ Grid = typing.Annotated[Tensor, domain(SITE, TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
 BranchCurrent = typing.Annotated[QuantityTensor, CURRENT, domain(BRANCH)]
 SharedVoltage = typing.Annotated[Quantity, VOLTAGE, Domain.scalar()]
-SharedVoltageField = typing.Annotated[Quantity, VOLTAGE]
+Voltage = typing.Annotated[Quantity, VOLTAGE]
 VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
 ResistanceArray = typing.Annotated[QuantityTensor, RESISTANCE]
-Resistance = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
+Resistance = typing.Annotated[Quantity, RESISTANCE]
 
 
 @system
 class Ports(metaclass=Interface):
     x: Tensor = field()
-    y: float | Tensor = field()
+    y: Number = field()
     p: Tensor = field()
-    q: float | Tensor = field()
+    q: Number = field()
     weights: Tensor = field()
     offset: float = field()
 
@@ -154,7 +155,7 @@ def test_shared_bus_voltage_and_branch_currents_retain_units(backend: Backend, o
     @system
     class Bus(metaclass=Interface):
         current: BranchCurrent = field()
-        voltage: SharedVoltageField = field()
+        voltage: Voltage = field()
         resistance: ResistanceArray = field()
         load: Resistance = field()
 

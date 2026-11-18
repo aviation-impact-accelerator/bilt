@@ -9,6 +9,7 @@ from bilt import (
     Domain,
     Implementation,
     Interface,
+    Number,
     Quantity,
     QuantityTensor,
     Tensor,
@@ -40,7 +41,7 @@ SITE = dim("site")
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 Shared = typing.Annotated[Tensor, Domain.scalar()]
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
-LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+LengthScalar = typing.Annotated[Quantity, LENGTH]
 
 
 @system
@@ -48,9 +49,9 @@ class Ports(metaclass=Interface):
     x: Tensor = field()
     y: Tensor = field()
     p: Tensor = field()
-    q: float | Tensor = field()
-    a: float | Tensor = field()
-    answer: float | Tensor = field()
+    q: Number = field()
+    a: Number = field()
+    answer: Number = field()
 
 
 @equation

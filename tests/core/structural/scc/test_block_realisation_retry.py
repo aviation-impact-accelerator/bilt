@@ -233,8 +233,7 @@ def test_surplus_assignments_do_not_recompile_the_same_rejected_block(monkeypatc
     assert len(candidates) > len(attempts)
 
 
-type GeneralMass = typing.Annotated[Quantity | QuantityTensor, MASS]
-type ScalarMass = typing.Annotated[Quantity, MASS]
+type Mass = typing.Annotated[Quantity, MASS]
 REQ_TIME = dim("required_time")
 REQ_SCENARIO = dim("scenario")
 type RequiredTimeMass = typing.Annotated[QuantityTensor, MASS, Domain((REQ_TIME,))]
@@ -242,17 +241,17 @@ type RequiredTimeMass = typing.Annotated[QuantityTensor, MASS, Domain((REQ_TIME,
 
 @system
 class MinimumDomainCopy(metaclass=Interface):
-    x: GeneralMass = field()
-    y: GeneralMass = field()
+    x: Mass = field()
+    y: Mass = field()
 
 
 @equation
-def time_limited_copy(x: RequiredTimeMass, y: ScalarMass) -> bool:
+def time_limited_copy(x: RequiredTimeMass, y: Mass) -> bool:
     return y == x
 
 
 @equation
-def time_limited_output(x: ScalarMass, y: RequiredTimeMass) -> bool:
+def time_limited_output(x: Mass, y: RequiredTimeMass) -> bool:
     return y == x
 
 

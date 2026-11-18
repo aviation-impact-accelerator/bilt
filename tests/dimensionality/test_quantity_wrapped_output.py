@@ -10,22 +10,17 @@ from bilt.units.dimensions import CURRENT, DIMENSIONLESS, MASS, RESISTANCE, VOLT
 from bilt.units.units import ampere, kilogram, millivolt, ohm, volt
 
 Current = typing.Annotated[Quantity, CURRENT]
-CurrentField = typing.Annotated[Quantity | QuantityTensor, CURRENT]
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
-DimensionlessField = typing.Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
 Mass = typing.Annotated[Quantity, MASS]
-MassField = typing.Annotated[Quantity | QuantityTensor, MASS]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
-ResistanceField = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
-VoltageField = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
 
 
 @system
 class Resistor(metaclass=Interface):
-    v: VoltageField = field()
-    i: CurrentField = field()
-    r: ResistanceField = field()
+    v: Voltage = field()
+    i: Current = field()
+    r: Resistance = field()
 
 
 @equation
@@ -53,9 +48,9 @@ def test_a_declared_output_takes_its_dimensionality_from_its_own_declaration() -
 def test_a_ratio_answers_as_a_dimensionless_quantity_rather_than_a_bare_number() -> None:
     @system
     class Split(metaclass=Interface):
-        part: MassField = field()
-        whole: MassField = field()
-        fraction: DimensionlessField = field()
+        part: Mass = field()
+        whole: Mass = field()
+        fraction: Dimensionless = field()
 
     @equation
     def splitting(fraction: Dimensionless, part: Mass, whole: Mass) -> bool:

@@ -23,15 +23,15 @@ if typing.TYPE_CHECKING:
 class PortDeclaration:
     """What a declared port holds: a quantity of its dimensionality, absolute if marked and relative otherwise.
 
-    `over_a_domain` records that the port requires a tensor quantity. It says what a caller may
-    pass at this port, not what the port measures, so it takes no part in a declaration's identity: a constituent
-    written over scalars is reusable in a tensor system under the same port name.
+    `over_a_domain` records that the port requires a tensor quantity (`QuantityTensor`); otherwise it takes a
+    quantity of any shape (`Quantity`). It says what a caller may pass at this port, not what the port measures, so
+    it takes no part in a declaration's identity: a constituent written over scalars is reusable in a tensor system
+    under the same port name.
     """
 
     dimensionality: Dimension
     absolute: bool = False
     over_a_domain: bool = dataclasses.field(default=False, compare=False)
-    scalar_only: bool = dataclasses.field(default=False, compare=False)
     required_domain: Domain | None = dataclasses.field(default=None, compare=False)
 
     @property
@@ -54,8 +54,8 @@ def annotated_parts(annotation: object) -> tuple[object, list[object]]:
     return annotation, []
 
 
-def _is_pointwise_quantity_union(base_type: object) -> bool:
-    """Check the exact scalar-or-tensor quantity union, not arbitrary unions."""
+def _is_old_pointwise_quantity_union(base_type: object) -> bool:
+    """Whether this is `Quantity | QuantityTensor`, which means the same as `Quantity`."""
     return typing.get_origin(base_type) in (typing.Union, types.UnionType) and frozenset(
         typing.get_args(base_type)
     ) == {
@@ -64,15 +64,35 @@ def _is_pointwise_quantity_union(base_type: object) -> bool:
     }
 
 
-def quantity_magnitude_kind(base_type: object) -> typing.Literal["scalar", "tensor", "either"] | None:
-    """Classify a quantity annotation by the shape it accepts."""
-    if _is_pointwise_quantity_union(base_type):
-        return "either"
-    if base_type is Quantity:
-        return "scalar"
+def quantity_magnitude_kind(base_type: object) -> typing.Literal["tensor", "any"] | None:
+    """Classify a quantity annotation by the shape it accepts: `QuantityTensor` a tensor, `Quantity` any shape."""
+    if base_type is Quantity or _is_old_pointwise_quantity_union(base_type):
+        return "any"
     if base_type is QuantityTensor:
         return "tensor"
     return None
+
+
+_DECLARING_METADATA = (Dimension, Domain, Metadata)
+
+
+def _hides_a_declaration(annotation: object) -> bool:
+    """Whether a dimensionality, `ABSOLUTE` or required domain sits somewhere Bilt does not read it.
+
+    Bilt reads `Annotated` metadata only at the top of a port's annotation (through plain type aliases).
+    Metadata inside a union, a generic or a subscripted generic type alias would otherwise be dropped silently.
+    """
+    if isinstance(annotation, typing.TypeAliasType):
+        return _hides_a_declaration(annotation.__value__)
+    origin = typing.get_origin(annotation)
+    if isinstance(origin, typing.TypeAliasType):
+        return _hides_a_declaration(origin.__value__) or any(map(_hides_a_declaration, typing.get_args(annotation)))
+    if origin is typing.Annotated:
+        base_type, *metadata = typing.get_args(annotation)
+        return any(isinstance(item, _DECLARING_METADATA) or item is ABSOLUTE for item in metadata) or (
+            _hides_a_declaration(base_type)
+        )
+    return any(map(_hides_a_declaration, typing.get_args(annotation)))
 
 
 def _required_domain(  # noqa: PLR0913
@@ -86,7 +106,7 @@ def _required_domain(  # noqa: PLR0913
 ) -> Domain | None:
     """Read minimum tensor-domain constraints, preserving exact pointwise equation hints."""
     # Exact Domain hints on pointwise equations remain for the linear solver.
-    if dimensionality is None or (not system_boundary and quantity_magnitude_kind(base_type) in ("scalar", "either")):
+    if dimensionality is None or (not system_boundary and quantity_magnitude_kind(base_type) == "any"):
         return None
 
     domains = [item for item in metadata if isinstance(item, Domain)]
@@ -129,9 +149,9 @@ def _reject_dimensioned_tensor_annotation(
 ) -> None:
     if dimensionality is not None and base_type is Tensor:
         msg = (
-            "uses the old dimensioned Tensor annotation. "
+            "declares a dimensionality on Tensor, which has no unit. "
             "Use Annotated[QuantityTensor, DIM] for a tensor-only port or "
-            "Annotated[Quantity | QuantityTensor, DIM] for a pointwise port."
+            "Annotated[Quantity, DIM] for a port of any shape."
         )
         raise BiltPortDeclarationError(owner_name, port, msg)
 
@@ -141,6 +161,14 @@ def _declaration(
 ) -> PortDeclaration | None:
     """Classify one annotation, ignoring `Annotated` metadata that is neither a dimensionality nor the absolute marker."""
     base_type, metadata = annotated_parts(annotation)
+    if _hides_a_declaration(base_type):
+        msg = (
+            f"is annotated `{annotation}`, where Bilt cannot read its dimensionality. Put `Annotated` at the top "
+            "of the annotation, as in `typing.Annotated[Quantity, DIM]`, directly or through a type alias without "
+            "type parameters. Unions such as `Annotated[...] | None` and subscripted generic aliases such as "
+            "`Length[Quantity]` are not supported."
+        )
+        raise BiltPortDeclarationError(owner_name, port, msg)
     unit = next((item for item in metadata if isinstance(item, Unit)), None)
     if unit is not None:
         msg = (
@@ -153,7 +181,7 @@ def _declaration(
     if tag is not None:
         msg = (
             f"declares tag {tag} on its own, but a tag is a factor of a dimensionality. "
-            "Multiply the dimensionality by it, as in `typing.Annotated[Quantity | QuantityTensor, DIM * tag]`."
+            "Multiply the dimensionality by it, as in `typing.Annotated[Quantity, DIM * tag]`."
         )
         raise BiltPortDeclarationError(owner_name, port, msg)
 
@@ -175,15 +203,16 @@ def _declaration(
     if dimensionality is None and (carries_quantity or absolute):
         msg = (
             f"is {'a Quantity' if carries_quantity else 'marked ABSOLUTE'} without a dimensionality. Declare one "
-            "with `typing.Annotated[Quantity, DIM]` for a scalar, or `typing.Annotated[Quantity | QuantityTensor, DIM]` for a pointwise quantity; write `float` if the port is outside the unit system."
+            "with `typing.Annotated[Quantity, DIM]`, or `typing.Annotated[QuantityTensor, DIM]` for a tensor-only "
+            "port; write `Number` (or `float`) if the port is outside the unit system."
         )
         raise BiltPortDeclarationError(owner_name, port, msg)
     if dimensionality is not None and not (carries_quantity or over_a_domain):
         msg = (
             f"declares {dimensionality} on {getattr(base_type, '__name__', repr(base_type))}, "
             "but a dimensionality requires a quantity annotation. "
-            "Use `typing.Annotated[Quantity | QuantityTensor, ...]` on pointwise fields or a concrete "
-            "Quantity or QuantityTensor annotation for stricter fields and equations."
+            "Use `typing.Annotated[Quantity, ...]` for any shape or `typing.Annotated[QuantityTensor, ...]` "
+            "for a tensor-only port."
         )
         raise BiltPortDeclarationError(owner_name, port, msg)
 
@@ -194,7 +223,6 @@ def _declaration(
         dimensionality,
         absolute=absolute,
         over_a_domain=over_a_domain,
-        scalar_only=magnitude_kind == "scalar",
         required_domain=required_domain,
     )
     if absolute:

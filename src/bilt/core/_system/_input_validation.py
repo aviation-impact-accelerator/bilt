@@ -34,7 +34,6 @@ def validate_inputs(
             or unit.dimension != expected.dimensionality
             or not (unit.category is UnitCategory.ABSOLUTE if expected.absolute else unit.is_relative)
             or (expected.over_a_domain and not isinstance(value, _Tensor))
-            or (expected.scalar_only and isinstance(value, _Tensor))
             or (
                 expected.required_domain is not None
                 and isinstance(value, _Tensor)

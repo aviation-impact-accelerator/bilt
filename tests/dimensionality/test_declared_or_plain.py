@@ -4,7 +4,7 @@ import typing
 
 import pytest
 
-from bilt import Implementation, Interface, QuantityTensor, Tensor, equation, field, system, transform
+from bilt import Implementation, Interface, Tensor, equation, field, system, transform
 from bilt.errors import (
     BiltEquationDimensionalityError,
     BiltImplementationDimensionalityError,
@@ -14,19 +14,15 @@ from bilt.units.dimensions import DIMENSIONLESS, LENGTH, MASS, VOLTAGE
 from bilt.units.units import volt
 
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
-DimensionlessField = typing.Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
 Length = typing.Annotated[Quantity, LENGTH]
-LengthField = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 Mass = typing.Annotated[Quantity, MASS]
-MassField = typing.Annotated[Quantity | QuantityTensor, MASS]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
-VoltageField = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
 
 
 def test_a_system_interface_may_mix_declared_and_plain_ports() -> None:
     @system
     class Rig(metaclass=Interface):
-        m: MassField = field()
+        m: Mass = field()
         count: float = field()
 
     @equation
@@ -43,8 +39,8 @@ def test_a_system_interface_may_mix_declared_and_plain_ports() -> None:
 def test_a_port_the_interface_declares_and_a_constituent_leaves_plain_raises() -> None:
     @system
     class Rig(metaclass=Interface):
-        x: LengthField = field()
-        y: LengthField = field()
+        x: Length = field()
+        y: Length = field()
 
     @equation
     def doubling(y: float, x: float) -> bool:
@@ -80,7 +76,7 @@ def test_a_transform_without_a_return_annotation_does_not_declare_its_output() -
     @system
     class Rig(metaclass=Interface):
         x: float = field()
-        half: MassField = field()
+        half: Mass = field()
 
     @transform
     def half(x: float):  # noqa: ANN202
@@ -93,7 +89,7 @@ def test_a_transform_without_a_return_annotation_does_not_declare_its_output() -
 def test_an_intermediate_port_declared_by_one_constituent_and_plain_in_another_raises() -> None:
     @system
     class Rig(metaclass=Interface):
-        x: MassField = field()
+        x: Mass = field()
 
     @equation
     def declared_link(x: Mass, middle: Mass) -> bool:
@@ -116,7 +112,7 @@ def test_an_intermediate_port_declared_by_one_constituent_and_plain_in_another_r
 def test_a_plain_port_answers_with_a_bare_number_however_many_declared_ports_exist_elsewhere() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: VoltageField = field()
+        v: Voltage = field()
         x: float = field()
         scaled: float = field()
 
@@ -146,10 +142,10 @@ def test_a_tensor_port_meeting_a_declared_port_in_one_equation_raises() -> None:
 def test_a_transform_with_a_plain_flag_beside_declared_ports_evaluates_by_the_flag() -> None:
     @system
     class Combiner(metaclass=Interface):
-        a: DimensionlessField = field()
-        b: DimensionlessField = field()
+        a: Dimensionless = field()
+        b: Dimensionless = field()
         add: bool = field()
-        combined: DimensionlessField = field()
+        combined: Dimensionless = field()
 
     @transform
     def combined(a: Dimensionless, b: Dimensionless, add: bool) -> Dimensionless:
@@ -167,9 +163,9 @@ def test_a_transform_with_a_plain_flag_beside_declared_ports_evaluates_by_the_fl
 def test_an_equation_with_a_plain_exponent_beside_declared_ports_evaluates() -> None:
     @system
     class Power(metaclass=Interface):
-        x: DimensionlessField = field()
+        x: Dimensionless = field()
         n: float = field()
-        y: DimensionlessField = field()
+        y: Dimensionless = field()
 
     @equation
     def powered(y: Dimensionless, x: Dimensionless, n: float) -> bool:
@@ -192,9 +188,9 @@ def test_a_plain_port_meeting_a_declared_port_inside_an_exponent_raises() -> Non
 def test_a_plain_transform_port_that_another_owner_declares_raises() -> None:
     @system
     class Rig(metaclass=Interface):
-        a: DimensionlessField = field()
-        scale: DimensionlessField = field()
-        scaled: DimensionlessField = field()
+        a: Dimensionless = field()
+        scale: Dimensionless = field()
+        scaled: Dimensionless = field()
 
     @transform
     def scaled(a: Dimensionless, scale: float) -> Dimensionless:
@@ -206,9 +202,9 @@ def test_a_plain_transform_port_that_another_owner_declares_raises() -> None:
 
 @system
 class Amplifier(metaclass=Interface):
-    gain: DimensionlessField = field()
-    x: LengthField = field()
-    amplified: LengthField = field()
+    gain: Dimensionless = field()
+    x: Length = field()
+    amplified: Length = field()
 
 
 @equation
