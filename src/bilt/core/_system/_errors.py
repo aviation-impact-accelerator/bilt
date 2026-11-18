@@ -1,6 +1,7 @@
 """Errors for system definitions, the values an instance is given, and sub-system declarations."""
 
 __all__ = [
+    "BiltDuplicateComponentError",
     "BiltInputDimensionalityError",
     "BiltSubSystemConflictError",
     "BiltSubSystemError",
@@ -111,6 +112,17 @@ class BiltInputDimensionalityError(BiltDimensionalityError):
         else:
             msg = f"Input {port!r} of {system_name!r} must be {carrier} of {expected}, not {received}.{label}"
         super().__init__(msg)
+
+
+class BiltDuplicateComponentError(BiltDefinitionError):
+    """Raised when distinct components share a name in one implementation."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(
+            f"Implementation contains distinct components named {name!r}. "
+            "Give each component a unique name; repeated references to the same component are allowed."
+        )
 
 
 class BiltSubSystemError(BiltDefinitionError):
