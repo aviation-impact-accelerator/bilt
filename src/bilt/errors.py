@@ -23,6 +23,7 @@ __all__ = [
     "BiltCompilationError",
     "BiltDefinitionError",
     "BiltDimensionalityError",
+    "BiltDuplicateComponentError",
     "BiltDomainBindingError",
     "BiltDomainRegistryError",
     "BiltDomainRegistryLockedError",
@@ -54,6 +55,7 @@ __all__ = [
     "BiltTargetNotFoundError",
     "BiltTargetOnBothSidesError",
     "BiltTensorDomainError",
+    "BiltTransformSignatureError",
     "BiltTreeMutationError",
     "BiltUnitError",
     "BiltUnitsError",
@@ -83,9 +85,11 @@ from bilt.core._errors import (
     BiltNameError,
     BiltNoActiveEvaluationError,
     BiltPortDeclarationError,
+    BiltTransformSignatureError,
     BiltUnresolvedAnnotationError,
 )
 from bilt.core._system._errors import (
+    BiltDuplicateComponentError,
     BiltInputDimensionalityError,
     BiltSubSystemConflictError,
     BiltSubSystemError,
