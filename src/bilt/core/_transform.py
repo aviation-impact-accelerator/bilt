@@ -18,7 +18,7 @@ if typing.TYPE_CHECKING:
 class Transform[R, **P](typing.Protocol):
     __bilt_name__: str
     __bilt_parameters__: tuple[str, ...]
-    __bilt_port_declarations__: dict[str, PortDeclaration]
+    __bilt_port_declarations__: typing.Mapping[str, PortDeclaration]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
