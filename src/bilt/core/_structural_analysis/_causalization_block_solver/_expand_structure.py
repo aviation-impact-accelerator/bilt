@@ -149,10 +149,19 @@ class StructuralExpansion:
 
     def _drain(self) -> None:
         while self.pending:
-            namespace, attribute = self.pending.pop()
+            namespace = self.pending[-1][0]
+            required: set[str] = set()
+            remaining: list[tuple[tuple[str, ...], str]] = []
+            for path, attribute in self.pending:
+                if path == namespace:
+                    required.add(attribute)
+                else:
+                    remaining.append((path, attribute))
+            self.pending = remaining
+
             prefix = _prefix(namespace)
             supplied = {name[len(prefix) :] for name in self.available if name.startswith(prefix)}
-            scope = self.contexts[namespace].query(supplied, {attribute})
+            scope = self.contexts[namespace].query(supplied, required)
             self.query_count += 1
             self._merge(namespace, scope)
 
