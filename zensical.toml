@@ -19,12 +19,14 @@ nav = [
     { "Home" = "index.md" },
 
     { "Bilt user guide" = [
+        { "Modelling philosophy" = "guide/modelling-philosophy.md" },
         { "Systems and values" = "guide/systems-and-values.md" },
         { "Equations and acausal modelling" = "guide/equations-and-acausal-modelling.md" },
         { "Transforms and implementations" = "guide/transforms-and-implementations.md" },
         { "Models to computation" = "guide/models-to-computation.md" },
         { "Dimensions, domains and tensors" = "guide/dimensions-domains-and-tensors.md" },
-        { "System of systems" = "guide/systems-of-systems.md" },
+        { "Systems of systems" = "guide/systems-of-systems.md" },
+        { "Coupled systems" = "guide/coupled-systems.md" },
         { "Backends" = "guide/backends.md" },
         { "Units" = "guide/units.md" },
     ] },
@@ -36,6 +38,11 @@ nav = [
         { "Quantity annotations and typing" = "api/quantity-annotations.md" },
         { "Tensors" = "api/tensors.md" },
         { "Backends" = "api/backends.md" },
+    ] },
+
+    { "Tools and configuration" = [
+        { "Check model definitions" = "check.md" },
+        { "Ruff configuration" = "config.md" },
     ] },
 
     { "Bilt worked examples" = [
