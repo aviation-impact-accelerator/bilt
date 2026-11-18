@@ -142,6 +142,7 @@ class _IncrementalStructuralScope:
         self.selected: set[int] = set()
         self.child_ports: dict[int, set[str]] = {}
         self.order = {node: index for index, node in enumerate(incidence.constituent_nodes)}
+        self.nodes_by_identity = {id(incidence.graph[node]): node for node in incidence.constituent_nodes}
 
     def _walk(
         self, targets: frozenset[str], supplied: frozenset[str]
@@ -191,6 +192,15 @@ class _IncrementalStructuralScope:
             self.child_ports.clear()
 
         targets = frozenset(required)
+        if not self.visited:
+            # Reuse an existing request-local cache entry for shared implementations.
+            initial = inspect_structure(self.incidence, supplied, targets)
+            self.visited.update(initial.attributes - supplied)
+            self.selected.update(self.nodes_by_identity[id(operation)] for operation in initial.constraints)
+            for boundary in initial.boundaries:
+                self.child_ports[self.nodes_by_identity[id(boundary.operation)]] = set(boundary.required)
+            return initial
+
         attributes, new_constraints, new_child_ports = self._walk(targets, supplied)
 
         graph = self.incidence.graph
