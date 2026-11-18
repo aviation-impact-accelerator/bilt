@@ -96,6 +96,7 @@ runtime-evaluated-decorators = [
     "bilt.system",
     "bilt.transform",
     "bilt_proposals.connection",
+    "bilt_proposals.equation",
 ]
 
 [tool.ruff.lint.isort]
