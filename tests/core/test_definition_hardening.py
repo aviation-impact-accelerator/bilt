@@ -26,15 +26,16 @@ def y(x: Length) -> Length:
 
 
 def test_distinct_components_with_the_same_name_are_rejected() -> None:
-    first = y
     registered = set(Model.__bilt_system_registry__)
 
-    @transform
-    def y(x: Length) -> Length:
+    def replacement_y(x: Length) -> Length:
         return 2 * x
 
+    replacement_y.__name__ = "y"
+    duplicate = transform(replacement_y)
+
     with pytest.raises(BiltDuplicateComponentError, match="distinct components named 'y'"):
-        Implementation(Model, [first, y])
+        Implementation(Model, [y, duplicate])
 
     assert Model.__bilt_system_registry__ == registered
 
