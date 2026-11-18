@@ -24,6 +24,8 @@ class Transform[R, **P](typing.Protocol):
 
 
 class BasicTransform[R, **P]:
+    __bilt_port_declarations__: typing.Mapping[str, PortDeclaration]
+
     def __init__(self, function: collections.abc.Callable[P, R]) -> None:
         self.__bilt_name__ = function.__name__  # ty: ignore[missing-attribute]
         try:
