@@ -48,7 +48,7 @@ Some notebooks and interactive environments may not make the source available.
 | Changing values | Do not modify object attributes, list/dictionary entries, or use `+=` and similar assignments. |
 | Loops | `for`, `while` and comprehensions are not supported. |
 | Function calls | Allowed when Bilt understands the mathematical result. Bilt cannot detect every side effect inside a called function. |
-| Python `if/elif/else` | A single conditional chain may contain `elif` and nested `if/else`; all paths must assign the same local name once and end in an `else`. |
+| Python `if/elif/else` | A single conditional chain may contain `elif` and nested `if/else`; all paths must end by assigning the same result name and end in an `else`; sequential local assignments are allowed in each branch. |
 | Inline `if` | Expressions such as `a if flag else b` work when `flag` is an ordinary Python value known when Bilt reads the equation, not a value being solved for. |
 
 Ordinary equations can use constants from outside the function, including
@@ -72,8 +72,11 @@ Conditions may compare scalar or tensor-valued expressions. Combine symbolic
 comparisons with `&`, `|` or `~` (parenthesise comparisons); Python's
 `and`, `or`, `not` and chained comparisons are not supported for symbolic
 predicates. You can use `elif` or nest `if/else` blocks. Every path must
-assign the **same name** exactly once, with a final `else` and the `return`
-outside the branches. Multiple separate `if` statements are not supported.
+end by assigning the **same result name**, with a final `else` and the `return`
+outside the branches. Each branch may use intermediate local assignments, including
+values used by a nested condition. Such locals are not available after the
+conditional; only the shared result is. Multiple separate `if` statements are
+not supported.
 
 A tensor predicate selects elementwise, broadcasting the predicate and branches
 by named dimension. A scalar predicate with branches on the same domain stays

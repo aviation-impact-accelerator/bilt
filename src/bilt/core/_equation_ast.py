@@ -68,8 +68,6 @@ def normalise_equation_ast(function: ast.FunctionDef) -> ast.FunctionDef:
             continue
 
         name, value = _normalise_branch(statement)
-        # A branch-local annotation is a declaration, not part of the symbolic
-        # expression. The merged assignment is deliberately unannotated.
         replacement = ast.Assign(
             targets=[ast.copy_location(ast.Name(id=name, ctx=ast.Store()), statement)],
             value=value,
@@ -81,15 +79,38 @@ def normalise_equation_ast(function: ast.FunctionDef) -> ast.FunctionDef:
     return ast.fix_missing_locations(node)
 
 
-def _normalise_branch(statement: ast.stmt) -> tuple[str, ast.expr]:
-    if not isinstance(statement, ast.If):
-        return _assignment_name(statement), _assignment_value(statement)
+class _LocalSubstitution(ast.NodeTransformer):
+    def __init__(self, bindings: dict[str, ast.expr]) -> None:
+        self.bindings = bindings
 
-    true_name, when_true = _normalise_branch(statement.body[0])
-    _, when_false = _normalise_branch(statement.orelse[0])
+    def visit_Name(self, node: ast.Name) -> ast.expr:
+        if isinstance(node.ctx, ast.Load) and node.id in self.bindings:
+            return ast.copy_location(copy.deepcopy(self.bindings[node.id]), node)
+        return node
+
+
+def _substitute_locals(expression: ast.expr, bindings: dict[str, ast.expr]) -> ast.expr:
+    return typing.cast("ast.expr", _LocalSubstitution(bindings).visit(copy.deepcopy(expression)))
+
+
+def _normalise_arm(statements: list[ast.stmt], inherited: dict[str, ast.expr]) -> tuple[str, ast.expr]:
+    bindings = inherited.copy()
+    for statement in statements[:-1]:
+        bindings[_assignment_name(statement)] = _substitute_locals(_assignment_value(statement), bindings)
+
+    last = statements[-1]
+    if isinstance(last, ast.If):
+        return _normalise_branch(last, bindings)
+    return _assignment_name(last), _substitute_locals(_assignment_value(last), bindings)
+
+
+def _normalise_branch(statement: ast.If, inherited: dict[str, ast.expr] | None = None) -> tuple[str, ast.expr]:
+    bindings = {} if inherited is None else inherited
+    true_name, when_true = _normalise_arm(statement.body, bindings)
+    _, when_false = _normalise_arm(statement.orelse, bindings)
     expression = ast.Call(
         func=ast.Name(id="_bilt_conditional", ctx=ast.Load()),
-        args=[statement.test, when_true, when_false],
+        args=[_substitute_locals(statement.test, bindings), when_true, when_false],
         keywords=[],
     )
     return true_name, ast.copy_location(expression, statement)
@@ -168,23 +189,31 @@ def _parameter_names(function: ast.FunctionDef) -> set[str]:
     return names
 
 
-def _branch_statement(statements: list[ast.stmt], conditional: ast.If) -> ast.stmt:
-    if len(statements) != 1:
-        _reject(conditional, "each branch must contain exactly one assignment or nested if/else")
-    return statements[0]
-
-
 def _branch_binding_name(statement: ast.stmt) -> str:
     if isinstance(statement, ast.If):
-        return _branch_binding_name(statement.body[0])
+        return _branch_binding_name(statement.body[-1])
     return _assignment_name(statement)
 
 
-def _validate_branch_arm(statement: ast.stmt, params: set[str], assigned: set[str]) -> str:
-    if isinstance(statement, ast.If):
-        return _validate_branch(statement, params, assigned)
-    name = _assignment_name(statement)
-    _validate_expression(_assignment_value(statement))
+def _validate_branch_arm(statements: list[ast.stmt], conditional: ast.If, params: set[str], assigned: set[str]) -> str:
+    if not statements:
+        _reject(conditional, "each branch must contain exactly one assignment or nested if/else")
+
+    local_assigned = set(assigned)
+    for statement in statements[:-1]:
+        if isinstance(statement, ast.If):
+            _reject(statement, "nested conditional must be last in a branch")
+        name = _assignment_name(statement)
+        _validate_expression(_assignment_value(statement))
+        _check_fresh_binding(statement, name, params, local_assigned)
+        local_assigned.add(name)
+
+    last = statements[-1]
+    if isinstance(last, ast.If):
+        return _validate_branch(last, params, local_assigned)
+    name = _assignment_name(last)
+    _validate_expression(_assignment_value(last))
+    _check_fresh_binding(last, name, params, local_assigned)
     return name
 
 
@@ -208,8 +237,8 @@ def _validate_mask_predicate(node: ast.expr) -> None:
 def _validate_branch(statement: ast.If, params: set[str], assigned: set[str]) -> str:
     _validate_mask_predicate(statement.test)
 
-    left = _validate_branch_arm(_branch_statement(statement.body, statement), params, assigned)
-    right = _validate_branch_arm(_branch_statement(statement.orelse, statement), params, assigned)
+    left = _validate_branch_arm(statement.body, statement, params, assigned)
+    right = _validate_branch_arm(statement.orelse, statement, params, assigned)
     if left != right:
         _reject(statement, "all branches must assign the same local variable")
     _check_fresh_binding(statement, left, params, assigned)
@@ -242,41 +271,47 @@ def _validate_bindings(function: ast.FunctionDef, params: set[str]) -> set[str]:
     return assigned
 
 
-def _statement_expressions(statement: ast.stmt) -> list[ast.expr]:
-    if isinstance(statement, (ast.Assign, ast.AnnAssign)):
-        return [_assignment_value(statement)]
-    if isinstance(statement, ast.If):
-        return [
-            statement.test,
-            *(
-                expression
-                for branch in (*statement.body, *statement.orelse)
-                for expression in _statement_expressions(branch)
-            ),
-        ]
-    if isinstance(statement, ast.Return) and statement.value is not None:
-        return [statement.value]
-    return []
+def _check_expression_reads(expression: ast.expr, available: set[str], local_names: set[str]) -> None:
+    for node in ast.walk(expression):
+        if (
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and node.id in local_names
+            and node.id not in available
+        ):
+            _reject(node, f"local variable {node.id!r} is used before assignment")
+
+
+def _check_branch_reads(statement: ast.If, available: set[str], local_names: set[str]) -> None:
+    _check_expression_reads(statement.test, available, local_names)
+    for arm in (statement.body, statement.orelse):
+        branch_available = set(available)
+        for item in arm:
+            if isinstance(item, ast.If):
+                _check_branch_reads(item, branch_available, local_names)
+                branch_available.add(_branch_binding_name(item))
+            else:
+                _check_expression_reads(_assignment_value(item), branch_available, local_names)
+                branch_available.add(_assignment_name(item))
 
 
 def _check_local_reads(function: ast.FunctionDef, params: set[str], assigned: set[str]) -> None:
-    """Reject reads of local bindings before their definition."""
+    """Check each branch independently; only its result name escapes."""
+    local_names = set(assigned)
+    for node in ast.walk(function):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            local_names.add(_assignment_name(node))
+
     available = set(params)
-    local_names = assigned - params
     for statement in function.body:
-        for expression in _statement_expressions(statement):
-            for subnode in ast.walk(expression):
-                if (
-                    isinstance(subnode, ast.Name)
-                    and isinstance(subnode.ctx, ast.Load)
-                    and subnode.id in local_names
-                    and subnode.id not in available
-                ):
-                    _reject(subnode, f"local variable {subnode.id!r} is used before assignment")
         if isinstance(statement, (ast.Assign, ast.AnnAssign)):
+            _check_expression_reads(_assignment_value(statement), available, local_names)
             available.add(_assignment_name(statement))
         elif isinstance(statement, ast.If):
-            available.add(_branch_binding_name(statement.body[0]))
+            _check_branch_reads(statement, available, local_names)
+            available.add(_branch_binding_name(statement))
+        elif isinstance(statement, ast.Return) and statement.value is not None:
+            _check_expression_reads(statement.value, available, local_names)
 
 
 def _validate_function(function: ast.FunctionDef) -> None:

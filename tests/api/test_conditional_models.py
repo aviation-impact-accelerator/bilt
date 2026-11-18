@@ -183,3 +183,57 @@ def test_nested_conditional_cannot_be_inverted(backend: AbstractContextManager[o
     with backend, implementation, pytest.raises(BiltAnalysisError, match="Cannot compute x") as raised:
         _ = MultiBranch(result=4.0).x
     assert "through a conditional" in str(raised.value)
+
+
+@equation
+def staged_value(x: float, value: float) -> bool:
+    if x > 0:
+        shifted = x + 1
+        squared = shifted**2
+        selected = squared - 1
+    else:
+        magnitude = -x
+        doubled = magnitude * 2
+        selected = doubled + 1
+    return value == selected
+
+
+@equation
+def nested_staged_value(x: float, value: float) -> bool:
+    if x > 0:
+        shifted = x + 1
+        if shifted > 3:
+            doubled = shifted * 2
+            selected = doubled + 1
+        else:
+            tripled = shifted * 3
+            selected = tripled + 1
+    else:
+        magnitude = -x
+        adjusted = magnitude + 2
+        selected = adjusted * 2
+    return value == selected
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+@pytest.mark.parametrize(("x", "expected"), ((2.0, 8.0), (-2.0, 5.0), (0.0, 1.0)))
+def test_sequential_branch_assignments(backend: AbstractContextManager[object], x: float, expected: float) -> None:
+    with backend, Implementation(Piecewise, [staged_value]):
+        assert float(Piecewise(x=x).value) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+@pytest.mark.parametrize(("x", "expected"), ((3.0, 9.0), (1.0, 7.0), (-2.0, 8.0)))
+def test_nested_sequential_branch_assignments(
+    backend: AbstractContextManager[object], x: float, expected: float
+) -> None:
+    with backend, Implementation(Piecewise, [nested_staged_value]):
+        assert float(Piecewise(x=x).value) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+def test_sequential_branch_assignments_with_tensor_mask(backend: AbstractContextManager[object]) -> None:
+    with backend, Implementation(Piecewise, [staged_value]):
+        result = Piecewise(x=tensor([2.0, -2.0, 0.0], over=dim("site"))).value  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+    assert isinstance(result, Tensor)
+    np.testing.assert_allclose(result.values, [8.0, 5.0, 1.0])
