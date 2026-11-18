@@ -2,11 +2,13 @@ __all__ = ["transform"]
 
 import ast
 import inspect
+import types
 import textwrap
 import typing
 
-from bilt.core._errors import BiltUnresolvedAnnotationError
+from bilt.core._errors import BiltTransformSignatureError, BiltUnresolvedAnnotationError
 from bilt.core._port_declaration import PortDeclaration, port_declarations
+from bilt.core._sub_system import validate_name
 from bilt.core._unit_erasure import erase_units
 
 if typing.TYPE_CHECKING:
@@ -28,11 +30,21 @@ class BasicTransform[R, **P]:
             signature = inspect.signature(function, eval_str=True)
         except NameError as error:
             raise BiltUnresolvedAnnotationError(self.__bilt_name__, error) from error
+        for parameter in signature.parameters.values():
+            validate_name(parameter.name)
+            if parameter.kind not in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY):
+                msg = (
+                    f"Transform {self.__bilt_name__!r} must use named parameters only "
+                    "(no positional-only parameters, *args or **kwargs)."
+                )
+                raise BiltTransformSignatureError(msg)
         self.__bilt_parameters__ = tuple(signature.parameters.keys())
-        self.__bilt_port_declarations__ = port_declarations(
-            self.__bilt_name__,
-            {port: parameter.annotation for port, parameter in signature.parameters.items()}
-            | {self.__bilt_name__: signature.return_annotation},
+        self.__bilt_port_declarations__ = types.MappingProxyType(
+            port_declarations(
+                self.__bilt_name__,
+                {port: parameter.annotation for port, parameter in signature.parameters.items()}
+                | {self.__bilt_name__: signature.return_annotation},
+            )
         )
         self._function = function
         self._function_ast = erase_units(
