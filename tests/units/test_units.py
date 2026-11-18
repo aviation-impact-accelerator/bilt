@@ -47,11 +47,9 @@ from bilt.units import (
 )
 from bilt.units._metadata import Metadata
 from bilt.units._prefix import Prefix
+from bilt.units._quantities import _Quantity
 from bilt.units._units import BASE_UNIT_SYSTEM, Unit, UnitComposition, UnitOrder
 from bilt.units.dimensions._dimensions import DIMENSIONLESS, LENGTH, MASS, TEMPERATURE, TIME, Dimension
-
-if typing.TYPE_CHECKING:
-    from bilt.units._quantities import Quantity
 
 electric = Metadata("electric")
 thermal = Metadata("thermal")
@@ -827,7 +825,7 @@ class TestDimensionless:
             ("count", UNITLESS, UnitComposition()),
         ),
     )
-    def test_new_named(name: str, relation: Unit | Quantity, expected_relation: UnitComposition) -> None:
+    def test_new_named(name: str, relation: Unit | _Quantity, expected_relation: UnitComposition) -> None:
         unit = Unit.new_named(name, relation)
         assert unit.name == name
         assert unit.relation == expected_relation
@@ -958,7 +956,7 @@ class TestAbsoluteUnit:
             (1.0 * celsius, 1.0 * celsius, 2.0 * celsius),
         ),
     )
-    def test_addition(left: Quantity, right: Quantity, expected: Quantity) -> None:
+    def test_addition(left: _Quantity, right: _Quantity, expected: _Quantity) -> None:
         assert (left + right) == expected
 
     @staticmethod
@@ -971,7 +969,7 @@ class TestAbsoluteUnit:
             (1.0 * abs(fahrenheit), 1.0 * abs(fahrenheit)),
         ),
     )
-    def test_unit_error_for_addition_of_two_absolute_units(left: Quantity, right: Quantity) -> None:
+    def test_unit_error_for_addition_of_two_absolute_units(left: _Quantity, right: _Quantity) -> None:
         message = "Cannot add two quantities with absolute units of .* and .*"
         with pytest.raises(BiltUnitError, match=message):
             _ = left + right
@@ -993,7 +991,7 @@ class TestAbsoluteUnit:
             (100.0 * abs(fahrenheit), abs(celsius), 340 / 9 * abs(celsius)),
         ),
     )
-    def test_convert_to(quantity: Quantity, unit: Unit, expected: Quantity) -> None:
+    def test_convert_to(quantity: _Quantity, unit: Unit, expected: _Quantity) -> None:
         result = quantity.convert_to(unit)
 
         assert result.value == pytest.approx(expected.value)
@@ -1039,18 +1037,20 @@ class TestAbsoluteUnit:
             (20.0 * celsius, 20.0),
         ),
     )
-    def test_coherent_value_counts_an_absolute_quantity_from_absolute_zero(quantity: Quantity, expected: float) -> None:
+    def test_coherent_value_counts_an_absolute_quantity_from_absolute_zero(
+        quantity: _Quantity, expected: float
+    ) -> None:
         assert BASE_UNIT_SYSTEM.coherent_value(quantity) == pytest.approx(expected)
 
     @staticmethod
     def test_coherent_value_unit_error_if_unit_compounds_an_absolute_unit() -> None:
         with pytest.raises(BiltUnitError, match="compound unit containing an absolute unit"):
-            BASE_UNIT_SYSTEM.coherent_value(60.0 * kilogram * absolute_celsius)
+            BASE_UNIT_SYSTEM.coherent_value(_Quantity(60.0, kilogram * absolute_celsius))
 
     @staticmethod
     def test_coherent_value_unit_error_if_coherent_unit_has_no_absolute_counterpart() -> None:
         with pytest.raises(BiltUnitError, match="No absolute unit corresponding to second exists"):
-            BASE_UNIT_SYSTEM.coherent_value(2020.0 * absolute_year)
+            BASE_UNIT_SYSTEM.coherent_value(_Quantity(2020.0, absolute_year))
 
 
 class TestTaggedUnit:
@@ -1107,7 +1107,7 @@ class TestTaggedUnit:
             (50.0 * percent * co2, 0.5),
         ),
     )
-    def test_coherent_value_converts_within_the_tagged_dimension(quantity: Quantity, expected: float) -> None:
+    def test_coherent_value_converts_within_the_tagged_dimension(quantity: _Quantity, expected: float) -> None:
         assert BASE_UNIT_SYSTEM.coherent_value(quantity) == pytest.approx(expected)
 
     @staticmethod
@@ -1121,7 +1121,7 @@ class TestTaggedUnit:
         ),
     )
     def test_named_unit_keeps_each_tag_of_its_relation(
-        name: str, relation: Unit | Quantity, expected: Dimension
+        name: str, relation: Unit | _Quantity, expected: Dimension
     ) -> None:
         assert Unit.new_named(name, relation).dimension is expected
 
@@ -1135,7 +1135,7 @@ class TestTaggedUnit:
         ),
     )
     def test_named_unit_converts_back_to_its_tagged_relation(
-        name: str, relation: Unit | Quantity, expected: float
+        name: str, relation: Unit | _Quantity, expected: float
     ) -> None:
         converted = (1.0 * Unit.new_named(name, relation)).convert_to(kilogram * co2)
         assert converted.unit is kilogram * co2

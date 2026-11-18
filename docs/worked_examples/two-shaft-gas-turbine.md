@@ -80,7 +80,7 @@ To determine how much work the LP turbine extracts, we therefore specify the **c
 For the baseline example we use:
 
 ```text
-core exit temperature = Quantity(1000, absolute_kelvin) K
+core exit temperature = 1000 K
 ```
 
 A real engine model would usually determine the turbine expansion from pressures and component efficiencies. Here the fixed exit temperature keeps the physics intentionally low-order while giving the shaft-power calculation a well-defined endpoint.
@@ -120,9 +120,9 @@ def render_plot() -> None:
 
 ## 1. Define reusable component systems
 
-We start with a compressor. Its system fields use named pointwise quantity
-aliases, allowing scalar or tensor values without fixing array shapes.
-The equations retain scalar aliases, which Bilt can lift over tensor domains.
+We start with a compressor. Its system fields and equations share one quantity
+alias per dimension; each accepts a single value or a tensor of values without
+fixing array shapes, and Bilt lifts the equations over tensor domains.
 
 Temperatures are absolute readings; subtracting two readings gives a relative
 temperature change. Specific heat multiplies that change to produce specific
@@ -135,7 +135,7 @@ than encoded in names such as `_k` or `_kj_per_kg`.
 ```python exec="off"
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, field, system
+from bilt import Implementation, Interface, Quantity, equation, field, system
 from bilt.units import UNITLESS, absolute_kelvin, kelvin, kilogram, kilojoule, kilowatt, megawatt, second
 from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, MASS, TEMPERATURE, TIME
 
@@ -147,23 +147,16 @@ MassFlow = Annotated[Quantity, MASS / TIME]
 Power = Annotated[Quantity, ENERGY / TIME]
 Ratio = Annotated[Quantity, DIMENSIONLESS]
 
-PointwiseAbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
-PointwiseSpecificHeat = Annotated[Quantity | QuantityTensor, ENERGY / (MASS * TEMPERATURE)]
-PointwiseSpecificWork = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
-PointwiseMassFlow = Annotated[Quantity | QuantityTensor, MASS / TIME]
-PointwisePower = Annotated[Quantity | QuantityTensor, ENERGY / TIME]
-PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
-
 
 @system
 class Compressor(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    pressure_ratio: PointwiseRatio = field()
-    isentropic_efficiency: PointwiseRatio = field()
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    pressure_ratio: Ratio = field()
+    isentropic_efficiency: Ratio = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 
 @equation
@@ -175,7 +168,7 @@ def compressor_temperature_relation(
     gamma: Ratio,
 ) -> bool:
     return (outlet_temperature - inlet_temperature) * isentropic_efficiency == (
-        inlet_temperature - Quantity(0.0, absolute_kelvin)
+        inlet_temperature - 0.0 * absolute_kelvin
     ) * (pressure_ratio ** ((gamma - 1.0) / gamma) - 1.0)
 
 
@@ -199,7 +192,7 @@ compressor_model = Implementation(
 ```
 
 The compressor temperature relation uses
-`inlet_temperature - Quantity(0.0, absolute_kelvin)` to express the inlet
+`inlet_temperature - 0.0 * absolute_kelvin` to express the inlet
 temperature relative to absolute zero before multiplying it by a dimensionless
 factor. This preserves the original kelvin-based formula while distinguishing
 absolute readings from relative changes.
@@ -217,15 +210,12 @@ does not permanently designate specific work as the output. With a different set
 The turbine is similarly small:
 
 ```python exec="off"
-from bilt import QuantityTensor
-
-
 @system
 class Turbine(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 
 @equation
@@ -249,43 +239,40 @@ turbine_model = Implementation(
 The parent system contains the values needed to connect the four child systems.
 
 ```python exec="off"
-from bilt import QuantityTensor
-
-
 @system
 class TwoShaftCore(metaclass=Interface):
     # Gas-path temperatures.
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    low_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    turbine_inlet_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_turbine_exit_temperature: PointwiseAbsoluteTemperature = field()
-    exit_temperature: PointwiseAbsoluteTemperature = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    low_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    high_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    turbine_inlet_temperature: AbsoluteTemperature = field()
+    high_pressure_turbine_exit_temperature: AbsoluteTemperature = field()
+    exit_temperature: AbsoluteTemperature = field()
 
     # Compressor design assumptions.
-    low_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    high_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    low_pressure_compressor_efficiency: PointwiseRatio = field()
-    high_pressure_compressor_efficiency: PointwiseRatio = field()
+    low_pressure_compressor_pressure_ratio: Ratio = field()
+    high_pressure_compressor_pressure_ratio: Ratio = field()
+    low_pressure_compressor_efficiency: Ratio = field()
+    high_pressure_compressor_efficiency: Ratio = field()
 
     # Shared fluid properties.
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
 
     # Shaft efficiencies.
-    low_pressure_shaft_efficiency: PointwiseRatio = field()
-    high_pressure_shaft_efficiency: PointwiseRatio = field()
+    low_pressure_shaft_efficiency: Ratio = field()
+    high_pressure_shaft_efficiency: Ratio = field()
 
     # Coupling values used by the two shaft balances.
-    low_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_turbine_work: PointwiseSpecificWork = field()
-    low_pressure_turbine_work: PointwiseSpecificWork = field()
+    low_pressure_compressor_work: SpecificWork = field()
+    high_pressure_compressor_work: SpecificWork = field()
+    high_pressure_turbine_work: SpecificWork = field()
+    low_pressure_turbine_work: SpecificWork = field()
 
     # Useful LP-shaft output.
-    shaft_output_work: PointwiseSpecificWork = field()
-    mass_flow: PointwiseMassFlow = field()
-    shaft_power: PointwisePower = field()
+    shaft_output_work: SpecificWork = field()
+    mass_flow: MassFlow = field()
+    shaft_power: Power = field()
 ```
 
 Some of these values exist mainly to provide an explicit hand-off between child systems.
@@ -664,7 +651,7 @@ For the executable documentation below, the same model is loaded from a temporar
 model_source = """
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, field, system
+from bilt import Implementation, Interface, Quantity, equation, field, system
 from bilt.units import UNITLESS, absolute_kelvin, kelvin, kilogram, kilojoule, kilowatt, megawatt, second
 from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, MASS, TEMPERATURE, TIME
 
@@ -676,22 +663,16 @@ MassFlow = Annotated[Quantity, MASS / TIME]
 Power = Annotated[Quantity, ENERGY / TIME]
 Ratio = Annotated[Quantity, DIMENSIONLESS]
 
-PointwiseAbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
-PointwiseSpecificHeat = Annotated[Quantity | QuantityTensor, ENERGY / (MASS * TEMPERATURE)]
-PointwiseSpecificWork = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
-PointwiseMassFlow = Annotated[Quantity | QuantityTensor, MASS / TIME]
-PointwisePower = Annotated[Quantity | QuantityTensor, ENERGY / TIME]
-PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
 
 @system
 class Compressor(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    pressure_ratio: PointwiseRatio = field()
-    isentropic_efficiency: PointwiseRatio = field()
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    pressure_ratio: Ratio = field()
+    isentropic_efficiency: Ratio = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 @equation
 def compressor_temperature_relation(
@@ -704,7 +685,7 @@ def compressor_temperature_relation(
     return (
         (outlet_temperature - inlet_temperature)
         * isentropic_efficiency
-        == (inlet_temperature - Quantity(0.0, absolute_kelvin))
+        == (inlet_temperature - 0.0 * absolute_kelvin)
         * (
             pressure_ratio ** ((gamma - 1.0) / gamma)
             - 1.0
@@ -734,10 +715,10 @@ compressor_model = Implementation(
 
 @system
 class Turbine(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 @equation
 def turbine_work_relation(
@@ -759,33 +740,33 @@ turbine_model = Implementation(
 
 @system
 class TwoShaftCore(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    low_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    turbine_inlet_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_turbine_exit_temperature: PointwiseAbsoluteTemperature = field()
-    exit_temperature: PointwiseAbsoluteTemperature = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    low_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    high_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    turbine_inlet_temperature: AbsoluteTemperature = field()
+    high_pressure_turbine_exit_temperature: AbsoluteTemperature = field()
+    exit_temperature: AbsoluteTemperature = field()
 
-    low_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    high_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    low_pressure_compressor_efficiency: PointwiseRatio = field()
-    high_pressure_compressor_efficiency: PointwiseRatio = field()
+    low_pressure_compressor_pressure_ratio: Ratio = field()
+    high_pressure_compressor_pressure_ratio: Ratio = field()
+    low_pressure_compressor_efficiency: Ratio = field()
+    high_pressure_compressor_efficiency: Ratio = field()
 
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
 
-    low_pressure_shaft_efficiency: PointwiseRatio = field()
-    high_pressure_shaft_efficiency: PointwiseRatio = field()
+    low_pressure_shaft_efficiency: Ratio = field()
+    high_pressure_shaft_efficiency: Ratio = field()
 
-    low_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_turbine_work: PointwiseSpecificWork = field()
-    low_pressure_turbine_work: PointwiseSpecificWork = field()
+    low_pressure_compressor_work: SpecificWork = field()
+    high_pressure_compressor_work: SpecificWork = field()
+    high_pressure_turbine_work: SpecificWork = field()
+    low_pressure_turbine_work: SpecificWork = field()
 
     # Useful LP-shaft output.
-    shaft_output_work: PointwiseSpecificWork = field()
-    mass_flow: PointwiseMassFlow = field()
-    shaft_power: PointwisePower = field()
+    shaft_output_work: SpecificWork = field()
+    mass_flow: MassFlow = field()
+    shaft_power: Power = field()
 
 @equation
 def low_pressure_compressor_inlet_connection(
@@ -1100,16 +1081,16 @@ explicitly convert to kJ/kg and MW for the printed results and plots.
 
 ```python exec="on" source="above" session="turbomachinery"
 baseline = TwoShaftCore(
-    inlet_temperature=Quantity(288.0, absolute_kelvin),
-    low_pressure_compressor_pressure_ratio=Quantity(2.0, UNITLESS),
-    high_pressure_compressor_pressure_ratio=Quantity(6.0, UNITLESS),
-    low_pressure_compressor_efficiency=Quantity(0.88, UNITLESS),
-    high_pressure_compressor_efficiency=Quantity(0.86, UNITLESS),
-    turbine_inlet_temperature=Quantity(1450.0, absolute_kelvin),
-    exit_temperature=Quantity(1000.0, absolute_kelvin),
-    low_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-    high_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-    gamma=Quantity(1.4, UNITLESS),
+    inlet_temperature=288.0 * absolute_kelvin,
+    low_pressure_compressor_pressure_ratio=2.0 * UNITLESS,
+    high_pressure_compressor_pressure_ratio=6.0 * UNITLESS,
+    low_pressure_compressor_efficiency=0.88 * UNITLESS,
+    high_pressure_compressor_efficiency=0.86 * UNITLESS,
+    turbine_inlet_temperature=1450.0 * absolute_kelvin,
+    exit_temperature=1000.0 * absolute_kelvin,
+    low_pressure_shaft_efficiency=0.99 * UNITLESS,
+    high_pressure_shaft_efficiency=0.99 * UNITLESS,
+    gamma=1.4 * UNITLESS,
     specific_heat=1.005 * kilojoule / (kilogram * kelvin),
     mass_flow=20.0 * kilogram / second,
 )
@@ -1299,16 +1280,16 @@ The inverse operating point is:
 
 ```python exec="on" source="above" session="turbomachinery"
 inverse_case = TwoShaftCore(
-    inlet_temperature=Quantity(288.0, absolute_kelvin),
-    low_pressure_compressor_pressure_ratio=Quantity(2.0, UNITLESS),
-    high_pressure_compressor_pressure_ratio=Quantity(6.0, UNITLESS),
-    low_pressure_compressor_efficiency=Quantity(0.88, UNITLESS),
+    inlet_temperature=288.0 * absolute_kelvin,
+    low_pressure_compressor_pressure_ratio=2.0 * UNITLESS,
+    high_pressure_compressor_pressure_ratio=6.0 * UNITLESS,
+    low_pressure_compressor_efficiency=0.88 * UNITLESS,
     # high_pressure_compressor_efficiency is deliberately omitted
-    turbine_inlet_temperature=Quantity(1450.0, absolute_kelvin),
-    exit_temperature=Quantity(1000.0, absolute_kelvin),
-    low_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-    high_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-    gamma=Quantity(1.4, UNITLESS),
+    turbine_inlet_temperature=1450.0 * absolute_kelvin,
+    exit_temperature=1000.0 * absolute_kelvin,
+    low_pressure_shaft_efficiency=0.99 * UNITLESS,
+    high_pressure_shaft_efficiency=0.99 * UNITLESS,
+    gamma=1.4 * UNITLESS,
     specific_heat=1.005 * kilojoule / (kilogram * kelvin),
     mass_flow=20.0 * kilogram / second,
     shaft_power=2000.0 * kilowatt,
@@ -1404,18 +1385,18 @@ required_high_pressure_compressor_efficiencies = []
 
 for required_power_mw in required_powers_mw:
     core = TwoShaftCore(
-        inlet_temperature=Quantity(288.0, absolute_kelvin),
-        low_pressure_compressor_pressure_ratio=Quantity(2.0, UNITLESS),
-        high_pressure_compressor_pressure_ratio=Quantity(6.0, UNITLESS),
-        low_pressure_compressor_efficiency=Quantity(0.88, UNITLESS),
-        turbine_inlet_temperature=Quantity(1450.0, absolute_kelvin),
-        exit_temperature=Quantity(1000.0, absolute_kelvin),
-        low_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-        high_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-        gamma=Quantity(1.4, UNITLESS),
+        inlet_temperature=288.0 * absolute_kelvin,
+        low_pressure_compressor_pressure_ratio=2.0 * UNITLESS,
+        high_pressure_compressor_pressure_ratio=6.0 * UNITLESS,
+        low_pressure_compressor_efficiency=0.88 * UNITLESS,
+        turbine_inlet_temperature=1450.0 * absolute_kelvin,
+        exit_temperature=1000.0 * absolute_kelvin,
+        low_pressure_shaft_efficiency=0.99 * UNITLESS,
+        high_pressure_shaft_efficiency=0.99 * UNITLESS,
+        gamma=1.4 * UNITLESS,
         specific_heat=1.005 * kilojoule / (kilogram * kelvin),
         mass_flow=20.0 * kilogram / second,
-        shaft_power=Quantity(float(required_power_mw), megawatt),
+        shaft_power=float(required_power_mw) * megawatt,
     )
 
     with core_model:
@@ -1477,13 +1458,13 @@ mass_flow = 25.0 * kilogram / second
 or change the maximum turbine inlet temperature:
 
 ```python exec="off"
-turbine_inlet_temperature = Quantity(1500.0, absolute_kelvin)
+turbine_inlet_temperature = 1500.0 * absolute_kelvin
 ```
 
 You can also change the compressor pressure-ratio target:
 
 ```python exec="off"
-high_pressure_compressor_pressure_ratio = Quantity(7.0, UNITLESS)
+high_pressure_compressor_pressure_ratio = 7.0 * UNITLESS
 ```
 
 and ask again what compressor efficiency is required for a specified shaft power.
@@ -1491,7 +1472,7 @@ and ask again what compressor efficiency is required for a specified shaft power
 Another useful experiment is to change the core exit boundary:
 
 ```python exec="off"
-exit_temperature = Quantity(950.0, absolute_kelvin)
+exit_temperature = 950.0 * absolute_kelvin
 ```
 
 To explore locally, edit these values while `zensical serve` is running and save the Markdown file. Zensical will rebuild the page and rerun the executable blocks.
@@ -1776,18 +1757,18 @@ recuperated_model = Implementation(
 )
 
 inputs = {
-    "core.inlet_temperature": Quantity(288, absolute_kelvin),
-    "core.low_pressure_compressor_pressure_ratio": Quantity(2, UNITLESS),
-    "core.high_pressure_compressor_pressure_ratio": Quantity(6, UNITLESS),
-    "core.low_pressure_compressor_efficiency": Quantity(0.88, UNITLESS),
-    "core.high_pressure_compressor_efficiency": Quantity(0.86, UNITLESS),
-    "core.low_pressure_shaft_efficiency": Quantity(0.99, UNITLESS),
-    "core.high_pressure_shaft_efficiency": Quantity(0.99, UNITLESS),
-    "core.gamma": Quantity(1.4, UNITLESS),
+    "core.inlet_temperature": 288 * absolute_kelvin,
+    "core.low_pressure_compressor_pressure_ratio": 2 * UNITLESS,
+    "core.high_pressure_compressor_pressure_ratio": 6 * UNITLESS,
+    "core.low_pressure_compressor_efficiency": 0.88 * UNITLESS,
+    "core.high_pressure_compressor_efficiency": 0.86 * UNITLESS,
+    "core.low_pressure_shaft_efficiency": 0.99 * UNITLESS,
+    "core.high_pressure_shaft_efficiency": 0.99 * UNITLESS,
+    "core.gamma": 1.4 * UNITLESS,
     "core.specific_heat": 1.005 * kilojoule / (kilogram * kelvin),
     "core.mass_flow": 20.0 * kilogram / second,
     "heat_input": 600.0 * kilojoule / kilogram,
-    "effectiveness": Quantity(0.6, UNITLESS),
+    "effectiveness": 0.6 * UNITLESS,
     "shaft_power": 2.0 * megawatt,
 }
 

@@ -9,6 +9,7 @@ from bilt import (
     Domain,
     Implementation,
     Interface,
+    Number,
     Quantity,
     QuantityTensor,
     Tensor,
@@ -40,7 +41,7 @@ SITE = dim("site")
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 Shared = typing.Annotated[Tensor, Domain.scalar()]
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
-LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+LengthScalar = typing.Annotated[Quantity, LENGTH]
 
 
 @system
@@ -48,9 +49,9 @@ class Ports(metaclass=Interface):
     x: Tensor = field()
     y: Tensor = field()
     p: Tensor = field()
-    q: float | Tensor = field()
-    a: float | Tensor = field()
-    answer: float | Tensor = field()
+    q: Number = field()
+    a: Number = field()
+    answer: Number = field()
 
 
 @equation
@@ -146,7 +147,7 @@ def test_unitful_values_are_lowered_and_lifted_across_the_boundary(backend: Back
     result = parent.evaluate(
         {"inner.p": tensor([0.010, 0.020], over=TIME, unit=kilometer), "q": 2.0 * meter}, output, backend
     )
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit == meter
     assert result.domain == domain(TIME)
     np.testing.assert_allclose(result.values, [6.0, 11.0] if output == "inner.x" else [4.0, 9.0], rtol=1e-5)

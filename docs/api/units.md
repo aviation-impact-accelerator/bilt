@@ -2,7 +2,7 @@
 
 Reference for `bilt.units`, `bilt.units.dimensions` and unit-related exceptions in
 `bilt.errors`. For a walkthrough, see [Units in models](../guide/units.md).
-For choosing scalar, tensor and pointwise field annotations, see
+For choosing between the `Quantity`, `QuantityTensor`, `Number` and `Tensor` annotations, see
 [Quantity annotations and typing](quantity-annotations.md).
 
 ## Imports and dimensions
@@ -75,13 +75,13 @@ cost_in_gbp = (100.0 * USD[2024]).convert_to(GBP[2024])
 
 ## Quantities
 
-`Quantity` is available from both `bilt` and `bilt.units`. Methods return a new
-quantity without changing the original.
+`Quantity` is available from both `bilt` and `bilt.units`. It is the annotation for
+any value with a unit, single or a tensor; you create a quantity by multiplying a
+number by a unit. Methods return a new quantity without changing the original.
 
 | API | Meaning |
 | --- | --- |
-| `Quantity(value, unit)` | Construct a scalar quantity with a numerical value and a `Unit`. |
-| `5.0 * kilometer` | Shorthand for `Quantity(5.0, kilometer)`; use floating-point literals. |
+| `5.0 * kilometer` | Create a quantity with a numerical value and a `Unit`. |
 | `q.value` | Numerical value in `q.unit`. |
 | `q.unit` | The quantity's unit; `q.unit.dimension` gives its dimension. |
 | `q.convert_to(unit)` | Rescale the value (and apply absolute offsets) to a compatible unit. Dimensions, including tags, must agree. |
@@ -112,7 +112,7 @@ calculated outputs in coherent units. For ordinary physical dimensions these
 are SI units; currency uses USD2025 and metadata tags are retained.
 
 Inside transforms, extract numbers with `q.convert_to(unit).value` and construct
-quantities with `Quantity(value, unit)` or a float multiplied by a unit. Bare
+quantities by multiplying a number by a unit. Bare
 quantity `.value`, representation-dependent `.unit` access, and `cast_to()` are
 refused. Transform checks do not prove dimensional correctness of arbitrary Python.
 
@@ -208,13 +208,12 @@ Equations express tag changes through tagged unit factors; transforms support
 
 ## Unit-carrying tensors
 
-Import `tensor` and `Tensor` from `bilt`.
+Import `tensor` and `QuantityTensor` from `bilt`.
 
 | API | Meaning |
 | --- | --- |
-| `tensor(values, *, over=None, domain=None, unit=None)` | Label array values with a unit. Non-scalar values require `over` or `domain`; provide only one. |
-| `Tensor.scalar(value, unit=None)` | Construct a rank-zero tensor, optionally with a unit. |
-| `t.unit`, `t.values`, `t.domain` | Unit (or `None`), numerical array, and named domain. |
+| `tensor(values, *, over=None, domain=None, unit=None)` | Label array values with a unit. Non-scalar values require `over` or `domain`; provide only one. A single value without either gives a rank-zero tensor. |
+| `t.unit`, `t.values`, `t.domain` | Unit, numerical array, and named domain. |
 | `t.convert_to(unit)` | Convert all values, retaining the domain. Requires an existing compatible unit. |
 | `t * unit` | Label an unlabelled tensor, or compose with its existing unit, without rescaling its values. |
 | `t / unit` | Divide an existing tensor unit by another unit, without rescaling values. |
@@ -224,8 +223,8 @@ without one, it returns a `Tensor`. For how to annotate these values on
 model fields and equations, see [Quantity annotations and typing](quantity-annotations.md).
 
 Unit multiplication labels values; `convert_to()` rescales them. Concrete tensor
-arithmetic is otherwise dispatched through Bilt models. Tensors do not expose
-the quantity helpers `cast_to()` or `strip_metadata()`.
+arithmetic is otherwise dispatched through Bilt models. A `QuantityTensor` also
+has the quantity helpers `cast_to()` and `strip_metadata()`.
 
 ## Errors and messages
 
@@ -240,8 +239,8 @@ message strings; messages include the offending ports, quantities and units.
 | `BiltMetadataError` | Invalid metadata, such as an empty tag. |
 | `BiltEquationDimensionalityError` | An equation is dimensionally inconsistent. Check operations, constants, tags and absolute/relative quantities. |
 | `BiltImplementationDimensionalityError` | Shared ports have conflicting declarations or the implementation makes an equation inconsistent. Declare the same dimension everywhere. |
-| `BiltInputDimensionalityError` | An input has the wrong dimension, tags, absolute/relative kind or scalar/tensor carrier, or is unlabelled. |
-| `BiltPortDeclarationError` | Invalid quantity annotation: declare a physical dimension, not a unit. Use `Quantity` or `QuantityTensor` (or their union), not dimensioned `Tensor`. This is a `BiltDefinitionError`, not a `BiltUnitsError`. |
+| `BiltInputDimensionalityError` | An input has the wrong dimension, tags, absolute/relative kind, is not a tensor where `QuantityTensor` is declared, or is unlabelled. |
+| `BiltPortDeclarationError` | Invalid quantity annotation: declare a physical dimension, not a unit. Use `Quantity` or `QuantityTensor`, not dimensioned `Tensor`, with `Annotated` at the top of the annotation. This is a `BiltDefinitionError`, not a `BiltUnitsError`. |
 | `BiltDefinitionError` | Unsupported unit operations inside a transform, including bare quantity `.value` or `cast_to()`. |
 | `BiltUnresolvedAnnotationError` | An annotation name is missing when the decorator runs. Import or define it at runtime, outside `if TYPE_CHECKING:`. |
 

@@ -1,7 +1,7 @@
 import dataclasses
 
 from bilt.core._evaluation_context import current_evaluation
-from bilt.core._tensors._tensors import Tensor
+from bilt.core._tensors._tensors import _Tensor
 
 
 @dataclasses.dataclass(frozen=True)
@@ -11,7 +11,7 @@ class AlignmentPlan:
 
 def generate_alignment_plan(inputs: dict[str, object]) -> AlignmentPlan:
     tensor_inputs = {
-        input_name: input_value for input_name, input_value in inputs.items() if isinstance(input_value, Tensor)
+        input_name: input_value for input_name, input_value in inputs.items() if isinstance(input_value, _Tensor)
     }
 
     canonical_ordering = current_evaluation().canonical_order

@@ -178,32 +178,33 @@ Bilt can align the values using the **names of their dimensions**, rather than r
 
 ### Scalar or tensor values at system boundaries
 
-When a system can accept either a plain scalar or a **unitless** tensor,
-a union is sufficient. There is no need for an additional Bilt protocol:
+A port annotation says two things about a value: whether it carries a unit, and
+whether it must be a tensor or may have any shape.
+
+|              | Any shape  | Must be a tensor |
+| ------------ | ---------- | ---------------- |
+| **Units**    | `Quantity` | `QuantityTensor` |
+| **No units** | `Number`   | `Tensor`         |
+
+When a system accepts either a plain number or a **unitless** tensor, annotate it
+`Number`:
 
 ```python exec="off"
-from bilt import Interface, Tensor, field, system
-
-type Value = float | Tensor
+from bilt import Interface, Number, field, system
 
 
 @system
 class Scale(metaclass=Interface):
-    x: Value = field()
-    doubled: Value = field()
+    x: Number = field()
+    doubled: Number = field()
 ```
 
 Both `Scale(x=2.0)` and `Scale(x=tensor([1.0, 2.0], over=time))`
-are accepted. An equation can still use `float` annotations and Bilt will
-lift it over the input's named domain. This keeps the system's accepted
-value types separate from the local operations of the equation.
-
-**Limit of static typing:** The concrete `QuantityTensor` class currently
-inherits `Tensor`. Python type checkers therefore also consider a
-unit-bearing tensor valid wherever a `Tensor` is annotated. Bilt rejects
-it **at runtime** at a plain, unitless port. A static guarantee that the
-tensor has no unit would require a separate tensor typing design; a
-`float | Tensor` union cannot provide that guarantee.
+are accepted. An equation written for one value, with `float` or `Number`
+annotations, is lifted by Bilt over the input's named domain. A tensor with a
+unit is not a `Number`: type checkers reject it, and so does Bilt at runtime.
+For values with units, `Annotated[Quantity, DIM]` plays the same role; see
+[Quantity annotations and typing](../api/quantity-annotations.md).
 
 ### Requiring a minimum domain
 
@@ -214,7 +215,7 @@ complete shape of the input. For a unit-bearing tensor quantity:
 import typing
 
 from bilt import Interface, Quantity, QuantityTensor, Tensor, dim, field, system
-from bilt.symbolic._domains import Domain
+from bilt import Domain
 from bilt.units.dimensions import MASS
 
 time = dim("time")
@@ -236,9 +237,9 @@ Bilt checks it when values enter a system and when a computed system output
 has a declared minimum domain. Domain metadata is checked by Bilt at runtime;
 Python type checkers do not interpret the dimensions in `Annotated`.
 
-This form applies to the unit-bearing `QuantityTensor` annotation. The
-pointwise `Quantity | QuantityTensor` union permits scalars and therefore cannot declare a
-required tensor dimension. Existing unitless `Annotated[Tensor, Domain(...)]`
+This form applies to the unit-bearing `QuantityTensor` annotation. A
+`Quantity` may be a single value, so it cannot declare a required tensor
+dimension. Existing unitless `Annotated[Tensor, Domain(...)]`
 annotations remain available as exact hints for unitless structural domain
 inference. Scalar equation annotations may also use `Quantity` with
 `Domain.scalar()` as an exact linear-solver hint. Dimensioned `Tensor`
@@ -256,10 +257,10 @@ possible shapes but one equation needs a specific axis:
 import typing
 
 from bilt import Quantity, QuantityTensor, equation
-from bilt.symbolic._domains import Domain
+from bilt import Domain
 from bilt.units.dimensions import MASS
 
-type Mass = typing.Annotated[Quantity | QuantityTensor, MASS]
+type Mass = typing.Annotated[Quantity, MASS]
 type TimeMass = typing.Annotated[QuantityTensor, MASS, Domain((time,))]
 
 
@@ -275,7 +276,7 @@ The `time` dimension must be present, but additional axes such as
 evaluation, its domain requirement does not constrain that evaluation.
 
 These are minimum-domain **requirements**, unlike exact `Domain` **hints**
-on pointwise `Quantity | QuantityTensor` equation parameters or unitless `Tensor` parameters. In
+on `Quantity` equation parameters or unitless `Tensor` parameters. In
 particular, they are not passed to the linear-block inference algorithm as
 exact layouts. A mismatch rejects the selected evaluation route with an
 explanation naming the equation, port and missing dimensions.

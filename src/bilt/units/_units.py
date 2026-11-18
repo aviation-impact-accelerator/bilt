@@ -7,7 +7,7 @@ from bilt.units._errors import BiltUnitError
 
 from ._category import UnitCategory
 from ._prefix import PREFIX_NAMES, Prefix
-from ._quantities import Quantity
+from ._quantities import _Quantity
 from .dimensions._dimensions import (
     AMOUNT,
     CURRENCY,
@@ -21,6 +21,9 @@ from .dimensions._dimensions import (
 )
 
 if typing.TYPE_CHECKING:
+    from bilt.core._tensors._protocols import QuantityTensor, Tensor
+    from bilt.units._protocols import Quantity
+
     from ._metadata import Metadata
 
 
@@ -305,7 +308,7 @@ class Unit:
                 relation = relation.relation
             case UnitComposition():
                 pass
-            case Quantity():
+            case _Quantity():
                 quantity = relation
                 if quantity.unit.metadata is not None or quantity.unit.category in (
                     UnitCategory.BASE,
@@ -321,7 +324,8 @@ class Unit:
                         scale=quantity.value * quantity.unit.relation.scale,
                     )
             case _:
-                typing.assert_never(relation)
+                message = f"Unit {name!r} must be defined by a unit or a scalar quantity, not {relation!r}"
+                raise BiltUnitError(message)
 
         if relation is UnitComposition(UnitOrder(kilogram, 1)):
             prefix_scale = 0.001 if prefix is None else 10 ** (prefix.value - 3)
@@ -370,12 +374,13 @@ class Unit:
         relation = UnitComposition(UnitOrder(scale, 1))
         offset: UnitComposition | None
         match zero:
-            case Quantity():
+            case _Quantity():
                 offset = UnitComposition(UnitOrder(zero.unit, 1), scale=zero.value)
             case None:
                 offset = None
             case _:
-                typing.assert_never(zero)
+                message = f"Absolute unit {name!r} must have a scalar quantity as its zero, not {zero!r}"
+                raise BiltUnitError(message)
         key = (name, relation, metadata)
         if key in cls._cache:
             instance = cls._cache[key]
@@ -488,9 +493,12 @@ class Unit:
     def __mul__(self, other: Unit) -> typing.Self: ...
 
     @typing.overload
-    def __mul__(self, other: Quantity) -> Quantity: ...
+    def __mul__[Q: Quantity](self, other: Q) -> Q: ...
 
-    def __mul__(self, other: Unit | Quantity) -> typing.Self | Quantity:
+    @typing.overload
+    def __mul__(self, other: Tensor) -> QuantityTensor: ...
+
+    def __mul__(self, other: object) -> object:
         if isinstance(other, self.__class__):
             left = (
                 self.relation
@@ -503,24 +511,33 @@ class Unit:
                 else UnitComposition(UnitOrder(other, 1))
             )
             return self.__class__(left * right)
-        if isinstance(other, Quantity):
-            return Quantity(other.value, self * other.unit)
+        if isinstance(other, _Quantity):
+            return _Quantity(other.value, self * other.unit)
         return NotImplemented
 
-    def __rmul__(self, other: Quantity | float) -> Quantity:
-        if isinstance(other, Quantity):
-            return Quantity(other.value, other.unit * self)
-        if isinstance(other, float):
-            return Quantity(other, self)
+    @typing.overload
+    def __rmul__(self, other: float) -> Quantity: ...
+
+    @typing.overload
+    def __rmul__[Q: Quantity](self, other: Q) -> Q: ...
+
+    @typing.overload
+    def __rmul__(self, other: Tensor) -> QuantityTensor: ...
+
+    def __rmul__(self, other: object) -> object:
+        if isinstance(other, _Quantity):
+            return _Quantity(other.value, other.unit * self)
+        if isinstance(other, int | float) and not isinstance(other, bool):
+            return _Quantity(float(other), self)
         return NotImplemented
 
     @typing.overload
     def __truediv__(self, other: Unit) -> typing.Self: ...
 
     @typing.overload
-    def __truediv__(self, other: Quantity) -> Quantity: ...
+    def __truediv__[Q: Quantity](self, other: Q) -> Q: ...
 
-    def __truediv__(self, other: Unit | Quantity) -> typing.Self | Quantity:
+    def __truediv__(self, other: object) -> object:
         if isinstance(other, self.__class__):
             numerator = (
                 self.relation
@@ -533,19 +550,22 @@ class Unit:
                 else UnitComposition(UnitOrder(other, 1))
             )
             return self.__class__(numerator / denominator)
-        if isinstance(other, Quantity):
-            return Quantity(1.0 / other.value, self / other.unit)
+        if isinstance(other, _Quantity):
+            return _Quantity(1.0 / other.value, self / other.unit)
         return NotImplemented
 
     @typing.overload
     def __rtruediv__(self, other: typing.Literal[1]) -> typing.Self: ...
 
     @typing.overload
-    def __rtruediv__(self, other: Quantity) -> Quantity: ...
+    def __rtruediv__[Q: Quantity](self, other: Q) -> Q: ...
 
-    def __rtruediv__(self, other: Quantity | typing.Literal[1]) -> typing.Self | Quantity:
-        if isinstance(other, Quantity):
-            return Quantity(other.value, other.unit / self)
+    @typing.overload
+    def __rtruediv__(self, other: Tensor) -> QuantityTensor: ...
+
+    def __rtruediv__(self, other: object) -> object:
+        if isinstance(other, _Quantity):
+            return _Quantity(other.value, other.unit / self)
         if isinstance(other, int) and other == 1:
             return self**-1
         return NotImplemented
@@ -706,7 +726,7 @@ class UnitSystem:
         )
         return Unit(UnitComposition(*(UnitOrder(base_unit, order) for base_unit, order in orders), *tagged))
 
-    def coherent_value(self, quantity: Quantity) -> float:
+    def coherent_value(self, quantity: _Quantity) -> float:
         """The value of `quantity` in the coherent unit of its dimensionality, or in that unit's absolute counterpart."""
         coherent_unit = self.coherent_unit(quantity.unit.dimension)
         if quantity.unit.category is UnitCategory.ABSOLUTE:

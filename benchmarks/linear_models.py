@@ -39,12 +39,12 @@ if typing.TYPE_CHECKING:
 
 COORDINATE = dim("branch")
 Current = typing.Annotated[QuantityTensor, CURRENT]
-Voltage = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
-Resistance = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
-Temperature = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE]
+Voltage = typing.Annotated[Quantity, VOLTAGE]
+Resistance = typing.Annotated[Quantity, RESISTANCE]
+Temperature = typing.Annotated[Quantity, TEMPERATURE]
 Heat = typing.Annotated[QuantityTensor, POWER]
-Conductance = typing.Annotated[Quantity | QuantityTensor, POWER / TEMPERATURE]
-ThermalResistance = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE / POWER]
+Conductance = typing.Annotated[Quantity, POWER / TEMPERATURE]
+ThermalResistance = typing.Annotated[Quantity, TEMPERATURE / POWER]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -144,7 +144,7 @@ class Expected:
     def check(self, result: object) -> None:
         """Check units, named axes, shape and the independent analytic answer."""
         if self.domain.is_scalar:
-            if not isinstance(result, Quantity):
+            if not isinstance(result, Quantity) or isinstance(result, QuantityTensor):
                 message = f"Expected a scalar Quantity, received {type(result)}."
                 raise AssertionError(message)
             if result.unit != self.unit:
@@ -152,8 +152,8 @@ class Expected:
                 raise AssertionError(message)
             values = np.asarray(result.value)
         else:
-            if not isinstance(result, Tensor):
-                message = f"Expected a Tensor, received {type(result)}."
+            if not isinstance(result, QuantityTensor):
+                message = f"Expected a QuantityTensor, received {type(result)}."
                 raise AssertionError(message)
             if result.domain != self.domain:
                 message = f"Expected domain {self.domain}, received {result.domain}."
@@ -175,7 +175,7 @@ def _electrical(case: LinearCase) -> tuple[Implementation, dict[str, object], di
     else:
         current_type = typing.Annotated[QuantityTensor, CURRENT, domain(COORDINATE)] if case.hinted else Current
         voltage_type = (
-            typing.Annotated[Quantity | QuantityTensor, VOLTAGE, Domain.scalar() if case.shared else domain(COORDINATE)]
+            typing.Annotated[Quantity, VOLTAGE, Domain.scalar() if case.shared else domain(COORDINATE)]
             if case.hinted
             else Voltage
         )
@@ -229,14 +229,10 @@ def _thermal(case: LinearCase) -> tuple[Implementation, dict[str, object], dict[
         heat_type = Heat
         cold_type = Temperature
     else:
-        hot_type = (
-            typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, domain(COORDINATE)] if case.hinted else Temperature
-        )
+        hot_type = typing.Annotated[Quantity, TEMPERATURE, domain(COORDINATE)] if case.hinted else Temperature
         heat_type = typing.Annotated[QuantityTensor, POWER, domain(COORDINATE)] if case.hinted else Heat
         cold_type = (
-            typing.Annotated[
-                Quantity | QuantityTensor, TEMPERATURE, Domain.scalar() if case.shared else domain(COORDINATE)
-            ]
+            typing.Annotated[Quantity, TEMPERATURE, Domain.scalar() if case.shared else domain(COORDINATE)]
             if case.hinted
             else Temperature
         )

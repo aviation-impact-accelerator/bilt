@@ -4,9 +4,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from bilt import transform
+from bilt import Number, transform
 from bilt.errors import BiltDefinitionError
-from bilt.units import Quantity, meter
+from bilt.units import meter
+from bilt.units._quantities import _Quantity
 
 
 def test_unit_erasure_preserves_value_on_a_constructed_plain_object() -> None:
@@ -36,9 +37,9 @@ def test_reassignment_does_not_mark_a_quantity_as_plain() -> None:
     with pytest.raises(BiltDefinitionError, match=r"record\.value"):
 
         @transform
-        def extracted(value: float) -> float:
+        def extracted(value: float) -> Number:
             record: object = SimpleNamespace(value=value)
-            record = Quantity(value, meter)
+            record = value * meter
             return record.value
 
 
@@ -47,7 +48,7 @@ def test_a_shadowed_constructor_does_not_mark_a_quantity_as_plain() -> None:
 
         @transform
         def extracted(value: float) -> float:
-            namespace: type[SimpleNamespace | Quantity] = SimpleNamespace
-            namespace = Quantity
+            namespace: type[SimpleNamespace | _Quantity] = SimpleNamespace
+            namespace = _Quantity
             record = namespace(value, meter)
             return record.value

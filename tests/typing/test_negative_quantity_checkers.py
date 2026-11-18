@@ -32,10 +32,6 @@ EXPECTED_CODES: dict[str, dict[str, frozenset[str]]] = {
         "ty": frozenset({"invalid-argument-type"}),
         "pyrefly": frozenset({"bad-argument-type"}),
     },
-    "tensor-is-not-a-scalar-quantity": {
-        "ty": frozenset({"invalid-argument-type"}),
-        "pyrefly": frozenset({"bad-argument-type"}),
-    },
     "scalar-is-not-a-tensor-quantity": {
         "ty": frozenset({"invalid-argument-type"}),
         "pyrefly": frozenset({"bad-argument-type"}),
@@ -48,11 +44,35 @@ EXPECTED_CODES: dict[str, dict[str, frozenset[str]]] = {
         "ty": frozenset({"invalid-argument-type"}),
         "pyrefly": frozenset({"bad-argument-type"}),
     },
-    "scalar-system-rejects-tensor": {
+    "tensor-system-rejects-scalar": {
         "ty": frozenset({"invalid-argument-type"}),
         "pyrefly": frozenset({"bad-argument-type"}),
     },
-    "tensor-system-rejects-scalar": {
+    "scaled-unitless-tensor-is-not-a-quantity": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "scalar-power-is-not-a-tensor-quantity": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "tensor-magnitude-is-not-a-quantity": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "quantity-is-not-a-number": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "quantity-tensor-is-not-a-number": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "quantity-tensor-is-not-a-unitless-tensor": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "scalar-quantity-is-not-a-tensor": {
         "ty": frozenset({"invalid-argument-type"}),
         "pyrefly": frozenset({"bad-argument-type"}),
     },

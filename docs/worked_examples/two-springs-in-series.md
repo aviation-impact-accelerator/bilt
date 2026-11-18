@@ -82,14 +82,14 @@ A spring has three boundary values: stiffness, extension, and force. We declare
 their dimensions rather than fixing particular units. Stiffness has dimension
 force per length, extension has dimension length, and force has dimension force.
 
-The system fields use pointwise aliases to accept scalar quantities or
-unit-carrying tensors. The equations retain scalar aliases that Bilt can lift
-over named domains. Here we supply stiffness in N/m, extension in m, and force in N:
+Each alias accepts a single quantity or a tensor of quantities, so the system
+fields and the equations share them; Bilt lifts the equations over named
+domains. Here we supply stiffness in N/m, extension in m, and force in N:
 
 ```python exec="off"
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, field, system
+from bilt import Implementation, Interface, Quantity, equation, field, system
 from bilt.units import meter, newton
 from bilt.units.dimensions import FORCE, LENGTH
 
@@ -98,16 +98,12 @@ Stiffness = Annotated[Quantity, FORCE / LENGTH]
 Length = Annotated[Quantity, LENGTH]
 Force = Annotated[Quantity, FORCE]
 
-PointwiseStiffness = Annotated[Quantity | QuantityTensor, FORCE / LENGTH]
-PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]
-PointwiseForce = Annotated[Quantity | QuantityTensor, FORCE]
-
 
 @system
 class Spring(metaclass=Interface):
-    stiffness: PointwiseStiffness = field()
-    extension: PointwiseLength = field()
-    force: PointwiseForce = field()
+    stiffness: Stiffness = field()
+    extension: Length = field()
+    force: Force = field()
 ```
 
 Hooke's law is an equation:
@@ -149,19 +145,16 @@ That is the acausal part of the component model.
 The parent system exposes the values we want to use when working with two springs:
 
 ```python exec="off"
-from bilt import QuantityTensor
-
-
 @system
 class DoubleSpring(metaclass=Interface):
-    first_stiffness: PointwiseStiffness = field()
-    second_stiffness: PointwiseStiffness = field()
+    first_stiffness: Stiffness = field()
+    second_stiffness: Stiffness = field()
 
-    first_extension: PointwiseLength = field()
-    second_extension: PointwiseLength = field()
-    total_extension: PointwiseLength = field()
+    first_extension: Length = field()
+    second_extension: Length = field()
+    total_extension: Length = field()
 
-    force: PointwiseForce = field()
+    force: Force = field()
 ```
 
 The two `Spring` occurrences are not public fields. They belong to this implementation of `DoubleSpring`.
@@ -321,7 +314,7 @@ For the executable documentation below, the same model is loaded from a temporar
 model_source = """
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, field, system
+from bilt import Implementation, Interface, Quantity, equation, field, system
 from bilt.units import meter, newton
 from bilt.units.dimensions import FORCE, LENGTH
 
@@ -330,15 +323,12 @@ Stiffness = Annotated[Quantity, FORCE / LENGTH]
 Length = Annotated[Quantity, LENGTH]
 Force = Annotated[Quantity, FORCE]
 
-PointwiseStiffness = Annotated[Quantity | QuantityTensor, FORCE / LENGTH]
-PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]
-PointwiseForce = Annotated[Quantity | QuantityTensor, FORCE]
 
 @system
 class Spring(metaclass=Interface):
-    stiffness: PointwiseStiffness = field()
-    extension: PointwiseLength = field()
-    force: PointwiseForce = field()
+    stiffness: Stiffness = field()
+    extension: Length = field()
+    force: Force = field()
 
 @equation
 def hookes_law(
@@ -355,14 +345,14 @@ linear_spring = Implementation(
 
 @system
 class DoubleSpring(metaclass=Interface):
-    first_stiffness: PointwiseStiffness = field()
-    second_stiffness: PointwiseStiffness = field()
+    first_stiffness: Stiffness = field()
+    second_stiffness: Stiffness = field()
 
-    first_extension: PointwiseLength = field()
-    second_extension: PointwiseLength = field()
-    total_extension: PointwiseLength = field()
+    first_extension: Length = field()
+    second_extension: Length = field()
+    total_extension: Length = field()
 
-    force: PointwiseForce = field()
+    force: Force = field()
 
 @equation
 def first_stiffness_connection(

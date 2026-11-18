@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCase
     from bilt.core._model_constituent import BiltModelConstituent
 
-Length = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+Length = typing.Annotated[Quantity, LENGTH]
 
 
 @system
@@ -281,7 +281,7 @@ def test_quantities_are_solved_in_coherent_units(backend: Backend) -> None:
     with backend, Implementation(CoupledLengths, [length_total, length_difference]):
         value = CoupledLengths(p=0.01 * kilometer, q=2.0 * meter).x
 
-    assert isinstance(value, Quantity)
+    assert not isinstance(value, QuantityTensor)
     assert value.unit == meter
     assert float(value.value) == pytest.approx(6.0)
 
