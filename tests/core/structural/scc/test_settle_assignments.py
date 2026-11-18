@@ -8,10 +8,12 @@ import rustworkx as rx
 
 from bilt import Implementation, Interface, equation, field, system, transform
 from bilt._backend._python._backend import PYTHON_BACKEND
+from bilt.core._structural_analysis._causalization_block_solver import _settle_assignments as settlement
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._dependency_graph import (
     build_dependency_graph,
 )
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
 from bilt.core._structural_analysis._causalization_block_solver._settle_assignments import (
     settle_assignments,
 )
@@ -21,6 +23,7 @@ from bilt.core._system import _implementation as implementation_module
 
 if typing.TYPE_CHECKING:
     from bilt.core._model_constituent import BiltModelConstituent
+    from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 
 
 @system
@@ -321,3 +324,77 @@ def test_settlement_revisits_outputs_after_later_producers(order: tuple[str, ...
     assert unresolved == {}
     assert rx.is_directed_acyclic_graph(graph)
     assert tuple(step.output for step in steps) == ("a", "b", "z")
+
+
+def test_overconstrained_child_route_drops_derived_sibling_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Retry a child route without derived siblings only after an overconstraint."""
+
+    @transform
+    def b(a: float) -> float:
+        return a * 2
+
+    @equation
+    def c(a: float, b: float, c: float) -> bool:
+        return c == a + b
+
+    @equation
+    def answer(answer: float, child: Child) -> bool:
+        return answer == child.b + child.c
+
+    child = SubSystemConstituent("child", Implementation(Child, [b, c]))
+    original_validation = settlement.validate_request_structure
+
+    def reject_extra_input(incidence: FullIncidenceGraph, available: set[str], output: str) -> object:
+        if output == "c" and {"a", "b"} <= available:
+            msg = "A derived sibling would overconstrain this child route."
+            raise BiltOverconstrainedError(msg)
+        return original_validation(incidence, available, output)
+
+    monkeypatch.setattr(settlement, "validate_request_structure", reject_extra_input)
+    assignments = {"answer": answer, "child.a": child, "child.b": child, "child.c": child}
+    steps, rejected = settle_assignments(assignments, {"child.a"}, PYTHON_BACKEND, target="answer")
+    assert not rejected
+    by_output = {step.output: step for step in steps}
+    assert by_output["child.b"].child_inputs == frozenset({"a"})
+    assert by_output["child.c"].child_inputs == frozenset({"a"})
+
+
+def test_valid_child_route_reuses_derived_sibling_without_discarding_it() -> None:
+    """Keep a sibling when the child's own structure accepts it as an input."""
+
+    @transform
+    def b(a: float) -> float:
+        return a * 2
+
+    @equation
+    def c(a: float, b: float, c: float) -> bool:
+        return c == a + b
+
+    @equation
+    def answer(answer: float, child: Child) -> bool:
+        return answer == child.b + child.c
+
+    child = SubSystemConstituent("child", Implementation(Child, [b, c]))
+    assignments = {"answer": answer, "child.a": child, "child.b": child, "child.c": child}
+    steps, rejected = settle_assignments(assignments, {"child.a"}, PYTHON_BACKEND, target="answer")
+    assert not rejected
+    by_output = {step.output: step for step in steps}
+    assert by_output["child.b"].child_inputs == frozenset({"a"})
+    assert by_output["child.c"].child_inputs == frozenset({"a", "b"})
+
+
+def test_explicitly_supplied_sibling_port_is_never_discarded() -> None:
+    """A user-provided boundary input remains a constraint, not a cache."""
+
+    @transform
+    def b(a: float) -> float:
+        return a * 2
+
+    @equation
+    def c(a: float, b: float, c: float) -> bool:
+        return c == a + b
+
+    child = SubSystemConstituent("child", Implementation(Child, [b, c]))
+    steps, rejected = settle_assignments({"child.c": child}, {"child.a", "child.b"}, PYTHON_BACKEND, target="child.c")
+    assert not rejected
+    assert steps[0].child_inputs == frozenset({"a", "b"})

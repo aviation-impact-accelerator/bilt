@@ -95,3 +95,18 @@ def test_structural_underconstraint_keeps_its_error_type() -> None:
     analyser = CausalizationStructuralAnalyzer([relation], PYTHON_BACKEND)
     with pytest.raises(BiltUnderconstrainedError):
         _run(analyser, {}, "x")
+
+
+@pytest.mark.parametrize("child_order", ((0, 1), (1, 0)))
+def test_derived_sibling_overconstraint_is_resolved_in_full_execution(child_order: tuple[int, ...]) -> None:
+    """Use the normal child planner while recomputing a derived sibling."""
+
+    @equation
+    def c(a: float, b: float, c: float) -> bool:
+        return c == a + b
+
+    operations = (b, c)
+    child = SubSystemConstituent("child", Implementation(Ports, [operations[index] for index in child_order]))
+    analyser = CausalizationStructuralAnalyzer([child, supply, combined], PYTHON_BACKEND)
+    expected = 15.0
+    assert _run(analyser, {"source": 3.0}, "answer") == expected
