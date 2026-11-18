@@ -328,8 +328,10 @@ with JAX_BACKEND, multi_range_model:
 Each condition can use a symbolic comparison such as `x > 0`. You can combine
 comparisons with `&` (and), `|` (or), and `~` (not), enclosing each comparison
 in parentheses. Python's `and`, `or`, `not` and chained comparisons do not
-work for symbolic predicates. Each branch must assign the same name exactly
-once. Each chain needs an `else`, with a single `return` afterwards.
+work for symbolic predicates. Each branch may calculate intermediate local
+values, but must end by assigning the same result name. Local names cannot
+be reassigned or used outside their branch. Each chain needs an `else`, with
+a single `return` afterwards.
 Multiple separate `if` statements are not supported yet.
 
 Conditions may also vary across a named tensor dimension. Bilt then selects

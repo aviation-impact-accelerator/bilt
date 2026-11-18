@@ -84,7 +84,7 @@ def test_plain_equation_ast_is_unchanged() -> None:
         ("def eq(x):\n    if x > 0:\n        a = x\n    return a == x", "exactly one assignment"),
         (
             "def eq(x):\n    if x > 0:\n        a = x\n        b = x\n    else:\n        a = x\n    return a == x",
-            "exactly one assignment",
+            "same local variable",
         ),
         (
             "def eq(x):\n    if x > 0:\n        if x > 1:\n            a = x\n    else:\n        a = x\n    return a == x",
@@ -350,7 +350,7 @@ def test_nested_conditionals_normalise_recursively(source: str, expected_count: 
         ),
         (
             "def eq(x, y):\n    if x > 0:\n        if x > 1:\n            result = x\n            extra = x\n        else:\n            result = x\n    else:\n        result = -x\n    return y == result",
-            "exactly one assignment",
+            "same local variable",
         ),
         (
             "def eq(x, y):\n    if x > 0:\n        if x > 1:\n            x = 3\n        else:\n            x = 4\n    else:\n        x = 5\n    return y == x",
@@ -402,3 +402,141 @@ def test_compound_mask_predicate_normalises_without_python_boolean_evaluation() 
     assert isinstance(assignment.value, ast.Call)
     assert isinstance(assignment.value.args[0], ast.BinOp)
     compile(ast.Module(body=[node], type_ignores=[]), "<normalised equation>", "exec")
+
+
+
+def test_multiple_local_assignments_in_branches_normalise_to_one_result() -> None:
+    node = _normalise("""
+        def eq(x, y):
+            if x > 0:
+                shifted: float = x + 1
+                scaled = shifted * 2
+                result = scaled + shifted
+            else:
+                magnitude = -x
+                shifted = magnitude + 1
+                result = shifted * 2
+            return y == result
+    """)
+    assert len(node.body) == EXPECTED_SIMPLE_BODY_LENGTH
+    assignment = node.body[0]
+    assert isinstance(assignment, ast.Assign)
+    assert isinstance(assignment.value, ast.Call)
+    assert not any(isinstance(item, ast.If) for item in ast.walk(node))
+    assert not any(
+        isinstance(item, ast.Name) and item.id in {"shifted", "scaled", "magnitude"}
+        for item in ast.walk(assignment.value)
+    )
+    compile(ast.Module(body=[node], type_ignores=[]), "<normalised equation>", "exec")
+
+
+def test_nested_conditions_can_use_prior_branch_locals() -> None:
+    node = _normalise("""
+        def eq(x, y):
+            if x > 0:
+                adjusted = x + 1
+                if adjusted > 3:
+                    doubled = adjusted * 2
+                    result = doubled + 1
+                else:
+                    tripled = adjusted * 3
+                    result = tripled + 1
+            else:
+                magnitude = -x
+                result = magnitude + 2
+            return y == result
+    """)
+    assignment = node.body[0]
+    assert isinstance(assignment, ast.Assign)
+    assert "adjusted" not in ast.unparse(assignment)
+    assert "doubled" not in ast.unparse(assignment)
+    compile(ast.Module(body=[node], type_ignores=[]), "<normalised equation>", "exec")
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    (
+        (
+            """
+            def eq(x, y):
+                if x > 0:
+                    a = x
+                    b = a
+                    a = b
+                    result = a
+                else:
+                    result = x
+                return y == result
+            """,
+            "assigned more than once",
+        ),
+        (
+            """
+            def eq(x, y):
+                if x > 0:
+                    a = b
+                    b = x
+                    result = a
+                else:
+                    result = x
+                return y == result
+            """,
+            "before assignment",
+        ),
+        (
+            """
+            def eq(x, y):
+                if x > 0:
+                    a = x
+                    result = a
+                else:
+                    result = x
+                return y == a
+            """,
+            "before assignment",
+        ),
+        (
+            """
+            def eq(x, y):
+                if x > 0:
+                    x = 2
+                    result = x
+                else:
+                    result = x
+                return y == result
+            """,
+            "cannot reassign equation parameter",
+        ),
+        (
+            """
+            def eq(x, y):
+                if x > 0:
+                    a = x
+                    result = a
+                else:
+                    result = x
+                    later = x
+                return y == result
+            """,
+            "same local variable",
+        ),
+        (
+            """
+            def eq(x, y):
+                if x > 0:
+                    if x > 1:
+                        inner = x
+                    else:
+                        inner = x
+                    result = inner
+                else:
+                    result = x
+                return y == result
+            """,
+            "nested conditional must be last",
+        ),
+    ),
+)
+def test_rejects_invalid_sequential_branch_assignments(source: str, message: str) -> None:
+    with pytest.raises(BiltEquationSyntaxError, match=message):
+        _normalise(source)
