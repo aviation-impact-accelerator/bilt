@@ -18,6 +18,10 @@ extra_javascript = [
 nav = [
     { "Home" = "index.md" },
 
+    { "Get started" = [
+        { "Your first Bilt model" = "getting-started/first-model.md" },
+    ] },
+
     { "Bilt user guide" = [
         { "Modelling philosophy" = "guide/modelling-philosophy.md" },
         { "Systems and values" = "guide/systems-and-values.md" },
