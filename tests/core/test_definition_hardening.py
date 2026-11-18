@@ -26,20 +26,23 @@ def y(x: Length) -> Length:
 
 
 def test_distinct_components_with_the_same_name_are_rejected() -> None:
+    first = y
+    registered = set(Model.__bilt_system_registry__)
+
     @transform
     def y(x: Length) -> Length:
         return 2 * x
 
     with pytest.raises(BiltDuplicateComponentError, match="distinct components named 'y'"):
-        Implementation(Model, [globals()["y"], y])
+        Implementation(Model, [first, y])
 
-    assert all(item._components.get("y") is not y for item in Model.__bilt_system_registry__)
+    assert Model.__bilt_system_registry__ == registered
 
 
 def test_repeated_reference_to_the_same_component_is_deduplicated() -> None:
     implementation = Implementation(Model, [y, y])
 
-    assert tuple(implementation._components) == ("y",)
+    assert tuple(implementation._components) == ("y",)  # noqa: SLF001
 
 
 @pytest.mark.parametrize("signature", ("position_only", "var_args", "var_keywords"))
@@ -68,7 +71,7 @@ def test_transform_rejects_reserved_parameter_separator() -> None:
 
 def test_plain_transform_can_still_omit_annotations() -> None:
     @transform
-    def twice(x):
+    def twice(x):  # noqa: ANN001, ANN202
         return 2 * x
 
     assert twice.__bilt_parameters__ == ("x",)
