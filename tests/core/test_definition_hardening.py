@@ -59,7 +59,7 @@ def test_transform_rejects_unsupported_signature_forms(signature: str) -> None:
 
     function = {"position_only": position_only, "var_args": var_args, "var_keywords": var_keywords}[signature]
     with pytest.raises(BiltTransformSignatureError, match="named parameters only"):
-        transform(function)
+        transform(typing.cast("typing.Callable[..., float]", function))
 
 
 def test_transform_rejects_reserved_parameter_separator() -> None:
