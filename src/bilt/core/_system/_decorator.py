@@ -3,6 +3,7 @@ __all__ = ["system"]
 import dataclasses
 import enum
 import inspect
+import types
 import typing
 
 from bilt.core._errors import BiltUnresolvedAnnotationError
@@ -61,7 +62,7 @@ def _create_bilt_system_class_attribute(cls: Interface) -> None:
     )
     setattr(cls, "__bilt_system_attributes__", attributes)  # noqa: B010
     setattr(cls, "__bilt_parameters__", tuple(attributes.keys()))  # noqa: B010
-    setattr(cls, "__bilt_port_declarations__", declarations)  # noqa: B010
+    setattr(cls, "__bilt_port_declarations__", types.MappingProxyType(declarations))  # noqa: B010
 
 
 def _create_initialize_method(cls: Interface) -> None:
