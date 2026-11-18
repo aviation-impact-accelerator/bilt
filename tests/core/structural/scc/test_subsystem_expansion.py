@@ -15,7 +15,7 @@ from bilt.core._structural_analysis._causalization_block_solver._errors import (
 )
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import expand_structure
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
-from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralAnalysis
+from bilt.core._structural_analysis._causalization_block_solver._structural_scope import _IncrementalStructuralScope
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_request_structure
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.symbolic._domains import Domain
@@ -238,16 +238,16 @@ def test_each_child_attribute_is_queried_once_per_expansion(monkeypatch: pytest.
 
     implementation = Implementation(Ports, [relation, next_value])
     child = SubSystemConstituent("child", implementation)
-    original = StructuralAnalysis.inspect
+    original = _IncrementalStructuralScope.inspect
     requests: list[frozenset[str]] = []
 
     def inspect(
-        self: StructuralAnalysis, available: collections.abc.Set[str], required: collections.abc.Set[str]
+        self: _IncrementalStructuralScope, available: collections.abc.Set[str], required: collections.abc.Set[str]
     ) -> StructuralScope:
         requests.append(frozenset(required))
         return original(self, available, required)
 
-    monkeypatch.setattr(StructuralAnalysis, "inspect", inspect)
+    monkeypatch.setattr(_IncrementalStructuralScope, "inspect", inspect)
     validate_request_structure(FullIncidenceGraph([child]), {"child.a"}, "child.c")
     assert len(requests) == len(set(requests))
     assert {"b", "c"} <= set().union(*requests)
