@@ -132,7 +132,6 @@ def inspect_structure(
     return scope
 
 
-
 class _IncrementalStructuralScope:
     """Track new structural evidence for one request-local subsystem instance."""
 
@@ -182,9 +181,7 @@ class _IncrementalStructuralScope:
 
         return attributes, new_constraints, new_child_ports
 
-    def inspect(
-        self, available: collections.abc.Set[str], required: collections.abc.Set[str]
-    ) -> StructuralScope:
+    def inspect(self, available: collections.abc.Set[str], required: collections.abc.Set[str]) -> StructuralScope:
         """Return only constraints and boundary ports not previously discovered."""
         supplied = frozenset(available)
         if self.supplied != supplied:

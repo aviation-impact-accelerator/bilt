@@ -195,7 +195,11 @@ class StructuralExpansion:
             message = f"Recursive subsystem containment at {'.'.join(path)!r} is not supported."
             raise BiltAnalysisError(message)
         analysis = implementation.structural_analysis()
-        self.contexts[path] = _Context(_IncrementalStructuralScope(analysis.incidence).inspect, analysis.attribute_names, ancestors | {id(implementation)})
+        self.contexts[path] = _Context(
+            _IncrementalStructuralScope(analysis.incidence).inspect,
+            analysis.attribute_names,
+            ancestors | {id(implementation)},
+        )
         # Expansion can expose ports referenced by parent or sibling constraints.
         # Replay existing attributes into the new child context, too.
         for attribute in sorted(self.attributes):

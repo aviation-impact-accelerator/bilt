@@ -52,9 +52,7 @@ def _scope_signature(scope: object) -> tuple[object, ...]:
     assert isinstance(scope, StructuralScope)
     return (
         frozenset(id(operation) for operation in scope.constraints),
-        frozenset(
-            (id(boundary.operation), boundary.available, boundary.required) for boundary in scope.boundaries
-        ),
+        frozenset((id(boundary.operation), boundary.available, boundary.required) for boundary in scope.boundaries),
         scope.attributes,
     )
 
@@ -79,9 +77,7 @@ def _assert_incremental_matches_full(
 
         reference = inspect_structure(incidence, supplied, targets)
         actual_ports = frozenset((identity, frozenset(ports)) for identity, ports in accumulated_ports.items())
-        expected_ports = frozenset(
-            (id(boundary.operation), boundary.required) for boundary in reference.boundaries
-        )
+        expected_ports = frozenset((id(boundary.operation), boundary.required) for boundary in reference.boundaries)
         assert accumulated_constraints == {id(operation) for operation in reference.constraints}
         assert actual_ports == expected_ports
         assert attributes == reference.attributes
