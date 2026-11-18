@@ -404,7 +404,6 @@ def test_compound_mask_predicate_normalises_without_python_boolean_evaluation() 
     compile(ast.Module(body=[node], type_ignores=[]), "<normalised equation>", "exec")
 
 
-
 def test_multiple_local_assignments_in_branches_normalise_to_one_result() -> None:
     node = _normalise("""
         def eq(x, y):

@@ -185,7 +185,6 @@ def test_nested_conditional_cannot_be_inverted(backend: AbstractContextManager[o
     assert "through a conditional" in str(raised.value)
 
 
-
 @equation
 def staged_value(x: float, value: float) -> bool:
     if x > 0:

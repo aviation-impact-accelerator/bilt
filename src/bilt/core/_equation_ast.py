@@ -195,9 +195,7 @@ def _branch_binding_name(statement: ast.stmt) -> str:
     return _assignment_name(statement)
 
 
-def _validate_branch_arm(
-    statements: list[ast.stmt], conditional: ast.If, params: set[str], assigned: set[str]
-) -> str:
+def _validate_branch_arm(statements: list[ast.stmt], conditional: ast.If, params: set[str], assigned: set[str]) -> str:
     if not statements:
         _reject(conditional, "each branch must contain exactly one assignment or nested if/else")
 
