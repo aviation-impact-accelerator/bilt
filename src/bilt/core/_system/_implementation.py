@@ -87,7 +87,7 @@ class Implementation:
                 for component in self._components.values()
                 for port, declaration in component.__bilt_port_declarations__.items()
             }
-            | system.__bilt_port_declarations__
+            | dict(system.__bilt_port_declarations__)
         )
         self._evaluation_cache: dict[
             _CompilationRequest,
