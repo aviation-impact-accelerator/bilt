@@ -10,7 +10,7 @@ from bilt_proposals import field
 
 from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, system
 from bilt.units.dimensions import VOLTAGE
-from examples.circuits.proposed._pin import Pin
+from examples.circuits._pin import Pin
 
 
 @system

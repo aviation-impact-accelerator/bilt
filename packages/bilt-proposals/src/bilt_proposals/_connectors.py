@@ -32,14 +32,18 @@ results through it:
     bridge = WheatstoneBridge(arm1=Resistor(resistance=100.0 * ohm), ...)
     bridge.arm4.resistance
 
+Bilt today reads an interface-typed field as an undeclared sub-system, so the
+proposed `field()` raises `ProposalNotImplementedError` when declared on one.
+
 **`field(flow=True)` (keyword).** Marks a port as a flow: summing to zero over every
 group joined at a junction, each counted positive into its component. Every other port
 is an across port, equal at every group joined at a junction. Across is the default,
 as in Modelica and ModelingToolkit, so it needs no marker.
 
 **`@connection` (decorator).** A third kind of relation, alongside `@equation` and
-`@transform`. Its parameters take children by name and type, exactly as an equation's
-do, and it returns the groups of ports joined at one junction:
+`@transform`. Its parameters take children, or the system's own groups of ports, by
+name and type, exactly as an equation's do, and it returns the groups of ports joined at
+one junction:
 
     @connection
     def node_a(source: VoltageSource, arm1: Resistor, arm3: Resistor) -> tuple[Pin, Pin, Pin]:
@@ -51,6 +55,7 @@ equation is exactly one relation, and a junction is several. The return annotati
 honest: called with concrete instances, the function returns those groups.
 """
 
+import annotationlib
 import typing
 
 import bilt
@@ -62,15 +67,26 @@ if typing.TYPE_CHECKING:
     from bilt.core._port_declaration import PortDeclaration
 
 
-def field(*, flow: bool = False) -> typing.Any:  # noqa: ANN401
-    """Declare a port, as `bilt.field()`, optionally as a flow port.
+class _Field:
+    """Stands in for `bilt.field()` until the class is created, then checks the annotation."""
 
-    Without `flow` this is `bilt.field()`; it exists so a module can import a single
-    `field` for all its ports.
+    def __set_name__(self, owner: type, name: str) -> None:
+        annotations = annotationlib.get_annotations(owner, format=annotationlib.Format.FORWARDREF)
+        annotation = annotations.get(name)
+        if isinstance(annotation, bilt.Interface):
+            not_implemented(f"interface-typed field ({owner.__name__}.{name}: {annotation.__bilt_name__})")
+        setattr(owner, name, bilt.field())
+
+
+def field(*, flow: bool = False) -> typing.Any:  # noqa: ANN401
+    """Declare a port, as `bilt.field()`, optionally as a flow port or a group of ports.
+
+    For an ordinary port this is `bilt.field()`; it exists so a module can import a
+    single `field` for all its ports.
     """
     if flow:
         not_implemented("field(flow=True)")
-    return bilt.field()
+    return _Field()
 
 
 class Connection[R: tuple[object, ...], **P]:
