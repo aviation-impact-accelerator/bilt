@@ -2,9 +2,7 @@
 
 from typing import Annotated
 
-from bilt_proposals import field
-
-from bilt import Interface, Quantity, QuantityTensor, system
+from bilt import Interface, Quantity, QuantityTensor, field, system
 from bilt.units.dimensions import LENGTH
 
 

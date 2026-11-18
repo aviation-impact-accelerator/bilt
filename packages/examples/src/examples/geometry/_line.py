@@ -2,9 +2,7 @@
 
 from typing import Annotated
 
-from bilt_proposals import equation, field
-
-from bilt import Interface, Quantity, QuantityTensor, system
+from bilt import Interface, Quantity, QuantityTensor, equation, field, system
 from bilt.units.dimensions import DIMENSIONLESS, LENGTH
 from examples.geometry._point import Point
 

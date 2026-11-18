@@ -2,7 +2,9 @@
 
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, field, system
+from bilt_proposals import field
+
+from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, system
 from bilt.units.dimensions import CURRENT, RESISTANCE, VOLTAGE
 from examples.circuits._pin import Pin
 from examples.circuits._two_terminal import current_conservation, current_through, potential_difference
