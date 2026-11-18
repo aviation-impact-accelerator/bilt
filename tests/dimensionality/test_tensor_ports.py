@@ -415,9 +415,9 @@ def concrete_tensor_total(m: ConcreteTensorMass, total: Mass) -> bool:
     return total == m.sum(time)
 
 
-def _typed_tensor_reduction(value: QuantityTensor) -> Tensor:
+def _typed_tensor_reduction(value: QuantityTensor) -> QuantityTensor:
     result = value.sum(time)
-    typing.assert_type(result, Tensor)
+    typing.assert_type(result, QuantityTensor)
     return result
 
 

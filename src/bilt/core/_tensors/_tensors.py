@@ -19,6 +19,9 @@ from bilt.units._conversion import conversion_between
 from bilt.units._errors import BiltUnitError
 from bilt.units._units import Unit
 
+if typing.TYPE_CHECKING:
+    from bilt.units._quantities import Quantity
+
 OverArg = Dim | collections.abc.Iterable[Dim]
 
 
@@ -58,20 +61,47 @@ class Tensor:
     def ndim(self) -> int:
         return self.values.ndim
 
+    # Arithmetic is symbolic: these methods exist to type equation bodies and raise outside a model.
+    # A unitless tensor stays unitless unless a quantity or a unit joins it.
+
+    @typing.overload
+    def __add__(self, other: QuantityTensor | Quantity) -> QuantityTensor: ...
+
+    @typing.overload
+    def __add__(self, other: object) -> Tensor: ...
+
     def __add__(self, other: object) -> Tensor:
         raise _arithmetic_not_implemented()
+
+    @typing.overload
+    def __radd__(self, other: Quantity) -> QuantityTensor: ...
+
+    @typing.overload
+    def __radd__(self, other: object) -> Tensor: ...
 
     def __radd__(self, other: object) -> Tensor:
         raise _arithmetic_not_implemented()
 
+    @typing.overload
+    def __sub__(self, other: QuantityTensor | Quantity) -> QuantityTensor: ...
+
+    @typing.overload
+    def __sub__(self, other: object) -> Tensor: ...
+
     def __sub__(self, other: object) -> Tensor:
         raise _arithmetic_not_implemented()
+
+    @typing.overload
+    def __rsub__(self, other: Quantity) -> QuantityTensor: ...
+
+    @typing.overload
+    def __rsub__(self, other: object) -> Tensor: ...
 
     def __rsub__(self, other: object) -> Tensor:
         raise _arithmetic_not_implemented()
 
     @typing.overload
-    def __mul__(self, other: Unit) -> QuantityTensor: ...
+    def __mul__(self, other: Unit | QuantityTensor | Quantity) -> QuantityTensor: ...
 
     @typing.overload
     def __mul__(self, other: object) -> Tensor: ...
@@ -82,7 +112,7 @@ class Tensor:
         raise _arithmetic_not_implemented()
 
     @typing.overload
-    def __rmul__(self, other: Unit) -> QuantityTensor: ...
+    def __rmul__(self, other: Unit | Quantity) -> QuantityTensor: ...
 
     @typing.overload
     def __rmul__(self, other: object) -> Tensor: ...
@@ -95,7 +125,7 @@ class Tensor:
         raise _arithmetic_not_implemented()
 
     @typing.overload
-    def __truediv__(self, other: Unit) -> QuantityTensor: ...
+    def __truediv__(self, other: Unit | QuantityTensor | Quantity) -> QuantityTensor: ...
 
     @typing.overload
     def __truediv__(self, other: object) -> Tensor: ...
@@ -107,37 +137,61 @@ class Tensor:
             return self._labelled(self.unit / other)
         raise _arithmetic_not_implemented()
 
+    @typing.overload
+    def __rtruediv__(self, other: Quantity) -> QuantityTensor: ...
+
+    @typing.overload
+    def __rtruediv__(self, other: object) -> Tensor: ...
+
     def __rtruediv__(self, other: object) -> Tensor:
         raise _arithmetic_not_implemented()
 
-    def __neg__(self) -> Tensor:
+    @typing.overload
+    def __pow__(self, other: float) -> typing.Self: ...
+
+    @typing.overload
+    def __pow__(self, other: Tensor | Quantity) -> Tensor: ...
+
+    def __pow__(self, other: float | Tensor | Quantity) -> Tensor:
         raise _arithmetic_not_implemented()
 
-    def mean(self, dim: Dim) -> Tensor:  # noqa: ARG002
+    def __rpow__(self, other: float | Quantity) -> typing.Self:
+        raise _arithmetic_not_implemented()
+
+    def __pos__(self) -> typing.Self:
+        raise _arithmetic_not_implemented()
+
+    def __neg__(self) -> typing.Self:
+        raise _arithmetic_not_implemented()
+
+    def __abs__(self) -> typing.Self:
+        raise _arithmetic_not_implemented()
+
+    def mean(self, dim: Dim) -> typing.Self:  # noqa: ARG002
         """Return the mean over a named dimension in a Bilt model."""
         raise _symbolic_operation_only()
 
-    def sum(self, dim: Dim) -> Tensor:  # noqa: ARG002
+    def sum(self, dim: Dim) -> typing.Self:  # noqa: ARG002
         """Return the sum over a named dimension in a Bilt model."""
         raise _symbolic_operation_only()
 
-    def min(self, dim: Dim) -> Tensor:  # noqa: ARG002
+    def min(self, dim: Dim) -> typing.Self:  # noqa: ARG002
         """Return the minimum over a named dimension in a Bilt model."""
         raise _symbolic_operation_only()
 
-    def max(self, dim: Dim) -> Tensor:  # noqa: ARG002
+    def max(self, dim: Dim) -> typing.Self:  # noqa: ARG002
         """Return the maximum over a named dimension in a Bilt model."""
         raise _symbolic_operation_only()
 
-    def prod(self, dim: Dim) -> Tensor:  # noqa: ARG002
+    def prod(self, dim: Dim) -> typing.Self:  # noqa: ARG002
         """Return the product over a named dimension in a Bilt model."""
         raise _symbolic_operation_only()
 
-    def isel(self, dim: Dim, index: int) -> Tensor:  # noqa: ARG002
+    def isel(self, dim: Dim, index: int) -> typing.Self:  # noqa: ARG002
         """Select a position along a named dimension in a Bilt model."""
         raise _symbolic_operation_only()
 
-    def sel(self, dim: Dim, coordinate: Coordinate) -> Tensor:  # noqa: ARG002
+    def sel(self, dim: Dim, coordinate: Coordinate) -> typing.Self:  # noqa: ARG002
         """Select a coordinate along a named dimension in a Bilt model."""
         raise _symbolic_operation_only()
 
@@ -180,6 +234,45 @@ class QuantityTensor(Tensor):
         if not isinstance(self.unit, Unit):
             message = "QuantityTensor requires a physical unit"
             raise BiltUnitError(message)
+
+    # Scaling by a number or a unitless tensor keeps the unit; the base class already types
+    # addition and subtraction with quantities as returning a quantity tensor.
+
+    @typing.overload
+    def __mul__(self, other: Unit | Tensor | Quantity | float) -> QuantityTensor: ...
+
+    @typing.overload
+    def __mul__(self, other: object) -> Tensor: ...
+
+    def __mul__(self, other: object) -> Tensor:
+        return Tensor.__mul__(self, other)
+
+    @typing.overload
+    def __rmul__(self, other: Unit | Tensor | Quantity | float) -> QuantityTensor: ...
+
+    @typing.overload
+    def __rmul__(self, other: object) -> Tensor: ...
+
+    def __rmul__(self, other: object) -> Tensor:
+        return Tensor.__rmul__(self, other)
+
+    @typing.overload
+    def __truediv__(self, other: Unit | Tensor | Quantity | float) -> QuantityTensor: ...
+
+    @typing.overload
+    def __truediv__(self, other: object) -> Tensor: ...
+
+    def __truediv__(self, other: object) -> Tensor:
+        return Tensor.__truediv__(self, other)
+
+    @typing.overload
+    def __rtruediv__(self, other: Tensor | Quantity | float) -> QuantityTensor: ...
+
+    @typing.overload
+    def __rtruediv__(self, other: object) -> Tensor: ...
+
+    def __rtruediv__(self, other: object) -> Tensor:
+        return Tensor.__rtruediv__(self, other)
 
     @property
     def value(self) -> Tensor:

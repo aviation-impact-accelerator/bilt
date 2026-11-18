@@ -56,6 +56,18 @@ EXPECTED_CODES: dict[str, dict[str, frozenset[str]]] = {
         "ty": frozenset({"invalid-argument-type"}),
         "pyrefly": frozenset({"bad-argument-type"}),
     },
+    "scaled-unitless-tensor-is-not-a-quantity": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "scalar-power-is-not-a-tensor-quantity": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "tensor-magnitude-is-not-a-quantity": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
 }
 
 
