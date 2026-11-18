@@ -25,7 +25,7 @@ if typing.TYPE_CHECKING:
 OverArg = Dim | collections.abc.Iterable[Dim]
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True, slots=True, repr=False)
 class _Tensor:
     """Concrete values over a Bilt domain."""
 
@@ -52,6 +52,12 @@ class _Tensor:
             domain=Domain.scalar(),
             unit=unit,
         )
+
+    def __repr__(self) -> str:
+        # Named after the public annotation the value satisfies; the class itself is private.
+        if self.unit is None:
+            return f"Tensor(values={self.values!r}, domain={self.domain!r})"
+        return f"QuantityTensor(values={self.values!r}, domain={self.domain!r}, unit={self.unit!r})"
 
     @property
     def shape(self) -> tuple[int, ...]:
@@ -228,7 +234,7 @@ class _Tensor:
         return _QuantityTensor(values=self.values, domain=self.domain, unit=unit)
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True, repr=False)
 class _QuantityTensor(_Tensor):
     """Unit-bearing tensor with a non-optional unit and a quantity magnitude.
 

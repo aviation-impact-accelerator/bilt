@@ -337,13 +337,13 @@ elementwise and broadcasts the branches by dimension name. The equation itself
 can still use ordinary scalar annotations:
 
 ```python exec="on" session="motion-equations"
-from bilt import Tensor, dim, tensor
+from bilt import Number, dim, tensor
 
 
 @system
 class MaskedRange(metaclass=Interface):
-    x: float | Tensor = field()
-    result: float | Tensor = field()
+    x: Number = field()
+    result: Number = field()
 
 
 @equation

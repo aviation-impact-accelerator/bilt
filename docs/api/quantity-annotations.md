@@ -1,43 +1,52 @@
 # Quantity annotations and typing
 
-This is the reference for quantity annotations on Bilt system fields, equations
-and transforms. For unit definitions, conversions and arithmetic, see the
+This is the reference for the annotations on Bilt system fields, equations and
+transforms. For unit definitions, conversions and arithmetic, see the
 [Units API](units.md); for a guided introduction, see [Units in models](../guide/units.md).
 For named axes, reductions and selections, see the [Tensor API](tensors.md).
 
 ## Choose the annotation for the job
 
-A **system** declares which values its fields can accept. An **equation** describes
-a mathematical relationship. A system field can accept either a scalar or a
-tensor quantity, while a scalar-annotated equation can still operate pointwise
-over tensor inputs: Bilt builds symbolic expressions and lifts the relationship
-over compatible domains.
+A port annotation answers two independent questions:
 
-| Value | System field (when either shape is allowed) | Equation parameter |
-| --- | --- | --- |
-| Plain scalar or unitless tensor | `float | Tensor` | `float` for scalar-local arithmetic; `Tensor` for named tensor methods |
-| Pointwise quantity with a physical unit | `Quantity \| QuantityTensor` | `Quantity` for scalar-local arithmetic (or the union for pointwise operators) |
-| Tensor quantity with a physical unit | `QuantityTensor` | `QuantityTensor` for named tensor methods |
-| Strictly scalar quantity with a physical unit | `Quantity` | `Quantity` for scalar arithmetic |
+1. **Units:** does the value carry a unit? If so, `Annotated` also states its
+   physical dimension.
+2. **Shape:** may it have any shape, or must it be a tensor because something
+   reduces or selects along one of its axes?
 
-For example, a system may accept either a scalar or a tensor of mass. Named
-aliases keep the system and equation declarations readable:
+|              | Any shape  | Must be a tensor |
+| ------------ | ---------- | ---------------- |
+| **Units**    | `Quantity` | `QuantityTensor` |
+| **No units** | `Number`   | `Tensor`         |
 
-```python exec="off"
+All four are imported from `bilt`. They describe what a value can do, not which
+class it is: you never construct them by name. Create a quantity by multiplying a
+number by a unit (`2.0 * kilogram`), and a tensor with `tensor(...)`.
+
+An annotation means the same thing on a system field, an equation parameter and a
+transform. `Quantity` accepts a scalar or a tensor everywhere: an equation or
+transform written for one value is lifted by Bilt over the domain of a tensor
+input. Reach for `QuantityTensor` only when the code reduces or selects along an
+axis.
+
+## One alias per dimension
+
+Write the dimension once, in an alias, and use it on systems and equations alike:
+
+```python exec="on" session="quantity-annotations"
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, QuantityTensor, dim, equation, field, system, tensor
+from bilt import Implementation, Interface, Quantity, dim, equation, field, system, tensor
 from bilt.units import kilogram
 from bilt.units.dimensions import MASS
 
 type Mass = Annotated[Quantity, MASS]
-type PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]
 
 
 @system
 class DoubleMass(metaclass=Interface):
-    mass: PointwiseMass = field()
-    doubled: PointwiseMass = field()
+    mass: Mass = field()
+    doubled: Mass = field()
 
 
 @equation
@@ -50,68 +59,119 @@ time = dim("time")
 with Implementation(DoubleMass, [doubling]):
     scalar_result = DoubleMass(mass=2.0 * kilogram).doubled
     tensor_result = DoubleMass(mass=tensor([2.0, 3.0], over=time, unit=kilogram)).doubled
+
+assert scalar_result == 4.0 * kilogram
+assert tensor_result.values.tolist() == [4.0, 6.0]
 ```
 
-The equation is pointwise, so Bilt automatically lifts its scalar `Mass` annotation
-when an input varies over `time`. The system's `PointwiseMass` annotation accepts
-either shape; Bilt builds symbolic expressions when constructing the equation.
+The same `doubling` equation serves a scalar mass and a mass that varies over
+`time`. It is **pointwise**: it relates values at each point of the domain
+independently, so Bilt lifts it over the tensor's domain.
 
-## Available types
+An alias can be written with the `type` statement, as here, or as a plain
+assignment (`Mass = Annotated[Quantity, MASS]`); Bilt reads both the same way.
 
-| Annotation | Type checker understands | Runtime interpretation |
+## What each annotation accepts
+
+| Annotation | Accepts | Type checkers know |
 | --- | --- | --- |
-| `Quantity \| QuantityTensor` | Unit-bearing scalar **or** tensor, with pointwise operators | Flexible pointwise quantity boundary and equation |
-| `Quantity` | Concrete scalar `Quantity`, with its arithmetic methods | Scalar quantity arithmetic; lifted inside equations |
-| `QuantityTensor` | Concrete unit-bearing tensor, including tensor methods | Tensor quantity with a non-optional unit |
-| `Tensor` | Tensor with or without a unit | Plain `Tensor` system fields are unitless; use `QuantityTensor` for dimensioned tensors |
-| `float | Tensor` | Plain scalar or tensor | Unitless system boundary |
+| `Annotated[Quantity, DIM]` | A scalar quantity or a tensor of quantities with that dimension | Quantity arithmetic, `unit`, `value`, `convert_to`, `cast_to`, `strip_metadata`, comparisons |
+| `Annotated[QuantityTensor, DIM]` | A tensor of quantities with that dimension | All of the above, plus `domain`, `values`, `sum`, `mean`, `min`, `max`, `prod`, `isel`, `sel` |
+| `Number` | A plain number or a unitless tensor | Plain arithmetic |
+| `Tensor` | A unitless tensor | Plain arithmetic and the named tensor methods |
+| `float` | A plain number; Bilt also accepts a unitless tensor, but type checkers do not | Ordinary `float` |
 
-Use `Quantity | QuantityTensor` for pointwise quantities that may be scalar or tensor. Use `Quantity` for scalar-only inputs and operations, and `QuantityTensor` when named tensor methods are required. In longer models, use paired aliases such as `Mass = Annotated[Quantity, MASS]` and `PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]` instead of repeating the full annotations.
+Prefer `Number` to `float` for a plain port that may receive a tensor. Inside an
+equation or transform the two behave alike, since Bilt lifts the relationship
+over a tensor input either way.
 
-A unit-bearing tensor can be constructed with `tensor(..., unit=kilogram)`.
-The factory returns `QuantityTensor` when a non-optional `Unit` is supplied
-and returns `Tensor` if the unit is omitted. If the unit argument has
-type `Unit | None`, the conservative static return type is `Tensor`
-although the runtime object will be a `QuantityTensor` when the unit is present.
+`Number` and `Tensor` are for values **outside** the unit system: counts,
+flags, inputs to external code. A coefficient that takes part in quantity
+arithmetic, such as a gain multiplying a length in an equation, must be a
+dimensionless quantity, `Annotated[Quantity, DIMENSIONLESS]`, supplied as
+`0.5 * UNITLESS`.
+
+A `QuantityTensor` is also a `Quantity`, so it can be passed wherever a
+`Quantity` is expected. Neither quantity annotation accepts a unitless value,
+and neither `Number` nor `Tensor` accepts a value with a unit: type checkers
+report these mistakes, and Bilt rejects them at runtime too.
+
+`Quantity` does not distinguish a scalar from a tensor. Its `value` is therefore
+a `Number`: a `float` for a scalar, a unitless `Tensor` for a tensor. A transform
+that returns a quantity's magnitude is annotated `-> Number`:
+
+```python exec="off"
+from bilt import Number, transform
+from bilt.units import gram
+
+
+@transform
+def grams(mass: Mass) -> Number:
+    return mass.convert_to(gram).value
+```
+
+To get a Python `float` from a result you know is a scalar, call `float(...)`
+on its value; this also works for a tensor with no dimensions.
+
+```python exec="on" session="quantity-annotations"
+assert float(scalar_result.value) == 4.0
+```
+
+## Creating values
+
+| Expression | Annotation it satisfies |
+| --- | --- |
+| `2.0 * kilogram` | `Quantity` |
+| `tensor([1.0, 2.0], over=time, unit=kilogram)` | `QuantityTensor` |
+| `tensor([1.0, 2.0], over=time)` | `Tensor` |
+| `tensor([1.0, 2.0], over=time) * kilogram` | `QuantityTensor` |
+
+If the `unit` argument of `tensor(...)` has type `Unit | None`, the static return
+type is `Tensor | QuantityTensor`.
+
+You can check what you were given with `isinstance`, against the same names:
+
+```python exec="on" session="quantity-annotations"
+from bilt import QuantityTensor, Tensor
+
+assert isinstance(scalar_result, Quantity)
+assert not isinstance(scalar_result, QuantityTensor)
+assert isinstance(tensor_result, QuantityTensor)
+assert not isinstance(tensor([1.0], over=time), Quantity)
+assert isinstance(tensor([1.0], over=time), Tensor)
+```
+
+`isinstance` is looser than a port: it only checks that the methods exist, so a
+`QuantityTensor` also passes `isinstance(value, Tensor)`, although a `Tensor`
+port refuses it. To test for a tensor of quantities, check `QuantityTensor`.
 
 ## Named tensor operations in equations
 
-Annotate an equation parameter as `QuantityTensor` when the equation
-uses `sum`, `mean`, `isel`, `sel`, or other named tensor methods.
+Annotate an equation parameter `QuantityTensor` when the equation uses `sum`,
+`mean`, `isel`, `sel` or another named tensor method:
 
-```python exec="off"
-from typing import Annotated
-
-from bilt import Quantity, QuantityTensor, dim, equation
-from bilt.units.dimensions import MASS
-
-time = dim("time")
-type ScalarMass = Annotated[Quantity, MASS]
-type TensorMass = Annotated[QuantityTensor, MASS]
+```python exec="on" session="quantity-annotations"
+type MassOverADomain = Annotated[QuantityTensor, MASS]
 
 
 @equation
-def total_mass(masses: TensorMass, total: ScalarMass) -> bool:
+def total_mass(masses: MassOverADomain, total: Mass) -> bool:
     return total == masses.sum(time)
 ```
 
-A tensor with domain `(scenario, time)` can be reduced over `time`;
-the result retains `scenario`. The compiler determines the resulting
-domain and physical dimension. The concrete `Tensor` method return
-annotations do not encode the remaining domain statically.
+The result of `masses.sum(time)` is still a `QuantityTensor` to a type checker,
+which a `Mass` (any shape) accepts. A tensor with domain `(scenario, time)`
+reduced over `time` keeps `scenario`; Bilt determines the remaining domain and the
+physical dimension when it compiles the model. The type checker does not track
+which axes remain.
 
 ## Minimum domain requirements
 
-A dimensioned tensor quantity port may require one or more named axes:
+A tensor quantity port may require one or more named axes:
 
-```python exec="off"
-from typing import Annotated
+```python exec="on" session="quantity-annotations"
+from bilt import Domain
 
-from bilt import QuantityTensor, dim
-from bilt.symbolic._domains import Domain
-from bilt.units.dimensions import MASS
-
-time = dim("time")
 type TimeMass = Annotated[QuantityTensor, MASS, Domain((time,))]
 ```
 
@@ -125,61 +185,64 @@ This declares a **minimum** domain, not an exact shape:
 | `(scenario,)` | No |
 | `()` | No |
 
-Minimum-domain checking applies to `QuantityTensor` annotations carrying a physical dimension. At a system boundary, Bilt checks supplied and computed values.
-Within an implementation, Bilt checks the requirements on **selected**
-equations against the inferred domains of the values those equations use
-or produce. Requirements on equations that are not selected do not
-constrain that evaluation.
+At a system boundary, Bilt checks supplied and computed values. Within an
+implementation, Bilt checks the requirements on **selected** equations against the
+inferred domains of the values those equations use or produce. Requirements on
+equations that are not selected do not constrain that evaluation.
 
-`Annotated[Quantity, DIM, Domain(...)]` and
-`Annotated[Quantity | QuantityTensor, DIM, Domain(...)]` remain **exact equation**
-domain hints for structural/linear-block analysis. It is not a system-field
-annotation, and is not reinterpreted as a minimum-domain requirement.
-Dimensioned `Annotated[Tensor, DIM]` declarations are no longer supported;
-use `QuantityTensor` for tensor-only fields and equations.
-Domain constraints in `Annotated` are validated by Bilt, not statically
-interpreted by ty or Pyrefly.
+On an equation parameter, `Annotated[Quantity, DIM, Domain(...)]` is an **exact**
+domain hint for structural and linear-block analysis, not a minimum-domain
+requirement. It is not allowed on a system field. Domain constraints are checked
+by Bilt, not by type checkers.
+
+## Where Bilt reads an annotation
+
+Bilt reads the dimension, `ABSOLUTE` and any `Domain` from `Annotated` at the top
+of a port's annotation, directly or through a type alias without type parameters.
+Anything else raises `BiltPortDeclarationError` rather than silently ignoring the
+dimension:
+
+- a union such as `Annotated[Quantity, MASS] | None`;
+- a subscripted generic alias such as `Length[Quantity]`, where
+  `type Length[Q] = Annotated[Q, LENGTH]`;
+- a dimension on a unitless annotation, such as `Annotated[Tensor, MASS]`: use
+  `QuantityTensor`.
 
 ## Symbolic and eager arithmetic
 
-`Quantity | QuantityTensor` is useful both for a flexible **system field**
-and for a **pointwise equation**. An `@equation` builds a symbolic expression
-tree: pointwise operators are then lifted across compatible scalar and tensor
-domains. It does **not** execute the concrete `QuantityTensor` methods.
+An `@equation` builds a symbolic expression: Bilt calls it with symbols, not
+values, and lifts pointwise operations over compatible domains. A `@transform` body
+is compiled for the selected backend. In both, a parameter annotated with one of
+the four types supports the operations listed above.
 
-Outside equations, concrete `Quantity` objects support scalar arithmetic.
-Concrete `Tensor` and `QuantityTensor` objects deliberately do not support
-general eager arithmetic or named reductions. Arithmetic raises
-`NotImplementedError`, while symbolic-only tensor methods raise `TypeError`.
-`@transform` is ordinary executable Python and must not use these as eager
-numerical operations.
+Outside a model, a scalar quantity supports ordinary arithmetic and comparison.
+Concrete tensors deliberately do not: arithmetic on them raises
+`NotImplementedError`, and named tensor methods raise `TypeError`. Type checkers
+cannot tell whether code runs inside a model, so they accept
+`tensor_value * 2.0` anywhere; this is a limitation of static typing, not a sign
+that eager tensor arithmetic is supported.
 
-Python's type checkers cannot infer symbolic execution from `@equation`.
-They can accept `value * 2.0` where `value` has the union type, **even
-outside an equation**. This is a documented limitation of the static type
-contract, not evidence that eager tensor multiplication is supported. A
-future separate equation checker might detect this, but isn't part of the
-quantity typing migration.
+## Earlier spellings
 
-`Quantity(value, unit)` remains the concrete scalar constructor.
-For dimensioned pointwise fields, use `Quantity | QuantityTensor`.
-Strict scalar fields use `Quantity`, and tensor-only fields use `QuantityTensor`.
-Dimensioned `Annotated[Tensor, DIM]` declarations are rejected at system
-boundaries; scalar-only equations and transforms may also use concrete `Quantity`.
+Earlier versions of Bilt used `Quantity | QuantityTensor` for a quantity of any
+shape and `float | Tensor` for a plain value of any shape, with separate aliases
+such as `PointwiseMass` for system fields. `Quantity | QuantityTensor` still means
+the same as `Quantity`, and `float | Tensor` is exactly `Number`, so existing
+annotations keep working. Two things changed:
 
-## Other limitations
+- `Annotated[Quantity, DIM]` on a system field used to accept only a scalar; it now
+  accepts a tensor too. There is no scalar-only quantity annotation.
+- `Quantity(value, unit)` no longer constructs a quantity; write `value * unit`.
 
-- A `float | Tensor` system field accepts scalar or unitless tensor
-  values. `QuantityTensor` subclasses `Tensor`, so ty and Pyrefly
-  cannot reject unit-bearing tensors for this union; Bilt rejects those
-  values at runtime. A separate tensor-typing design would be needed to
-  express unitless tensors statically.
-- Static type checkers do not prove physical dimensions, unit categories,
-  named axis sets, or Bilt's structural execution choices. These are
-  Bilt runtime and compiler checks.
-- Bilt retains the existing distinction between symbolic tensor methods
-  inside equations and concrete tensor operations outside a model. The
-  latter do not offer general eager tensor arithmetic.
+## Limitations
+
+- Type checkers do not prove physical dimensions, unit categories, named axis sets
+  or Bilt's structural execution choices. Bilt checks these when it builds and
+  evaluates a model.
+- A `Number` must be a `float`, an `int` or a unitless tensor; Python's other
+  numeric types are not accepted.
+- Bilt does not ship per-dimension aliases such as `Length`; define the ones a model
+  needs.
 
 Use the [Domains and tensors guide](../guide/dimensions-domains-and-tensors.md)
 for broadcasting, axis alignment and examples of domain inference.

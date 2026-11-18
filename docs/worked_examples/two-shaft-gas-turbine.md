@@ -120,9 +120,9 @@ def render_plot() -> None:
 
 ## 1. Define reusable component systems
 
-We start with a compressor. Its system fields use named pointwise quantity
-aliases, allowing scalar or tensor values without fixing array shapes.
-The equations retain scalar aliases, which Bilt can lift over tensor domains.
+We start with a compressor. Its system fields and equations share one quantity
+alias per dimension; each accepts a single value or a tensor of values without
+fixing array shapes, and Bilt lifts the equations over tensor domains.
 
 Temperatures are absolute readings; subtracting two readings gives a relative
 temperature change. Specific heat multiplies that change to produce specific
@@ -135,7 +135,7 @@ than encoded in names such as `_k` or `_kj_per_kg`.
 ```python exec="off"
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, field, system
+from bilt import Implementation, Interface, Quantity, equation, field, system
 from bilt.units import UNITLESS, absolute_kelvin, kelvin, kilogram, kilojoule, kilowatt, megawatt, second
 from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, MASS, TEMPERATURE, TIME
 
@@ -147,23 +147,16 @@ MassFlow = Annotated[Quantity, MASS / TIME]
 Power = Annotated[Quantity, ENERGY / TIME]
 Ratio = Annotated[Quantity, DIMENSIONLESS]
 
-PointwiseAbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
-PointwiseSpecificHeat = Annotated[Quantity | QuantityTensor, ENERGY / (MASS * TEMPERATURE)]
-PointwiseSpecificWork = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
-PointwiseMassFlow = Annotated[Quantity | QuantityTensor, MASS / TIME]
-PointwisePower = Annotated[Quantity | QuantityTensor, ENERGY / TIME]
-PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
-
 
 @system
 class Compressor(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    pressure_ratio: PointwiseRatio = field()
-    isentropic_efficiency: PointwiseRatio = field()
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    pressure_ratio: Ratio = field()
+    isentropic_efficiency: Ratio = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 
 @equation
@@ -217,15 +210,12 @@ does not permanently designate specific work as the output. With a different set
 The turbine is similarly small:
 
 ```python exec="off"
-from bilt import QuantityTensor
-
-
 @system
 class Turbine(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 
 @equation
@@ -249,43 +239,40 @@ turbine_model = Implementation(
 The parent system contains the values needed to connect the four child systems.
 
 ```python exec="off"
-from bilt import QuantityTensor
-
-
 @system
 class TwoShaftCore(metaclass=Interface):
     # Gas-path temperatures.
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    low_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    turbine_inlet_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_turbine_exit_temperature: PointwiseAbsoluteTemperature = field()
-    exit_temperature: PointwiseAbsoluteTemperature = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    low_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    high_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    turbine_inlet_temperature: AbsoluteTemperature = field()
+    high_pressure_turbine_exit_temperature: AbsoluteTemperature = field()
+    exit_temperature: AbsoluteTemperature = field()
 
     # Compressor design assumptions.
-    low_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    high_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    low_pressure_compressor_efficiency: PointwiseRatio = field()
-    high_pressure_compressor_efficiency: PointwiseRatio = field()
+    low_pressure_compressor_pressure_ratio: Ratio = field()
+    high_pressure_compressor_pressure_ratio: Ratio = field()
+    low_pressure_compressor_efficiency: Ratio = field()
+    high_pressure_compressor_efficiency: Ratio = field()
 
     # Shared fluid properties.
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
 
     # Shaft efficiencies.
-    low_pressure_shaft_efficiency: PointwiseRatio = field()
-    high_pressure_shaft_efficiency: PointwiseRatio = field()
+    low_pressure_shaft_efficiency: Ratio = field()
+    high_pressure_shaft_efficiency: Ratio = field()
 
     # Coupling values used by the two shaft balances.
-    low_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_turbine_work: PointwiseSpecificWork = field()
-    low_pressure_turbine_work: PointwiseSpecificWork = field()
+    low_pressure_compressor_work: SpecificWork = field()
+    high_pressure_compressor_work: SpecificWork = field()
+    high_pressure_turbine_work: SpecificWork = field()
+    low_pressure_turbine_work: SpecificWork = field()
 
     # Useful LP-shaft output.
-    shaft_output_work: PointwiseSpecificWork = field()
-    mass_flow: PointwiseMassFlow = field()
-    shaft_power: PointwisePower = field()
+    shaft_output_work: SpecificWork = field()
+    mass_flow: MassFlow = field()
+    shaft_power: Power = field()
 ```
 
 Some of these values exist mainly to provide an explicit hand-off between child systems.
@@ -664,7 +651,7 @@ For the executable documentation below, the same model is loaded from a temporar
 model_source = """
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, field, system
+from bilt import Implementation, Interface, Quantity, equation, field, system
 from bilt.units import UNITLESS, absolute_kelvin, kelvin, kilogram, kilojoule, kilowatt, megawatt, second
 from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, MASS, TEMPERATURE, TIME
 
@@ -676,22 +663,16 @@ MassFlow = Annotated[Quantity, MASS / TIME]
 Power = Annotated[Quantity, ENERGY / TIME]
 Ratio = Annotated[Quantity, DIMENSIONLESS]
 
-PointwiseAbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
-PointwiseSpecificHeat = Annotated[Quantity | QuantityTensor, ENERGY / (MASS * TEMPERATURE)]
-PointwiseSpecificWork = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
-PointwiseMassFlow = Annotated[Quantity | QuantityTensor, MASS / TIME]
-PointwisePower = Annotated[Quantity | QuantityTensor, ENERGY / TIME]
-PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
 
 @system
 class Compressor(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    pressure_ratio: PointwiseRatio = field()
-    isentropic_efficiency: PointwiseRatio = field()
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    pressure_ratio: Ratio = field()
+    isentropic_efficiency: Ratio = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 @equation
 def compressor_temperature_relation(
@@ -734,10 +715,10 @@ compressor_model = Implementation(
 
 @system
 class Turbine(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 @equation
 def turbine_work_relation(
@@ -759,33 +740,33 @@ turbine_model = Implementation(
 
 @system
 class TwoShaftCore(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    low_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    turbine_inlet_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_turbine_exit_temperature: PointwiseAbsoluteTemperature = field()
-    exit_temperature: PointwiseAbsoluteTemperature = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    low_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    high_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    turbine_inlet_temperature: AbsoluteTemperature = field()
+    high_pressure_turbine_exit_temperature: AbsoluteTemperature = field()
+    exit_temperature: AbsoluteTemperature = field()
 
-    low_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    high_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    low_pressure_compressor_efficiency: PointwiseRatio = field()
-    high_pressure_compressor_efficiency: PointwiseRatio = field()
+    low_pressure_compressor_pressure_ratio: Ratio = field()
+    high_pressure_compressor_pressure_ratio: Ratio = field()
+    low_pressure_compressor_efficiency: Ratio = field()
+    high_pressure_compressor_efficiency: Ratio = field()
 
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
 
-    low_pressure_shaft_efficiency: PointwiseRatio = field()
-    high_pressure_shaft_efficiency: PointwiseRatio = field()
+    low_pressure_shaft_efficiency: Ratio = field()
+    high_pressure_shaft_efficiency: Ratio = field()
 
-    low_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_turbine_work: PointwiseSpecificWork = field()
-    low_pressure_turbine_work: PointwiseSpecificWork = field()
+    low_pressure_compressor_work: SpecificWork = field()
+    high_pressure_compressor_work: SpecificWork = field()
+    high_pressure_turbine_work: SpecificWork = field()
+    low_pressure_turbine_work: SpecificWork = field()
 
     # Useful LP-shaft output.
-    shaft_output_work: PointwiseSpecificWork = field()
-    mass_flow: PointwiseMassFlow = field()
-    shaft_power: PointwisePower = field()
+    shaft_output_work: SpecificWork = field()
+    mass_flow: MassFlow = field()
+    shaft_power: Power = field()
 
 @equation
 def low_pressure_compressor_inlet_connection(

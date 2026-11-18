@@ -2,7 +2,7 @@
 
 Import tensor helpers from `bilt`. See [Domains and tensors](../guide/dimensions-domains-and-tensors.md)
 for an introduction, [Units API](units.md) for physical units, and
-[Quantity annotations and typing](quantity-annotations.md) for scalar/tensor system fields.
+[Quantity annotations and typing](quantity-annotations.md) for choosing between `Quantity`, `QuantityTensor`, `Number` and `Tensor`.
 
 ## Construction and inspection
 
@@ -13,11 +13,10 @@ for an introduction, [Units API](units.md) for physical units, and
 | `domain()` / `Domain.scalar()` | Empty domain for scalar values. |
 | `as_domain(value)` | Convert a `Dim` or iterable of dimensions to a domain; return an existing domain unchanged. |
 | `tensor(values, *, over=None, domain=None, unit=None)` | Construct a tensor from array-like data. Supply either `over` or `domain` for non-scalar data. |
-| `Tensor(values, domain, unit=None)` | Direct constructor with an explicit domain. |
-| `tensor(value)` / `Tensor.scalar(value, unit=None)` | Rank-zero tensor. |
+| `tensor(value)` / `tensor(value, unit=unit)` | Rank-zero tensor. |
 | `t.values`, `t.shape`, `t.ndim` | NumPy array, shape and rank. |
 | `t.domain`, `t.domain.dims`, `t.domain.is_scalar` | Domain, ordered dimensions and scalar-domain flag. |
-| `t.unit` | Physical unit, or `None`. |
+| `t.unit` | Physical unit of a `QuantityTensor`. |
 | `dimension.name` | Dimension name. |
 
 ```python exec="on" session="tensor-api"
@@ -42,8 +41,7 @@ align by name. Result axes follow the evaluation's dimension binding order.
 | `t * unit` | Label an unlabelled tensor or compose its unit; values are unchanged. |
 | `unit * t`, `t / unit` | Compose units on an already labelled tensor. |
 
-Use `Annotated[QuantityTensor, LENGTH]` for tensor-only unit-bearing fields or equation parameters. For pointwise quantities that can be scalars or tensors, use `Annotated[Quantity | QuantityTensor, LENGTH]`. Dimensioned `Annotated[Tensor, LENGTH]` declarations are no longer supported.
-Bare `Tensor` ports are outside the physical unit system. With a non-optional
+Use `Annotated[QuantityTensor, LENGTH]` for tensor-only unit-bearing fields or equation parameters, and `Annotated[Quantity, LENGTH]` for a quantity of any shape. `Tensor` and `Number` ports are outside the physical unit system, so `Annotated[Tensor, LENGTH]` is refused. With a non-optional
 unit, `tensor(..., unit=...)` returns `QuantityTensor`; without one it returns
 `Tensor`. Computed declared
 quantities use coherent units; convert returned tensors for display.
@@ -63,8 +61,8 @@ present in the operand's domain and removes it from the result's domain.
 
 In unit-aware equations, mean/sum/min/max retain dimensionality and tags.
 `prod` requires a dimensionless operand; `sum` refuses absolute readings.
-Reducing the last dimension gives a scalar domain. Unit-aware Tensor-declared
-outputs remain rank-zero tensors; other scalar-domain outputs are numerical
+Reducing the last dimension gives a scalar domain. Outputs declared
+`QuantityTensor` remain rank-zero tensors; other scalar-domain outputs are numerical
 scalars or declared quantities.
 
 **Transforms:** use a single return statement, applying reductions directly to
