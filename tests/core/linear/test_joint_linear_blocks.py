@@ -327,7 +327,7 @@ def test_parallel_sources_share_one_bus_voltage(backend: Backend, output: str) -
         )
         result = getattr(circuit, output)
     if output == "current":
-        assert isinstance(result, Tensor)
+        assert isinstance(result, QuantityTensor)
         assert result.domain == domain(BRANCH)
         assert result.unit == ampere
         np.testing.assert_allclose(result.values, [2.8, 4.8, 6.8], atol=1e-5)

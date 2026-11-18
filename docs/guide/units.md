@@ -33,7 +33,7 @@ distance = 5.0 * kilometer
 A **quantity** combines a numerical value with a unit. We can also construct one explicitly:
 
 ```python exec="on" session="units-models"
-distance = Quantity(5.0, kilometer)
+distance = 5.0 * kilometer
 ```
 
 Both expressions describe the same distance.
@@ -248,7 +248,7 @@ Quantity constructors work too:
 ```python exec="off"
 @transform
 def allowance(distance: Length) -> Length:
-    return distance + Quantity(0.5, kilometer)
+    return distance + 0.5 * kilometer
 ```
 
 This describes the same calculation.
@@ -276,7 +276,7 @@ The opposite bridge is just as explicit:
 ```python exec="off"
 @transform
 def distance(distance_km: float) -> Length:
-    return Quantity(distance_km, kilometer)
+    return distance_km * kilometer
 ```
 
 This interprets a plain number as kilometres and produces a declared length. These two transforms illustrate opposite directions; use the one needed by the surrounding model.
@@ -402,7 +402,7 @@ def heating(
 
 with Implementation(Heater, [heating]):
     outlet = Heater(
-        inlet=Quantity(20.0, absolute_celsius),
+        inlet=20.0 * absolute_celsius,
         rise=10.0 * celsius,
     ).outlet
 

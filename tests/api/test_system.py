@@ -539,4 +539,4 @@ def test_unitless_union_system_field_accepts_scalar_and_tensors() -> None:
 
 def test_unitless_union_rejects_unit_bearing_tensor_at_runtime() -> None:
     with pytest.raises(BiltInputDimensionalityError, match="plain port"):
-        FlexiblePlainScale(x=tensor([1.0, 2.0], over=dim("time"), unit=kilogram))
+        FlexiblePlainScale(x=typing.cast("Tensor", tensor([1.0, 2.0], over=dim("time"), unit=kilogram)))

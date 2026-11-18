@@ -183,7 +183,7 @@ def test_shared_bus_voltage_and_branch_currents_retain_units(backend: Backend, o
         backend,
     )
     if output == "inner.current":
-        assert isinstance(result, Tensor)
+        assert isinstance(result, QuantityTensor)
         assert result.domain == domain(BRANCH)
         assert result.unit == ampere
         np.testing.assert_allclose(result.values, [2.8, 4.8, 6.8], atol=1e-5)

@@ -114,7 +114,7 @@ def _doubled(m: QuantityTensor) -> object:
 def test_a_declared_answer_over_a_domain_comes_back_in_the_coherent_unit() -> None:
     result = _doubled(tensor([1.0, 2.0], over=time, unit=tonne))
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit is kilogram
     np.testing.assert_allclose(result.values, [2000.0, 4000.0])
 
@@ -122,7 +122,7 @@ def test_a_declared_answer_over_a_domain_comes_back_in_the_coherent_unit() -> No
 def test_a_declared_answer_over_a_domain_converts() -> None:
     result = _doubled(tensor([1.0, 2.0], over=time, unit=tonne))
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     np.testing.assert_allclose(result.convert_to(tonne).values, [2.0, 4.0])
 
 
@@ -140,9 +140,9 @@ def test_an_answer_fed_back_in_as_an_input_is_read_in_its_own_unit() -> None:
 def test_a_tensor_and_a_scalar_quantity_may_meet_in_one_equation() -> None:
     masses = tensor([1.0, 2.0], over=time, unit=kilogram)
     with Implementation(Scale, [totalling]):
-        result = Scale(m=masses, k=Quantity(500.0, gram)).total
+        result = Scale(m=masses, k=500.0 * gram).total
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit is kilogram
     np.testing.assert_allclose(result.values, [1.5, 2.5])
 
@@ -152,7 +152,7 @@ def test_a_unit_carrying_tensor_is_checked_and_labelled_on_either_backend(backen
     with backend:
         result = _doubled(tensor([1.0, 2.0], over=time, unit=tonne))
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit is kilogram
     np.testing.assert_allclose(result.values, [2000.0, 4000.0])
 
@@ -160,12 +160,12 @@ def test_a_unit_carrying_tensor_is_checked_and_labelled_on_either_backend(backen
 def test_a_scalar_declared_answer_is_a_quantity_holding_a_float() -> None:
     @transform
     def total(m: MassOverADomain) -> Mass:
-        return m.sum(time)  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
+        return m.sum(time)
 
     with Implementation(Scale, [total]):
         result = Scale(m=tensor([1.0, 2.0], over=time, unit=kilogram)).total
 
-    assert isinstance(result, Quantity)
+    assert not isinstance(result, QuantityTensor)
     assert type(result.value) is float
     assert result == 3.0 * kilogram
 
@@ -179,12 +179,12 @@ def test_a_transform_bridges_a_plain_tensor_into_a_declared_port() -> None:
 
     @transform
     def force(masses_g: Tensor, a: Acceleration) -> Force:
-        return masses_g * gram * a  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
+        return masses_g * gram * a
 
     with Implementation(Rig, [force]):
         result = Rig(masses_g=tensor([1000.0, 2000.0], over=time), a=2.0 * meter / second**2).force
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit is kilogram * meter / second**2
     np.testing.assert_allclose(result.values, [2.0, 4.0])
 
@@ -192,12 +192,12 @@ def test_a_transform_bridges_a_plain_tensor_into_a_declared_port() -> None:
 def test_a_declared_tensor_parameter_is_erased_in_a_transform_body_as_a_scalar_is() -> None:
     @transform
     def doubled(m: Mass) -> Mass:
-        return Quantity(m.convert_to(gram).value * 2.0, gram)
+        return (m.convert_to(gram).value * 2.0) * gram
 
     with Implementation(Scale, [doubled]):
         result = Scale(m=tensor([1.0, 2.0], over=time, unit=kilogram)).doubled
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit is kilogram
     np.testing.assert_allclose(result.values, [2.0, 4.0])
 
@@ -210,13 +210,13 @@ def test_an_absolute_declared_tensor_parameter_is_erased_with_its_offset() -> No
 
     @transform
     def in_celsius(t: AbsoluteTemperature) -> AbsoluteTemperature:
-        return Quantity(t.convert_to(absolute_celsius).value, absolute_celsius)
+        return t.convert_to(absolute_celsius).value * absolute_celsius
 
     temperatures = tensor([273.15, 373.15], over=time, unit=abs(kelvin))
     with Implementation(Rig, [in_celsius]):
         result = Rig(t=temperatures).in_celsius
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit is abs(kelvin)
     np.testing.assert_allclose(result.values, [273.15, 373.15])
 
@@ -226,7 +226,7 @@ def test_a_tagged_tensor_answers_in_its_tagged_coherent_unit() -> None:
     with Implementation(TaggedScale, [tagged_doubling]):
         result = TaggedScale(m=masses).doubled
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit == kilogram * co2
     np.testing.assert_allclose(result.values, [2.0, 4.0])
 
@@ -250,7 +250,7 @@ def test_stripping_a_tag_in_a_transform_body_passes_a_tensor_through() -> None:
     with Implementation(Rig, [plain]):
         result = Rig(m=masses).plain
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit is kilogram
     np.testing.assert_allclose(result.values, [1.0, 2.0])
 
@@ -269,7 +269,7 @@ def test_multiplying_by_a_tag_in_a_transform_body_passes_a_tensor_through() -> N
     with Implementation(Rig, [tagged]):
         result = Rig(m=masses).tagged
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit == kilogram * co2
     np.testing.assert_allclose(result.values, [1.0, 2.0])
 
@@ -294,7 +294,7 @@ def test_a_tensor_with_no_unit_at_a_plain_port_stays_bare() -> None:
         result = PlainScale(x=tensor([1.0, 2.0], over=time)).doubled
 
     assert isinstance(result, Tensor)
-    assert result.unit is None
+    assert not isinstance(result, Quantity)
     np.testing.assert_allclose(result.values, [2.0, 4.0])
 
 
@@ -303,7 +303,7 @@ def test_an_absolute_tensor_answers_in_the_absolute_coherent_unit() -> None:
     with Implementation(AbsoluteThermometer, [same_temperature]):
         result = AbsoluteThermometer(t=temperatures).same
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit is abs(kelvin)
     np.testing.assert_allclose(result.values, [273.15, 373.15])
 
@@ -345,9 +345,9 @@ def test_rank_zero_tensor_outputs_can_be_reused(backend: Backend) -> None:
         intermediate = staged.y
         sequential = staged.z
 
-    assert isinstance(intermediate, Tensor)
-    assert isinstance(direct, Tensor)
-    assert isinstance(sequential, Tensor)
+    assert isinstance(intermediate, QuantityTensor)
+    assert isinstance(direct, QuantityTensor)
+    assert isinstance(sequential, QuantityTensor)
     assert intermediate.domain.is_scalar
     assert direct.domain.is_scalar
     assert sequential.domain.is_scalar
@@ -376,7 +376,7 @@ def generic_mass_copy(m: ScalarContractMass, doubled: ScalarContractMass) -> boo
 
 
 def test_pointwise_quantity_boundary_accepts_scalar_and_tensor_without_ignores() -> None:
-    mass = Quantity(2.0, kilogram)
+    mass = 2.0 * kilogram
     varied = tensor([1.0, 2.0], over=time, unit=kilogram)
     typing.assert_type(varied, QuantityTensor)
     with Implementation(GenericMassScale, [generic_mass_copy]):
@@ -398,7 +398,7 @@ def test_scalar_and_tensor_quantity_boundaries_reject_wrong_carrier() -> None:
     with pytest.raises(BiltInputDimensionalityError):
         ScalarOnly(mass=typing.cast("Quantity", tensor([1.0], over=time, unit=kilogram)))
     with pytest.raises(BiltInputDimensionalityError):
-        TensorOnly(mass=typing.cast("QuantityTensor", Quantity(2.0, kilogram)))
+        TensorOnly(mass=typing.cast("QuantityTensor", 2.0 * kilogram))
 
 
 type ConcreteTensorMass = typing.Annotated[QuantityTensor, MASS]
@@ -463,5 +463,5 @@ def test_computed_output_obeys_required_tensor_domain() -> None:
         with pytest.raises(BiltInputDimensionalityError, match="missing dimensions: time"):
             _ = RequiredTimeOutput(m=tensor([1.0, 2.0], over=scenario, unit=kilogram)).doubled
         ok = RequiredTimeOutput(m=tensor([1.0, 2.0], over=time, unit=kilogram)).doubled
-    assert isinstance(ok, Tensor)
+    assert isinstance(ok, QuantityTensor)
     assert ok.domain.dims == (time,)

@@ -432,7 +432,7 @@ mission = Mission(
     ),
     empty_mass=20.0 * tonne,
     energy_intensity=0.18 * kilowatthour / (kilometer * tonne),
-    usable_fraction=Quantity(0.85, UNITLESS),
+    usable_fraction=0.85 * UNITLESS,
     max_battery_mass=7.5 * tonne,
 )
 ```
@@ -666,7 +666,7 @@ mission = Mission(
     # ... other inputs ...
     empty_mass=20.0 * tonne,
     energy_intensity=0.18 * kilowatthour / (kilometer * tonne),
-    usable_fraction=Quantity(0.85, UNITLESS),
+    usable_fraction=0.85 * UNITLESS,
     max_battery_mass=7.5 * tonne,
 )
 ```

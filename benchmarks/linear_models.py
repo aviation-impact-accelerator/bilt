@@ -144,7 +144,7 @@ class Expected:
     def check(self, result: object) -> None:
         """Check units, named axes, shape and the independent analytic answer."""
         if self.domain.is_scalar:
-            if not isinstance(result, Quantity):
+            if not isinstance(result, Quantity) or isinstance(result, QuantityTensor):
                 message = f"Expected a scalar Quantity, received {type(result)}."
                 raise AssertionError(message)
             if result.unit != self.unit:
@@ -152,8 +152,8 @@ class Expected:
                 raise AssertionError(message)
             values = np.asarray(result.value)
         else:
-            if not isinstance(result, Tensor):
-                message = f"Expected a Tensor, received {type(result)}."
+            if not isinstance(result, QuantityTensor):
+                message = f"Expected a QuantityTensor, received {type(result)}."
                 raise AssertionError(message)
             if result.domain != self.domain:
                 message = f"Expected domain {self.domain}, received {result.domain}."

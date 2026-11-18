@@ -275,7 +275,7 @@ def test_equation_minimum_domain_checks_computed_output() -> None:
         Implementation(MinimumDomainCopy, [time_limited_output]),
         pytest.raises(BiltExecutionPlanError, match="missing dimensions: required_time") as failure,
     ):
-        _ = MinimumDomainCopy(x=Quantity(3.0, kilogram)).y
+        _ = MinimumDomainCopy(x=3.0 * kilogram).y
     assert isinstance(failure.value.__cause__, BiltEquationDomainRequirementError)
 
 

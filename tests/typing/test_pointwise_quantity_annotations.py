@@ -36,10 +36,10 @@ def doubling(mass: Mass, doubled: Mass) -> bool:
 
 def test_pointwise_quantity_alias_supports_scalar_and_tensor_values() -> None:
     with Implementation(DoubleMass, [doubling]):
-        scalar = DoubleMass(mass=Quantity(2.0, kilogram)).doubled
+        scalar = DoubleMass(mass=2.0 * kilogram).doubled
         varied = DoubleMass(mass=tensor([2.0, 3.0], over=time, unit=kilogram)).doubled
 
-    assert isinstance(scalar, Quantity)
+    assert not isinstance(scalar, QuantityTensor)
     assert scalar.value == 2.0 * 2.0
     assert isinstance(varied, QuantityTensor)
     assert varied.unit == kilogram

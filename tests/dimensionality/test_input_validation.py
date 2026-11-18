@@ -104,7 +104,7 @@ def test_a_quantity_of_the_declared_dimensionality_evaluates() -> None:
     with Implementation(Resistor, [ohms_law]):
         result = Resistor(i=2.0 * ampere, r=3.0 * ohm).v
 
-    assert isinstance(result, Quantity)
+    assert not isinstance(result, QuantityTensor)
     assert result.value == pytest.approx(6.0)
     assert result.unit.dimension == VOLTAGE
 
@@ -116,14 +116,14 @@ def test_a_dimensionless_port_rejects_a_bare_float() -> None:
 
 def test_a_dimensionless_port_accepts_a_dimensionless_quantity() -> None:
     with Implementation(Amplifier, [amplifying]):
-        result = Amplifier(gain=Quantity(2.0, UNITLESS), x=3.0 * meter).amplified
+        result = Amplifier(gain=2.0 * UNITLESS, x=3.0 * meter).amplified
 
     assert result == 6.0 * meter
 
 
 def test_a_declared_port_accepts_a_quantity_in_any_unit_of_its_dimensionality() -> None:
     with Implementation(Amplifier, [amplifying]):
-        result = Amplifier(gain=Quantity(2.0, UNITLESS), x=3.0 * kilometer).amplified
+        result = Amplifier(gain=2.0 * UNITLESS, x=3.0 * kilometer).amplified
 
     assert result == 6000.0 * meter
 
@@ -164,7 +164,7 @@ def test_a_relative_tensor_at_an_absolute_port_raises() -> None:
 def test_a_unit_carrying_tensor_at_a_plain_port_raises() -> None:
     masses = tensor([1.0, 2.0], over=dim("time"), unit=kilogram)
     with pytest.raises(BiltInputDimensionalityError, match="'x'") as raised:
-        PlainScale(x=masses)
+        PlainScale(x=typing.cast("Tensor", masses))
 
     message = str(raised.value)
     assert "plain port" in message

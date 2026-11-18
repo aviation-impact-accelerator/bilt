@@ -21,7 +21,7 @@ from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
 from bilt.core._port_declaration import PortDeclaration, annotated_parts, port_declarations, quantity_magnitude_kind
 from bilt.core._sub_system import validate_name
-from bilt.core._tensors._tensors import QuantityTensor, Tensor
+from bilt.core._tensors._protocols import QuantityTensor, Tensor
 from bilt.core._validation import validate_independently
 from bilt.symbolic import _atoms as ops
 from bilt.symbolic._atoms import QuantityType, SymbolType

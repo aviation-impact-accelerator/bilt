@@ -83,7 +83,7 @@ def test_direct_evaluate_rejects_a_relative_temperature_at_an_absolute_port() ->
 
 def test_direct_evaluate_accepts_an_absolute_temperature() -> None:
     model = Implementation(TemperatureProbe, [])
-    reading = Quantity(20.0, absolute_celsius)
+    reading = 20.0 * absolute_celsius
 
     assert model.evaluate({"reading": reading}, "reading", PYTHON_BACKEND) is reading
 

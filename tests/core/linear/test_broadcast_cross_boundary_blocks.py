@@ -146,7 +146,7 @@ def test_unitful_values_are_lowered_and_lifted_across_the_boundary(backend: Back
     result = parent.evaluate(
         {"inner.p": tensor([0.010, 0.020], over=TIME, unit=kilometer), "q": 2.0 * meter}, output, backend
     )
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.unit == meter
     assert result.domain == domain(TIME)
     np.testing.assert_allclose(result.values, [6.0, 11.0] if output == "inner.x" else [4.0, 9.0], rtol=1e-5)

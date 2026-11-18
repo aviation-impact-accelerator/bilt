@@ -155,13 +155,13 @@ def test_a_transform_with_a_plain_flag_beside_declared_ports_evaluates_by_the_fl
     def combined(a: Dimensionless, b: Dimensionless, add: bool) -> Dimensionless:
         return a + b if add else a * b
 
-    two, three = Quantity(2.0, UNITLESS), Quantity(3.0, UNITLESS)
+    two, three = 2.0 * UNITLESS, 3.0 * UNITLESS
     with Implementation(Combiner, [combined]):
         added = Combiner(a=two, b=three, add=True).combined
         multiplied = Combiner(a=two, b=three, add=False).combined
 
-    assert added == Quantity(5.0, UNITLESS)
-    assert multiplied == Quantity(6.0, UNITLESS)
+    assert added == 5.0 * UNITLESS
+    assert multiplied == 6.0 * UNITLESS
 
 
 def test_an_equation_with_a_plain_exponent_beside_declared_ports_evaluates() -> None:
@@ -176,9 +176,9 @@ def test_an_equation_with_a_plain_exponent_beside_declared_ports_evaluates() -> 
         return y == x**n
 
     with Implementation(Power, [powered]):
-        result = Power(x=Quantity(3.0, UNITLESS), n=2.0).y
+        result = Power(x=3.0 * UNITLESS, n=2.0).y
 
-    assert result == Quantity(9.0, UNITLESS)
+    assert result == 9.0 * UNITLESS
 
 
 def test_a_plain_port_meeting_a_declared_port_inside_an_exponent_raises() -> None:

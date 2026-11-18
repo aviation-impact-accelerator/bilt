@@ -21,7 +21,7 @@ from bilt.symbolic._domains import Domain, domain
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt.core._tensors._tensors import Tensor
+    from bilt import Tensor
 
 
 def _function_ast(

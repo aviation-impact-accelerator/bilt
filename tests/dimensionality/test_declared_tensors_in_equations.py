@@ -126,7 +126,7 @@ def test_a_product_along_an_axis_of_a_dimensionless_port_is_dimensionless() -> N
     with Implementation(Ratios, [combining]):
         result = Ratios(ratios=tensor([2.0, 3.0], over=time, unit=fraction)).combined
 
-    assert result == Quantity(6.0, fraction)
+    assert result == 6.0 * fraction
 
 
 def test_a_product_along_an_axis_of_a_dimensionless_port_against_a_dimensional_one_raises() -> None:
@@ -153,7 +153,7 @@ def test_a_selection_of_an_absolute_port_keeps_its_absoluteness() -> None:
     with Implementation(Thermometer, [first]):
         result = Thermometer(t=tensor([273.15, 373.15], over=time, unit=abs(kelvin))).reduced
 
-    assert result == Quantity(273.15, abs(kelvin))
+    assert result == 273.15 * abs(kelvin)
 
 
 def test_a_selection_of_an_absolute_port_related_to_a_relative_one_raises() -> None:

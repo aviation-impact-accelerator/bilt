@@ -61,7 +61,7 @@ def test_a_product_of_non_si_quantities_comes_back_in_coherent_si_units() -> Non
     with Implementation(Body, [newtons_second_law]):
         result = Body(m=1000.0 * gram, a=2.0 * meter / second**2).f
 
-    assert isinstance(result, Quantity)
+    assert not isinstance(result, QuantityTensor)
     assert result.value == pytest.approx(2.0)
     assert result.unit == newton
 
@@ -70,7 +70,7 @@ def test_a_rearranged_equation_answers_in_coherent_si_units() -> None:
     with Implementation(Body, [newtons_second_law]):
         result = Body(f=6.0 * newton, a=2.0 * kilometer / hour**2).m
 
-    assert isinstance(result, Quantity)
+    assert not isinstance(result, QuantityTensor)
     assert result.value == pytest.approx(38880.0)
     assert result.unit == kilogram
 

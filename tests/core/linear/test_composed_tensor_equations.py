@@ -86,7 +86,7 @@ def test_composed_reductions_preserve_coherent_units(backend: Backend, analyser_
             value=tensor(np.arange(1.0, 7.0).reshape(2, 3) / 1000, over=(TIME, BRANCH), unit=kilometer),
             weights=tensor([1.0, 2.0, 3.0], over=BRANCH, unit=fraction),
         ).answer
-    assert isinstance(result, Quantity)
+    assert not isinstance(result, QuantityTensor)
     assert result.unit == meter
     assert float(result.value) == pytest.approx(23.0, abs=1e-5)
 

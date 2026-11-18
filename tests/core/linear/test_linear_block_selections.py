@@ -151,7 +151,7 @@ def test_selection_outputs_keep_units_through_downstream_reduction(backend: Back
     assert x.domain == domain(TIME)
     assert x.unit == meter
     np.testing.assert_allclose(x.values, [3.6, 5.6, 7.6], atol=1e-5)
-    assert isinstance(answer, Quantity)
+    assert not isinstance(answer, QuantityTensor)
     assert answer.unit == meter
     assert float(answer.value) == pytest.approx(16.8, abs=1e-5)
 

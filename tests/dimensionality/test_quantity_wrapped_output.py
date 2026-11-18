@@ -37,7 +37,7 @@ def test_a_declared_output_answers_in_the_coherent_si_unit_of_its_dimensionality
     with Implementation(Resistor, [ohms_law]):
         result = Resistor(i=2.0 * ampere, r=3000.0 * millivolt / ampere).v
 
-    assert isinstance(result, Quantity)
+    assert not isinstance(result, QuantityTensor)
     assert result.unit == volt
     assert result.value == pytest.approx(6.0)
 
@@ -64,6 +64,6 @@ def test_a_ratio_answers_as_a_dimensionless_quantity_rather_than_a_bare_number()
     with Implementation(Split, [splitting]):
         result = Split(part=2.0 * kilogram, whole=8.0 * kilogram).fraction
 
-    assert isinstance(result, Quantity)
+    assert not isinstance(result, QuantityTensor)
     assert result.unit.dimension == DIMENSIONLESS
     assert result.value == pytest.approx(0.25)

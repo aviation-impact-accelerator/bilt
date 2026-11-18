@@ -80,7 +80,7 @@ To determine how much work the LP turbine extracts, we therefore specify the **c
 For the baseline example we use:
 
 ```text
-core exit temperature = Quantity(1000, absolute_kelvin) K
+core exit temperature = 1000 K
 ```
 
 A real engine model would usually determine the turbine expansion from pressures and component efficiencies. Here the fixed exit temperature keeps the physics intentionally low-order while giving the shaft-power calculation a well-defined endpoint.
@@ -175,7 +175,7 @@ def compressor_temperature_relation(
     gamma: Ratio,
 ) -> bool:
     return (outlet_temperature - inlet_temperature) * isentropic_efficiency == (
-        inlet_temperature - Quantity(0.0, absolute_kelvin)
+        inlet_temperature - 0.0 * absolute_kelvin
     ) * (pressure_ratio ** ((gamma - 1.0) / gamma) - 1.0)
 
 
@@ -199,7 +199,7 @@ compressor_model = Implementation(
 ```
 
 The compressor temperature relation uses
-`inlet_temperature - Quantity(0.0, absolute_kelvin)` to express the inlet
+`inlet_temperature - 0.0 * absolute_kelvin` to express the inlet
 temperature relative to absolute zero before multiplying it by a dimensionless
 factor. This preserves the original kelvin-based formula while distinguishing
 absolute readings from relative changes.
@@ -704,7 +704,7 @@ def compressor_temperature_relation(
     return (
         (outlet_temperature - inlet_temperature)
         * isentropic_efficiency
-        == (inlet_temperature - Quantity(0.0, absolute_kelvin))
+        == (inlet_temperature - 0.0 * absolute_kelvin)
         * (
             pressure_ratio ** ((gamma - 1.0) / gamma)
             - 1.0
@@ -1100,16 +1100,16 @@ explicitly convert to kJ/kg and MW for the printed results and plots.
 
 ```python exec="on" source="above" session="turbomachinery"
 baseline = TwoShaftCore(
-    inlet_temperature=Quantity(288.0, absolute_kelvin),
-    low_pressure_compressor_pressure_ratio=Quantity(2.0, UNITLESS),
-    high_pressure_compressor_pressure_ratio=Quantity(6.0, UNITLESS),
-    low_pressure_compressor_efficiency=Quantity(0.88, UNITLESS),
-    high_pressure_compressor_efficiency=Quantity(0.86, UNITLESS),
-    turbine_inlet_temperature=Quantity(1450.0, absolute_kelvin),
-    exit_temperature=Quantity(1000.0, absolute_kelvin),
-    low_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-    high_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-    gamma=Quantity(1.4, UNITLESS),
+    inlet_temperature=288.0 * absolute_kelvin,
+    low_pressure_compressor_pressure_ratio=2.0 * UNITLESS,
+    high_pressure_compressor_pressure_ratio=6.0 * UNITLESS,
+    low_pressure_compressor_efficiency=0.88 * UNITLESS,
+    high_pressure_compressor_efficiency=0.86 * UNITLESS,
+    turbine_inlet_temperature=1450.0 * absolute_kelvin,
+    exit_temperature=1000.0 * absolute_kelvin,
+    low_pressure_shaft_efficiency=0.99 * UNITLESS,
+    high_pressure_shaft_efficiency=0.99 * UNITLESS,
+    gamma=1.4 * UNITLESS,
     specific_heat=1.005 * kilojoule / (kilogram * kelvin),
     mass_flow=20.0 * kilogram / second,
 )
@@ -1299,16 +1299,16 @@ The inverse operating point is:
 
 ```python exec="on" source="above" session="turbomachinery"
 inverse_case = TwoShaftCore(
-    inlet_temperature=Quantity(288.0, absolute_kelvin),
-    low_pressure_compressor_pressure_ratio=Quantity(2.0, UNITLESS),
-    high_pressure_compressor_pressure_ratio=Quantity(6.0, UNITLESS),
-    low_pressure_compressor_efficiency=Quantity(0.88, UNITLESS),
+    inlet_temperature=288.0 * absolute_kelvin,
+    low_pressure_compressor_pressure_ratio=2.0 * UNITLESS,
+    high_pressure_compressor_pressure_ratio=6.0 * UNITLESS,
+    low_pressure_compressor_efficiency=0.88 * UNITLESS,
     # high_pressure_compressor_efficiency is deliberately omitted
-    turbine_inlet_temperature=Quantity(1450.0, absolute_kelvin),
-    exit_temperature=Quantity(1000.0, absolute_kelvin),
-    low_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-    high_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-    gamma=Quantity(1.4, UNITLESS),
+    turbine_inlet_temperature=1450.0 * absolute_kelvin,
+    exit_temperature=1000.0 * absolute_kelvin,
+    low_pressure_shaft_efficiency=0.99 * UNITLESS,
+    high_pressure_shaft_efficiency=0.99 * UNITLESS,
+    gamma=1.4 * UNITLESS,
     specific_heat=1.005 * kilojoule / (kilogram * kelvin),
     mass_flow=20.0 * kilogram / second,
     shaft_power=2000.0 * kilowatt,
@@ -1404,18 +1404,18 @@ required_high_pressure_compressor_efficiencies = []
 
 for required_power_mw in required_powers_mw:
     core = TwoShaftCore(
-        inlet_temperature=Quantity(288.0, absolute_kelvin),
-        low_pressure_compressor_pressure_ratio=Quantity(2.0, UNITLESS),
-        high_pressure_compressor_pressure_ratio=Quantity(6.0, UNITLESS),
-        low_pressure_compressor_efficiency=Quantity(0.88, UNITLESS),
-        turbine_inlet_temperature=Quantity(1450.0, absolute_kelvin),
-        exit_temperature=Quantity(1000.0, absolute_kelvin),
-        low_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-        high_pressure_shaft_efficiency=Quantity(0.99, UNITLESS),
-        gamma=Quantity(1.4, UNITLESS),
+        inlet_temperature=288.0 * absolute_kelvin,
+        low_pressure_compressor_pressure_ratio=2.0 * UNITLESS,
+        high_pressure_compressor_pressure_ratio=6.0 * UNITLESS,
+        low_pressure_compressor_efficiency=0.88 * UNITLESS,
+        turbine_inlet_temperature=1450.0 * absolute_kelvin,
+        exit_temperature=1000.0 * absolute_kelvin,
+        low_pressure_shaft_efficiency=0.99 * UNITLESS,
+        high_pressure_shaft_efficiency=0.99 * UNITLESS,
+        gamma=1.4 * UNITLESS,
         specific_heat=1.005 * kilojoule / (kilogram * kelvin),
         mass_flow=20.0 * kilogram / second,
-        shaft_power=Quantity(float(required_power_mw), megawatt),
+        shaft_power=float(required_power_mw) * megawatt,
     )
 
     with core_model:
@@ -1477,13 +1477,13 @@ mass_flow = 25.0 * kilogram / second
 or change the maximum turbine inlet temperature:
 
 ```python exec="off"
-turbine_inlet_temperature = Quantity(1500.0, absolute_kelvin)
+turbine_inlet_temperature = 1500.0 * absolute_kelvin
 ```
 
 You can also change the compressor pressure-ratio target:
 
 ```python exec="off"
-high_pressure_compressor_pressure_ratio = Quantity(7.0, UNITLESS)
+high_pressure_compressor_pressure_ratio = 7.0 * UNITLESS
 ```
 
 and ask again what compressor efficiency is required for a specified shaft power.
@@ -1491,7 +1491,7 @@ and ask again what compressor efficiency is required for a specified shaft power
 Another useful experiment is to change the core exit boundary:
 
 ```python exec="off"
-exit_temperature = Quantity(950.0, absolute_kelvin)
+exit_temperature = 950.0 * absolute_kelvin
 ```
 
 To explore locally, edit these values while `zensical serve` is running and save the Markdown file. Zensical will rebuild the page and rerun the executable blocks.
@@ -1776,18 +1776,18 @@ recuperated_model = Implementation(
 )
 
 inputs = {
-    "core.inlet_temperature": Quantity(288, absolute_kelvin),
-    "core.low_pressure_compressor_pressure_ratio": Quantity(2, UNITLESS),
-    "core.high_pressure_compressor_pressure_ratio": Quantity(6, UNITLESS),
-    "core.low_pressure_compressor_efficiency": Quantity(0.88, UNITLESS),
-    "core.high_pressure_compressor_efficiency": Quantity(0.86, UNITLESS),
-    "core.low_pressure_shaft_efficiency": Quantity(0.99, UNITLESS),
-    "core.high_pressure_shaft_efficiency": Quantity(0.99, UNITLESS),
-    "core.gamma": Quantity(1.4, UNITLESS),
+    "core.inlet_temperature": 288 * absolute_kelvin,
+    "core.low_pressure_compressor_pressure_ratio": 2 * UNITLESS,
+    "core.high_pressure_compressor_pressure_ratio": 6 * UNITLESS,
+    "core.low_pressure_compressor_efficiency": 0.88 * UNITLESS,
+    "core.high_pressure_compressor_efficiency": 0.86 * UNITLESS,
+    "core.low_pressure_shaft_efficiency": 0.99 * UNITLESS,
+    "core.high_pressure_shaft_efficiency": 0.99 * UNITLESS,
+    "core.gamma": 1.4 * UNITLESS,
     "core.specific_heat": 1.005 * kilojoule / (kilogram * kelvin),
     "core.mass_flow": 20.0 * kilogram / second,
     "heat_input": 600.0 * kilojoule / kilogram,
-    "effectiveness": Quantity(0.6, UNITLESS),
+    "effectiveness": 0.6 * UNITLESS,
     "shaft_power": 2.0 * megawatt,
 }
 

@@ -155,7 +155,7 @@ def test_child_units_survive_shared_and_tensor_output_lifting(backend: Backend, 
         backend,
     )
     if output == "x":
-        assert isinstance(result, Tensor)
+        assert isinstance(result, QuantityTensor)
         assert result.unit == meter
         np.testing.assert_allclose(result.values, [0, 2, 4], atol=1e-5)
     else:

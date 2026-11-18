@@ -7,7 +7,7 @@ import types
 import typing
 
 from bilt.core._errors import BiltPortDeclarationError
-from bilt.core._tensors._tensors import QuantityTensor, Tensor
+from bilt.core._tensors._protocols import QuantityTensor, Tensor
 from bilt.core._validation import validate_independently
 from bilt.symbolic._domains import Domain
 from bilt.units import Dimension, Metadata, Quantity, Unit

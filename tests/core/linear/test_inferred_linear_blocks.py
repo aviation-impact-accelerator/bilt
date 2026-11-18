@@ -207,7 +207,7 @@ def test_circuit_infers_current_and_voltage_domains_from_unit_only_annotations(b
             output,
         )
     if output == "current":
-        assert isinstance(result, Tensor)
+        assert isinstance(result, QuantityTensor)
         assert result.domain == domain(BRANCH)
         assert result.unit == ampere
         np.testing.assert_allclose(result.values, [2.8, 4.8, 6.8], atol=1e-5)

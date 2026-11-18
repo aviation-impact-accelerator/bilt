@@ -104,7 +104,7 @@ def test_a_bare_unit_is_one_of_that_unit() -> None:
         return distance == laps * kilometer
 
     with Implementation(Route, [lapping]):
-        result = Route(laps=Quantity(2.0, UNITLESS)).distance
+        result = Route(laps=2.0 * UNITLESS).distance
 
     assert result.value == pytest.approx(2000.0)
     assert result.unit == meter
@@ -149,7 +149,7 @@ def test_a_plain_port_meeting_a_quantity_constant_raises() -> None:
 
 def test_a_plain_port_meeting_a_dimensionless_quantity_constant_raises() -> None:
     def doubled(y: float, x: float) -> bool:
-        return y == x * Quantity(2.0, UNITLESS)
+        return y == x * 2.0 * UNITLESS
 
     with pytest.raises(BiltEquationDimensionalityError, match="quantity constant"):
         equation(doubled)

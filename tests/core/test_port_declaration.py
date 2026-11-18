@@ -2,10 +2,9 @@ import typing
 
 import pytest
 
-from bilt import Interface, dim, equation, field, system, transform
+from bilt import Interface, QuantityTensor, Tensor, dim, equation, field, system, transform
 from bilt.core._port_declaration import PortDeclaration
 from bilt.core._structural_analysis._linear_domains import equation_domain_hints
-from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.errors import BiltEquationDimensionalityError, BiltPortDeclarationError
 from bilt.symbolic._domains import Domain
 from bilt.units import Metadata, Quantity, kilogram

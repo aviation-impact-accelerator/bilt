@@ -5,7 +5,17 @@ from types import SimpleNamespace
 
 import pytest
 
-from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, QuantityTensor, field, system, transform
+from bilt import (
+    JAX_BACKEND,
+    PYTHON_BACKEND,
+    Implementation,
+    Interface,
+    Number,
+    QuantityTensor,
+    field,
+    system,
+    transform,
+)
 from bilt.errors import BiltDefinitionError
 from bilt.units import Quantity, meter, units
 from bilt.units.dimensions import LENGTH
@@ -39,14 +49,6 @@ def test_a_quantity_constant_means_what_it_says_whatever_unit_the_input_arrived_
 
     with backend:
         assert _stretch(stretched) == 1000.5 * meter
-
-
-def test_a_constructed_quantity_means_the_same_as_a_product() -> None:
-    @transform
-    def stretched(length: Length) -> Length:
-        return length + Quantity(1.0, kilometer)
-
-    assert _stretch(stretched) == 2000.0 * meter
 
 
 def test_a_dimensionality_property_is_read() -> None:
@@ -140,47 +142,11 @@ def test_a_conversion_answers_the_same_quantity() -> None:
 
 def test_a_converted_value_takes_a_declared_port_out_to_a_plain_one() -> None:
     @transform
-    def span_km(length: Length) -> float:
+    def span_km(length: Length) -> Number:
         return length.convert_to(kilometer).value
 
     with Implementation(Stretch, [span_km]):
         assert Stretch(length=1000.0 * meter).span_km == 1.0
-
-
-def test_a_constructed_quantity_brings_a_plain_port_into_the_unit_system() -> None:
-    @transform
-    def stretched(span_km: float) -> Length:
-        return Quantity(span_km, kilometer)
-
-    with Implementation(Stretch, [stretched]):
-        assert Stretch(span_km=2.0).stretched == 2000.0 * meter
-
-
-def test_a_constructed_quantity_takes_its_unit_by_keyword() -> None:
-    @transform
-    def stretched(span_km: float) -> Length:
-        return Quantity(span_km, unit=kilometer)
-
-    with Implementation(Stretch, [stretched]):
-        assert Stretch(span_km=2.0).stretched == 2000.0 * meter
-
-
-def test_a_constructed_quantity_takes_both_arguments_by_keyword() -> None:
-    @transform
-    def stretched(span_km: float) -> Length:
-        return Quantity(value=span_km, unit=kilometer)
-
-    with Implementation(Stretch, [stretched]):
-        assert Stretch(span_km=2.0).stretched == 2000.0 * meter
-
-
-def test_a_constructed_quantity_takes_its_keywords_in_either_order() -> None:
-    @transform
-    def stretched(span_km: float) -> Length:
-        return Quantity(unit=kilometer, value=span_km)
-
-    with Implementation(Stretch, [stretched]):
-        assert Stretch(span_km=2.0).stretched == 2000.0 * meter
 
 
 def test_a_conversion_in_one_transform_and_a_reading_in_the_next_agree_with_python() -> None:
@@ -189,7 +155,7 @@ def test_a_conversion_in_one_transform_and_a_reading_in_the_next_agree_with_pyth
         return length.convert_to(kilometer)
 
     @transform
-    def span_km(stretched: Length) -> float:
+    def span_km(stretched: Length) -> Number:
         return stretched.convert_to(kilometer).value
 
     with Implementation(Stretch, [stretched, span_km]):
@@ -236,7 +202,7 @@ def test_a_unit_attribute_is_refused() -> None:
 def test_an_absolute_unit_as_a_scale_is_refused() -> None:
     with pytest.raises(
         BiltDefinitionError,
-        match=r"`absolute_celsius` is an absolute unit.*write `Quantity\(<value>, absolute_celsius\)`",
+        match=r"`absolute_celsius` is an absolute unit.*as in `<number> \* absolute_celsius`",
     ):
 
         @transform
@@ -252,7 +218,7 @@ def test_converting_a_parameter_to_a_unit_of_another_dimensionality_is_refused()
     ):
 
         @transform
-        def span_km(length: Length) -> float:
+        def span_km(length: Length) -> Number:
             return length.convert_to(second).value
 
 

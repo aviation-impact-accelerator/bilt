@@ -9,6 +9,7 @@ from bilt import (
     PYTHON_BACKEND,
     Implementation,
     Interface,
+    Number,
     QuantityTensor,
     equation,
     field,
@@ -170,7 +171,7 @@ def test_an_absolute_quantity_with_a_tag_is_refused() -> None:
         temperature: GasTemperatureField = field()
 
     with pytest.raises(BiltInputDimensionalityError, match=r"Input 'temperature' of 'Flue'.*in a relative unit"):
-        Flue(temperature=Quantity(20.0, absolute_celsius) * gas)
+        Flue(temperature=20.0 * absolute_celsius * gas)
 
 
 def test_absolute_on_a_tagged_dimensionality_raises() -> None:
@@ -242,7 +243,7 @@ def test_a_tagged_constant_changes_a_tag_in_a_transform() -> None:
 
 def test_a_conversion_to_a_tagged_unit_takes_a_tagged_port_out_to_a_plain_one() -> None:
     @transform
-    def grams(burned: FuelMass) -> float:
+    def grams(burned: FuelMass) -> Number:
         return burned.convert_to(gram * fuel).value
 
     with Implementation(Weighed, [grams]):
@@ -252,7 +253,7 @@ def test_a_conversion_to_a_tagged_unit_takes_a_tagged_port_out_to_a_plain_one() 
 def test_a_constructed_tagged_quantity_brings_a_plain_port_into_a_tagged_one() -> None:
     @transform
     def emitted(grams: float) -> Co2Mass:
-        return Quantity(grams, gram * co2)
+        return grams * (gram * co2)
 
     with Implementation(Weighed, [emitted]):
         answer = Weighed(grams=2000.0).emitted

@@ -223,7 +223,7 @@ _model_source = (  # markdown-exec: hide
             "",  # markdown-exec: hide
             "@transform",  # markdown-exec: hide
             "def temperature(altitude: Length, temperature_offset: TemperatureChange) -> AbsoluteTemperature:",  # markdown-exec: hide
-            "    return Quantity(288.15, absolute_kelvin) - (0.0065 * kelvin / meter) * altitude + temperature_offset",  # markdown-exec: hide
+            "    return 288.15 * absolute_kelvin - (0.0065 * kelvin / meter) * altitude + temperature_offset",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "@transform",  # markdown-exec: hide
@@ -385,7 +385,7 @@ _model_source = (  # markdown-exec: hide
             "",  # markdown-exec: hide
             "@transform",  # markdown-exec: hide
             "def water_effect(water_rate: MassRate, altitude: Length) -> MassRate:",  # markdown-exec: hide
-            "    altitude_factor = Quantity(0.8, UNITLESS) + altitude / (50_000.0 * meter)",  # markdown-exec: hide
+            "    altitude_factor = 0.8 * UNITLESS + altitude / (50_000.0 * meter)",  # markdown-exec: hide
             "    return 0.15 * water_rate * altitude_factor",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "",  # markdown-exec: hide
@@ -395,14 +395,14 @@ _model_source = (  # markdown-exec: hide
             "    altitude: Length,",  # markdown-exec: hide
             "    temperature: AbsoluteTemperature,",  # markdown-exec: hide
             ") -> MassRate:",  # markdown-exec: hide
-            "    altitude_factor = Quantity(0.5, UNITLESS) + altitude / (20_000.0 * meter)",  # markdown-exec: hide
+            "    altitude_factor = 0.5 * UNITLESS + altitude / (20_000.0 * meter)",  # markdown-exec: hide
             "    temperature_factor = 288.15 / temperature.convert_to(absolute_kelvin).value",  # markdown-exec: hide
             "    return 40.0 * nox_rate * altitude_factor * temperature_factor",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "@transform",  # markdown-exec: hide
             "def soot_effect(soot_rate: MassRate, altitude: Length) -> MassRate:",  # markdown-exec: hide
-            "    altitude_factor = Quantity(0.5, UNITLESS) + altitude / (15_000.0 * meter)",  # markdown-exec: hide
+            "    altitude_factor = 0.5 * UNITLESS + altitude / (15_000.0 * meter)",  # markdown-exec: hide
             "    return 1000.0 * soot_rate * altitude_factor",  # markdown-exec: hide
             "",  # markdown-exec: hide
             "",  # markdown-exec: hide
@@ -418,7 +418,7 @@ _model_source = (  # markdown-exec: hide
             "    return (",  # markdown-exec: hide
             "        0.08",  # markdown-exec: hide
             "        * water_rate",  # markdown-exec: hide
-            "        * (Quantity(1.0, UNITLESS) + (100.0 * second / kilogram) * soot_rate)",  # markdown-exec: hide
+            "        * (1.0 * UNITLESS + (100.0 * second / kilogram) * soot_rate)",  # markdown-exec: hide
             "        * altitude_factor",  # markdown-exec: hide
             "        * temperature_factor",  # markdown-exec: hide
             "    )",  # markdown-exec: hide
@@ -570,12 +570,12 @@ inputs = {
         over=scenario,
         unit=kelvin,
     ),
-    "wing_area": Quantity(float(np.float32(122.6)), meter**2),
-    "zero_lift_drag_coefficient": Quantity(float(np.float32(0.021)), UNITLESS),
-    "induced_drag_factor": Quantity(float(np.float32(0.045)), UNITLESS),
-    "propulsive_efficiency": Quantity(float(np.float32(0.38)), UNITLESS),
-    "nox_emission_index": Quantity(float(np.float32(0.015)), UNITLESS),
-    "soot_emission_index": Quantity(float(np.float32(0.00003)), UNITLESS),
+    "wing_area": float(np.float32(122.6)) * (meter**2),
+    "zero_lift_drag_coefficient": float(np.float32(0.021)) * UNITLESS,
+    "induced_drag_factor": float(np.float32(0.045)) * UNITLESS,
+    "propulsive_efficiency": float(np.float32(0.38)) * UNITLESS,
+    "nox_emission_index": float(np.float32(0.015)) * UNITLESS,
+    "soot_emission_index": float(np.float32(0.00003)) * UNITLESS,
 }
 
 print(f"Scenarios: **{scenario_count:,}**")
@@ -743,12 +743,12 @@ for exponent in (12, 14, 16, 18):
             over=scenario,
             unit=kelvin,
         ),
-        "wing_area": Quantity(float(np.float32(122.6)), meter**2),
-        "zero_lift_drag_coefficient": Quantity(float(np.float32(0.021)), UNITLESS),
-        "induced_drag_factor": Quantity(float(np.float32(0.045)), UNITLESS),
-        "propulsive_efficiency": Quantity(float(np.float32(0.38)), UNITLESS),
-        "nox_emission_index": Quantity(float(np.float32(0.015)), UNITLESS),
-        "soot_emission_index": Quantity(float(np.float32(0.00003)), UNITLESS),
+        "wing_area": float(np.float32(122.6)) * (meter**2),
+        "zero_lift_drag_coefficient": float(np.float32(0.021)) * UNITLESS,
+        "induced_drag_factor": float(np.float32(0.045)) * UNITLESS,
+        "propulsive_efficiency": float(np.float32(0.38)) * UNITLESS,
+        "nox_emission_index": float(np.float32(0.015)) * UNITLESS,
+        "soot_emission_index": float(np.float32(0.00003)) * UNITLESS,
     }
 
     python_times = []
