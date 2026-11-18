@@ -81,11 +81,14 @@ class Implementation:
             named_components | sub_systems
         )
         check_dimensional_consistency(system, self._components.values())
-        self._port_declarations: dict[str, PortDeclaration] = {
-            port: declaration
-            for component in self._components.values()
-            for port, declaration in component.__bilt_port_declarations__.items()
-        } | system.__bilt_port_declarations__
+        self._port_declarations: collections.abc.Mapping[str, PortDeclaration] = types.MappingProxyType(
+            {
+                port: declaration
+                for component in self._components.values()
+                for port, declaration in component.__bilt_port_declarations__.items()
+            }
+            | system.__bilt_port_declarations__
+        )
         self._evaluation_cache: dict[
             _CompilationRequest,
             dict[_CompilationContext, BackendCallable],
