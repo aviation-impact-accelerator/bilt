@@ -81,7 +81,7 @@ def test_plain_transform_can_still_omit_annotations() -> None:
 def test_port_declarations_are_frozen() -> None:
     declaration = Model.__bilt_port_declarations__["x"]
     with pytest.raises(dataclasses.FrozenInstanceError):
-        setattr(declaration, "dimensionality", LENGTH)
+        setattr(declaration, "dimensionality", LENGTH)  # noqa: B010
 
 
 def test_model_declaration_maps_are_read_only() -> None:
@@ -94,7 +94,7 @@ def test_model_declaration_maps_are_read_only() -> None:
         Model.__bilt_port_declarations__,
         same.__bilt_port_declarations__,
         y.__bilt_port_declarations__,
-        implementation._port_declarations,
+        implementation._port_declarations,  # noqa: SLF001
     ):
         assert isinstance(mapping, types.MappingProxyType)
         with pytest.raises(TypeError):
