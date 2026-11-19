@@ -1,3 +1,5 @@
+# ruff: noqa: PLR2004
+
 """Experimental alias matching must preserve native plans and values."""
 
 import pytest
