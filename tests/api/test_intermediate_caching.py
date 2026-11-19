@@ -19,6 +19,7 @@ from bilt.units.units import ampere, gram, kilogram, ohm, volt, watt
 if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable, BackendCase
     from bilt.core._evaluation_request import EvaluationRequest
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
     from bilt.core._system._instance import SystemInstance
     from bilt.core._system._lowering_and_lifting import LiftingPlan
 
@@ -428,8 +429,6 @@ def test_invalid_evaluation_outputs_do_not_modify_the_instance(
 
 def test_cached_port_does_not_hide_original_overconstraint(backend: Backend) -> None:
     """Cached results cannot turn an invalid newly requested scope into a valid request."""
-    from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
-
     @system
     class Demo(metaclass=Interface):
         a: float = field()

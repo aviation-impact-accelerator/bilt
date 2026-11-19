@@ -4,7 +4,6 @@ import typing
 
 from bilt._backend._base_backend import _backend_stack
 from bilt._backend._python import PYTHON_BACKEND
-from bilt.core._system._errors import BiltUnknownSystemAttributeError
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltExecutionPlanError,
     BiltOverconstrainedError,
@@ -13,6 +12,7 @@ from bilt.core._structural_analysis._causalization_block_solver._errors import (
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import (
     validate_request_structure,
 )
+from bilt.core._system._errors import BiltUnknownSystemAttributeError
 
 from ._sentinel import MISSING, _Missing
 
