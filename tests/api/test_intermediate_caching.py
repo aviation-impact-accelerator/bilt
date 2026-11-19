@@ -429,6 +429,7 @@ def test_invalid_evaluation_outputs_do_not_modify_the_instance(
 
 def test_cached_port_does_not_hide_original_overconstraint(backend: Backend) -> None:
     """Cached results cannot turn an invalid newly requested scope into a valid request."""
+
     @system
     class Demo(metaclass=Interface):
         a: float = field()
