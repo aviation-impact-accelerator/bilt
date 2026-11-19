@@ -144,7 +144,9 @@ class Implementation:
                     raw_outputs = {output: backend_callable.evaluate(backend_inputs)}
                     output_domains = {output: typing.cast("Domain", backend_callable.output_domain)}
                 outputs = {
-                    name: lift_output(value, generate_lifting_plan(output_domains[name], self._port_declarations.get(name)))
+                    name: lift_output(
+                        value, generate_lifting_plan(output_domains[name], self._port_declarations.get(name))
+                    )
                     for name, value in raw_outputs.items()
                 }
             validate_inputs(self._system.__bilt_name__, self._port_declarations, outputs)
