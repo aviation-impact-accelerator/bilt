@@ -203,7 +203,9 @@ def candidate_assignments(
     reduced structural matching exists, not that its native equation directions
     can be realised with the requested domains or chosen child routes.
     """
-    contracted = build_alias_matching(incidence, available, matching_graph=original_graph) if alias_matching_enabled() else None
+    contracted = (
+        build_alias_matching(incidence, available, matching_graph=original_graph) if alias_matching_enabled() else None
+    )
     if contracted is not None:
         target = None if output in available else contracted.canonical(output)
         # Try only the first reduced matching; exploring alternatives can expand exponentially.
