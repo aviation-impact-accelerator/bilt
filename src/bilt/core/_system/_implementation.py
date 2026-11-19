@@ -3,6 +3,7 @@ from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 
 __all__ = ["Implementation"]
 
+import contextlib
 import dataclasses
 import types
 import typing
@@ -228,12 +229,10 @@ class Implementation:
             if plan is None:
                 analyser = self.analyser_for(backend)
                 if isinstance(analyser, CausalizationStructuralAnalyzer):
-                    try:
+                    # An incompatible joint matching can still have valid
+                    # independent routes; the existing cache provides fallback.
+                    with contextlib.suppress(BiltExecutionPlanError):
                         plan = analyser.analyse_many(request, missing)
-                    except BiltExecutionPlanError:
-                        # Incompatible joint routes retain the validated
-                        # single-output execution and intermediate cache.
-                        pass
                 if plan is None:
                     return self._fallback_multi_targets(inputs, missing, backend, cached=cached)
                 self._multi_plan_cache[key] = plan
