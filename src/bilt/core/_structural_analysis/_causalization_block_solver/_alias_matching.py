@@ -32,7 +32,7 @@ _enabled: contextvars.ContextVar[bool] = contextvars.ContextVar("bilt_alias_matc
 
 
 @contextlib.contextmanager
-def alias_matching_scope() -> collections.abc.Iterator[None]:
+def alias_matching_scope() -> collections.abc.Generator[None]:
     """Opt in to alias-aware matching for one evaluation and its child calls."""
     token = _enabled.set(True)
     try:
