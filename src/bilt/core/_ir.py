@@ -242,7 +242,13 @@ def _positional_axis(tree: Tree, operation: str) -> int:
 
 
 _UNARY_AST = {"arith.neg": ast.USub, "arith.pos": ast.UAdd}
-_BINARY_AST = {"arith.add": ast.Add, "arith.sub": ast.Sub, "arith.mul": ast.Mult, "arith.div": ast.Div, "arith.pow": ast.Pow}
+_BINARY_AST = {
+    "arith.add": ast.Add,
+    "arith.sub": ast.Sub,
+    "arith.mul": ast.Mult,
+    "arith.div": ast.Div,
+    "arith.pow": ast.Pow,
+}
 _COMPARISON_AST = {
     "cmp.eq": ast.Eq,
     "cmp.ne": ast.NotEq,
