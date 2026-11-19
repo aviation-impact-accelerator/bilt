@@ -129,7 +129,6 @@ class CausalizationStructuralAnalyzer:
 
         raise BiltExecutionPlanError(msg)
 
-
     def analyse_many(self, request: EvaluationRequest, outputs: tuple[str, ...]) -> BackendCase:
         """Choose one matching and realise the union of target dependencies.
 
