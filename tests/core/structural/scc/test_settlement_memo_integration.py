@@ -1,8 +1,6 @@
 """Exercise settlement reuse across child systems, cyclic blocks and failure retries."""
 
-# ruff: noqa: SLF001 - verify private settlement lifecycle and cache behavior
-
-import typing
+# ruff: noqa: SLF001, ANN001, ANN202, PLR2004 - targeted lifecycle instrumentation
 
 lazy import pytest
 
@@ -126,7 +124,8 @@ def test_failed_coupled_block_invalidates_memo_and_retries(
     def compile_once_rejected(function):
         attempts.append(function)
         if len(attempts) == 1:
-            raise BiltUnsupportedNodeError("first block route refused")
+            msg = "first block route refused"
+            raise BiltUnsupportedNodeError(msg)
         return original(function)
 
     monkeypatch.setattr(PYTHON_BACKEND, "transpile_linear_solve", compile_once_rejected)
