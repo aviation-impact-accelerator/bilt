@@ -207,11 +207,22 @@ def candidate_assignments(
         for assignments in islice(search.candidate_assignments(contracted.graph, {}, output=target), 3):
             restored = contracted.restore(typing.cast("dict[str, _Candidate]", assignments))
             if output in available or output in restored:
-                yield restored
+                # Do not recursively enable experimental matching in child-route
+                # searches triggered by this candidate's settlement or realisation.
+                token = _enabled.set(False)
+                try:
+                    yield restored
+                finally:
+                    _enabled.reset(token)
 
     for assignments in search.candidate_assignments(
         original_graph,
         failures,
         output=None if output in available else output,
     ):
-        yield assignments
+        # The fallback is entirely native, including nested child searches.
+        token = _enabled.set(False)
+        try:
+            yield assignments
+        finally:
+            _enabled.reset(token)
