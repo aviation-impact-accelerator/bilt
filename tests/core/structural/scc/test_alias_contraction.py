@@ -276,9 +276,7 @@ def test_incomplete_snapshot_is_not_contractible() -> None:
         (frozenset({"d"}), "d"),
     ),
 )
-def test_early_alias_local_discovery_preserves_source_scope(
-    available: frozenset[str], target: str
-) -> None:
+def test_early_alias_local_discovery_preserves_source_scope(available: frozenset[str], target: str) -> None:
     incidence = FullIncidenceGraph([connect, connect_bc, relation_d])
     original = inspect_structure(incidence, available, {target})
     early = inspect_structure(incidence, available, {target}, early_aliases=True)
