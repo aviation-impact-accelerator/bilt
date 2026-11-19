@@ -228,7 +228,7 @@ class Implementation:
             plan = self._multi_plan_cache.get(key)
             if plan is None:
                 analyser = self.analyser_for(backend)
-                if isinstance(analyser, CausalizationStructuralAnalyzer):
+                if isinstance(analyser, CausalizationStructuralAnalyzer) and hasattr(analyser, "analyse_many"):
                     # An incompatible joint matching can still have valid
                     # independent routes; the existing cache provides fallback.
                     with contextlib.suppress(BiltExecutionPlanError):
