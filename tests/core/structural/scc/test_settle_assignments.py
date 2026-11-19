@@ -476,5 +476,6 @@ def test_batched_child_route_retries_intermediate_inputs_if_final_route_fails(
 
 def test_batched_child_route_scope_restores_default_after_error() -> None:
     with pytest.raises(ValueError, match="scope error"), settlement.batched_child_route_scope():
-        raise ValueError("scope error")
+        message = "scope error"
+        raise ValueError(message)
     assert not settlement._batch_child_routes.get()  # noqa: SLF001 - verify context reset
