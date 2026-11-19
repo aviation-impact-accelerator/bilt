@@ -163,7 +163,7 @@ class Implementation:
                 alignment_plan = generate_alignment_plan(required_inputs)
                 aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
                 backend_inputs = mangle_inputs(aligned_inputs)
-                if expose_intermediates:
+                if backend_callable.outputs is not None:
                     raw_outputs = backend_callable.evaluate_outputs(backend_inputs)
                     output_domains = {item.port: item.domain for item in backend_callable.outputs or ()}
                 else:
@@ -218,7 +218,10 @@ class Implementation:
             if cached is not None:
                 return cached
 
-        backend_callable = backend.chain_case(dataclasses.replace(case, expose_intermediates=expose_intermediates))
+        # A single-result plan has nothing extra to retain. Keep its backend
+        # callable single-valued to avoid tuple creation and output mapping.
+        expose_outputs = expose_intermediates and len(case.outputs) > 1
+        backend_callable = backend.chain_case(dataclasses.replace(case, expose_intermediates=expose_outputs))
         if planned_case.intermediates:
             output_domain = next(
                 operation.output_domain
