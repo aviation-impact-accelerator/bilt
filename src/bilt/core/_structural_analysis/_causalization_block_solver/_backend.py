@@ -3,6 +3,7 @@ __all__ = ["CausalizationStructuralAnalyzer"]
 import typing
 
 from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
+from bilt.core._program_ir_cache import program_cache_scope
 from bilt.core._structural_analysis._causalization_block_solver import _planning as planning
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
@@ -64,7 +65,7 @@ class CausalizationStructuralAnalyzer:
 
     def analyse(self, request: EvaluationRequest) -> BackendCase:
         """Find and realise a plan, sharing request caches across nested analysis."""
-        with structural_cache_scope(), route_cache_scope():
+        with structural_cache_scope(), route_cache_scope(), program_cache_scope():
             return self._analyse(request)
 
     def _analyse(self, request: EvaluationRequest) -> BackendCase:
