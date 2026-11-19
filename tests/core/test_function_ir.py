@@ -15,6 +15,8 @@ from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain, domain
 from bilt.symbolic._expressions import Expr, conditional_expr, tensor_symbol_expr
 
+_BRANCH_COUNT = 2
+
 
 @pytest.mark.parametrize("backend_name", ("python", "jax"))
 def test_arithmetic_ir_compiles_on_existing_backends(backend_name: str) -> None:
@@ -52,7 +54,7 @@ def test_conditional_ir_has_lazy_nested_regions(backend_name: str) -> None:
     assert lowered.tree.head is CONDITIONAL
     ir = tree_to_ir(lowered.tree, name="answer", parameter_order=("x",))
     condition = next(op for op in ir.body.operations if op.opcode == "scf.if")
-    assert len(condition.regions) == 2
+    assert len(condition.regions) == _BRANCH_COUNT
     assert all(region.operations for region in condition.regions)
     assert all(not isinstance(op, ast.AST) for region in condition.regions for op in region.operations)
 
