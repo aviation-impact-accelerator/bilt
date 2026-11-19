@@ -161,6 +161,60 @@ def test_cycle_remains_a_source_constraint() -> None:
     assert result.graph.num_nodes() == 2
 
 
+
+def test_repeated_same_source_object_is_not_removed_twice() -> None:
+    row = ExpandedConstraint((), connect, frozenset({"a", "b"}))
+    snapshot = _snapshot((row, row))
+    result = contract_aliases(snapshot)
+    assert len(result.eliminated) == 1
+    assert len(result.retained) == 1
+    assert result.retained[0] is row
+    assert result.graph.num_nodes() == 2
+    assert _classification(snapshot, False, "a") == _classification(snapshot, True, "a")
+
+
+def test_multi_hop_alias_chain_keeps_one_representative() -> None:
+    snapshot = _snapshot(
+        (
+            ExpandedConstraint((), connect, frozenset({"a", "b"})),
+            ExpandedConstraint((), connect, frozenset({"b", "c"})),
+            ExpandedConstraint((), relation, frozenset({"c", "d"})),
+        )
+    )
+    result = contract_aliases(snapshot)
+    assert len(result.eliminated) == 2
+    assert result.representatives["a"] == result.representatives["b"] == result.representatives["c"]
+    assert result.distinct_attributes == 2
+    assert _classification(snapshot, False, "d") == _classification(snapshot, True, "d")
+
+
+@pytest.mark.parametrize(
+    ("rows", "output", "expected"),
+    (
+        (
+            (ExpandedConstraint((), connect, frozenset({"a", "b"})),),
+            "a",
+            "BiltUnderconstrainedError",
+        ),
+        (
+            (
+                ExpandedConstraint((), connect, frozenset({"a", "b"})),
+                ExpandedConstraint((), connect, frozenset({"a", "b"})),
+            ),
+            "a",
+            "BiltOverconstrainedError",
+        ),
+    ),
+)
+def test_invalid_structural_classification_is_preserved(
+    rows: tuple[ExpandedConstraint, ...], output: str, expected: str
+) -> None:
+    snapshot = _snapshot(rows)
+    assert _classification(snapshot, False, output) == expected
+    assert _classification(snapshot, True, output) == expected
+
+
+
 year = dim("year")
 scenario = dim("scenario")
 
