@@ -208,7 +208,8 @@ def candidate_assignments(
                 yield restored
 
     for assignments in search.candidate_assignments(
-        original_graph, failures,
+        original_graph,
+        failures,
         output=None if output in available else output,
     ):
         yield assignments
