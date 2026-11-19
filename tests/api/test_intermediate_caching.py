@@ -524,7 +524,7 @@ def test_joint_multi_output_prefetch_preserves_cached_intermediates(backend: Bac
     implementation = Implementation(Demo, [base, left, right])
     with backend, implementation:
         example = Demo(a=4.0)
-        _prefetch_outputs(example, ("left", "right"))
+        _prefetch_outputs(typing.cast("SystemInstance", example), ("left", "right"))
         assert example.left == pytest.approx(10.0)
         assert example.right == pytest.approx(15.0)
         assert example.base == pytest.approx(5.0)
@@ -560,7 +560,7 @@ def test_multi_output_prefetch_uses_previous_intermediates(backend: Backend) -> 
     with backend, Implementation(Demo, [shared, one, two, three]):
         example = Demo(x=3.0)
         assert example.one == pytest.approx(10.0)
-        _prefetch_outputs(example, ("two", "three"))
+        _prefetch_outputs(typing.cast("SystemInstance", example), ("two", "three"))
         assert example.two == pytest.approx(15.0)
         assert example.three == pytest.approx(20.0)
         assert example.shared == pytest.approx(5.0)
