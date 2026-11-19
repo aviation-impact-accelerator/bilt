@@ -20,6 +20,9 @@ if typing.TYPE_CHECKING:
 
 
 _deduplicate: contextvars.ContextVar[bool] = contextvars.ContextVar("bilt_matching_dedup", default=False)
+_matching_cache: contextvars.ContextVar[
+    dict[tuple[object, object], dict[str, BiltModelConstituent]] | None
+] = contextvars.ContextVar("bilt_matching_cache", default=None)
 
 
 @contextlib.contextmanager
@@ -30,6 +33,18 @@ def matching_dedup_scope() -> collections.abc.Generator[None]:
         yield
     finally:
         _deduplicate.reset(token)
+
+
+@contextlib.contextmanager
+def matching_cache_scope(
+    cache: dict[tuple[object, object], dict[str, BiltModelConstituent]],
+) -> collections.abc.Generator[None]:
+    """Use an analyser-owned exact-graph matching cache for nested search calls."""
+    token = _matching_cache.set(cache)
+    try:
+        yield
+    finally:
+        _matching_cache.reset(token)
 
 
 def _matching_signature(graph: rx.PyGraph) -> tuple[object, object]:
@@ -160,6 +175,7 @@ def candidate_assignments(
     candidates branch by removing selected matching edges. An unavailable
     output must retain a producer edge; supplied outputs pass output=None.
     """
+    matching_cache = matching_cache if matching_cache is not None else _matching_cache.get()
     output_node = (
         next((node for node in graph.node_indices() if isinstance(graph[node], str) and graph[node] == output), None)
         if output is not None
