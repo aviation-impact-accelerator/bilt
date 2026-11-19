@@ -20,7 +20,10 @@ from bilt.core._structural_analysis._causalization_block_solver._expand_structur
     UnresolvedBoundary,
 )
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
-from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralBoundary, inspect_structure
+from bilt.core._structural_analysis._causalization_block_solver._structural_scope import (
+    StructuralBoundary,
+    inspect_structure,
+)
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_structure
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.symbolic._dimensions import dim
