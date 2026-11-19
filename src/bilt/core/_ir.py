@@ -98,7 +98,7 @@ class _Builder:
         kind: typing.Literal["number", "boolean", "unknown"] = "unknown"
         if opcode.startswith(("arith.", "bilt.sum", "bilt.mean", "bilt.min", "bilt.max", "bilt.prod", "bilt.isel")):
             kind = "number"
-        elif opcode.startswith("cmp.") or opcode.startswith("bilt.mask_"):
+        elif opcode.startswith(("cmp.", "bilt.mask_")):
             kind = "boolean"
         self.operations.append(Operation(result, opcode, operands, attributes, regions, ValueType(kind)))
         return result
