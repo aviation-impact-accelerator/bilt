@@ -64,17 +64,11 @@ def test_ir_validator_rejects_undefined_operand() -> None:
 
 
 def test_ir_validator_rejects_bad_region_and_tensor_axis() -> None:
-    bad_region = FunctionIR(
-        "answer", ("x",), Block(
-            (Operation(Value(0), "scf.if", (Value("x"),)),), Value(0)
-        )
-    )
+    bad_region = FunctionIR("answer", ("x",), Block((Operation(Value(0), "scf.if", (Value("x"),)),), Value(0)))
     with pytest.raises(ValueError, match="regions"):
         validate_function_ir(bad_region)
     bad_axis = FunctionIR(
-        "answer", ("x",), Block(
-            (Operation(Value(0), "bilt.sum", (Value("x"),), (("axis", -1),)),), Value(0)
-        )
+        "answer", ("x",), Block((Operation(Value(0), "bilt.sum", (Value("x"),), (("axis", -1),)),), Value(0))
     )
     with pytest.raises(ValueError, match="nonnegative"):
         validate_function_ir(bad_axis)
@@ -95,15 +89,9 @@ def test_program_ir_validates_producer_dependencies() -> None:
 
 
 def test_case_schedule_describes_compiled_functions_without_callables() -> None:
-    first = PYTHON_BACKEND.transpile(
-        ast.parse("def doubled(a):\n    return a * 2\n").body[0]
-    )
-    second = PYTHON_BACKEND.transpile(
-        ast.parse("def result(doubled):\n    return doubled + 1\n").body[0]
-    )
-    case = BackendCase(
-        name="example", parameters=("a",), intermediates=[first, second], return_name="result"
-    )
+    first = PYTHON_BACKEND.transpile(ast.parse("def doubled(a):\n    return a * 2\n").body[0])
+    second = PYTHON_BACKEND.transpile(ast.parse("def result(doubled):\n    return doubled + 1\n").body[0])
+    case = BackendCase(name="example", parameters=("a",), intermediates=[first, second], return_name="result")
     program = program_from_case(case)
     assert tuple(step.output for step in program.steps) == ("doubled", "result")
     assert program.steps[0].inputs == ("a",)
