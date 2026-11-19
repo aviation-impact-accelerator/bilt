@@ -94,7 +94,9 @@ def test_later_requests_reuse_computed_ports(backend: Backend, monkeypatch: pyte
         if key.reused_ports == frozenset({"c", "d"})
         for callable_ in contexts.values()
     ]
-    assert [[item.port for item in callable_.outputs or ()] for callable_ in reused] == [["e"]]
+    assert len(reused) == 1
+    assert reused[0].parameters == ("c", "d")
+    assert reused[0].outputs is None  # A single-result plan does not return an unnecessary tuple.
     assert _variables(instance)["a"] is supplied
     assert _variables(instance)["c"] is cached
 
