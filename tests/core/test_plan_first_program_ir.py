@@ -12,7 +12,6 @@ from bilt.core._structural_analysis._qualified_block import (
     QualifiedBlock,
     QualifiedEquation,
     QualifiedPlan,
-    QualifiedStep,
 )
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import transform
