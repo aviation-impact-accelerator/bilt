@@ -34,8 +34,12 @@ def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -
             raise BiltUnknownSystemAttributeError(attribute.name, instance)
         implementation = cls.__bilt_system_implementation_default__[-1]
         instance.__bilt_system_implementation__ = implementation
-    fixed_inputs = {name: value for name, value in instance.__bilt_system_instance_inputs__.items() if value is not MISSING}
-    cached_inputs = {name: value for name, value in instance.__bilt_system_instance_variables__.items() if value is not MISSING}
+    fixed_inputs = {
+        name: value for name, value in instance.__bilt_system_instance_inputs__.items() if value is not MISSING
+    }
+    cached_inputs = {
+        name: value for name, value in instance.__bilt_system_instance_variables__.items() if value is not MISSING
+    }
     backend = _backend_stack[-1] if _backend_stack else PYTHON_BACKEND
     output = attribute.name
     if cached_inputs.keys() - fixed_inputs.keys():
@@ -45,7 +49,7 @@ def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -
             outputs = implementation._evaluate_with_intermediates(  # noqa: SLF001
                 inputs=cached_inputs, output=output, backend=backend
             )
-        except (BiltExecutionPlanError, BiltOverconstrainedError, BiltUnderconstrainedError):
+        except BiltExecutionPlanError, BiltOverconstrainedError, BiltUnderconstrainedError:
             outputs = implementation._evaluate_with_intermediates(  # noqa: SLF001
                 inputs=fixed_inputs, output=output, backend=backend
             )
