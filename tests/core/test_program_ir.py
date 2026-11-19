@@ -107,4 +107,5 @@ def test_case_schedule_describes_compiled_functions_without_callables() -> None:
     program = program_from_case(case)
     assert tuple(step.output for step in program.steps) == ("doubled", "result")
     assert program.steps[0].inputs == ("a",)
-    assert PYTHON_BACKEND.chain_case(case).callable(a=3.0) == 7.0
+    expected = 7.0
+    assert PYTHON_BACKEND.chain_case(case).callable(a=3.0) == expected
