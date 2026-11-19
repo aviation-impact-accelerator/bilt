@@ -116,18 +116,24 @@ def test_tensor_reductions_and_elementwise_where_have_distinct_contracts() -> No
     ("function", "message"),
     (
         (
-            FunctionIR("invalid", (Value("x", FLOAT),), Block((Operation(Value("y", FLOAT), Opcode.ADD, ("x", "z")),), "y")),
+            FunctionIR(
+                "invalid", (Value("x", FLOAT),), Block((Operation(Value("y", FLOAT), Opcode.ADD, ("x", "z")),), "y")
+            ),
             "Undefined operand",
         ),
         (
-            FunctionIR("invalid", (Value("x", FLOAT),), Block((Operation(Value("x", FLOAT), Opcode.NEG, ("x",)),), "x")),
+            FunctionIR(
+                "invalid", (Value("x", FLOAT),), Block((Operation(Value("x", FLOAT), Opcode.NEG, ("x",)),), "x")
+            ),
             "Duplicate SSA",
         ),
         (
             FunctionIR(
                 "invalid",
                 (Value("x", FLOAT),),
-                Block((Operation(Value("y", FLOAT), Opcode.CONSTANT, attributes=(("value", 1.0), ("value", 2.0))),), "y"),
+                Block(
+                    (Operation(Value("y", FLOAT), Opcode.CONSTANT, attributes=(("value", 1.0), ("value", 2.0))),), "y"
+                ),
             ),
             "Duplicate operation attribute",
         ),
@@ -164,7 +170,10 @@ def test_region_result_does_not_escape_its_scope() -> None:
                     Value("result", FLOAT),
                     Opcode.IF,
                     ("flag",),
-                    regions=(Block((Operation(Value("private", FLOAT), Opcode.NEG, ("x",)),), "private"), Block((), "x")),
+                    regions=(
+                        Block((Operation(Value("private", FLOAT), Opcode.NEG, ("x",)),), "private"),
+                        Block((), "x"),
+                    ),
                 ),
                 Operation(Value("leak", FLOAT), Opcode.NEG, ("private",)),
             ),
@@ -257,7 +266,11 @@ def test_physical_dimension_mismatch_and_axis_errors() -> None:
             Value("time", ValueType(ValueKind.FLOAT, Domain.scalar(), TIME)),
         ),
         Block(
-            (Operation(Value("result", ValueType(ValueKind.FLOAT, Domain.scalar(), ENERGY)), Opcode.ADD, ("energy", "time")),),
+            (
+                Operation(
+                    Value("result", ValueType(ValueKind.FLOAT, Domain.scalar(), ENERGY)), Opcode.ADD, ("energy", "time")
+                ),
+            ),
             "result",
         ),
     )
