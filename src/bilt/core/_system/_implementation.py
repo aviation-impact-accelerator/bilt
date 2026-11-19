@@ -101,7 +101,7 @@ class Implementation:
         """The structural analyser for this implementation's components under ``backend``."""
         analyser = self._analysers.get(backend)
         if analyser is None:
-            analyser = CausalizationStructuralAnalyzer(tuple(self._components.values()), backend)
+            analyser = CausalizationStructuralAnalyzer(self.structural_analysis().incidence, backend)
             self._analysers[backend] = analyser
         return analyser
 
