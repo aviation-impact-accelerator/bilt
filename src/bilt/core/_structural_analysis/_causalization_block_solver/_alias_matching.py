@@ -185,6 +185,7 @@ def build_alias_matching(  # noqa: C901, PLR0912 - experimental matching graph p
         original_edges=original.num_edges(),
     )
 
+
 def candidate_assignments(
     incidence: FullIncidenceGraph,
     original_graph: rx.PyGraph,
@@ -207,7 +208,7 @@ def candidate_assignments(
                 yield restored
 
     for assignments in search.candidate_assignments(
-        original_graph, typing.cast("collections.abc.Mapping[PlanStep, typing.Any]", failures),
+        original_graph, failures,
         output=None if output in available else output,
     ):
         yield assignments
