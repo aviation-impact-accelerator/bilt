@@ -22,6 +22,9 @@ from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._system import _implementation as implementation_module
 
 if typing.TYPE_CHECKING:
+    import collections.abc
+
+    from bilt._backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 
