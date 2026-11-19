@@ -14,6 +14,7 @@ from bilt.core._structural_analysis._causalization_block_solver._alias_matching 
 )
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
+from bilt.core._structural_analysis._causalization_block_solver._matching import build_matching_graph
 from bilt.symbolic._domains import Domain
 
 
@@ -67,3 +68,14 @@ def test_supplied_input_connection_is_not_contracted() -> None:
 def test_arithmetic_connection_is_not_contracted() -> None:
     incidence = FullIncidenceGraph([origin, offset, sink])
     assert build_alias_matching(incidence, {"input_value"}) is None
+
+
+def test_alias_projection_preserves_existing_producer_preferences() -> None:
+    incidence = FullIncidenceGraph([origin, connect, sink])
+    original = build_matching_graph(incidence, {"input_value"})
+    for first, second in original.edge_list():
+        if original[first] is origin or original[second] is origin:
+            original.update_edge(first, second, 7)
+    reduced = build_alias_matching(incidence, {"input_value"}, matching_graph=original)
+    assert reduced is not None
+    assert 7 in {weight for _, _, weight in reduced.graph.weighted_edge_list()}
