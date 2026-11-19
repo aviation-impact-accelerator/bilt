@@ -20,9 +20,9 @@ if typing.TYPE_CHECKING:
 
 
 _deduplicate: contextvars.ContextVar[bool] = contextvars.ContextVar("bilt_matching_dedup", default=False)
-_matching_cache: contextvars.ContextVar[
-    dict[tuple[object, object], dict[str, BiltModelConstituent]] | None
-] = contextvars.ContextVar("bilt_matching_cache", default=None)
+_matching_cache: contextvars.ContextVar[dict[tuple[object, object], dict[str, BiltModelConstituent]] | None] = (
+    contextvars.ContextVar("bilt_matching_cache", default=None)
+)
 
 
 @contextlib.contextmanager
