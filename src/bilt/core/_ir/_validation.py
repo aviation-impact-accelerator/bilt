@@ -12,7 +12,6 @@ from bilt.core._ir._nodes import (
     Opcode,
     Operation,
     ProgramIR,
-    ProjectionStep,
     Value,
     ValueKind,
     ValueType,
@@ -58,9 +57,10 @@ _MASK = {Opcode.MASK_AND, Opcode.MASK_OR, Opcode.MASK_NOT}
 _BINARY = {Opcode.ADD, Opcode.SUB, Opcode.MUL, Opcode.DIV, Opcode.POW}
 _REDUCE = {Opcode.SUM, Opcode.MEAN, Opcode.MIN, Opcode.MAX, Opcode.PROD}
 _NUMERIC = {ValueKind.FLOAT, ValueKind.INTEGER}
+_BRANCH_COUNT = 2
 
 
-def _require(condition: bool, message: str) -> None:
+def _require(condition: bool, message: str) -> None:  # noqa: FBT001
     if not condition:
         raise IRValidationError(message)
 
@@ -133,7 +133,7 @@ def _validate_block(block: Block, parent: Mapping[str, ValueType], defined: set[
     return scope[block.yield_name]
 
 
-def _verify_operation(  # noqa: C901, PLR0912, PLR0915
+def _verify_operation(  # noqa: C901, PLR0912
     op: Operation,
     args: list[ValueType],
     attrs: dict[str, bool | int | float | str],
@@ -144,7 +144,7 @@ def _verify_operation(  # noqa: C901, PLR0912, PLR0915
     result = op.result.type
     if code is Opcode.IF:
         _require(not attrs, "scf.if cannot have attributes")
-        _require(len(op.regions) == 2, "scf.if requires two regions")
+        _require(len(op.regions) == _BRANCH_COUNT, "scf.if requires two regions")
         _boolean(args[0], code)
         _require(args[0].domain.is_scalar, "scf.if requires a scalar predicate")
         for region in op.regions:
