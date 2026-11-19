@@ -104,7 +104,7 @@ def contract_aliases(snapshot: ExpansionSnapshot) -> AliasIncidence:
     attribute_nodes = {
         name: canonical_nodes[representatives[name]] for name in snapshot.attributes - snapshot.available
     }
-    removed = {id(row) for row in eliminated}
+    removed = set(map(id, eliminated))
     rows = [row for row in snapshot.constraints if id(row) not in removed]
     constraint_nodes = graph.add_nodes_from([row.label for row in rows])
     edges = [

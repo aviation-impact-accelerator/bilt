@@ -1,4 +1,8 @@
+# ruff: noqa: PLR2004, FBT003
+
 """Differential checks for experimental direct port alias contraction."""
+
+from dataclasses import replace
 
 import pytest
 
@@ -12,8 +16,10 @@ from bilt.core._structural_analysis._causalization_block_solver._expand_structur
     ExpandedConstraint,
     ExpansionSnapshot,
     StructuralExpansion,
+    UnresolvedBoundary,
 )
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
+from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralBoundary
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_structure
 from bilt.core._sub_system import SubSystemConstituent
 
@@ -153,11 +159,6 @@ def test_cycle_remains_a_source_constraint() -> None:
 
 def test_incomplete_snapshot_is_not_contractible() -> None:
     snapshot = _snapshot(())
-    from dataclasses import replace
-
-    from bilt.core._structural_analysis._causalization_block_solver._expand_structure import UnresolvedBoundary
-    from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralBoundary
-
     child = SubSystemConstituent("child", Implementation(Ports, [child_relation]))
     incomplete = replace(
         snapshot,
