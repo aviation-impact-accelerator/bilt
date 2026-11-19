@@ -74,9 +74,7 @@ def _definitions(values: Iterable[Value], *, context: str) -> dict[str, ValueTyp
     return names
 
 
-def _bindings(
-    bindings: tuple[Binding, ...], parameters: tuple[Value, ...], available: Mapping[str, ValueType]
-) -> None:
+def _bindings(bindings: tuple[Binding, ...], parameters: tuple[Value, ...], available: Mapping[str, ValueType]) -> None:
     expected = _definitions(parameters, context="callee parameters")
     mapped: set[str] = set()
     for binding in bindings:
@@ -194,8 +192,10 @@ def _verify_operation(  # noqa: C901, PLR0912
         else:
             _require(args[1].kind is ValueKind.INTEGER, "tensor.isel requires an integer index")
             _require(args[1].domain.is_scalar, "tensor.isel requires a scalar index")
-            _require(result.domain.dims == args[0].domain.dims[:axis] + args[0].domain.dims[axis + 1 :],
-                     "tensor.isel must remove the selected axis")
+            _require(
+                result.domain.dims == args[0].domain.dims[:axis] + args[0].domain.dims[axis + 1 :],
+                "tensor.isel must remove the selected axis",
+            )
 
 
 def validate_program(program: ProgramIR) -> None:
