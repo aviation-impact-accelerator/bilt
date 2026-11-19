@@ -30,7 +30,7 @@ from bilt.core._structural_analysis._causalization_block_solver._structural_vali
     validate_request_structure,
 )
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
-from bilt.core._structural_analysis._plan import AnalysisPlan
+from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
 from bilt.core._structural_analysis._realize import (
     BlockRealizationFailure,
     BlockRealizationKey,
@@ -47,7 +47,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis._causalization_block_solver._expand_structure import ExpansionSnapshot
     from bilt.core._structural_analysis._causalization_block_solver._structural_validation import ValidatedStructure
-    from bilt.core._structural_analysis._plan import PlanStep
+    from bilt.symbolic._domains import Domain
 
 
 class CausalizationStructuralAnalyzer:
@@ -61,6 +61,9 @@ class CausalizationStructuralAnalyzer:
         self.backend = backend
         self.full_incidence_graph = FullIncidenceGraph(constituents)
         self._failures: dict[PlanStep, RealizationFailure] = {}
+        # A successful matching is only a starting point for later targets.
+        # Structural validation and realisation still run for every request.
+        self._last_matching: tuple[frozenset[tuple[str, Domain]], dict[str, BiltModelConstituent]] | None = None
 
     def analyse(self, request: EvaluationRequest) -> BackendCase:
         """Find and realise a plan, sharing request caches across nested analysis."""
@@ -79,14 +82,11 @@ class CausalizationStructuralAnalyzer:
         if expanded is not None:
             return expanded
 
-        graph = build_matching_graph(self.full_incidence_graph, available)
-        self._prefer_child_producers(graph, available, request.output, structure.snapshot if structure else None)
+        signature = frozenset(request.input_domains.items())
         last_error: Exception | None = None
         block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
 
-        for assignments in search.candidate_assignments(
-            graph, self._failures, output=None if request.output in available else request.output
-        ):
+        for assignments in self._matching_candidates(request, available, structure, signature):
             attempted_routes: set[tuple[tuple[str, frozenset[str] | None], ...]] = set()
 
             while True:
@@ -113,6 +113,7 @@ class CausalizationStructuralAnalyzer:
                     block_failures=block_failures,
                 )
                 if not isinstance(result, (RealizationFailure, BlockRealizationFailure)):
+                    self._last_matching = signature, assignments.copy()
                     return result
 
                 # Invalidate dependent parent answers before the next route query.
@@ -128,6 +129,33 @@ class CausalizationStructuralAnalyzer:
             raise BiltExecutionPlanError(msg) from last_error
 
         raise BiltExecutionPlanError(msg)
+
+    def _matching_candidates(
+        self,
+        request: EvaluationRequest,
+        available: set[str],
+        structure: ValidatedStructure | None,
+        signature: frozenset[tuple[str, Domain]],
+    ) -> typing.Iterator[dict[str, BiltModelConstituent]]:
+        """Try the last matching before rebuilding the graph for this target.
+
+        Reusing an assignment never bypasses structural validation or plan
+        realisation. A failed or incompatible seed resumes the normal search.
+        Keep only one successful seed to bound retained state.
+        """
+        last = self._last_matching
+        if last is not None and last[0] == signature:
+            assignments = last[1]
+            if not self._failures or not any(
+                PlanStep(operation=operation, output=name) in self._failures for name, operation in assignments.items()
+            ):
+                yield assignments
+
+        graph = build_matching_graph(self.full_incidence_graph, available)
+        self._prefer_child_producers(graph, available, request.output, structure.snapshot if structure else None)
+        yield from search.candidate_assignments(
+            graph, self._failures, output=None if request.output in available else request.output
+        )
 
     def _preflight(self, request: EvaluationRequest, structure: ValidatedStructure | None) -> BackendCase | None:
         """Keep local requests on their existing path; expand execution only for cross-boundary coupling."""
