@@ -29,6 +29,7 @@ from bilt.units._metadata import Metadata
 from bilt.units.dimensions._dimensions import ENERGY, POWER, TIME
 
 
+
 FLOAT = ValueType(ValueKind.FLOAT)
 BOOL = ValueType(ValueKind.BOOLEAN)
 OPAQUE = ValueType(ValueKind.OPAQUE)
