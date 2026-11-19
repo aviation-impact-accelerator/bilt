@@ -5,6 +5,7 @@ import typing
 from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
 from bilt.core._structural_analysis._causalization_block_solver import _alias_matching as alias_matching
 from bilt.core._structural_analysis._causalization_block_solver import _planning as planning
+from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltExecutionPlanError,
