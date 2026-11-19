@@ -56,11 +56,13 @@ class CausalizationStructuralAnalyzer:
 
     def __init__(
         self,
-        constituents: typing.Collection[BiltModelConstituent],
+        constituents: typing.Collection[BiltModelConstituent] | FullIncidenceGraph,
         backend: Backend,
     ) -> None:
         self.backend = backend
-        self.full_incidence_graph = FullIncidenceGraph(constituents)
+        self.full_incidence_graph = (
+            constituents if isinstance(constituents, FullIncidenceGraph) else FullIncidenceGraph(constituents)
+        )
         self._failures: dict[PlanStep, RealizationFailure] = {}
 
     def analyse(self, request: EvaluationRequest) -> BackendCase:
