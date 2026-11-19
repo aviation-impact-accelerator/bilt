@@ -79,6 +79,7 @@ def _alias_pair(row: ExpandedConstraint) -> tuple[str, str] | None:
     qualified = (prefix + pair[0], prefix + pair[1])
     return qualified if row.attributes == frozenset(qualified) else None
 
+
 def contract_aliases(snapshot: ExpansionSnapshot) -> AliasIncidence:
     """Contract independent, unsupplied, metadata-compatible equality ports.
 
