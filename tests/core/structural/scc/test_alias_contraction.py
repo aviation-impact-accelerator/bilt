@@ -161,7 +161,6 @@ def test_cycle_remains_a_source_constraint() -> None:
     assert result.graph.num_nodes() == 2
 
 
-
 year = dim("year")
 scenario = dim("scenario")
 
