@@ -11,6 +11,7 @@ import contextvars
 import dataclasses
 import typing
 from collections import deque
+from itertools import islice
 
 import rustworkx as rx
 
@@ -202,7 +203,8 @@ def candidate_assignments(
     contracted = build_alias_matching(incidence, available) if alias_matching_enabled() else None
     if contracted is not None:
         target = None if output in available else contracted.canonical(output)
-        for assignments in search.candidate_assignments(contracted.graph, {}, output=target):
+        # Bound exploratory branches before reverting to the complete native search.
+        for assignments in islice(search.candidate_assignments(contracted.graph, {}, output=target), 3):
             restored = contracted.restore(typing.cast("dict[str, _Candidate]", assignments))
             if output in available or output in restored:
                 yield restored
