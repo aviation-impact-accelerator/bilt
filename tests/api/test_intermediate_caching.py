@@ -12,6 +12,7 @@ from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._system import _implementation as implementation_module
+from bilt.core._system._dispatch import _prefetch_outputs
 from bilt.core._system._sentinel import MISSING
 from bilt.symbolic._dimensions import Dim, coordinate_axis
 from bilt.symbolic._domains import domain
