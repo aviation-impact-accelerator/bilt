@@ -4,7 +4,7 @@
 
 import pytest
 
-from bilt import equation
+from bilt import Implementation, Interface, equation, field, system
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
@@ -79,3 +79,48 @@ def test_alias_projection_preserves_existing_producer_preferences() -> None:
     reduced = build_alias_matching(incidence, {"input_value"}, matching_graph=original)
     assert reduced is not None
     assert 7 in {weight for _, _, weight in reduced.graph.weighted_edge_list()}
+
+
+@system
+class NestedPorts(metaclass=Interface):
+    inlet: float = field()
+    outlet: float = field()
+
+
+@equation
+def double(inlet: float, outlet: float) -> bool:
+    return outlet == 2 * inlet
+
+
+@equation
+def supply(inlet: float, left: NestedPorts) -> bool:
+    return left.inlet == inlet
+
+
+@equation
+def bridge(left: NestedPorts, right: NestedPorts) -> bool:
+    return right.inlet == left.outlet
+
+
+@equation
+def discharge(outlet: float, right: NestedPorts) -> bool:
+    return outlet == right.outlet
+
+
+@pytest.mark.timeout(10)
+def test_alias_matching_preserves_nested_child_routes() -> None:
+    child = Implementation(NestedPorts, [double])
+    parent = Implementation(
+        NestedPorts,
+        [supply, bridge, discharge],
+        internal_implementations={"left": child, "right": child},
+    )
+    analyser = parent.analyser_for(PYTHON_BACKEND)
+    request = EvaluationRequest(output="outlet", input_domains={"inlet": Domain.scalar()})
+    with EvaluationContext():
+        baseline = analyser.analyse(request)
+        with alias_matching_scope():
+            experimental = analyser.analyse(request)
+        value = {"inlet": 3.0}
+        assert PYTHON_BACKEND.chain_case(baseline).callable(**value) == 12.0
+        assert PYTHON_BACKEND.chain_case(experimental).callable(**value) == 12.0
