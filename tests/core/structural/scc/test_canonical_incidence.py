@@ -3,7 +3,6 @@
 import pytest
 
 from bilt import equation
-
 from bilt.core._structural_analysis._causalization_block_solver._alias_matching import (
     alias_matching_scope,
     build_alias_matching,
@@ -70,7 +69,8 @@ def test_indexed_matching_preserves_requested_outputs() -> None:
     incidence = FullIncidenceGraph([origin, connect, sink])
     first = build_alias_matching(incidence, {"input_value"})
     second = build_alias_matching(incidence, {"input_value"})
-    assert first is not None and second is not None
+    assert first is not None
+    assert second is not None
     assert first.representatives == second.representatives
     assert first.removed_nodes == second.removed_nodes
     assert first.removed_edges == second.removed_edges
