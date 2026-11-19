@@ -12,7 +12,6 @@ import itertools
 import typing
 
 from bilt.core._to_ast import (
-    ISEL_INTRINSIC_NAME,
     MASK_AND_INTRINSIC_NAME,
     MASK_NOT_INTRINSIC_NAME,
     MASK_OR_INTRINSIC_NAME,
@@ -27,9 +26,11 @@ from bilt.core._to_ast import (
 )
 from bilt.symbolic import _atoms as ops
 from bilt.symbolic._atoms import AxisType, FloatType, IntType, QuantityType, SymbolType
-from bilt.symbolic._domains import Domain
 from bilt.symbolic._isolation._errors import BiltUnsupportedIsolationError
-from bilt.symbolic._tree import Tree
+
+if typing.TYPE_CHECKING:
+    from bilt.symbolic._domains import Domain
+    from bilt.symbolic._tree import Tree
 
 __all__ = ["Block", "FunctionIR", "Operation", "Value", "ir_to_functiondef", "tree_to_ir"]
 
@@ -91,6 +92,8 @@ class _Builder:
         return Block(tuple(self.operations), value)
 
 
+_BINARY_ARITY = 2
+
 _BINARY_HEADS = {
     ops.POW: "arith.pow",
     ops.EQUALS: "cmp.eq",
@@ -135,7 +138,7 @@ def tree_to_ir(
     )
 
 
-def _emit_tree(tree: Tree, builder: _Builder) -> Value:  # noqa: PLR0911
+def _emit_tree(tree: Tree, builder: _Builder) -> Value:  # noqa: C901, PLR0911, PLR0912
     if tree.is_leaf:
         if tree.head.atom_type is SymbolType:
             return Value(typing.cast("str", tree.head.value))
@@ -180,7 +183,7 @@ def _emit_tree(tree: Tree, builder: _Builder) -> Value:  # noqa: PLR0911
         return builder.emit("arith.inv", (_emit_tree(tree.args[0], builder),))
 
     if tree.head in _BINARY_HEADS:
-        if len(tree.args) != 2:
+        if len(tree.args) != _BINARY_ARITY:
             msg = f"Unsupported symbolic predicate {tree!s}."
             raise BiltUnsupportedIsolationError(msg)
         return builder.emit(_BINARY_HEADS[tree.head], tuple(_emit_tree(arg, builder) for arg in tree.args))
@@ -269,7 +272,7 @@ def ir_to_functiondef(function: FunctionIR) -> ast.FunctionDef:
     return function_def
 
 
-def _block_expression(block: Block, visible: dict[Value, ast.expr]) -> ast.expr:
+def _block_expression(block: Block, visible: dict[Value, ast.expr]) -> ast.expr:  # noqa: C901
     expressions = visible.copy()
     for operation in block.operations:
         args = tuple(expressions[operand] for operand in operation.operands)
