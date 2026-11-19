@@ -174,7 +174,6 @@ def build_alias_matching(  # noqa: C901 - conservative graph projection and fall
     )
 
 
-
 def _project_in_place(graph: rx.PyGraph, view: CanonicalView) -> AliasMatching:  # noqa: C901
     """Reuse the weighted matching graph instead of constructing another graph.
 
@@ -183,9 +182,7 @@ def _project_in_place(graph: rx.PyGraph, view: CanonicalView) -> AliasMatching: 
     """
     original_nodes, original_edges = graph.num_nodes(), graph.num_edges()
     attribute_nodes = {
-        typing.cast("str", graph[node]): node
-        for node in graph.node_indices()
-        if isinstance(graph[node], str)
+        typing.cast("str", graph[node]): node for node in graph.node_indices() if isinstance(graph[node], str)
     }
     for node in view.removed:
         if graph.has_node(node):
