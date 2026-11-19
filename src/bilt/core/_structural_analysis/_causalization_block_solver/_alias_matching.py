@@ -24,6 +24,7 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt.core._model_constituent import BiltModelConstituent
+    from bilt.core._structural_analysis._realize import RealizationFailure
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 
 
@@ -189,8 +190,9 @@ def build_alias_matching(
 
 def candidate_assignments(
     incidence: FullIncidenceGraph,
+    original_graph: rx.PyGraph,
     available: collections.abc.Set[str],
-    failures: collections.abc.Mapping[PlanStep, object],
+    failures: collections.abc.Mapping[PlanStep, RealizationFailure],
     output: str,
 ) -> collections.abc.Iterator[dict[str, BiltModelConstituent]]:
     """Try reduced matching first, then exhaust the unchanged production search.
@@ -207,9 +209,8 @@ def candidate_assignments(
             if output in available or output in restored:
                 yield restored
 
-    regular = build_matching_graph(incidence, available)
     for assignments in search.candidate_assignments(
-        regular, typing.cast("collections.abc.Mapping[PlanStep, typing.Any]", failures),
+        original_graph, typing.cast("collections.abc.Mapping[PlanStep, typing.Any]", failures),
         output=None if output in available else output,
     ):
         yield assignments
