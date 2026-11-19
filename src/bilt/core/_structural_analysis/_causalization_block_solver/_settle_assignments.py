@@ -18,9 +18,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._model_constituent import BiltModelConstituent
 
 
-_batch_child_routes: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    "bilt_batch_child_routes", default=False
-)
+_batch_child_routes: contextvars.ContextVar[bool] = contextvars.ContextVar("bilt_batch_child_routes", default=False)
 
 
 @contextlib.contextmanager
