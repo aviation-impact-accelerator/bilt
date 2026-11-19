@@ -12,6 +12,7 @@ from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs, mangle_name
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralAnalysis
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._system._dimensional_unification import check_dimensional_consistency
@@ -225,9 +226,27 @@ class Implementation:
             key = (missing, frozenset(request.input_domains.items()), backend, context)
             plan = self._multi_plan_cache.get(key)
             if plan is None:
-                plan = typing.cast("CausalizationStructuralAnalyzer", self.analyser_for(backend)).analyse_many(
-                    request, missing
-                )
+                analyser = self.analyser_for(backend)
+                try:
+                    if not isinstance(analyser, CausalizationStructuralAnalyzer):
+                        msg = "Multi-output planning is unavailable for the selected analyser."
+                        raise BiltExecutionPlanError(msg)
+                    plan = analyser.analyse_many(request, missing)
+                except BiltExecutionPlanError:
+                    # A joint matching can fail even when every individual
+                    # target is valid. Keep the established single-target
+                    # implementation as a correctness-preserving fallback.
+                    discovered = dict(cached or {})
+                    computed: dict[str, object] = {}
+                    for target in missing:
+                        if target in discovered:
+                            continue
+                        step = self._evaluate_with_intermediates(
+                            inputs, target, backend, cached=discovered
+                        )
+                        computed.update({name: value for name, value in step.items() if name not in discovered})
+                        discovered.update(step)
+                    return computed
                 self._multi_plan_cache[key] = plan
 
             case = reuse_plan_outputs(plan, frozenset(cached or {}), required_ports=missing)
