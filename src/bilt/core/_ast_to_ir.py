@@ -159,9 +159,11 @@ def _expr(  # noqa: C901, PLR0911, PLR0912
             if type(value) not in (int, float, bool):
                 raise _UnsupportedIRError
             attrs.append((kw.arg, value))
-        if opcode.startswith("bilt.") and opcode not in (
-            "bilt.where", "bilt.mask_and", "bilt.mask_or", "bilt.mask_not"
-        ) and "axis" not in dict(attrs):
+        if (
+            opcode.startswith("bilt.")
+            and opcode not in ("bilt.where", "bilt.mask_and", "bilt.mask_or", "bilt.mask_not")
+            and "axis" not in dict(attrs)
+        ):
             raise _UnsupportedIRError
         return builder.emit(opcode, tuple(_expr(arg, builder, names) for arg in node.args), tuple(attrs))
     raise _UnsupportedIRError
