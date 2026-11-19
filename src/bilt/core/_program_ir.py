@@ -10,6 +10,7 @@ import typing
 
 from bilt.core._equation import BasicEquation
 from bilt.core._port import mangle_name
+from bilt.core._program_ir_cache import get_program_cache
 from bilt.core._structural_analysis._plan import PlanStep
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform
@@ -94,6 +95,24 @@ def program_from_plan(plan: AnalysisPlan) -> ProgramIR:
     complete graph is deferred until the historical realisation failure path
     has had the opportunity to reject the candidate.
     """
+    cache = get_program_cache()
+    key = None
+    if cache is not None:
+        key = (
+            "direct",
+            plan.output,
+            frozenset(plan.inputs),
+            tuple(
+                (
+                    block.is_cyclic,
+                    tuple((id(step.operation), step.output, step.child_inputs) for step in block.steps),
+                )
+                for block in plan.blocks
+            ),
+        )
+        if (cached := cache.get(key)) is not None:
+            return cached
+
     reserved = {mangle_name(step.output) for step in plan.steps} | set(map(mangle_name, plan.inputs))
     steps: list[CallStep] = []
     for index, block in enumerate(plan.blocks):
@@ -135,16 +154,42 @@ def program_from_plan(plan: AnalysisPlan) -> ProgramIR:
                 block_index=index,
             )
         )
-    return ProgramIR(
+    program = ProgramIR(
         parameters=tuple(map(mangle_name, sorted(plan.inputs))),
         steps=tuple(steps),
         result=mangle_name(plan.output),
     )
+    if cache is not None and key is not None:
+        cache[key] = program
+    return program
 
 
 def program_from_qualified_plan(plan: QualifiedPlan) -> ProgramIR:
     """Describe qualified primitive routes and grouped solves before transpiling."""
     from bilt.core._structural_analysis._qualified_block import QualifiedBlock  # noqa: PLC0415
+
+    cache = get_program_cache()
+    key = None
+    if cache is not None:
+        from bilt.core._structural_analysis._qualified_block import QualifiedBlock  # noqa: PLC0415
+
+        key = (
+            "qualified",
+            plan.request.output,
+            frozenset(plan.request.input_domains),
+            tuple(
+                (
+                    "linear",
+                    tuple((id(row.source), row.path) for row in block.rows),
+                    block.unknowns,
+                )
+                if isinstance(block, QualifiedBlock)
+                else ("primitive", id(block.source), block.path, block.output)
+                for block in plan.blocks
+            ),
+        )
+        if (cached := cache.get(key)) is not None:
+            return cached
 
     reserved = set(map(mangle_name, plan.outputs | plan.request.input_domains.keys()))
     steps: list[CallStep] = []
@@ -175,8 +220,11 @@ def program_from_qualified_plan(plan: QualifiedPlan) -> ProgramIR:
                 block_index=index,
             )
         )
-    return ProgramIR(
+    program = ProgramIR(
         parameters=tuple(map(mangle_name, sorted(plan.request.input_domains))),
         steps=tuple(steps),
         result=mangle_name(plan.request.output),
     )
+    if cache is not None and key is not None:
+        cache[key] = program
+    return program
