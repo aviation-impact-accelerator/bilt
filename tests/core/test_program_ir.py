@@ -6,8 +6,8 @@ import jax.numpy as jnp
 import pytest
 
 from bilt._backend._case import BackendCase
-from bilt._backend._python import PYTHON_BACKEND
 from bilt._backend._jax import JAX_BACKEND
+from bilt._backend._python import PYTHON_BACKEND
 from bilt.core._ast_to_ir import ast_to_ir
 from bilt.core._ir import Block, FunctionIR, Operation, Value, ir_to_functiondef
 from bilt.core._ir_validation import validate_function_ir
