@@ -168,9 +168,7 @@ def _verify_operation(  # noqa: C901, PLR0912, PLR0915
         _require(args[0].domain == args[1].domain == result.domain, f"{code.value}: domain mismatch")
         if args[0].dimension is not None and args[1].dimension is not None:
             expected = (
-                args[0].dimension * args[1].dimension
-                if code is Opcode.MUL
-                else args[0].dimension / args[1].dimension
+                args[0].dimension * args[1].dimension if code is Opcode.MUL else args[0].dimension / args[1].dimension
             )
             _require(result.dimension == expected, f"{code.value}: physical dimension mismatch")
     elif code is Opcode.POW:
@@ -190,7 +188,7 @@ def _verify_operation(  # noqa: C901, PLR0912, PLR0915
                 "arith.inv: result kind or domain mismatch",
             )
             if args[0].dimension is not None:
-                _require(result.dimension == args[0].dimension**-1, "arith.inv: physical dimension mismatch")
+                _require(result.dimension == args[0].dimension ** -1, "arith.inv: physical dimension mismatch")
     elif code in _COMPARE:
         for arg in args:
             _numeric(arg, code)
