@@ -291,3 +291,43 @@ def test_dedup_scope_restores_previous_state_after_exception() -> None:
     with pytest.raises(ValueError, match="aborted"), search.matching_dedup_scope():
         raise ValueError(message)
     assert list(search.candidate_assignments(graph, {}, output=None)) == ordinary
+
+
+def test_matching_memo_reuses_identical_weighted_graphs(monkeypatch: pytest.MonkeyPatch) -> None:
+    graph = _graph()
+    cache: dict[tuple[object, object], dict[str, BiltModelConstituent]] = {}
+    real = search.find_matching
+    calls = []
+
+    def counted(candidate: rx.PyGraph) -> dict[str, BiltModelConstituent]:
+        calls.append(candidate)
+        return real(candidate)
+
+    monkeypatch.setattr(search, "find_matching", counted)
+    with search.matching_dedup_scope():
+        original = list(search.candidate_assignments(graph, {}, output="x", matching_cache=cache))
+        calls_after_first = len(calls)
+        repeated = list(search.candidate_assignments(graph, {}, output="x", matching_cache=cache))
+    assert original == repeated
+    assert calls_after_first > 0
+    assert len(calls) == calls_after_first
+
+
+def test_matching_memo_invalidates_when_producer_weight_changes(monkeypatch: pytest.MonkeyPatch) -> None:
+    graph = _graph()
+    cache: dict[tuple[object, object], dict[str, BiltModelConstituent]] = {}
+    real = search.find_matching
+    calls = []
+
+    def counted(candidate: rx.PyGraph) -> dict[str, BiltModelConstituent]:
+        calls.append(candidate)
+        return real(candidate)
+
+    monkeypatch.setattr(search, "find_matching", counted)
+    with search.matching_dedup_scope():
+        list(search.candidate_assignments(graph, {}, output="x", matching_cache=cache))
+        original_calls = len(calls)
+        first, second = graph.edge_list()[0]
+        graph.update_edge(first, second, 2)
+        list(search.candidate_assignments(graph, {}, output="x", matching_cache=cache))
+    assert len(calls) > original_calls
