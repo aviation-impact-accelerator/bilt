@@ -8,11 +8,15 @@ AST or native callable objects.
 import dataclasses
 import typing
 
+from bilt.core._equation import BasicEquation
 from bilt.core._port import mangle_name
+from bilt.core._structural_analysis._plan import PlanStep
+from bilt.core._sub_system import SubSystemConstituent
+from bilt.core._transform import BasicTransform
 
 if typing.TYPE_CHECKING:
     from bilt._backend._case import BackendCase
-    from bilt.core._structural_analysis._plan import AnalysisPlan, PlanStep
+    from bilt.core._structural_analysis._plan import AnalysisPlan
     from bilt.core._structural_analysis._qualified_block import QualifiedPlan, QualifiedStep
     from bilt.symbolic._domains import Domain
 
@@ -73,11 +77,7 @@ def program_from_case(case: BackendCase) -> ProgramIR:
 
 def _operation_kind(step: PlanStep | QualifiedStep) -> typing.Literal["equation", "transform", "child", "primitive"]:
     """Identify a model operation without importing any backend functionality."""
-    from bilt.core._equation import BasicEquation  # noqa: PLC0415
-    from bilt.core._sub_system import SubSystemConstituent  # noqa: PLC0415
-    from bilt.core._transform import BasicTransform  # noqa: PLC0415
-
-    source = step.operation if hasattr(step, "operation") else step.source
+    source = step.operation if isinstance(step, PlanStep) else step.source
     if isinstance(source, BasicEquation):
         return "equation"
     if isinstance(source, BasicTransform):
@@ -126,11 +126,7 @@ def program_from_plan(plan: AnalysisPlan) -> ProgramIR:
         # A transform callable retains its declared function name; a hand-built
         # PlanStep can name a different output, which existing realisation
         # deliberately leaves unchanged.
-        from bilt.core._transform import BasicTransform  # noqa: PLC0415
-
-        actual_output = (
-            step.operation.__bilt_name__ if isinstance(step.operation, BasicTransform) else step.output
-        )
+        actual_output = step.operation.__bilt_name__ if isinstance(step.operation, BasicTransform) else step.output
         steps.append(
             CallStep(
                 mangle_name(actual_output),
