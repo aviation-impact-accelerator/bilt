@@ -104,7 +104,7 @@ class AliasMatching:
         return self.original_edges - self.graph.num_edges()
 
 
-def build_alias_matching(
+def build_alias_matching(  # noqa: C901 - conservative graph projection and fallback
     incidence: FullIncidenceGraph,
     available: collections.abc.Set[str],
     *,
@@ -175,7 +175,7 @@ def build_alias_matching(
 
 
 
-def _project_in_place(graph: rx.PyGraph, view: CanonicalView) -> AliasMatching:
+def _project_in_place(graph: rx.PyGraph, view: CanonicalView) -> AliasMatching:  # noqa: C901
     """Reuse the weighted matching graph instead of constructing another graph.
 
     Keep source names on candidates and shrink the graph only for the experimental
