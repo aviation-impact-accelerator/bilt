@@ -6,6 +6,8 @@ from bilt import equation
 from bilt.core._structural_analysis._causalization_block_solver._alias_matching import (
     alias_matching_scope,
     build_alias_matching,
+    _restore_graph,
+    _snapshot_graph,
 )
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import inspect_structure
@@ -75,3 +77,19 @@ def test_indexed_matching_preserves_requested_outputs() -> None:
     assert first.representatives == second.representatives
     assert first.removed_nodes == second.removed_nodes
     assert first.removed_edges == second.removed_edges
+
+
+def test_in_place_projection_preserves_native_fallback_graph() -> None:
+    from bilt.core._structural_analysis._causalization_block_solver._matching import build_matching_graph  # noqa: PLC0415
+
+    incidence = FullIncidenceGraph([origin, connect, sink])
+    graph = build_matching_graph(incidence, {"input_value"})
+    before = tuple((graph[a], graph[b], graph.get_edge_data(a, b)) for a, b in graph.edge_list())
+    snapshot = _snapshot_graph(graph)
+    projected = build_alias_matching(incidence, {"input_value"}, matching_graph=graph, in_place=True)
+    assert projected is not None
+    assert projected.graph is graph
+    assert projected.removed_nodes == 2
+    restored = _restore_graph(snapshot)
+    after = tuple((restored[a], restored[b], restored.get_edge_data(a, b)) for a, b in restored.edge_list())
+    assert after == before
