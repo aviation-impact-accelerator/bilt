@@ -69,7 +69,7 @@ def test_immutable_types_preserve_scientific_dimensions_and_metadata() -> None:
     assert typed.dimension != ENERGY
     assert typed.domain != Domain.scalar()
     with pytest.raises(dataclasses.FrozenInstanceError):
-        setattr(typed, "kind", ValueKind.BOOLEAN)
+        typed.__setattr__("kind", ValueKind.BOOLEAN)
 
 
 def test_scalar_conditional_has_lexical_regions() -> None:
