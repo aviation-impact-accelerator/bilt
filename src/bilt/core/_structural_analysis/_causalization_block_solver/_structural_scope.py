@@ -6,8 +6,6 @@ import dataclasses
 import typing
 
 from bilt.core._equation import BasicEquation
-
-from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._causalization_block_solver._alias_contraction import _direct_equal_ports
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 from bilt.core._structural_analysis._causalization_block_solver._structural_cache import get_structural_cache
