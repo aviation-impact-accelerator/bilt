@@ -155,11 +155,7 @@ class Implementation:
                 parameters = set(backend_callable.parameters)
                 # The structural plan was derived from 'inputs' alone. Only pass
                 # cached values the pruned execution pipeline explicitly consumes.
-                reused = {
-                    name: value
-                    for name, value in (cached or {}).items()
-                    if mangle_name(name) in parameters
-                }
+                reused = {name: value for name, value in (cached or {}).items() if mangle_name(name) in parameters}
                 required_inputs = {
                     name: value for name, value in inputs.items() if mangle_name(name) in parameters
                 } | reused
