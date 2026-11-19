@@ -89,8 +89,12 @@ def test_program_ir_validates_producer_dependencies() -> None:
 
 
 def test_case_schedule_describes_compiled_functions_without_callables() -> None:
-    first = PYTHON_BACKEND.transpile(ast.parse("def doubled(a):\n    return a * 2\n").body[0])
-    second = PYTHON_BACKEND.transpile(ast.parse("def result(doubled):\n    return doubled + 1\n").body[0])
+    first_def = ast.parse("def doubled(a):\n    return a * 2\n").body[0]
+    assert isinstance(first_def, ast.FunctionDef)
+    first = PYTHON_BACKEND.transpile(first_def)
+    second_def = ast.parse("def result(doubled):\n    return doubled + 1\n").body[0]
+    assert isinstance(second_def, ast.FunctionDef)
+    second = PYTHON_BACKEND.transpile(second_def)
     case = BackendCase(name="example", parameters=("a",), intermediates=[first, second], return_name="result")
     program = program_from_case(case)
     assert tuple(step.output for step in program.steps) == ("doubled", "result")
