@@ -103,9 +103,7 @@ def inspect_structure(
     if cache is not None and key in cache:
         return cache[key]
     selected, child_ports, attributes = (
-        _scope_nodes_indexed(incidence, supplied, targets)
-        if indexed
-        else _scope_nodes(incidence, supplied, targets)
+        _scope_nodes_indexed(incidence, supplied, targets) if indexed else _scope_nodes(incidence, supplied, targets)
     )
 
     constraints: dict[int, BasicEquation | BasicTransform] = {}
