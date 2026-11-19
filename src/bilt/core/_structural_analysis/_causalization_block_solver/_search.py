@@ -2,9 +2,12 @@
 
 __all__ = ["candidate_assignments"]
 
+import contextlib
+import contextvars
 import typing
 
 from bilt.core._structural_analysis._causalization_block_solver._matching import find_matching
+from bilt.core._structural_analysis._causalization_block_solver._route_cache import route_cache_generation
 from bilt.core._structural_analysis._plan import PlanStep
 
 if typing.TYPE_CHECKING:
@@ -14,6 +17,19 @@ if typing.TYPE_CHECKING:
 
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis._realize import RealizationFailure
+
+
+_deduplicate: contextvars.ContextVar[bool] = contextvars.ContextVar("bilt_matching_dedup", default=False)
+
+
+@contextlib.contextmanager
+def matching_dedup_scope() -> collections.abc.Generator[None]:
+    """Experimentally suppress duplicate candidate routes within one search."""
+    token = _deduplicate.set(True)
+    try:
+        yield
+    finally:
+        _deduplicate.reset(token)
 
 
 def _edge_step(graph: rx.PyGraph, first: int, second: int) -> PlanStep:
@@ -118,6 +134,7 @@ def candidate_assignments(
 
     pending = [graph]
     visited: set[frozenset[tuple[int, int]]] = set()
+    yielded: set[tuple[frozenset[tuple[str, int]], frozenset[PlanStep], int]] = set()
 
     while pending:
         candidate_graph = pending.pop()
@@ -138,7 +155,17 @@ def candidate_assignments(
         visited.add(signature)
 
         assignments = find_matching(candidate_graph)
-        yield assignments
+        if _deduplicate.get():
+            signature = (
+                frozenset((name, id(operation)) for name, operation in assignments.items()),
+                frozenset(failures),
+                route_cache_generation(),
+            )
+            if signature not in yielded:
+                yielded.add(signature)
+                yield assignments
+        else:
+            yield assignments
 
         # Realisation may have added failures while the generator yielded.
         # Retry this graph with those assignments excluded first.
