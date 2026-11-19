@@ -167,7 +167,7 @@ def test_request_cache_does_not_alias_different_child_routes() -> None:
         other_ir = program_from_plan(other)
         assert first_ir is not other_ir
         assert first_ir.steps[0].inputs != other_ir.steps[0].inputs
-        assert len(cache) == 2
+        assert len(cache) == len((first, other))
 
 
 def test_request_cache_does_not_alias_different_equation_choices() -> None:
@@ -178,7 +178,7 @@ def test_request_cache_does_not_alias_different_equation_choices() -> None:
         a = program_from_plan(first)
         b = program_from_plan(other)
         assert a is not b
-        assert len(cache) == 2
+        assert len(cache) == len((first, other))
 
 
 def test_qualified_request_cache_reuses_identical_blocks() -> None:
