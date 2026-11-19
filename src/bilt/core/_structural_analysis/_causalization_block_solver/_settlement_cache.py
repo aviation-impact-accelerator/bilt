@@ -22,7 +22,9 @@ type SettlementEntry = tuple[tuple[BiltModelConstituent, ...], SettlementResult]
 type SettlementCache = dict[SettlementKey, SettlementEntry]
 
 _enabled: contextvars.ContextVar[bool] = contextvars.ContextVar("bilt_settlement_memo_enabled", default=False)
-_cache: contextvars.ContextVar[SettlementCache | None] = contextvars.ContextVar("bilt_settlement_memo_cache", default=None)
+_cache: contextvars.ContextVar[SettlementCache | None] = contextvars.ContextVar(
+    "bilt_settlement_memo_cache", default=None
+)
 
 
 @contextlib.contextmanager
