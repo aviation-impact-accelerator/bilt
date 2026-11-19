@@ -8,6 +8,7 @@ import typing
 from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
+from bilt.core._ast_to_ir import ast_to_ir
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
 from bilt.core._evaluation_context import current_evaluation
@@ -215,6 +216,10 @@ def _transform_to_callable(
         symbol_domains=symbol_domains,
     )
 
+    transformed_ir = ast_to_ir(function_ast, output_domain=output_domain)
+    if transformed_ir is not None:
+        function_ast = ir_to_functiondef(transformed_ir)
+
     callable_ = _guarded_transpile(
         function_ast,
         plan_step,
@@ -252,6 +257,7 @@ def _equation_to_callable(
             name=plan_step.output,
             parameter_order=equation.__bilt_parameters__,
             output_domain=lowered.domain,
+            input_domains=symbol_domains,
         )
         function_ast = ir_to_functiondef(realised_ir)
     except (BiltIsolationError, BiltSymbolicLoweringError, BiltTensorDomainError) as error:
