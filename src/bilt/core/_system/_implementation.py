@@ -227,26 +227,14 @@ class Implementation:
             plan = self._multi_plan_cache.get(key)
             if plan is None:
                 analyser = self.analyser_for(backend)
+                if not isinstance(analyser, CausalizationStructuralAnalyzer):
+                    return self._fallback_multi_targets(inputs, missing, backend, cached=cached)
                 try:
-                    if not isinstance(analyser, CausalizationStructuralAnalyzer):
-                        msg = "Multi-output planning is unavailable for the selected analyser."
-                        raise BiltExecutionPlanError(msg)
                     plan = analyser.analyse_many(request, missing)
                 except BiltExecutionPlanError:
-                    # A joint matching can fail even when every individual
-                    # target is valid. Keep the established single-target
-                    # implementation as a correctness-preserving fallback.
-                    discovered = dict(cached or {})
-                    computed: dict[str, object] = {}
-                    for target in missing:
-                        if target in discovered:
-                            continue
-                        step = self._evaluate_with_intermediates(
-                            inputs, target, backend, cached=discovered
-                        )
-                        computed.update({name: value for name, value in step.items() if name not in discovered})
-                        discovered.update(step)
-                    return computed
+                    # Incompatible joint matchings must preserve independently
+                    # valid output routes and the intermediate-value cache.
+                    return self._fallback_multi_targets(inputs, missing, backend, cached=cached)
                 self._multi_plan_cache[key] = plan
 
             case = reuse_plan_outputs(plan, frozenset(cached or {}), required_ports=missing)
@@ -271,6 +259,25 @@ class Implementation:
             validate_inputs(self._system.__bilt_name__, self._port_declarations, computed)
             evaluation.domains.bind_all(computed.values())
             return computed
+
+    def _fallback_multi_targets(
+        self,
+        inputs: dict[str, object],
+        targets: tuple[str, ...],
+        backend: Backend,
+        *,
+        cached: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        """Retain intermediate results but use independent, validated routes."""
+        discovered = dict(cached or {})
+        computed: dict[str, object] = {}
+        for target in targets:
+            if target in discovered:
+                continue
+            step = self._evaluate_with_intermediates(inputs, target, backend, cached=discovered)
+            computed.update({name: value for name, value in step.items() if name not in discovered})
+            discovered.update(step)
+        return computed
 
     def get_evaluation(
         self,
