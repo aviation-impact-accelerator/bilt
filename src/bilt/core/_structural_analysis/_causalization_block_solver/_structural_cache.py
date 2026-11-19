@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralScope
 
 
-type StructuralCache = dict[tuple[FullIncidenceGraph, frozenset[str], frozenset[str]], StructuralScope]
+type StructuralCache = dict[tuple[FullIncidenceGraph, frozenset[str], frozenset[str], bool], StructuralScope]
 
 _cache: contextvars.ContextVar[StructuralCache | None] = contextvars.ContextVar("bilt_structural_cache", default=None)
 
