@@ -225,7 +225,9 @@ class Implementation:
             key = (missing, frozenset(request.input_domains.items()), backend, context)
             plan = self._multi_plan_cache.get(key)
             if plan is None:
-                plan = typing.cast("CausalizationStructuralAnalyzer", self.analyser_for(backend)).analyse_many(request, missing)
+                plan = typing.cast("CausalizationStructuralAnalyzer", self.analyser_for(backend)).analyse_many(
+                    request, missing
+                )
                 self._multi_plan_cache[key] = plan
 
             case = reuse_plan_outputs(plan, frozenset(cached or {}), required_ports=missing)
