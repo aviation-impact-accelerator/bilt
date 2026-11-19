@@ -138,9 +138,21 @@ class _TargetSettlement:
         step = self._child_route(operation, output)
         if step is not None:
             return step
-        # With batching enabled, settle sibling-produced boundary ports before
-        # querying again. If the final available set fails, try the intermediate
-        # sets in their original order so no executable route is discarded.
+        retry = yield from self._retry_sibling_ports(operation, output, ports)
+        if retry is not None:
+            return retry
+        # Preserve cyclic/unresolved candidates for explicit checks, without
+        # claiming their dependencies have been established.
+        return _assignment_step(operation, output, self.candidates, self.backend)
+
+    def _retry_sibling_ports(
+        self, operation: SubSystemConstituent, output: str, ports: list[str]
+    ) -> collections.abc.Generator[str, None, PlanStep | None]:
+        """After initial failure, offer established sibling-child outputs.
+
+        Batched mode prefers the final available set but retains each
+        intermediate set as a fallback if the final query cannot be routed.
+        """
         snapshots: list[frozenset[str]] = []
         for port in ports:
             if not isinstance(self.assignments.get(port), SubSystemConstituent):
@@ -163,9 +175,7 @@ class _TargetSettlement:
                 step = _assignment_step(operation, output, available, self.backend)
                 if step is not None:
                     return step
-        # Preserve cyclic/unresolved candidates for explicit checks, without
-        # claiming their dependencies have been established.
-        return _assignment_step(operation, output, self.candidates, self.backend)
+        return None
 
     def _child_route(self, operation: SubSystemConstituent, output: str) -> PlanStep | None:
         """Avoid constraining a child with its own already-computed sibling outputs.
