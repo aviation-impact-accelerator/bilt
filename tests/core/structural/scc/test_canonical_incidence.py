@@ -2,6 +2,8 @@
 
 import pytest
 
+from bilt import equation
+
 from bilt.core._structural_analysis._causalization_block_solver._alias_matching import (
     alias_matching_scope,
     build_alias_matching,
@@ -9,7 +11,19 @@ from bilt.core._structural_analysis._causalization_block_solver._alias_matching 
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import inspect_structure
 
-from .test_alias_matching import connect, origin, sink
+@equation
+def origin(input_value: float, a: float) -> bool:
+    return a == input_value * 2
+
+
+@equation
+def connect(a: float, b: float) -> bool:
+    return a == b
+
+
+@equation
+def sink(b: float, answer: float) -> bool:
+    return answer == 3 * b
 
 
 def test_alias_index_is_reused_for_equivalent_supplied_sets() -> None:
