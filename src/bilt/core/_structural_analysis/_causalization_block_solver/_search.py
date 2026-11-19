@@ -32,6 +32,41 @@ def matching_dedup_scope() -> collections.abc.Generator[None]:
         _deduplicate.reset(token)
 
 
+def _matching_signature(graph: rx.PyGraph) -> tuple[object, object]:
+    """Key a matching by node meaning, weighted edges and exact node indices."""
+    nodes: list[tuple[int, tuple[str, int | str, str]]] = []
+    for index in graph.node_indices():
+        source = graph[index]
+        if isinstance(source, str):
+            label: tuple[str, int | str, str] = ("attribute", source, "")
+        elif isinstance(source, PlanStep):
+            label = ("step", id(source.operation), source.output)
+        else:
+            label = ("operation", id(source), "")
+        nodes.append((index, label))
+    edges = tuple(
+        sorted(
+            (min(first, second), max(first, second), graph.get_edge_data(first, second))
+            for first, second in graph.edge_list()
+        )
+    )
+    return tuple(nodes), edges
+
+
+def _memoized_matching(
+    graph: rx.PyGraph,
+    cache: dict[tuple[object, object], dict[str, BiltModelConstituent]],
+) -> dict[str, BiltModelConstituent]:
+    key = _matching_signature(graph)
+    if (cached := cache.get(key)) is not None:
+        return cached
+    assignments = find_matching(graph)
+    if len(cache) >= 256:  # noqa: PLR2004 - bounded persistent analyser cache
+        del cache[next(iter(cache))]
+    cache[key] = assignments
+    return assignments
+
+
 def _edge_step(graph: rx.PyGraph, first: int, second: int) -> PlanStep:
     """Identify the computation represented by a matching edge."""
     if isinstance(graph[first], str):
@@ -117,6 +152,7 @@ def candidate_assignments(
     failures: collections.abc.Mapping[PlanStep, RealizationFailure],
     *,
     output: str | None,
+    matching_cache: dict[tuple[object, object], dict[str, BiltModelConstituent]] | None = None,
 ) -> collections.abc.Iterator[dict[str, BiltModelConstituent]]:
     """Try matchings while excluding failed or unsuccessful choices.
 
@@ -154,7 +190,11 @@ def candidate_assignments(
             continue
         visited.add(signature)
 
-        assignments = find_matching(candidate_graph)
+        assignments = (
+            _memoized_matching(candidate_graph, matching_cache)
+            if _deduplicate.get() and matching_cache is not None
+            else find_matching(candidate_graph)
+        )
         if _deduplicate.get():
             signature = (
                 frozenset((name, id(operation)) for name, operation in assignments.items()),
