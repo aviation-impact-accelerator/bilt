@@ -13,14 +13,25 @@ that test as an expected failure instead of stopping collection.
 """
 
 import pytest
-from bilt_proposals import ProposalNotImplementedError
+from bilt_proposals import ProposalNotImplementedError, Scope
 
 from bilt.units import ampere, ohm, volt
 
 
-@pytest.mark.xfail(raises=ProposalNotImplementedError, reason="connectors are proposed")
+@pytest.mark.xfail(
+    raises=ProposalNotImplementedError, reason="connectors and choosing implementations inside systems are proposed"
+)
 def test_forward_solve() -> None:
-    from examples.circuits import Ground, Resistor, VoltageSource, WheatstoneBridge, ideal_wheatstone_bridge  # noqa: PLC0415
+    from examples.circuits import (  # noqa: PLC0415
+        Ground,
+        Resistor,
+        VoltageSource,
+        WheatstoneBridge,
+        ideal_ground,
+        ideal_resistor,
+        ideal_voltage_source,
+        ideal_wheatstone_bridge,
+    )
 
     bridge = WheatstoneBridge(
         source=VoltageSource(voltage=10.0 * volt),
@@ -32,15 +43,25 @@ def test_forward_solve() -> None:
         galvanometer=Resistor(resistance=50.0 * ohm),
     )
 
-    with ideal_wheatstone_bridge:
+    with ideal_wheatstone_bridge, ideal_resistor, ideal_voltage_source, ideal_ground:
         assert bridge.galvanometer.current.convert_to(ampere).value == pytest.approx(1 / 505)
-        # Passive sign convention: a source delivering power carries negative current.
         assert bridge.source.current.convert_to(ampere).value == pytest.approx(-59 / 1010)
 
 
-@pytest.mark.xfail(raises=ProposalNotImplementedError, reason="connectors are proposed")
+@pytest.mark.xfail(
+    raises=ProposalNotImplementedError, reason="connectors and choosing implementations inside systems are proposed"
+)
 def test_balancing_is_an_inverse_solve() -> None:
-    from examples.circuits import Ground, Resistor, VoltageSource, WheatstoneBridge, ideal_wheatstone_bridge  # noqa: PLC0415
+    from examples.circuits import (  # noqa: PLC0415
+        Ground,
+        Resistor,
+        VoltageSource,
+        WheatstoneBridge,
+        ideal_ground,
+        ideal_resistor,
+        ideal_voltage_source,
+        ideal_wheatstone_bridge,
+    )
 
     bridge = WheatstoneBridge(
         source=VoltageSource(voltage=10.0 * volt),
@@ -51,5 +72,5 @@ def test_balancing_is_an_inverse_solve() -> None:
         galvanometer=Resistor(resistance=50.0 * ohm, current=0.0 * ampere),
     )
 
-    with ideal_wheatstone_bridge:
+    with Scope(ideal_wheatstone_bridge, ideal_resistor, ideal_voltage_source, ideal_ground):
         assert bridge.arm4.resistance.convert_to(ohm).value == pytest.approx(300.0)

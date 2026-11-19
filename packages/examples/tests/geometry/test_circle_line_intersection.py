@@ -13,14 +13,21 @@ that test as an expected failure instead of stopping collection.
 """
 
 import pytest
-from bilt_proposals import ContinuousUnknown, ProposalNotImplementedError
+from bilt_proposals import ContinuousUnknown, ProposalNotImplementedError, Scope
 
 from bilt.units import UNITLESS, meter
 
 
-@pytest.mark.xfail(raises=ProposalNotImplementedError, reason="groups of ports and inequalities are proposed")
+@pytest.mark.xfail(raises=ProposalNotImplementedError, reason="groups of ports, inequalities and Scope are proposed")
 def test_model_bound_selects_the_radius() -> None:
-    from examples.geometry import Circle, CircleLineIntersection, Line, Point, euclidean_circle_line_intersection  # noqa: PLC0415
+    from examples.geometry import (  # noqa: PLC0415
+        Circle,
+        CircleLineIntersection,
+        Line,
+        Point,
+        euclidean_circle,
+        euclidean_circle_line_intersection,
+    )
 
     intersection = CircleLineIntersection(
         circle=Circle(centre=Point(x=1.0 * meter, y=2.0 * meter)),
@@ -28,14 +35,23 @@ def test_model_bound_selects_the_radius() -> None:
         point=Point(x=4.0 * meter, y=6.0 * meter),
     )
 
-    with euclidean_circle_line_intersection:
+    with Scope(euclidean_circle_line_intersection, circle=euclidean_circle):
         assert intersection.circle.radius.convert_to(meter).value == pytest.approx(5.0)
         assert intersection.line.intercept.convert_to(meter).value == pytest.approx(14.0)
 
 
-@pytest.mark.xfail(raises=ProposalNotImplementedError, reason="groups of ports and ContinuousUnknown are proposed")
+@pytest.mark.xfail(
+    raises=ProposalNotImplementedError, reason="groups of ports, ContinuousUnknown and Scope are proposed"
+)
 def test_bound_selects_an_intersection() -> None:
-    from examples.geometry import Circle, CircleLineIntersection, Line, Point, euclidean_circle_line_intersection  # noqa: PLC0415
+    from examples.geometry import (  # noqa: PLC0415
+        Circle,
+        CircleLineIntersection,
+        Line,
+        Point,
+        euclidean_circle,
+        euclidean_circle_line_intersection,
+    )
 
     intersection = CircleLineIntersection(
         circle=Circle(centre=Point(x=1.0 * meter, y=2.0 * meter), radius=5.0 * meter),
@@ -43,14 +59,23 @@ def test_bound_selects_an_intersection() -> None:
         point=Point(x=ContinuousUnknown(lower=5.0 * meter)),
     )
 
-    with euclidean_circle_line_intersection:
+    with euclidean_circle_line_intersection, euclidean_circle:
         assert intersection.point.x.convert_to(meter).value == pytest.approx(6.0)
         assert intersection.point.y.convert_to(meter).value == pytest.approx(2.0)
 
 
-@pytest.mark.xfail(raises=ProposalNotImplementedError, reason="groups of ports and ContinuousUnknown are proposed")
+@pytest.mark.xfail(
+    raises=ProposalNotImplementedError, reason="groups of ports, ContinuousUnknown and Scope are proposed"
+)
 def test_guess_selects_an_intersection() -> None:
-    from examples.geometry import Circle, CircleLineIntersection, Line, Point, euclidean_circle_line_intersection  # noqa: PLC0415
+    from examples.geometry import (  # noqa: PLC0415
+        Circle,
+        CircleLineIntersection,
+        Line,
+        Point,
+        euclidean_circle,
+        euclidean_circle_line_intersection,
+    )
 
     intersection = CircleLineIntersection(
         circle=Circle(centre=Point(x=1.0 * meter, y=2.0 * meter), radius=5.0 * meter),
@@ -58,6 +83,6 @@ def test_guess_selects_an_intersection() -> None:
         point=Point(x=ContinuousUnknown(guess=3.0 * meter), y=ContinuousUnknown(guess=8.0 * meter)),
     )
 
-    with euclidean_circle_line_intersection:
+    with euclidean_circle_line_intersection, euclidean_circle:
         assert intersection.point.x.convert_to(meter).value == pytest.approx(4.0)
         assert intersection.point.y.convert_to(meter).value == pytest.approx(6.0)
