@@ -85,3 +85,32 @@ SSA references, rather than emitting a flat sequence of AST assignments.
 This preserves simple expression semantics but does not yet demonstrate
 large-DAG reuse or support general statements. It should be treated as an
 executable architecture experiment, not a ready basis for arbitrary backends.
+
+## Follow-up experiment: transforms, validation and program scheduling
+
+The stacked follow-up introduces a conservative `ast_to_ir()` adapter for
+unit-erased transforms containing simple assignments, arithmetic, comparisons,
+scalar conditional expressions and known Bilt tensor intrinsics. Unsupported
+calls, loops, indexing and preserved closure values retain the original AST
+backend path. This is intentional: the presence of an IR must not silently
+reinterpret arbitrary Python.
+
+`ir_to_functiondef()` emits temporary SSA bindings in evaluation order before
+the final return. The shared verifier checks unique SSA definitions, region
+dominance, operation arity and supported positional-axis attributes. Value-type
+metadata currently records broad numerical/Boolean categories and optional
+named domains; it is **not** a dimensional consistency proof or a general
+shape/type inference engine.
+
+`ProgramIR` and `CallStep` offer a first immutable backend-independent
+dependency schedule. The schedule can be constructed from an existing
+`BackendCase` and verified without embedding Python AST or callable objects,
+but **does not yet drive backend compilation or execution**. In particular,
+ordinary child calls and coupled block solves still use the existing
+specialised compilation and realisation paths.
+
+This permits separate validation of IR structure and dependency sequencing.
+The next architectural step would lower selected plans into `ProgramIR`
+*before* compiling individual steps, with explicit child/linear-solve operation
+kinds and typed outputs. It must preserve Bilt's existing path-specific
+realisation failures and search retries.
