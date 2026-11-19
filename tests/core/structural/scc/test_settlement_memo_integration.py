@@ -81,9 +81,7 @@ def test_nested_child_sibling_inputs_preserved_on_cache_hits(
     child = SubSystemConstituent("child", Implementation(Child, [b, c]))
     assignments = {"answer": combined, "child.b": child, "child.c": child}
     with settlement_memo_scope():
-        first = _settle_assignments.settle_assignments(
-            assignments, {"child.a"}, PYTHON_BACKEND, target="answer"
-        )
+        first = _settle_assignments.settle_assignments(assignments, {"child.a"}, PYTHON_BACKEND, target="answer")
         second = _settle_assignments.settle_assignments(
             dict(reversed(tuple(assignments.items()))), {"child.a"}, PYTHON_BACKEND, target="answer"
         )
