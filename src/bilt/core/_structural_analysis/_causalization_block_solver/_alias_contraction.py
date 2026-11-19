@@ -28,6 +28,7 @@ class AliasIncidence:
     attribute_nodes: dict[str, int]
     representatives: dict[str, str]
     eliminated: tuple[ExpandedConstraint, ...]
+    retained: tuple[ExpandedConstraint, ...]
 
     @property
     def distinct_attributes(self) -> int:
@@ -86,7 +87,8 @@ def contract_aliases(snapshot: ExpansionSnapshot) -> AliasIncidence:
         return name
 
     eliminated: list[ExpandedConstraint] = []
-    for row in snapshot.constraints:
+    eliminated_indices: set[int] = set()
+    for index, row in enumerate(snapshot.constraints):
         pair = _alias_pair(row)
         if pair is None or any(name in snapshot.available or name not in parent for name in pair):
             continue
@@ -96,16 +98,16 @@ def contract_aliases(snapshot: ExpansionSnapshot) -> AliasIncidence:
             continue
         parent[max(left, right)] = min(left, right)
         eliminated.append(row)
+        eliminated_indices.add(index)
 
     representatives = {name: find(name) for name in sorted(snapshot.attributes)}
     unknowns = sorted({representatives[name] for name in snapshot.attributes - snapshot.available})
     graph = rx.PyGraph(multigraph=False)
     canonical_nodes = dict(zip(unknowns, graph.add_nodes_from(unknowns), strict=True))
     attribute_nodes = {
-        name: canonical_nodes[representatives[name]] for name in snapshot.attributes - snapshot.available
+        name: canonical_nodes[representatives[name]] for name in sorted(snapshot.attributes - snapshot.available)
     }
-    removed = set(map(id, eliminated))
-    rows = [row for row in snapshot.constraints if id(row) not in removed]
+    rows = [row for index, row in enumerate(snapshot.constraints) if index not in eliminated_indices]
     constraint_nodes = graph.add_nodes_from([row.label for row in rows])
     edges = [
         (node, canonical_nodes[representatives[name]], None)
@@ -113,4 +115,4 @@ def contract_aliases(snapshot: ExpansionSnapshot) -> AliasIncidence:
         for name in sorted({representatives[name] for name in row.attributes - snapshot.available})
     ]
     graph.add_edges_from(edges)
-    return AliasIncidence(graph, attribute_nodes, representatives, tuple(eliminated))
+    return AliasIncidence(graph, attribute_nodes, representatives, tuple(eliminated), tuple(rows))
