@@ -71,14 +71,7 @@ class _TargetSettlement:
         """Revisit stalled dependencies whenever another value was established."""
         while output not in self.established:
             before = len(self.established)
-            pending = [self._resolve(output)]
-            while pending:
-                try:
-                    dependency = next(pending[-1])
-                except StopIteration:
-                    pending.pop()
-                else:
-                    pending.append(self._resolve(dependency))
+            self._walk_target(output)
             if len(self.established) == before:
                 break
         return (
@@ -86,28 +79,48 @@ class _TargetSettlement:
             frozenset((self.requested & self.assignments.keys()) - self.steps.keys()),
         )
 
-    def _resolve(self, attribute: str) -> collections.abc.Iterator[str]:
-        if attribute in self.established or attribute in self.active:
-            return
-        self.requested.add(attribute)
-        operation = self.assignments.get(attribute)
-        if operation is None:
-            return
-        self.active.add(attribute)
-        try:
+    def _walk_target(self, output: str) -> None:
+        """Resolve dependencies using explicit frames instead of nested generators."""
+        pending: list[tuple[str, collections.abc.Iterator[str], PlanStep | None]] = []
+
+        def enter(attribute: str) -> None:
+            if attribute in self.established or attribute in self.active:
+                return
+            self.requested.add(attribute)
+            operation = self.assignments.get(attribute)
+            if operation is None:
+                return
+            self.active.add(attribute)
             if isinstance(operation, SubSystemConstituent):
-                step = yield from self._child_step(operation, attribute)
+                pending.append((attribute, self._child_step(operation, attribute), None))
             else:
                 step = PlanStep(operation=operation, output=attribute)
-            if step is None:
-                self.steps.pop(attribute, None)
-                return
-            self.steps[attribute] = step
-            yield from step.consumed
-            if set(step.consumed) <= self.established:
-                self.established.add(attribute)
+                self.steps[attribute] = step
+                pending.append((attribute, iter(step.consumed), step))
+
+        enter(output)
+        try:
+            while pending:
+                attribute, dependencies, step = pending[-1]
+                try:
+                    dependency = next(dependencies)
+                except StopIteration as finished:
+                    if step is None:
+                        selected: PlanStep | None = finished.value
+                        if selected is not None:
+                            self.steps[attribute] = selected
+                            pending[-1] = (attribute, iter(selected.consumed), selected)
+                            continue
+                        self.steps.pop(attribute, None)
+                    elif set(step.consumed) <= self.established:
+                        self.established.add(attribute)
+                    pending.pop()
+                    self.active.remove(attribute)
+                else:
+                    enter(dependency)
         finally:
-            self.active.remove(attribute)
+            # A child-route exception must not leave an attribute marked active.
+            self.active.difference_update(attribute for attribute, _, _ in pending)
 
     def _child_step(
         self, operation: SubSystemConstituent, output: str
