@@ -227,13 +227,14 @@ class Implementation:
             plan = self._multi_plan_cache.get(key)
             if plan is None:
                 analyser = self.analyser_for(backend)
-                if not isinstance(analyser, CausalizationStructuralAnalyzer):
-                    return self._fallback_multi_targets(inputs, missing, backend, cached=cached)
-                try:
-                    plan = analyser.analyse_many(request, missing)
-                except BiltExecutionPlanError:
-                    # Incompatible joint matchings must preserve independently
-                    # valid output routes and the intermediate-value cache.
+                if isinstance(analyser, CausalizationStructuralAnalyzer):
+                    try:
+                        plan = analyser.analyse_many(request, missing)
+                    except BiltExecutionPlanError:
+                        # Incompatible joint routes retain the validated
+                        # single-output execution and intermediate cache.
+                        pass
+                if plan is None:
                     return self._fallback_multi_targets(inputs, missing, backend, cached=cached)
                 self._multi_plan_cache[key] = plan
 
