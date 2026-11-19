@@ -1,0 +1,125 @@
+name: Profile plan-first ProgramIR
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/profile-program-ir.yml"
+      - "src/bilt/core/_program_ir.py"
+      - "src/bilt/core/_structural_analysis/_realize.py"
+      - "src/bilt/core/_structural_analysis/_realize_qualified.py"
+      - "benchmarks/test_nested_coupled_plan_search.py"
+      - "benchmarks/test_coupled_group_planning.py"
+  workflow_dispatch:
+
+jobs:
+  compare:
+    name: Paired cold planning profile
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      UV_LOCKED: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - name: Check out pre-ProgramIR compilation baseline (PR 486)
+        uses: actions/checkout@v7
+        with:
+          repository: aviation-impact-accelerator/bilt
+          ref: f3a0d15d028213451c426593b018cd602a07a381
+          path: baseline
+
+      - name: Check out candidate (PR 487)
+        uses: actions/checkout@v7
+        with:
+          repository: aviation-impact-accelerator/bilt
+          ref: ${{ github.event.pull_request.head.sha || 'prototype/plan-first-program-ir' }}
+          path: candidate
+
+      - name: Set up uv with Python 3.15
+        uses: astral-sh/setup-uv@v10.3.2
+        with:
+          python-version: "3.15"
+          enable-cache: true
+
+      - name: Set up Rust
+        run: rustup toolchain install
+
+      - name: Install identical dependency groups in each revision
+        run: |
+          (cd baseline && uv sync --all-extras --all-groups)
+          (cd candidate && uv sync --all-extras --all-groups)
+
+      - name: Baseline cold-search and coupled-solve benchmarks
+        working-directory: baseline
+        run: |
+          uv run pytest \
+            benchmarks/test_nested_coupled_plan_search.py \
+            benchmarks/test_coupled_group_planning.py \
+            --search-rounds=25 \
+            --benchmark-warmup=off \
+            --benchmark-json=../baseline-profile.json \
+            --timeout=30
+
+      - name: Candidate cold-search and coupled-solve benchmarks
+        working-directory: candidate
+        run: |
+          uv run pytest \
+            benchmarks/test_nested_coupled_plan_search.py \
+            benchmarks/test_coupled_group_planning.py \
+            --search-rounds=25 \
+            --benchmark-warmup=off \
+            --benchmark-json=../candidate-profile.json \
+            --timeout=30
+
+      - name: Compare same-run distributions
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          baseline = json.loads(Path("baseline-profile.json").read_text())
+          candidate = json.loads(Path("candidate-profile.json").read_text())
+          entries = lambda data: {x["name"]: x for x in data["benchmarks"]}
+          before = entries(baseline)
+          after = entries(candidate)
+          assert before.keys() == after.keys(), "Benchmark cases differ between revisions"
+
+          lines = [
+              "## Paired #486 versus #487 cold-planning profile",
+              "",
+              "Setup and model construction are outside the timed region; each round uses",
+              "a fresh implementation and evaluation context. Both revisions run on the",
+              "same GitHub-hosted runner, sequentially, with 25 rounds per case.",
+              "",
+              "| Case | #486 median (ms) | #487 median (ms) | #487 / #486 | Change |",
+              "|---|---:|---:|---:|---:|",
+          ]
+          for name in sorted(before):
+              old = before[name]["stats"]["median"] * 1000
+              new = after[name]["stats"]["median"] * 1000
+              ratio = new / old
+              change = (ratio - 1) * 100
+              lines.append(f"| `{name}` | {old:.3f} | {new:.3f} | {ratio:.3f}x | {change:+.1f}% |")
+              print(f"PROFILE {name} baseline_ms={old:.6f} candidate_ms={new:.6f} ratio={ratio:.6f}")
+
+          lines += [
+              "",
+              "These are paired CI-run measurements, not a controlled local performance",
+              "study. Median differences near runner jitter should not be overinterpreted.",
+              "The benchmarks exclude model construction and do not measure JAX JIT",
+              "first-call latency or numerical execution throughput.",
+          ]
+          summary = "\n".join(lines) + "\n"
+          print(summary)
+          with Path(__import__("os").environ["GITHUB_STEP_SUMMARY"]).open("a") as stream:
+              stream.write(summary)
+          PY
+
+      - name: Upload raw benchmark distributions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: program-ir-paired-benchmarks
+          path: |
+            baseline-profile.json
+            candidate-profile.json
+          if-no-files-found: warn
