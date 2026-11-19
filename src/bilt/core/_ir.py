@@ -251,7 +251,9 @@ def ir_to_functiondef(function: FunctionIR) -> ast.FunctionDef:
     JAX uses its existing AST validation, conditional rewriting and JIT path
     after this pass; neither backend has to understand the IR in this prototype.
     """
-    body = _block_expression(function.body, {Value(arg): ast.Name(id=arg, ctx=ast.Load()) for arg in function.parameters})
+    body = _block_expression(
+        function.body, {Value(arg): ast.Name(id=arg, ctx=ast.Load()) for arg in function.parameters}
+    )
     function_def = ast.FunctionDef(
         name=function.name,
         args=ast.arguments(
