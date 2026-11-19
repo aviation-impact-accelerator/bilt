@@ -53,7 +53,7 @@ def validate_function_ir(function: FunctionIR) -> None:
     _validate_block(function.body, known, set())
 
 
-def _validate_block(block: Block, visible: set[Value], defined: set[Value]) -> None:  # noqa: C901, PLR0912
+def _validate_block(block: Block, visible: set[Value], defined: set[Value]) -> None:  # noqa: C901
     scope = visible.copy()
     for operation in block.operations:
         if operation.result in defined or operation.result in scope:
