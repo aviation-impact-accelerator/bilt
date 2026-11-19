@@ -117,23 +117,23 @@ def _expr(  # noqa: C901, PLR0911, PLR0912
         try:
             return names[node.id]
         except KeyError:
-            raise _UnsupportedIRError() from None
+            raise _UnsupportedIRError from None
     if isinstance(node, ast.Constant) and type(node.value) in (int, float, bool):
         return builder.emit("arith.constant", attributes=(("value", node.value),))
     if isinstance(node, ast.BinOp):
         op = _BINARY.get(type(node.op))
         if op is None:
-            raise _UnsupportedIRError()
+            raise _UnsupportedIRError
         return builder.emit(op, (_expr(node.left, builder, names), _expr(node.right, builder, names)))
     if isinstance(node, ast.UnaryOp):
         op = _UNARY.get(type(node.op))
         if op is None:
-            raise _UnsupportedIRError()
+            raise _UnsupportedIRError
         return builder.emit(op, (_expr(node.operand, builder, names),))
     if isinstance(node, ast.Compare) and len(node.ops) == 1 and len(node.comparators) == 1:
         op = _COMPARE.get(type(node.ops[0]))
         if op is None:
-            raise _UnsupportedIRError()
+            raise _UnsupportedIRError
         return builder.emit(op, (_expr(node.left, builder, names), _expr(node.comparators[0], builder, names)))
     if isinstance(node, ast.IfExp):
         predicate = _expr(node.test, builder, names)
@@ -148,20 +148,20 @@ def _expr(  # noqa: C901, PLR0911, PLR0912
         try:
             opcode, arity = _INTRINSICS[node.func.id]
         except KeyError:
-            raise _UnsupportedIRError() from None
+            raise _UnsupportedIRError from None
         if len(node.args) != arity:
-            raise _UnsupportedIRError()
+            raise _UnsupportedIRError
         attrs: list[tuple[str, int | float | bool]] = []
         for kw in node.keywords:
             if kw.arg not in ("axis", "keepdims") or not isinstance(kw.value, ast.Constant):
-                raise _UnsupportedIRError()
+                raise _UnsupportedIRError
             value = kw.value.value
             if type(value) not in (int, float, bool):
-                raise _UnsupportedIRError()
+                raise _UnsupportedIRError
             attrs.append((kw.arg, value))
         if opcode.startswith("bilt.") and opcode not in (
             "bilt.where", "bilt.mask_and", "bilt.mask_or", "bilt.mask_not"
         ) and "axis" not in dict(attrs):
-            raise _UnsupportedIRError()
+            raise _UnsupportedIRError
         return builder.emit(opcode, tuple(_expr(arg, builder, names) for arg in node.args), tuple(attrs))
-    raise _UnsupportedIRError()
+    raise _UnsupportedIRError
