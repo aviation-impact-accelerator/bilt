@@ -18,7 +18,7 @@ if typing.TYPE_CHECKING:
 
 type SettlementResult = tuple[tuple[PlanStep, ...], frozenset[str]]
 type SettlementKey = tuple[int, str, frozenset[str], tuple[tuple[str, int], ...]]
-type SettlementEntry = tuple[tuple[BiltModelConstituent, ...], SettlementResult]
+type SettlementEntry = tuple[Backend, tuple[BiltModelConstituent, ...], SettlementResult]
 type SettlementCache = dict[SettlementKey, SettlementEntry]
 
 _enabled: contextvars.ContextVar[bool] = contextvars.ContextVar("bilt_settlement_memo_enabled", default=False)
@@ -77,10 +77,10 @@ def memoized_settlement(
         tuple((name, id(operation)) for name, operation in pairs),
     )
     if (entry := cache.get(key)) is not None:
-        return entry[1]
+        return entry[2]
     settled = compute()
     if len(cache) >= 256:  # noqa: PLR2004 - bounded per-analysis cache
         del cache[next(iter(cache))]
     # Retain identity references for the whole request so id() cannot be reused.
-    cache[key] = (tuple(operation for _, operation in pairs), settled)
+    cache[key] = (backend, tuple(operation for _, operation in pairs), settled)
     return settled
