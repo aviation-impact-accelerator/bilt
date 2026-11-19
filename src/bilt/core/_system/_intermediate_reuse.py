@@ -1,8 +1,10 @@
 """Reuse completed ports only within an execution plan built from supplied inputs."""
 
 import dataclasses
+import typing
 
-from bilt._backend._case import BackendCase
+if typing.TYPE_CHECKING:
+    from bilt._backend._case import BackendCase
 
 
 def reuse_plan_outputs(case: BackendCase, available_ports: frozenset[str]) -> BackendCase:
