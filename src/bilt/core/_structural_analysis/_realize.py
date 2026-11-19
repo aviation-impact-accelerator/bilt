@@ -14,6 +14,7 @@ from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementEr
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._ir import ir_to_functiondef, tree_to_ir
+from bilt.core._program_ir import ProgramIR, program_from_plan
 from bilt.core._port import mangle_name
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._realize_linear import realize_linear_block
@@ -46,19 +47,41 @@ def realize_plan(
     *,
     block_failures: dict[BlockRealizationKey, BlockRealizationFailure] | None = None,
 ) -> BackendCase | RealizationFailure | BlockRealizationFailure:
-    """Realise ordered direct steps and supported linear blocks."""
+    """Construct a neutral execution schedule before compiling its steps."""
+    program = program_from_plan(plan)
+    return _compile_program(plan, program, backend, block_failures=block_failures)
+
+
+def _compile_program(
+    plan: AnalysisPlan,
+    program: ProgramIR,
+    backend: Backend,
+    *,
+    block_failures: dict[BlockRealizationKey, BlockRealizationFailure] | None = None,
+) -> BackendCase | RealizationFailure | BlockRealizationFailure:
+    """Compile the selected schedule while retaining per-block failure handling.
+
+    Compiling lazily per block is essential: failure attribution must still
+    identify the same matched step/block so structural search can retry.
+    """
     symbol_domains = plan.request.input_domains.copy()
-    intermediates = []
-    for index, block in enumerate(plan.blocks):
+    intermediates: list[BackendCallable] = []
+    instructions = iter(program.steps)
+    for block in plan.blocks:
+        instruction = next(instructions)
         if block.is_cyclic:
-            name = f"__bilt_linear_solution_{index}"
-            names = {mangle_name(step.output) for step in plan.steps} | set(map(mangle_name, plan.inputs))
-            while name in names:
-                name += "_"
-            realized = _realize_cyclic_with_domains(block, backend, symbol_domains, name, block_failures)
+            realized = _realize_cyclic_with_domains(
+                block, backend, symbol_domains, instruction.output, block_failures
+            )
             if isinstance(realized, BlockRealizationFailure):
                 return realized
             callables, resolved = realized
+            # One solve result is followed by an explicit projection for every
+            # block output. The backend still owns the specialised solve.
+            for callable_, projected in zip(callables[1:], (next(instructions) for _ in block.outputs), strict=True):
+                if callable_.name != projected.output:
+                    message = f"IR projection {projected.output!r} does not match compiled output {callable_.name!r}."
+                    raise BiltAnalysisError(message)
             intermediates.extend(callables)
             symbol_domains.update(resolved)
             continue
@@ -76,6 +99,9 @@ def realize_plan(
         )
         if isinstance(result, RealizationFailure):
             return result
+        if result.name != instruction.output:
+            message = f"IR step {instruction.output!r} does not match compiled output {result.name!r}."
+            raise BiltAnalysisError(message)
         intermediates.append(result)
 
         candidate_domain = _output_domain(result, step.output)
@@ -85,12 +111,11 @@ def realize_plan(
             return RealizationFailure(failed_plan_step=step, cause=error)
         symbol_domains[step.output] = candidate_domain
 
-    output = mangle_name(plan.output)
     return BackendCase(
-        name=output,
-        parameters=tuple(map(mangle_name, sorted(plan.inputs))),
+        name=program.result,
+        parameters=program.parameters,
         intermediates=intermediates,
-        return_name=output,
+        return_name=program.result,
     )
 
 
