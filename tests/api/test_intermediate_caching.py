@@ -9,6 +9,7 @@ from bilt import Implementation, Interface, Quantity, Tensor, equation, field, s
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
 from bilt.core._system import _implementation as implementation_module
 from bilt.core._system._sentinel import MISSING
 from bilt.symbolic._dimensions import Dim, coordinate_axis
@@ -19,7 +20,6 @@ from bilt.units.units import ampere, gram, kilogram, ohm, volt, watt
 if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCallable, BackendCase
     from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
     from bilt.core._system._instance import SystemInstance
     from bilt.core._system._lowering_and_lifting import LiftingPlan
 
