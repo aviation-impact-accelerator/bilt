@@ -151,7 +151,11 @@ def tree_to_ir(
         parameters=tuple(parameter for parameter in parameter_order if parameter != name),
         body=builder.finish(value),
         output_domain=output_domain,
-        parameter_types=tuple((name, ValueType(domain=value)) for name, value in (input_domains or {}).items()),
+        parameter_types=tuple(
+            (parameter, ValueType(domain=input_domains[parameter]))
+            for parameter in parameter_order
+            if parameter != name and input_domains is not None and parameter in input_domains
+        ),
     )
 
 
