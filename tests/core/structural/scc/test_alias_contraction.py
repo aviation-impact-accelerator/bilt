@@ -200,6 +200,7 @@ def test_multi_hop_alias_chain_keeps_one_representative() -> None:
             (
                 ExpandedConstraint((), connect, frozenset({"a", "b"})),
                 ExpandedConstraint((), connect, frozenset({"a", "b"})),
+                ExpandedConstraint((), connect, frozenset({"a", "b"})),
             ),
             "a",
             "BiltOverconstrainedError",
