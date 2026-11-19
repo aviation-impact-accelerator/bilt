@@ -54,7 +54,8 @@ _ARITY: dict[Opcode, int] = {
 }
 _COMPARE = {Opcode.EQ, Opcode.NE, Opcode.LT, Opcode.LE, Opcode.GT, Opcode.GE}
 _MASK = {Opcode.MASK_AND, Opcode.MASK_OR, Opcode.MASK_NOT}
-_BINARY = {Opcode.ADD, Opcode.SUB, Opcode.MUL, Opcode.DIV, Opcode.POW}
+_ADDITIVE = {Opcode.ADD, Opcode.SUB}
+_MULTIPLICATIVE = {Opcode.MUL, Opcode.DIV}
 _REDUCE = {Opcode.SUM, Opcode.MEAN, Opcode.MIN, Opcode.MAX, Opcode.PROD}
 _NUMERIC = {ValueKind.FLOAT, ValueKind.INTEGER}
 _BRANCH_COUNT = 2
@@ -155,14 +156,39 @@ def _verify_operation(  # noqa: C901, PLR0912, PLR0915
         expected = {ValueKind.BOOLEAN: bool, ValueKind.INTEGER: int, ValueKind.FLOAT: float}
         _require(result.kind in expected and type(value) is expected[result.kind], "Invalid constant type")
         _require(result.domain.is_scalar, "Constant must have a scalar domain")
-    elif code in _BINARY:
+    elif code in _ADDITIVE:
         for arg in args:
             _numeric(arg, code)
         _same_types(args[0], args[1], code.value)
         _same_types(result, args[0], code.value)
+    elif code in _MULTIPLICATIVE:
+        for arg in args:
+            _numeric(arg, code)
+        _require(args[0].kind == args[1].kind == result.kind, f"{code.value}: incompatible element kinds")
+        _require(args[0].domain == args[1].domain == result.domain, f"{code.value}: domain mismatch")
+        if args[0].dimension is not None and args[1].dimension is not None:
+            expected = (
+                args[0].dimension * args[1].dimension
+                if code is Opcode.MUL
+                else args[0].dimension / args[1].dimension
+            )
+            _require(result.dimension == expected, f"{code.value}: physical dimension mismatch")
+    elif code is Opcode.POW:
+        _numeric(args[0], code)
+        _numeric(args[1], code)
+        _require(args[1].domain.is_scalar, "arith.pow: exponent must be scalar")
+        _require(args[1].dimension is None or args[1].dimension.is_dimensionless, "arith.pow: dimensioned exponent")
+        _require(result.domain == args[0].domain, "arith.pow: result domain mismatch")
+        _require(result.kind == args[0].kind, "arith.pow: result kind mismatch")
     elif code in (Opcode.NEG, Opcode.INV):
         _numeric(args[0], code)
-        _same_types(result, args[0], code.value)
+        if code is Opcode.NEG:
+            _same_types(result, args[0], code.value)
+        else:
+            _require(result.kind == args[0].kind and result.domain == args[0].domain,
+                     "arith.inv: result kind or domain mismatch")
+            if args[0].dimension is not None:
+                _require(result.dimension == args[0].dimension**-1, "arith.inv: physical dimension mismatch")
     elif code in _COMPARE:
         for arg in args:
             _numeric(arg, code)
