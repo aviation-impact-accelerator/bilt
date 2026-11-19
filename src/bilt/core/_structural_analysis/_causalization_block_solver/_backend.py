@@ -158,7 +158,7 @@ class CausalizationStructuralAnalyzer:
             # Bound candidate exploration; the existing single-output route
             # remains the correctness-preserving fallback for unsupported sets.
             for index, assignments in enumerate(search.candidate_assignments(graph, self._failures, output=None)):
-                if index >= 24:
+                if index >= 24:  # noqa: PLR2004 - bound experimental joint matching search
                     break
                 try:
                     blocks = planning.plan_blocks_many(assignments, available, targets, backend=self.backend)
