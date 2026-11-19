@@ -66,9 +66,7 @@ def _compile_qualified_program(
                 failure = QualifiedRealizationFailure(block, cause)
                 block_failures[key] = failure
                 return failure
-            for callable_, projected in zip(
-                callables[1:], (next(instructions) for _ in block.unknowns), strict=True
-            ):
+            for callable_, projected in zip(callables[1:], (next(instructions) for _ in block.unknowns), strict=True):
                 if callable_.name != projected.output:
                     message = f"IR projection {projected.output!r} does not match compiled output {callable_.name!r}."
                     raise BiltAnalysisError(message)
