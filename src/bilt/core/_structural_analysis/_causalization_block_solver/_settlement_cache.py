@@ -32,7 +32,8 @@ def settlement_memo_scope() -> collections.abc.Generator[None]:
     """Opt in to exact settled-plan memoization, with no global state retained."""
     token = _enabled.set(True)
     try:
-        yield
+        with settlement_cache_scope():
+            yield
     finally:
         _enabled.reset(token)
 
