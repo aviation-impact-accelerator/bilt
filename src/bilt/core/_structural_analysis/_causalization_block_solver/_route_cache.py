@@ -1,6 +1,6 @@
 """Reuse execution-route queries within one nested analysis call."""
 
-__all__ = ["invalidate_route_cache", "route_cache_scope", "route_cache_generation"]
+__all__ = ["invalidate_route_cache", "route_cache_generation", "route_cache_scope"]
 
 import contextlib
 import contextvars
