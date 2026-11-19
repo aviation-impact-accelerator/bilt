@@ -40,6 +40,16 @@ def connect(a: float, b: float) -> bool:
 
 
 @equation
+def connect_bc(b: float, c: float) -> bool:
+    return b == c
+
+
+@equation
+def relation_d(c: float, d: float) -> bool:
+    return d == 2 * c
+
+
+@equation
 def relation(b: float, c: float) -> bool:
     return c == 2 * b
 
@@ -176,8 +186,8 @@ def test_multi_hop_alias_chain_keeps_one_representative() -> None:
     snapshot = _snapshot(
         (
             ExpandedConstraint((), connect, frozenset({"a", "b"})),
-            ExpandedConstraint((), connect, frozenset({"b", "c"})),
-            ExpandedConstraint((), relation, frozenset({"c", "d"})),
+            ExpandedConstraint((), connect_bc, frozenset({"b", "c"})),
+            ExpandedConstraint((), relation_d, frozenset({"c", "d"})),
         )
     )
     result = contract_aliases(snapshot)
