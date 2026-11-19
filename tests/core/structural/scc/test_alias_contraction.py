@@ -3,10 +3,11 @@
 """Differential checks for experimental direct port alias contraction."""
 
 from dataclasses import replace
+from typing import Annotated
 
 import pytest
 
-from bilt import Implementation, Interface, equation, field, system, transform
+from bilt import Implementation, Interface, QuantityTensor, equation, field, system, transform
 from bilt.core._structural_analysis._causalization_block_solver._alias_contraction import contract_aliases
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltOverconstrainedError,
@@ -22,6 +23,9 @@ from bilt.core._structural_analysis._causalization_block_solver._full_incidence_
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralBoundary
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_structure
 from bilt.core._sub_system import SubSystemConstituent
+from bilt.symbolic._dimensions import dim
+from bilt.symbolic._domains import domain
+from bilt.units.dimensions import DIMENSIONLESS
 
 
 @system
@@ -155,6 +159,34 @@ def test_cycle_remains_a_source_constraint() -> None:
     result = contract_aliases(snapshot)
     assert len(result.eliminated) == 1
     assert result.graph.num_nodes() == 2
+
+
+
+year = dim("year")
+scenario = dim("scenario")
+
+
+@equation
+def same_tensor_domain(
+    first: Annotated[QuantityTensor, DIMENSIONLESS, domain(year)],
+    second: Annotated[QuantityTensor, DIMENSIONLESS, domain(year)],
+) -> bool:
+    return first == second
+
+
+@equation
+def different_tensor_domain(
+    first: Annotated[QuantityTensor, DIMENSIONLESS, domain(year)],
+    second: Annotated[QuantityTensor, DIMENSIONLESS, domain(scenario)],
+) -> bool:
+    return first == second
+
+
+def test_named_tensor_domains_must_match_before_aliasing() -> None:
+    matching = _snapshot((ExpandedConstraint((), same_tensor_domain, frozenset({"first", "second"})),))
+    mismatch = _snapshot((ExpandedConstraint((), different_tensor_domain, frozenset({"first", "second"})),))
+    assert len(contract_aliases(matching).eliminated) == 1
+    assert not contract_aliases(mismatch).eliminated
 
 
 def test_incomplete_snapshot_is_not_contractible() -> None:
