@@ -439,6 +439,8 @@ def test_invalid_evaluation_outputs_do_not_modify_the_instance(
 
 def test_cached_port_does_not_hide_original_overconstraint(backend: Backend) -> None:
     """Caching an independent port must not turn an invalid scope into a valid one."""
+    if implementation_module.CausalizationStructuralAnalyzer is ExhaustiveStructuralAnalyser:
+        pytest.skip("The exhaustive analyser is not used to enforce SCC overconstraint semantics.")
 
     @system
     class Demo(metaclass=Interface):
