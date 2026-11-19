@@ -10,6 +10,7 @@ from bilt.core._structural_analysis._causalization_block_solver._alias_matching 
     alias_matching_scope,
     build_alias_matching,
 )
+from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import inspect_structure
 
@@ -106,5 +107,6 @@ def test_implementation_reuses_incidence_across_structural_and_backend_analysers
     implementation = Implementation(SharedPorts, [connect])
     incidence = implementation.structural_analysis().incidence
     analyser = implementation.analyser_for(PYTHON_BACKEND)
-    assert getattr(analyser, "full_incidence_graph") is incidence
+    assert isinstance(analyser, CausalizationStructuralAnalyzer)
+    assert analyser.full_incidence_graph is incidence
     assert incidence.canonical_index is implementation.structural_analysis().incidence.canonical_index
