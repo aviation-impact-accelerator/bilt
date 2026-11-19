@@ -260,3 +260,34 @@ def test_failed_preferred_producer_keeps_other_route_available() -> None:
         failed_plan_step=PlanStep(operation=first["x"], output="x")
     )
     assert any(candidate.get("x") is not first["x"] for candidate in candidates)
+
+
+def test_dedup_scope_preserves_all_small_target_routes() -> None:
+    """Only suppress repeated yields; never lose distinct possible routes."""
+    names = ("x", "y", "z")
+    choices = [ports for count in (1, 2) for ports in itertools.combinations(names, count)]
+    for relations in itertools.product(choices, repeat=2):
+        graph = rx.PyGraph(multigraph=False)
+        ports = {name: graph.add_node(name) for name in names}
+        for index, attached in enumerate(relations):
+            operation = graph.add_node(typing.cast("BiltModelConstituent", _SmallEquation(f"eq_{index}", attached)))
+            for name in attached:
+                graph.add_edge(ports[name], operation, 0)
+        baseline = {
+            _target_route(assignment, "x") for assignment in search.candidate_assignments(graph, {}, output="x")
+        }
+        with search.matching_dedup_scope():
+            optimized = {
+                _target_route(assignment, "x") for assignment in search.candidate_assignments(graph, {}, output="x")
+            }
+        assert optimized == baseline
+
+
+def test_dedup_scope_restores_previous_state_after_exception() -> None:
+    graph = _graph()
+    ordinary = list(search.candidate_assignments(graph, {}, output=None))
+    with pytest.raises(ValueError, match="aborted"):
+        with search.matching_dedup_scope():
+            assert list(search.candidate_assignments(graph, {}, output=None))
+            raise ValueError("aborted")
+    assert list(search.candidate_assignments(graph, {}, output=None)) == ordinary
