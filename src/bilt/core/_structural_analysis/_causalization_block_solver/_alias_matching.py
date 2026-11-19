@@ -24,6 +24,7 @@ if typing.TYPE_CHECKING:
 
     from bilt.core._equation import BasicEquation
     from bilt.core._model_constituent import BiltModelConstituent
+    from bilt.core._structural_analysis._causalization_block_solver._canonical_incidence import CanonicalView
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
     from bilt.core._structural_analysis._realize import RealizationFailure
 
@@ -108,6 +109,7 @@ def build_alias_matching(
     available: collections.abc.Set[str],
     *,
     matching_graph: rx.PyGraph | None = None,
+    in_place: bool = False,
 ) -> AliasMatching | None:
     """Contract independent direct-equality ports for one matching request.
 
@@ -123,6 +125,8 @@ def build_alias_matching(
     alias_edges = tuple((link.operation, link.left, link.right) for link in view.spanning)
 
     original = matching_graph if matching_graph is not None else build_matching_graph(incidence, supplied)
+    if in_place:
+        return _project_in_place(original, view)
     graph = rx.PyGraph(multigraph=False)
     attributes = {
         name: graph.add_node(name)
@@ -170,6 +174,79 @@ def build_alias_matching(
     )
 
 
+
+def _project_in_place(graph: rx.PyGraph, view: CanonicalView) -> AliasMatching:
+    """Reuse the weighted matching graph instead of constructing another graph.
+
+    Keep source names on candidates and shrink the graph only for the experimental
+    matching. The caller owns a compact snapshot for a possible native fallback.
+    """
+    original_nodes, original_edges = graph.num_nodes(), graph.num_edges()
+    attribute_nodes = {
+        typing.cast("str", graph[node]): node
+        for node in graph.node_indices()
+        if isinstance(graph[node], str)
+    }
+    for node in view.removed:
+        if graph.has_node(node):
+            graph.remove_node(node)
+    for node in list(graph.node_indices()):
+        source = graph[node]
+        if isinstance(source, str):
+            continue
+        operation = source.operation if isinstance(source, PlanStep) else typing.cast("BiltModelConstituent", source)
+        # For a candidate touching multiple equivalent ports, retain the
+        # strongest producer weight and its associated original output.
+        edges: dict[str, tuple[str, int]] = {}
+        native_nodes = tuple(graph.neighbors(node))
+        for attribute_node in native_nodes:
+            native = typing.cast("str", graph[attribute_node])
+            canonical = view.canonical(native)
+            weight = graph.get_edge_data(node, attribute_node)
+            priority = weight if isinstance(weight, int) else 0
+            previous = edges.get(canonical)
+            if previous is None or priority > previous[1] or (priority == previous[1] and native < previous[0]):
+                edges[canonical] = (native, priority)
+        for attribute_node in native_nodes:
+            graph.remove_edge(node, attribute_node)
+        graph[node] = _Candidate(
+            original=operation,
+            outputs={name: native for name, (native, _) in edges.items()},
+            __bilt_parameters__=tuple(sorted({view.canonical(name) for name in operation.__bilt_parameters__})),
+        )
+        for canonical, (_, priority) in edges.items():
+            graph.add_edge(node, attribute_nodes[canonical], priority)
+    for name, node in attribute_nodes.items():
+        if view.canonical(name) != name:
+            graph.remove_node(node)
+    return AliasMatching(
+        graph=graph,
+        representatives=view.representatives,
+        alias_edges=tuple((link.operation, link.left, link.right) for link in view.spanning),
+        original_nodes=original_nodes,
+        original_edges=original_edges,
+    )
+
+
+def _snapshot_graph(
+    graph: rx.PyGraph,
+) -> tuple[tuple[tuple[int, object], ...], tuple[tuple[int, int, object], ...]]:
+    return (
+        tuple((node, graph[node]) for node in graph.node_indices()),
+        tuple((a, b, graph.get_edge_data(a, b)) for a, b in graph.edge_list()),
+    )
+
+
+def _restore_graph(
+    snapshot: tuple[tuple[tuple[int, object], ...], tuple[tuple[int, int, object], ...]],
+) -> rx.PyGraph:
+    nodes, edges = snapshot
+    graph = rx.PyGraph(multigraph=False)
+    remap = {old: graph.add_node(value) for old, value in nodes}
+    graph.add_edges_from((remap[a], remap[b], weight) for a, b, weight in edges)
+    return graph
+
+
 def candidate_assignments(
     incidence: FullIncidenceGraph,
     original_graph: rx.PyGraph,
@@ -183,8 +260,12 @@ def candidate_assignments(
     reduced structural matching exists, not that its native equation directions
     can be realised with the requested domains or chosen child routes.
     """
+    view = incidence.canonical_index.view(available) if alias_matching_enabled() else None
+    original_snapshot = _snapshot_graph(original_graph) if view is not None and view.spanning else None
     contracted = (
-        build_alias_matching(incidence, available, matching_graph=original_graph) if alias_matching_enabled() else None
+        build_alias_matching(incidence, available, matching_graph=original_graph, in_place=True)
+        if original_snapshot is not None
+        else None
     )
     if contracted is not None:
         target = None if output in available else contracted.canonical(output)
@@ -200,8 +281,10 @@ def candidate_assignments(
                 finally:
                     _enabled.reset(token)
 
+    # Recreate the original weighted graph only when the reduced route was rejected.
+    regular = _restore_graph(original_snapshot) if original_snapshot is not None else original_graph
     for assignments in search.candidate_assignments(
-        original_graph,
+        regular,
         failures,
         output=None if output in available else output,
     ):
