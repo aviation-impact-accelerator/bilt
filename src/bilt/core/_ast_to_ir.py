@@ -14,15 +14,15 @@ if typing.TYPE_CHECKING:
     from bilt.symbolic._domains import Domain
 
 
-_BINARY = {
+_BINARY: dict[type[ast.operator], str] = {
     ast.Add: "arith.add",
     ast.Sub: "arith.sub",
     ast.Mult: "arith.mul",
     ast.Div: "arith.div",
     ast.Pow: "arith.pow",
 }
-_UNARY = {ast.USub: "arith.neg", ast.UAdd: "arith.pos"}
-_COMPARE = {
+_UNARY: dict[type[ast.unaryop], str] = {ast.USub: "arith.neg", ast.UAdd: "arith.pos"}
+_COMPARE: dict[type[ast.cmpop], str] = {
     ast.Eq: "cmp.eq",
     ast.NotEq: "cmp.ne",
     ast.Lt: "cmp.lt",
@@ -119,7 +119,7 @@ def _expr(  # noqa: C901, PLR0911, PLR0912
         except KeyError:
             raise _UnsupportedIRError from None
     if isinstance(node, ast.Constant) and type(node.value) in (int, float, bool):
-        return builder.emit("arith.constant", attributes=(("value", node.value),))
+        return builder.emit("arith.constant", attributes=(("value", typing.cast("int | float | bool", node.value)),))
     if isinstance(node, ast.BinOp):
         op = _BINARY.get(type(node.op))
         if op is None:
@@ -158,7 +158,7 @@ def _expr(  # noqa: C901, PLR0911, PLR0912
             value = kw.value.value
             if type(value) not in (int, float, bool):
                 raise _UnsupportedIRError
-            attrs.append((kw.arg, value))
+            attrs.append((typing.cast("str", kw.arg), typing.cast("int | float | bool", value)))
         if (
             opcode.startswith("bilt.")
             and opcode not in ("bilt.where", "bilt.mask_and", "bilt.mask_or", "bilt.mask_not")
