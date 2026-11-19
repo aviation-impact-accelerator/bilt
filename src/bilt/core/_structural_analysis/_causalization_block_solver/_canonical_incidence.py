@@ -50,9 +50,7 @@ class CanonicalIncidenceIndex:
 
     def __init__(self, incidence: FullIncidenceGraph) -> None:
         graph = incidence.graph
-        self.rows: dict[int, BiltModelConstituent] = {
-            node: graph[node] for node in incidence.constituent_nodes
-        }
+        self.rows: dict[int, BiltModelConstituent] = {node: graph[node] for node in incidence.constituent_nodes}
         self.row_attributes: dict[int, tuple[str, ...]] = {
             node: tuple(sorted(typing.cast("str", graph[neighbor]) for neighbor in graph.neighbors(node)))
             for node in incidence.constituent_nodes
