@@ -10,7 +10,7 @@ import typing
 from bilt.core._equation import BasicEquation
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._port import mangle_inputs
+from bilt.core._port import mangle_inputs, mangle_name
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralAnalysis
 from bilt.core._sub_system import SubSystemConstituent
@@ -23,13 +23,14 @@ from bilt.core._system._errors import (
     BiltSubSystemUnreferencedEntryError,
 )
 from bilt.core._system._input_validation import validate_inputs
+from bilt.core._system._intermediate_reuse import reuse_plan_outputs
 from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt._backend import Backend, BackendCallable
+    from bilt._backend import Backend, BackendCallable, BackendCase
     from bilt.core._interface import Interface
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._port_declaration import PortDeclaration
@@ -42,6 +43,8 @@ class _CompilationRequest:
     output: str
     input_domains: frozenset[tuple[str, Domain]]
     backend: Backend
+    expose_intermediates: bool
+    reused_ports: frozenset[str] = frozenset()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -83,6 +86,9 @@ class Implementation:
             _CompilationRequest,
             dict[_CompilationContext, BackendCallable],
         ] = {}
+        self._plan_cache: dict[
+            tuple[str, frozenset[tuple[str, Domain]], Backend, _CompilationContext], BackendCase
+        ] = {}
         self._structural_analysis: StructuralAnalysis | None = None
         self._analysers: dict[Backend, StructuralAnalyser] = {}
         system.__bilt_system_registry__.add(self)
@@ -105,20 +111,35 @@ class Implementation:
             self._analysers[backend] = analyser
         return analyser
 
-    def evaluate(
+    def evaluate(self, inputs: dict[str, object], output: str, backend: Backend) -> object:
+        """Calculate one output without retaining intermediate results."""
+        return self._evaluate(inputs, output, backend, expose_intermediates=False)[output]
+
+    def _evaluate_with_intermediates(
         self,
         inputs: dict[str, object],
         output: str,
         backend: Backend,
-    ) -> object:
-        """Evaluate one output from supplied boundary values using the selected backend."""
-        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+        *,
+        cached: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        """Retain computed ports while keeping original inputs structurally authoritative."""
+        return self._evaluate(inputs, output, backend, expose_intermediates=True, cached=cached)
 
+    def _evaluate(
+        self,
+        inputs: dict[str, object],
+        output: str,
+        backend: Backend,
+        *,
+        expose_intermediates: bool,
+        cached: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
-
             if output in inputs:
-                output_value = inputs[output]
+                outputs = {output: inputs[output]}
             else:
                 request = EvaluationRequest(
                     output=output,
@@ -127,53 +148,80 @@ class Implementation:
                         for name, value in inputs.items()
                     },
                 )
-
-                backend_callable = self.get_evaluation(request, backend)
-
-                output_declaration = self._port_declarations.get(output)
-
-                lowered_inputs = lower_inputs(inputs)
-                alignment_plan = generate_alignment_plan(inputs)
+                available = frozenset(cached or {}) if expose_intermediates else frozenset()
+                backend_callable = self.get_evaluation(
+                    request, backend, expose_intermediates=expose_intermediates, available_intermediates=available
+                )
+                parameters = set(backend_callable.parameters)
+                # The structural plan was derived from 'inputs' alone. Only pass
+                # cached values the pruned execution pipeline explicitly consumes.
+                reused = {name: value for name, value in (cached or {}).items() if mangle_name(name) in parameters}
+                required_inputs = {
+                    name: value for name, value in inputs.items() if mangle_name(name) in parameters
+                } | reused
+                lowered_inputs = lower_inputs(required_inputs)
+                alignment_plan = generate_alignment_plan(required_inputs)
                 aligned_inputs = backend.apply_alignment(lowered_inputs, alignment_plan)
-                raw_output_value = backend_callable.evaluate(mangle_inputs(aligned_inputs))
-
-                output_domain = typing.cast("Domain", backend_callable.output_domain)
-                lifting_plan = generate_lifting_plan(output_domain, output_declaration)
-                output_value = lift_output(raw_output_value, lifting_plan)
-
-            output_declaration = self._port_declarations.get(output)
-            if output_declaration is not None and output_declaration.required_domain is not None:
-                validate_inputs(self._system.__bilt_name__, {output: output_declaration}, {output: output_value})
-            evaluation.domains.bind(output_value)
-
-        return output_value
+                backend_inputs = mangle_inputs(aligned_inputs)
+                if backend_callable.outputs is not None:
+                    raw_outputs = backend_callable.evaluate_outputs(backend_inputs)
+                    output_domains = {item.port: item.domain for item in backend_callable.outputs or ()}
+                else:
+                    raw_outputs = {output: backend_callable.evaluate(backend_inputs)}
+                    output_domains = {output: typing.cast("Domain", backend_callable.output_domain)}
+                outputs = {
+                    name: lift_output(
+                        value, generate_lifting_plan(output_domains[name], self._port_declarations.get(name))
+                    )
+                    for name, value in raw_outputs.items()
+                }
+            validate_inputs(self._system.__bilt_name__, self._port_declarations, outputs)
+            evaluation.domains.bind_all(outputs.values())
+        return outputs
 
     def get_evaluation(
         self,
         request: EvaluationRequest,
         backend: Backend,
+        *,
+        expose_intermediates: bool = False,
+        available_intermediates: frozenset[str] = frozenset(),
     ) -> BackendCallable:
         evaluation = current_evaluation()
-
-        compilation_request = _CompilationRequest(
-            output=request.output,
-            input_domains=frozenset(request.input_domains.items()),
-            backend=backend,
-        )
         compilation_context = _CompilationContext(
             canonical_order=evaluation.canonical_order,
             coordinate_signature=evaluation.domains.coordinate_signature(),
         )
+        plan_key = (request.output, frozenset(request.input_domains.items()), backend, compilation_context)
+        planned_case = self._plan_cache.get(plan_key)
+        if planned_case is None:
+            planned_case = self.analyser_for(backend).analyse(request)
+            self._plan_cache[plan_key] = planned_case
 
+        case = reuse_plan_outputs(planned_case, available_intermediates) if expose_intermediates else planned_case
+        computed_names = {item.backend_name for item in case.outputs}
+        reused_ports = frozenset(
+            item.port
+            for item in planned_case.outputs
+            if item.backend_name in case.parameters and item.backend_name not in computed_names
+        )
+        compilation_request = _CompilationRequest(
+            output=request.output,
+            input_domains=frozenset(request.input_domains.items()),
+            backend=backend,
+            expose_intermediates=expose_intermediates,
+            reused_ports=reused_ports,
+        )
         cached_evaluations = self._evaluation_cache.get(compilation_request)
         if cached_evaluations is not None:
             cached = cached_evaluations.get(compilation_context)
             if cached is not None:
                 return cached
 
-        planned_case = self.analyser_for(backend).analyse(request)
-
-        backend_callable = backend.chain_case(planned_case)
+        # A single-result plan has nothing extra to retain. Keep its backend
+        # callable single-valued to avoid tuple creation and output mapping.
+        expose_outputs = expose_intermediates and len(case.outputs) > 1
+        backend_callable = backend.chain_case(dataclasses.replace(case, expose_intermediates=expose_outputs))
         if planned_case.intermediates:
             output_domain = next(
                 operation.output_domain
@@ -182,14 +230,8 @@ class Implementation:
             )
         else:
             output_domain = request.input_domains[request.output]
-
         backend_callable.output_domain = output_domain
-
-        self._evaluation_cache.setdefault(
-            compilation_request,
-            {},
-        )[compilation_context] = backend_callable
-
+        self._evaluation_cache.setdefault(compilation_request, {})[compilation_context] = backend_callable
         return backend_callable
 
     def __enter__(self) -> typing.Self:

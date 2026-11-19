@@ -5,7 +5,7 @@ import copy
 import dataclasses
 import typing
 
-from bilt._backend._callable import BackendCallable
+from bilt._backend._callable import BackendCallable, BackendOutput
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
 from bilt.core._equation import BasicEquation
@@ -48,6 +48,7 @@ def realize_plan(
     """Realise ordered direct steps and supported linear blocks."""
     symbol_domains = plan.request.input_domains.copy()
     intermediates = []
+    outputs: list[BackendOutput] = []
     for index, block in enumerate(plan.blocks):
         if block.is_cyclic:
             name = f"__bilt_linear_solution_{index}"
@@ -60,6 +61,10 @@ def realize_plan(
             callables, resolved = realized
             intermediates.extend(callables)
             symbol_domains.update(resolved)
+            outputs.extend(
+                BackendOutput(backend_name=callable_.name, port=name, domain=resolved[name])
+                for name, callable_ in zip(sorted(block.outputs), callables[1:], strict=True)
+            )
             continue
 
         step = block.steps[0]
@@ -83,6 +88,7 @@ def realize_plan(
         except BiltEquationDomainRequirementError as error:
             return RealizationFailure(failed_plan_step=step, cause=error)
         symbol_domains[step.output] = candidate_domain
+        outputs.append(BackendOutput(backend_name=result.name, port=step.output, domain=candidate_domain))
 
     output = mangle_name(plan.output)
     return BackendCase(
@@ -90,6 +96,7 @@ def realize_plan(
         parameters=tuple(map(mangle_name, sorted(plan.inputs))),
         intermediates=intermediates,
         return_name=output,
+        outputs=tuple(outputs),
     )
 
 
