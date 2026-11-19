@@ -8,7 +8,7 @@ import ast
 import itertools
 import typing
 
-from bilt.core._ir import Block, FunctionIR, Operation, Value, ValueType
+from bilt.core._ir import Block, FunctionIR, Operation, Value
 
 if typing.TYPE_CHECKING:
     from bilt.symbolic._domains import Domain
