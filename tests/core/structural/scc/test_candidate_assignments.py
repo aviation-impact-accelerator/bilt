@@ -286,8 +286,8 @@ def test_dedup_scope_preserves_all_small_target_routes() -> None:
 def test_dedup_scope_restores_previous_state_after_exception() -> None:
     graph = _graph()
     ordinary = list(search.candidate_assignments(graph, {}, output=None))
-    with pytest.raises(ValueError, match="aborted"):
-        with search.matching_dedup_scope():
-            assert list(search.candidate_assignments(graph, {}, output=None))
-            raise ValueError("aborted")
+    assert ordinary
+    message = "aborted"
+    with pytest.raises(ValueError, match="aborted"), search.matching_dedup_scope():
+        raise ValueError(message)
     assert list(search.candidate_assignments(graph, {}, output=None)) == ordinary
