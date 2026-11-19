@@ -48,8 +48,6 @@ def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -
     instance.__bilt_system_instance_variables__.update(outputs)
     return typing.cast("T", outputs[attribute.name])
 
-
-
 def _prefetch_outputs(instance: SystemInstance, outputs: tuple[str, ...]) -> None:
     """Evaluate multiple instance ports together, retaining their intermediates.
 
@@ -81,9 +79,7 @@ def _prefetch_outputs(instance: SystemInstance, outputs: tuple[str, ...]) -> Non
     fixed_inputs = {
         name: value for name, value in instance.__bilt_system_instance_inputs__.items() if value is not MISSING
     }
-    known = {
-        name: value for name, value in instance.__bilt_system_instance_variables__.items() if value is not MISSING
-    }
+    known = {name: value for name, value in instance.__bilt_system_instance_variables__.items() if value is not MISSING}
     backend = _backend_stack[-1] if _backend_stack else PYTHON_BACKEND
     computed = implementation._evaluate_many_with_intermediates(  # noqa: SLF001
         fixed_inputs,
