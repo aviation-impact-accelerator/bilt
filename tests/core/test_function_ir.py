@@ -3,6 +3,7 @@
 import ast
 
 import jax.numpy as jnp
+import numpy as np
 import pytest
 
 from bilt._backend._jax import JAX_BACKEND
@@ -12,7 +13,7 @@ from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.symbolic._atoms import CONDITIONAL, WHERE
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain, domain
-from bilt.symbolic._expressions import Expr, conditional_expr
+from bilt.symbolic._expressions import Expr, conditional_expr, tensor_symbol_expr
 
 
 @pytest.mark.parametrize("backend_name", ("python", "jax"))
@@ -80,7 +81,7 @@ def test_tensor_where_is_not_mistaken_for_lazy_scalar_branch(backend_name: str) 
 
     backend = PYTHON_BACKEND if backend_name == "python" else JAX_BACKEND
     fn = backend.transpile(ir_to_functiondef(ir))
-    arr = jnp.asarray if backend_name == "jax" else __import__("numpy").asarray
+    arr = jnp.asarray if backend_name == "jax" else np.asarray
     result = fn.callable(arr([-1.0, 2.0]), arr([10.0, 20.0]), arr([30.0, 40.0]))
     assert list(result) == pytest.approx([30.0, 20.0])
 
@@ -88,7 +89,7 @@ def test_tensor_where_is_not_mistaken_for_lazy_scalar_branch(backend_name: str) 
 @pytest.mark.parametrize("backend_name", ("python", "jax"))
 def test_named_reduction_becomes_positional_ir_operation(backend_name: str) -> None:
     time = Dim("time")
-    x = Expr.symbol("x")
+    x = tensor_symbol_expr("x")
     lowered = lower_expression(
         x.sum(time),
         symbol_domains={"x": domain(time)},
