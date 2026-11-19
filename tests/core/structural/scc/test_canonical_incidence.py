@@ -10,6 +10,7 @@ from bilt.core._structural_analysis._causalization_block_solver._alias_matching 
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import inspect_structure
 
+
 @equation
 def origin(input_value: float, a: float) -> bool:
     return a == input_value * 2
