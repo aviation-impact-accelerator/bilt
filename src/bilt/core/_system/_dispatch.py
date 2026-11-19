@@ -48,6 +48,7 @@ def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -
     instance.__bilt_system_instance_variables__.update(outputs)
     return typing.cast("T", outputs[attribute.name])
 
+
 def _prefetch_outputs(instance: SystemInstance, outputs: tuple[str, ...]) -> None:
     """Evaluate multiple instance ports together, retaining their intermediates.
 
