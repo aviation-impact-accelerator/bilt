@@ -32,6 +32,7 @@ def settle_assignments(
     """
     return _TargetSettlement(assignments, available, backend).settle(target)
 
+
 def settle_assignments_many(
     assignments: collections.abc.Mapping[str, BiltModelConstituent],
     available: collections.abc.Set[str],
