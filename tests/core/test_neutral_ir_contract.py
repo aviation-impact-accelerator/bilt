@@ -198,6 +198,7 @@ def test_function_call_program_is_complete_and_ordered() -> None:
         "answer",
     )
     validate_program(program)
+    assert isinstance(program.steps[0], FunctionStep)
     assert program.steps[0].output.name == program.return_name
 
 
