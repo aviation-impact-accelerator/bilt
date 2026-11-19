@@ -25,6 +25,12 @@ class FullIncidenceGraph:
         for constituent in constituents:
             self._add_constituent(constituent)
 
+        from bilt.core._structural_analysis._causalization_block_solver._canonical_incidence import (  # noqa: PLC0415
+            CanonicalIncidenceIndex,
+        )
+
+        self.canonical_index = CanonicalIncidenceIndex(self)
+
     def _add_attribute(self, attribute: str) -> int:
         """Return the existing node index, or create a new attribute node."""
         if attribute not in self.attribute_nodes:

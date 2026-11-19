@@ -5,6 +5,7 @@ __all__ = ["StructuralAnalysis", "StructuralBoundary", "StructuralScope", "inspe
 import dataclasses
 import typing
 
+from bilt.core._structural_analysis._causalization_block_solver._alias_matching import alias_matching_enabled
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 from bilt.core._structural_analysis._causalization_block_solver._structural_cache import get_structural_cache
 from bilt.core._sub_system import SubSystemConstituent
@@ -97,10 +98,13 @@ def inspect_structure(
     supplied = frozenset(available)
     targets = frozenset(required)
     cache = get_structural_cache()
-    key = incidence, supplied, targets
+    indexed = alias_matching_enabled()
+    key = incidence, supplied, targets, indexed
     if cache is not None and key in cache:
         return cache[key]
-    selected, child_ports, attributes = _scope_nodes(incidence, supplied, targets)
+    selected, child_ports, attributes = (
+        _scope_nodes_indexed(incidence, supplied, targets) if indexed else _scope_nodes(incidence, supplied, targets)
+    )
 
     constraints: dict[int, BasicEquation | BasicTransform] = {}
     boundaries: list[StructuralBoundary] = []
@@ -162,6 +166,44 @@ def _scope_nodes(
                 continue
             selected.add(constituent_node)
             connected = {incidence.graph[neighbor] for neighbor in incidence.graph.neighbors(constituent_node)}
+            attributes.update(connected)
+            pending.extend(sorted(connected - supplied, reverse=True))
+
+    return selected, child_ports, attributes
+
+
+def _scope_nodes_indexed(
+    incidence: FullIncidenceGraph, supplied: frozenset[str], targets: frozenset[str]
+) -> tuple[set[int], dict[int, set[str]], set[str]]:
+    """Traverse cached canonical adjacency while emitting the same original rows."""
+    index = incidence.canonical_index
+    view = index.view(supplied)
+    selected: set[int] = set()
+    visited: set[str] = set()
+    attributes = set(targets)
+    pending = sorted(targets, reverse=True)
+    child_ports: dict[int, set[str]] = {}
+
+    while pending:
+        name = pending.pop()
+        if name in supplied:
+            continue
+        canonical = view.canonical(name)
+        if canonical in visited:
+            continue
+        visited.add(canonical)
+        attributes.update(view.members.get(canonical, (name,)))
+        for constituent_node, native_name in view.adjacency.get(canonical, ()):
+            constituent = index.rows[constituent_node]
+            if isinstance(constituent, SubSystemConstituent):
+                child_ports.setdefault(constituent_node, set()).add(constituent.child_port(native_name))
+                continue
+            if isinstance(constituent, BasicTransform) and native_name != constituent.__bilt_name__:
+                continue
+            if constituent_node in selected:
+                continue
+            selected.add(constituent_node)
+            connected = set(index.row_attributes[constituent_node])
             attributes.update(connected)
             pending.extend(sorted(connected - supplied, reverse=True))
 
