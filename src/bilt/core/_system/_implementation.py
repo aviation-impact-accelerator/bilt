@@ -186,7 +186,6 @@ class Implementation:
             evaluation.domains.bind_all(outputs.values())
         return outputs
 
-
     def _evaluate_many_with_intermediates(
         self,
         inputs: dict[str, object],
@@ -237,9 +236,7 @@ class Implementation:
                 self._multi_callable_cache[compile_key] = callable_
 
             parameters = set(callable_.parameters)
-            required_inputs = {
-                name: value for name, value in inputs.items() if mangle_name(name) in parameters
-            } | {
+            required_inputs = {name: value for name, value in inputs.items() if mangle_name(name) in parameters} | {
                 name: value for name, value in (cached or {}).items() if mangle_name(name) in parameters
             }
             lowered = lower_inputs(required_inputs)
