@@ -20,7 +20,7 @@ from bilt.core._structural_analysis._causalization_block_solver._expand_structur
     UnresolvedBoundary,
 )
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
-from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralBoundary
+from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralBoundary, inspect_structure
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_structure
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.symbolic._dimensions import dim
@@ -260,3 +260,44 @@ def test_incomplete_snapshot_is_not_contractible() -> None:
     )
     with pytest.raises(Exception, match="before all relevant child boundaries"):
         contract_aliases(incomplete)
+
+
+@pytest.mark.parametrize(
+    ("available", "target"),
+    (
+        (frozenset(), "a"),
+        (frozenset(), "d"),
+        (frozenset({"a"}), "d"),
+        (frozenset({"b"}), "d"),
+        (frozenset({"a", "b"}), "d"),
+        (frozenset({"d"}), "d"),
+    ),
+)
+def test_early_alias_local_discovery_preserves_source_scope(
+    available: frozenset[str], target: str
+) -> None:
+    incidence = FullIncidenceGraph([connect, connect_bc, relation_d])
+    original = inspect_structure(incidence, available, {target})
+    early = inspect_structure(incidence, available, {target}, early_aliases=True)
+    assert early == original
+
+
+@pytest.mark.parametrize("supplied", (frozenset(), frozenset({"left.x"}), frozenset({"right.x"})))
+def test_early_alias_nested_expansion_preserves_all_source_rows(supplied: frozenset[str]) -> None:
+    child = Implementation(Ports, [child_relation])
+    left = SubSystemConstituent("left", child)
+    right = SubSystemConstituent("right", child)
+    incidence = FullIncidenceGraph([left, right, bridge, expose])
+    original = StructuralExpansion(incidence, supplied, "output")
+    early = StructuralExpansion(incidence, supplied, "output", early_aliases=True)
+    original.collect()
+    early.collect()
+    assert early.snapshot() == original.snapshot()
+    assert early.snapshot().complete
+
+
+def test_early_alias_preserves_redundant_connection_rows() -> None:
+    incidence = FullIncidenceGraph([connect, connect, connect_bc, relation_d])
+    original = inspect_structure(incidence, set(), {"d"})
+    early = inspect_structure(incidence, set(), {"d"}, early_aliases=True)
+    assert early == original
