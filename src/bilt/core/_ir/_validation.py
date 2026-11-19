@@ -131,7 +131,7 @@ def _validate_block(block: Block, parent: Mapping[str, ValueType], defined: set[
     return scope[block.yield_name]
 
 
-def _verify_operation(  # noqa: C901, PLR0912
+def _verify_operation(  # noqa: C901, PLR0912, PLR0915
     op: Operation,
     args: list[ValueType],
     attrs: dict[str, bool | int | float | str],
