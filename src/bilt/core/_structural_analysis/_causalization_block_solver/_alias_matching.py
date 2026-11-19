@@ -16,6 +16,7 @@ import rustworkx as rx
 
 from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._causalization_block_solver._alias_contraction import _direct_equal_ports
+from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._matching import build_matching_graph
 from bilt.core._structural_analysis._plan import PlanStep
 
@@ -118,7 +119,6 @@ def build_alias_matching(
             name = parent[name]
         return name
 
-    removed: set[int] = set()
     alias_edges: list[tuple[BasicEquation, str, str]] = []
     for node in incidence.constituent_nodes:
         operation = incidence.graph[node]
@@ -131,7 +131,6 @@ def build_alias_matching(
         if left == right:
             continue  # Keep redundant/cyclic source equations for validation.
         parent[max(left, right)] = min(left, right)
-        removed.add(node)
         alias_edges.append((operation, *pair))
 
     if not alias_edges:
@@ -166,7 +165,7 @@ def build_alias_matching(
         if not natives:
             continue
         candidate = _Candidate(
-            operation=operation,
+            original=operation,
             outputs=natives,
             __bilt_parameters__=tuple(sorted({representatives[name] for name in operation.__bilt_parameters__})),
         )
@@ -187,3 +186,30 @@ def build_alias_matching(
         original_nodes=original.num_nodes(),
         original_edges=original.num_edges(),
     )
+
+def candidate_assignments(
+    incidence: FullIncidenceGraph,
+    available: collections.abc.Set[str],
+    failures: collections.abc.Mapping[PlanStep, object],
+    output: str,
+) -> collections.abc.Iterator[dict[str, BiltModelConstituent]]:
+    """Try reduced matching first, then exhaust the unchanged production search.
+
+    The ordinary fallback is important: the alias view only proves that a
+    reduced structural matching exists, not that its native equation directions
+    can be realised with the requested domains or chosen child routes.
+    """
+    contracted = build_alias_matching(incidence, available) if alias_matching_enabled() else None
+    if contracted is not None:
+        target = None if output in available else contracted.canonical(output)
+        for assignments in search.candidate_assignments(contracted.graph, {}, output=target):
+            restored = contracted.restore(typing.cast("dict[str, _Candidate]", assignments))
+            if output in available or output in restored:
+                yield restored
+
+    regular = build_matching_graph(incidence, available)
+    for assignments in search.candidate_assignments(
+        regular, typing.cast("collections.abc.Mapping[PlanStep, typing.Any]", failures),
+        output=None if output in available else output,
+    ):
+        yield assignments
