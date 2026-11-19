@@ -185,6 +185,7 @@ def _verify_operation(  # noqa: C901, PLR0912
         _require(set(attrs) == {"axis"}, f"{code.value}: expected positional axis")
         axis = attrs["axis"]
         _require(type(axis) is int and 0 <= axis < len(args[0].domain.dims), "Invalid positional tensor axis")
+        axis = typing.cast("int", axis)
         _require(result.kind == args[0].kind, f"{code.value}: result kind mismatch")
         _require(result.dimension == args[0].dimension, f"{code.value}: physical dimension mismatch")
         if code in _REDUCE:
