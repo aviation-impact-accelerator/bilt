@@ -15,8 +15,8 @@ from collections import deque
 import rustworkx as rx
 
 from bilt.core._equation import BasicEquation
-from bilt.core._structural_analysis._causalization_block_solver._alias_contraction import _direct_equal_ports
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
+from bilt.core._structural_analysis._causalization_block_solver._alias_contraction import _direct_equal_ports
 from bilt.core._structural_analysis._causalization_block_solver._matching import build_matching_graph
 from bilt.core._structural_analysis._plan import PlanStep
 
@@ -24,8 +24,8 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
     from bilt.core._model_constituent import BiltModelConstituent
-    from bilt.core._structural_analysis._realize import RealizationFailure
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
+    from bilt.core._structural_analysis._realize import RealizationFailure
 
 
 _enabled: contextvars.ContextVar[bool] = contextvars.ContextVar("bilt_alias_matching", default=False)
@@ -103,7 +103,7 @@ class AliasMatching:
         return self.original_edges - self.graph.num_edges()
 
 
-def build_alias_matching(
+def build_alias_matching(  # noqa: C901, PLR0912 - experimental matching graph projection
     incidence: FullIncidenceGraph, available: collections.abc.Set[str]
 ) -> AliasMatching | None:
     """Contract independent direct-equality ports for one matching request.
@@ -148,10 +148,7 @@ def build_alias_matching(
         source = original[node]
         if isinstance(source, str):
             continue
-        if isinstance(source, PlanStep):
-            operation = source.operation
-        else:
-            operation = typing.cast("BiltModelConstituent", source)
+        operation = source.operation if isinstance(source, PlanStep) else typing.cast("BiltModelConstituent", source)
         # Direct aliases already have a retained spanning forest for recovery.
         if isinstance(operation, BasicEquation) and any(operation is item[0] for item in alias_edges):
             continue
