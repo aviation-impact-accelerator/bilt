@@ -33,16 +33,20 @@ class ProgramIR:
     def verify(self) -> None:
         available = set(self.parameters)
         if len(available) != len(self.parameters):
-            raise ValueError("Duplicate program parameter.")
+            message = "Duplicate program parameter."
+            raise ValueError(message)
         for step in self.steps:
             if step.output in available:
-                raise ValueError(f"Program value {step.output!r} has multiple producers.")
+                message = f"Program value {step.output!r} has multiple producers."
+                raise ValueError(message)
             missing = set(step.inputs) - available
             if missing:
-                raise ValueError(f"Program step {step.output!r} needs unavailable inputs: {sorted(missing)!r}.")
+                message = f"Program step {step.output!r} needs unavailable inputs: {sorted(missing)!r}."
+                raise ValueError(message)
             available.add(step.output)
         if self.result not in available:
-            raise ValueError(f"Program result {self.result!r} has no producer.")
+            message = f"Program result {self.result!r} has no producer."
+            raise ValueError(message)
 
 
 def program_from_case(case: BackendCase) -> ProgramIR:
