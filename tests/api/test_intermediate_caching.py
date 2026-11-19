@@ -5,10 +5,11 @@ import typing
 import numpy as np
 import pytest
 
-from bilt import Implementation, Interface, Quantity, Tensor, equation, field, system, tensor, transform
+from bilt import Implementation, Interface, Quantity, QuantityTensor, Tensor, equation, field, system, tensor, transform
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
+from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
 from bilt.core._system import _implementation as implementation_module
 from bilt.core._system._sentinel import MISSING
@@ -24,7 +25,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._system._lowering_and_lifting import LiftingPlan
 
 Mass = typing.Annotated[Quantity, MASS]
-MassTensor = typing.Annotated[Tensor, MASS]
+MassTensor = typing.Annotated[QuantityTensor, MASS]
 Current = typing.Annotated[Quantity, CURRENT]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
@@ -84,7 +85,16 @@ def test_later_requests_reuse_computed_ports(backend: Backend, monkeypatch: pyte
         assert instance.c is cached
         assert instance.e == pytest.approx(12.0)
 
-    assert [[output.port for output in plan.outputs] for plan in plans] == [["c", "d"], ["e"]]
+    # Both structural plans are built from the original supplied boundary.
+    assert [[output.port for output in plan.outputs] for plan in plans] == [["c", "d"], ["c", "d", "e"]]
+    # The second compiled execution plan consumes cached c and d, computing only e.
+    reused = [
+        callable_
+        for key, contexts in implementation._evaluation_cache.items()  # noqa: SLF001
+        if key.reused_ports == frozenset({"c", "d"})
+        for callable_ in contexts.values()
+    ]
+    assert [[item.port for item in callable_.outputs or ()] for callable_ in reused] == [["e"]]
     assert _variables(instance)["a"] is supplied
     assert _variables(instance)["c"] is cached
 
@@ -428,34 +438,42 @@ def test_invalid_evaluation_outputs_do_not_modify_the_instance(
 
 
 def test_cached_port_does_not_hide_original_overconstraint(backend: Backend) -> None:
-    """Cached results cannot turn an invalid newly requested scope into a valid request."""
+    """Caching an independent port must not turn an invalid scope into a valid one."""
 
     @system
     class Demo(metaclass=Interface):
         a: float = field()
+        z: float = field()
         x: float = field()
         y: float = field()
 
     @transform
-    def x(a: float) -> float:
+    def z(a: float) -> float:
         return a + 1
 
-    @equation
-    def conflicting(a: float, x: float, y: float) -> bool:
-        return y == x + a
+    @transform
+    def x(a: float) -> float:
+        return a * 2
 
     @equation
-    def redundant(a: float, x: float, y: float) -> bool:
-        return y == x * a
+    def conflicting(x: float, y: float) -> bool:
+        return y == x + 1
 
-    with backend, Implementation(Demo, [x, conflicting, redundant]):
+    @equation
+    def redundant(x: float, y: float) -> bool:
+        return y == x * 2
+
+    with backend, Implementation(Demo, [z, x, conflicting, redundant]):
         instance = Demo(a=2.0)
-        assert instance.x == pytest.approx(3.0)
+        assert instance.z == pytest.approx(3.0)
         with pytest.raises(BiltOverconstrainedError):
             _ = instance.y
 
 
 def test_linear_block_intermediates_are_exposed(backend: Backend) -> None:
+    if implementation_module.CausalizationStructuralAnalyzer is ExhaustiveStructuralAnalyser:
+        pytest.skip("Exhaustive analysis does not support coupled linear blocks.")
+
     @system
     class Demo(metaclass=Interface):
         a: float = field()

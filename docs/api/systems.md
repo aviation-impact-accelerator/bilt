@@ -53,9 +53,10 @@ and caches requested outputs and intermediate ports computed along the selected 
 Later lookups can reuse those values, including ports without interface fields.
 Each value retains its own tensor domain and declared unit. Parent-visible child
 ports use dotted names, while private child internals are not exposed.
-When reusing calculated ports, Bilt first validates the original request from
-constructor-supplied inputs; if the cached values overconstrain route selection,
-it falls back to evaluating from those original inputs.
+Bilt plans each request using only constructor-supplied inputs, so retaining
+intermediates never adds structural constraints. Subsequent execution may use
+only the cached ports required by that already-validated plan; unneeded
+intermediates are not lowered or aligned again.
 No values are shared between instances. Large intermediate tensors remain in
 memory for the lifetime of the instance. Direct `Implementation.evaluate(...)`
 continues to return only the requested value.
@@ -72,9 +73,9 @@ selection argument. Exhaustive analysis remains available internally for
 comparison tests and benchmarks.
 
 Instance results and intermediate ports are cached. Later requests can reuse
-calculated ports as execution inputs, but request-scoped structural validation
-still uses the original constructor-supplied inputs. Calculated ports must not
-turn a previously well-constrained model into an overconstrained one.
+only the ports required by a structurally valid execution plan. Structural
+planning uses the original constructor-supplied inputs, so calculated ports
+cannot turn a well-constrained model into an overconstrained one.
 
 SCC validates simultaneous constraints in the relevant scope. Two equations
 that independently determine the same unknown from supplied values can therefore
