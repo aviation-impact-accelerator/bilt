@@ -12,6 +12,7 @@ from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
+from bilt.core._ir import ir_to_functiondef, tree_to_ir
 from bilt.core._port import mangle_name
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._realize_linear import realize_linear_block
@@ -19,7 +20,6 @@ from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._tensors._errors import BiltSymbolicLoweringError, BiltTensorDomainError
 from bilt.core._tensors._expression_lowering import lower_expression
 from bilt.core._tensors._transform_lowering import lower_transform
-from bilt.core._to_ast import tree_to_functiondef
 from bilt.core._transform import BasicTransform
 from bilt.symbolic._domains import Domain
 from bilt.symbolic._expressions import Expr
@@ -247,11 +247,13 @@ def _equation_to_callable(
             symbol_domains=symbol_domains,
             canonical_order=current_evaluation().canonical_order,
         )
-        function_ast = tree_to_functiondef(
+        realised_ir = tree_to_ir(
             lowered.tree,
             name=plan_step.output,
             parameter_order=equation.__bilt_parameters__,
+            output_domain=lowered.domain,
         )
+        function_ast = ir_to_functiondef(realised_ir)
     except (BiltIsolationError, BiltSymbolicLoweringError, BiltTensorDomainError) as error:
         return RealizationFailure(
             failed_plan_step=plan_step,
