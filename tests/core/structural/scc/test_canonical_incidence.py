@@ -2,7 +2,8 @@
 
 import pytest
 
-from bilt import equation
+from bilt import Implementation, Interface, equation, field, system
+from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._structural_analysis._causalization_block_solver._alias_matching import (
     _restore_graph,
     _snapshot_graph,
@@ -93,3 +94,17 @@ def test_in_place_projection_preserves_native_fallback_graph() -> None:
     restored = _restore_graph(snapshot)
     after = tuple((restored[a], restored[b], restored.get_edge_data(a, b)) for a, b in restored.edge_list())
     assert after == before
+
+
+@system
+class SharedPorts(metaclass=Interface):
+    a: float = field()
+    b: float = field()
+
+
+def test_implementation_reuses_incidence_across_structural_and_backend_analysers() -> None:
+    implementation = Implementation(SharedPorts, [connect])
+    incidence = implementation.structural_analysis().incidence
+    analyser = implementation.analyser_for(PYTHON_BACKEND)
+    assert analyser.full_incidence_graph is incidence
+    assert incidence.canonical_index is implementation.structural_analysis().incidence.canonical_index
