@@ -1,0 +1,138 @@
+name: Profile Bilt multi-output benchmark regressions
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/profile-multi-output.yml"
+  workflow_dispatch:
+
+jobs:
+  compare:
+    name: Existing Bilt benchmark suite, pinned A/B/B/A
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          python-version: "3.15"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install Rust toolchain
+        run: rustup toolchain install
+      - name: Run routine benchmark suite against two pinned versions
+        shell: bash
+        env:
+          PYTHONHASHSEED: "0"
+          UV_PYTHON: "3.15"
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bilt-profile"
+          for variant in baseline candidate candidate baseline; do
+            if [ "$variant" = "baseline" ]; then
+              sha=773097cfe96dac3a3654b7eec76f2c6a64e7cef7
+            else
+              sha=bca7ad18a8ed6db1760c577880f2c5b5f2cced83
+            fi
+            if [ ! -e "$RUNNER_TEMP/bilt-profile/${variant}_pass1.json" ]; then
+              pass=1
+            else
+              pass=2
+            fi
+            git checkout --detach "$sha"
+            uv sync --locked --all-extras --reinstall-package bilt
+            echo "BENCHMARK_VARIANT=$variant SHA=$sha PASS=$pass"
+            uv run --no-sync python -m pytest benchmarks \
+              --benchmark-only \
+              --timeout=100 \
+              --search-rounds=3 \
+              --benchmark-json="$RUNNER_TEMP/bilt-profile/${variant}_pass${pass}.json" \
+              -q
+          done
+      - name: Compare matched benchmark medians
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          import os
+          from collections import defaultdict
+          from pathlib import Path
+
+          folder = Path(os.environ["RUNNER_TEMP"]) / "bilt-profile"
+          data = {}
+          for version in ("baseline", "candidate"):
+              for number in (1, 2):
+                  path = folder / f"{version}_pass{number}.json"
+                  if not path.exists():
+                      print(f"MISSING_BENCHMARK_FILE={path.name}")
+                      continue
+                  obj = json.loads(path.read_text())
+                  data[(version, number)] = {
+                      case["fullname"]: {
+                          "seconds": case["stats"]["median"],
+                          "group": case.get("group") or "ungrouped",
+                          "name": case["name"],
+                      }
+                      for case in obj.get("benchmarks", [])
+                  }
+          if len(data) != 4:
+              print("BENCHMARK_ABBA_INCOMPLETE=1")
+          else:
+              keys = set.intersection(*(set(run) for run in data.values()))
+              missing = {
+                  f"{kind}_{i}": len(set(data[(kind, i)]) - keys)
+                  for kind in ("baseline", "candidate")
+                  for i in (1, 2)
+              }
+              rows = []
+              grouped = defaultdict(list)
+              for key in sorted(keys):
+                  old = [data[("baseline", p)][key]["seconds"] for p in (1, 2)]
+                  new = [data[("candidate", p)][key]["seconds"] for p in (1, 2)]
+                  old_avg = math.sqrt(old[0] * old[1])
+                  new_avg = math.sqrt(new[0] * new[1])
+                  ratio = new_avg / old_avg
+                  row = {
+                      "name": key,
+                      "group": data[("baseline", 1)][key]["group"],
+                      "baseline_ms": round(old_avg * 1000, 4),
+                      "candidate_ms": round(new_avg * 1000, 4),
+                      "ratio": round(ratio, 4),
+                      "pass_ratios": [round(new[i] / old[i], 4) for i in (0, 1)],
+                  }
+                  rows.append(row)
+                  grouped[row["group"]].append(math.log(ratio))
+              counts = {
+                  "regress_gt_10pct": sum(row["ratio"] >= 1.1 for row in rows),
+                  "regress_gt_20pct": sum(row["ratio"] >= 1.2 for row in rows),
+                  "speedup_gt_10pct": sum(row["ratio"] <= 0.9 for row in rows),
+                  "speedup_gt_20pct": sum(row["ratio"] <= 0.8 for row in rows),
+              }
+              summary = {
+                  "paired_cases": len(rows),
+                  "unmatched_cases": missing,
+                  "counts": counts,
+                  "overall_geomean_ratio": round(math.exp(sum(math.log(r["ratio"]) for r in rows) / len(rows)), 4),
+                  "groups": {g: {"cases": len(v), "geomean_ratio": round(math.exp(sum(v) / len(v)), 4)}
+                             for g, v in sorted(grouped.items())},
+              }
+              print("BILT_BENCHMARK_SUMMARY=" + json.dumps(summary, sort_keys=True))
+              for row in rows:
+                  print("BILT_BENCHMARK_CASE=" + json.dumps(row, sort_keys=True))
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
+                  output.write(f"### Bilt #497 vs #338: {len(rows)} paired routine benchmarks\\n\\n")
+                  output.write("| Group | Cases | Candidate / baseline (geomean) |\\n|---|---:|---:|\\n")
+                  for group, value in summary["groups"].items():
+                      output.write(f"| {group} | {value['cases']} | {value['geomean_ratio']:.3f}× |\\n")
+                  output.write(f"\\nRegressions >10%: {counts['regress_gt_10pct']}; improvements >10%: {counts['speedup_gt_10pct']}.\\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bilt-multi-output-benchmark-json
+          path: ${{ runner.temp }}/bilt-profile/*.json
+          if-no-files-found: warn
