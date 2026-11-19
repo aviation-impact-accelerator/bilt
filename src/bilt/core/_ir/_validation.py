@@ -185,8 +185,10 @@ def _verify_operation(  # noqa: C901, PLR0912, PLR0915
         if code is Opcode.NEG:
             _same_types(result, args[0], code.value)
         else:
-            _require(result.kind == args[0].kind and result.domain == args[0].domain,
-                     "arith.inv: result kind or domain mismatch")
+            _require(
+                result.kind == args[0].kind and result.domain == args[0].domain,
+                "arith.inv: result kind or domain mismatch",
+            )
             if args[0].dimension is not None:
                 _require(result.dimension == args[0].dimension**-1, "arith.inv: physical dimension mismatch")
     elif code in _COMPARE:
