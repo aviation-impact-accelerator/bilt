@@ -49,8 +49,17 @@ with model:
 ```
 
 An instance retains the implementation selected on its first calculated lookup
-and caches requested outputs. Use a fresh instance when comparing implementations,
-inputs or backends. Registering an implementation alone does not activate it.
+and caches requested outputs and intermediate ports computed along the selected plan.
+Later lookups can reuse those values, including ports without interface fields.
+Each value retains its own tensor domain and declared unit. Parent-visible child
+ports use dotted names, while private child internals are not exposed.
+When reusing calculated ports, Bilt first validates the original request from
+constructor-supplied inputs; if the cached values overconstrain route selection,
+it falls back to evaluating from those original inputs.
+No values are shared between instances. Large intermediate tensors remain in
+memory for the lifetime of the instance. Direct `Implementation.evaluate(...)`
+continues to return only the requested value.
+Use a fresh instance when comparing implementations, inputs or backends. Registering an implementation alone does not activate it.
 Component order does not prescribe execution order.
 
 ## Evaluation and structural analysis
@@ -62,9 +71,10 @@ blocks spanning parent and child equations. There is no separate public solver
 selection argument. Exhaustive analysis remains available internally for
 comparison tests and benchmarks.
 
-Instance results are cached, but only constructor-supplied values are boundary
-inputs for subsequent requests. Reading one calculated output does not add an
-extra supplied constraint when another output of the same block is requested.
+Instance results and intermediate ports are cached. Later requests can reuse
+calculated ports as execution inputs, but request-scoped structural validation
+still uses the original constructor-supplied inputs. Calculated ports must not
+turn a previously well-constrained model into an overconstrained one.
 
 SCC validates simultaneous constraints in the relevant scope. Two equations
 that independently determine the same unknown from supplied values can therefore

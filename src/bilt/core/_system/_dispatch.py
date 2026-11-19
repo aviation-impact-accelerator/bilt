@@ -5,6 +5,14 @@ import typing
 from bilt._backend._base_backend import _backend_stack
 from bilt._backend._python import PYTHON_BACKEND
 from bilt.core._system._errors import BiltUnknownSystemAttributeError
+from bilt.core._structural_analysis._causalization_block_solver._errors import (
+    BiltExecutionPlanError,
+    BiltOverconstrainedError,
+    BiltUnderconstrainedError,
+)
+from bilt.core._structural_analysis._causalization_block_solver._structural_validation import (
+    validate_request_structure,
+)
 
 from ._sentinel import MISSING, _Missing
 
@@ -26,9 +34,29 @@ def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -
             raise BiltUnknownSystemAttributeError(attribute.name, instance)
         implementation = cls.__bilt_system_implementation_default__[-1]
         instance.__bilt_system_implementation__ = implementation
-    inputs = {name: value for name, value in instance.__bilt_system_instance_inputs__.items() if value is not MISSING}
-    output = attribute.name
+    fixed_inputs = {name: value for name, value in instance.__bilt_system_instance_inputs__.items() if value is not MISSING}
+    cached_inputs = {name: value for name, value in instance.__bilt_system_instance_variables__.items() if value is not MISSING}
     backend = _backend_stack[-1] if _backend_stack else PYTHON_BACKEND
-    result = typing.cast("T", implementation.evaluate(inputs=inputs, output=output, backend=backend))
-    instance.__bilt_system_instance_variables__[attribute.name] = result
-    return result
+    output = attribute.name
+    if cached_inputs.keys() - fixed_inputs.keys():
+        # Cached computations are not independent structural constraints.
+        validate_request_structure(implementation.structural_analysis().incidence, set(fixed_inputs), output)
+        try:
+            outputs = implementation._evaluate_with_intermediates(  # noqa: SLF001
+                inputs=cached_inputs, output=output, backend=backend
+            )
+        except (BiltExecutionPlanError, BiltOverconstrainedError, BiltUnderconstrainedError):
+            outputs = implementation._evaluate_with_intermediates(  # noqa: SLF001
+                inputs=fixed_inputs, output=output, backend=backend
+            )
+    else:
+        outputs = implementation._evaluate_with_intermediates(  # noqa: SLF001
+            inputs=fixed_inputs, output=output, backend=backend
+        )
+    if output not in outputs:
+        msg = f"Evaluating {output!r} did not produce the requested value."
+        raise RuntimeError(msg)
+    # Results are published atomically, without replacing any already known values.
+    new_outputs = {name: value for name, value in outputs.items() if name not in cached_inputs}
+    instance.__bilt_system_instance_variables__.update(new_outputs)
+    return typing.cast("T", outputs[output])
