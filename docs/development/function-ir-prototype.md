@@ -114,3 +114,32 @@ The next architectural step would lower selected plans into `ProgramIR`
 *before* compiling individual steps, with explicit child/linear-solve operation
 kinds and typed outputs. It must preserve Bilt's existing path-specific
 realisation failures and search retries.
+
+
+## Plan-first program IR experiment
+
+The next stacked prototype constructs `ProgramIR` **from the selected
+`AnalysisPlan` or `QualifiedPlan` before compiling anything**. Every
+instruction has a source kind, a block index, a named output and explicit
+input dependencies. Coupled blocks are represented as one `linear_solve`
+instruction followed by one `projection` per unknown; child routes are
+separate `child` instructions. Port identifiers use the same mangling as
+the existing backends.
+
+Both realisation implementations now hand their neutral schedule to a
+compilation adapter, which traverses the original blocks in dependency order.
+The original step-specific and block-specific error paths are retained so
+structural search can still reject a candidate and try alternatives. Coupled
+solves continue to use the existing domain inference, matrix assembly and
+numerical backend. This deliberately isolates the change in representation
+from changes to numerical execution.
+
+The source `AnalysisPlan` is still required by the compilation adapter:
+`CallStep.block_index` identifies the original selected operation or
+coupled block. `ProgramIR` therefore records executable **intent**, not
+yet a fully standalone compiled program. Operation-specific lowering and
+typed output domains are populated at compilation time, and the existing
+`BackendCase` retains final callable chaining. Fully detaching the source
+plan will require dedicated operation bodies for child evaluation and
+coupled linear systems, along with a serialisable representation of
+runtime bindings. No new MLIR dependency is introduced.
