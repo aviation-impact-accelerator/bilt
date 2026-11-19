@@ -38,7 +38,7 @@ def _compatible(left: PortDeclaration | None, right: PortDeclaration | None) -> 
     if left is None or right is None:
         return left is right
     return (
-        left.dimensionality is right.dimensionality
+        left.dimensionality == right.dimensionality
         and left.absolute == right.absolute
         and left.over_a_domain == right.over_a_domain
         and left.scalar_only == right.scalar_only
@@ -110,9 +110,7 @@ def contract_aliases(snapshot: ExpansionSnapshot) -> AliasIncidence:
     edges = [
         (node, canonical_nodes[representatives[name]], None)
         for row, node in zip(rows, constraint_nodes, strict=True)
-        for name in sorted({name for name in row.attributes - snapshot.available}, key=str)
-        if name in representatives
+        for name in sorted({representatives[name] for name in row.attributes - snapshot.available})
     ]
-    # Several original ports may now lead to the same canonical node.
-    graph.add_edges_from({(a, b, payload) for a, b, payload in edges})
+    graph.add_edges_from(edges)
     return AliasIncidence(graph, attribute_nodes, representatives, tuple(eliminated))
