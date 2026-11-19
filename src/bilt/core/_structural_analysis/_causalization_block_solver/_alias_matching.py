@@ -203,8 +203,8 @@ def candidate_assignments(
     contracted = build_alias_matching(incidence, available) if alias_matching_enabled() else None
     if contracted is not None:
         target = None if output in available else contracted.canonical(output)
-        # Bound exploratory branches before reverting to the complete native search.
-        for assignments in islice(search.candidate_assignments(contracted.graph, {}, output=target), 3):
+        # Try only the first reduced matching; exploring alternatives can expand exponentially.
+        for assignments in islice(search.candidate_assignments(contracted.graph, {}, output=target), 1):
             restored = contracted.restore(typing.cast("dict[str, _Candidate]", assignments))
             if output in available or output in restored:
                 # Do not recursively enable experimental matching in child-route
