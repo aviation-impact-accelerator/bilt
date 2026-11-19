@@ -189,7 +189,6 @@ class CausalizationStructuralAnalyzer:
             graph,
             self._failures,
             output=None if output in available else output,
-            matching_cache=self._matching_cache,
         ):
             try:
                 blocks = planning.plan_blocks(assignments, available, output, backend=self.backend)
