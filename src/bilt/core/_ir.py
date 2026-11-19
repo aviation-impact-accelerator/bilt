@@ -32,7 +32,7 @@ if typing.TYPE_CHECKING:
     from bilt.symbolic._domains import Domain
     from bilt.symbolic._tree import Tree
 
-__all__ = ["Block", "FunctionIR", "Operation", "Value", "ir_to_functiondef", "tree_to_ir"]
+__all__ = ["Block", "FunctionIR", "Operation", "Value", "ValueType", "ir_to_functiondef", "tree_to_ir"]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -40,6 +40,14 @@ class Value:
     """An SSA result (integer) or a function argument (string)."""
 
     key: int | str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class ValueType:
+    """Best-known numerical kind and named tensor domain of an SSA value."""
+
+    kind: typing.Literal["number", "boolean", "unknown"] = "unknown"
+    domain: Domain | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -51,6 +59,7 @@ class Operation:
     operands: tuple[Value, ...] = ()
     attributes: tuple[tuple[str, int | float | bool], ...] = ()
     regions: tuple[Block, ...] = ()
+    result_type: ValueType | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -69,6 +78,7 @@ class FunctionIR:
     parameters: tuple[str, ...]
     body: Block
     output_domain: Domain | None = None
+    parameter_types: tuple[tuple[str, ValueType], ...] = ()
 
 
 class _Builder:
@@ -85,7 +95,12 @@ class _Builder:
         regions: tuple[Block, ...] = (),
     ) -> Value:
         result = Value(next(self.counter))
-        self.operations.append(Operation(result, opcode, operands, attributes, regions))
+        kind: typing.Literal["number", "boolean", "unknown"] = "unknown"
+        if opcode.startswith(("arith.", "bilt.sum", "bilt.mean", "bilt.min", "bilt.max", "bilt.prod", "bilt.isel")):
+            kind = "number"
+        elif opcode.startswith("cmp.") or opcode.startswith("bilt.mask_"):
+            kind = "boolean"
+        self.operations.append(Operation(result, opcode, operands, attributes, regions, ValueType(kind)))
         return result
 
     def finish(self, value: Value) -> Block:
@@ -126,6 +141,7 @@ def tree_to_ir(
     name: str,
     parameter_order: tuple[str, ...],
     output_domain: Domain | None = None,
+    input_domains: typing.Mapping[str, Domain] | None = None,
 ) -> FunctionIR:
     """Convert an already domain-lowered expression directly into neutral IR."""
     builder = _Builder(itertools.count())
@@ -135,6 +151,7 @@ def tree_to_ir(
         parameters=tuple(parameter for parameter in parameter_order if parameter != name),
         body=builder.finish(value),
         output_domain=output_domain,
+        parameter_types=tuple((name, ValueType(domain=value)) for name, value in (input_domains or {}).items()),
     )
 
 
@@ -220,8 +237,8 @@ def _positional_axis(tree: Tree, operation: str) -> int:
     return typing.cast("int", tree.head.value)
 
 
-_UNARY_AST = {"arith.neg": ast.USub}
-_BINARY_AST = {"arith.add": ast.Add, "arith.mul": ast.Mult, "arith.pow": ast.Pow}
+_UNARY_AST = {"arith.neg": ast.USub, "arith.pos": ast.UAdd}
+_BINARY_AST = {"arith.add": ast.Add, "arith.sub": ast.Sub, "arith.mul": ast.Mult, "arith.div": ast.Div, "arith.pow": ast.Pow}
 _COMPARISON_AST = {
     "cmp.eq": ast.Eq,
     "cmp.ne": ast.NotEq,
@@ -251,9 +268,10 @@ def ir_to_functiondef(function: FunctionIR) -> ast.FunctionDef:
     JAX uses its existing AST validation, conditional rewriting and JIT path
     after this pass; neither backend has to understand the IR in this prototype.
     """
-    body = _block_expression(
-        function.body, {Value(arg): ast.Name(id=arg, ctx=ast.Load()) for arg in function.parameters}
-    )
+    from bilt.core._ir_validation import validate_function_ir  # noqa: PLC0415
+
+    validate_function_ir(function)
+    body = _block_statements(function.body, function.parameters)
     function_def = ast.FunctionDef(
         name=function.name,
         args=ast.arguments(
@@ -265,13 +283,32 @@ def ir_to_functiondef(function: FunctionIR) -> ast.FunctionDef:
             vararg=None,
             kwarg=None,
         ),
-        body=[ast.Return(value=body)],
+        body=body,
         decorator_list=[],
         returns=None,
         type_comment=None,
     )
     ast.fix_missing_locations(function_def)
     return function_def
+
+
+def _block_statements(block: Block, parameters: tuple[str, ...]) -> list[ast.stmt]:
+    """Emit SSA bindings explicitly so order and shared subexpressions survive."""
+    expressions: dict[Value, ast.expr] = {
+        Value(parameter): ast.Name(id=parameter, ctx=ast.Load()) for parameter in parameters
+    }
+    reserved = set(parameters)
+    statements: list[ast.stmt] = []
+    for operation in block.operations:
+        expression = _block_expression(Block((operation,), operation.result), expressions)
+        temporary = f"__bilt_ir_{operation.result.key}"
+        while temporary in reserved:
+            temporary += "_"
+        reserved.add(temporary)
+        statements.append(ast.Assign(targets=[ast.Name(id=temporary, ctx=ast.Store())], value=expression))
+        expressions[operation.result] = ast.Name(id=temporary, ctx=ast.Load())
+    statements.append(ast.Return(value=expressions[block.yield_value]))
+    return statements
 
 
 def _block_expression(block: Block, visible: dict[Value, ast.expr]) -> ast.expr:  # noqa: C901
