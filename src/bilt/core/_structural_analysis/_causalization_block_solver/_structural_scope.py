@@ -175,7 +175,6 @@ def _scope_nodes(
     return selected, child_ports, attributes
 
 
-
 def _alias_groups(
     incidence: FullIncidenceGraph, supplied: frozenset[str]
 ) -> tuple[dict[str, str], dict[str, set[str]]]:
