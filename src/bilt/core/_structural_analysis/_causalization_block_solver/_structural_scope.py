@@ -5,6 +5,8 @@ __all__ = ["StructuralAnalysis", "StructuralBoundary", "StructuralScope", "inspe
 import dataclasses
 import typing
 
+from bilt.core._equation import BasicEquation
+from bilt.core._structural_analysis._causalization_block_solver._alias_contraction import _direct_equal_ports
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 from bilt.core._structural_analysis._causalization_block_solver._structural_cache import get_structural_cache
 from bilt.core._sub_system import SubSystemConstituent
@@ -13,7 +15,6 @@ from bilt.core._transform import BasicTransform
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt.core._equation import BasicEquation
     from bilt.core._model_constituent import BiltModelConstituent
 
 
@@ -87,6 +88,8 @@ def inspect_structure(
     incidence: FullIncidenceGraph,
     available: collections.abc.Set[str],
     required: collections.abc.Set[str],
+    *,
+    early_aliases: bool = False,
 ) -> StructuralScope:
     """Collect request-scoped primitives, stopping at supplied values and children.
 
@@ -97,10 +100,14 @@ def inspect_structure(
     supplied = frozenset(available)
     targets = frozenset(required)
     cache = get_structural_cache()
-    key = incidence, supplied, targets
+    key = incidence, supplied, targets, early_aliases
     if cache is not None and key in cache:
         return cache[key]
-    selected, child_ports, attributes = _scope_nodes(incidence, supplied, targets)
+    selected, child_ports, attributes = (
+        _scope_nodes_aliased(incidence, supplied, targets)
+        if early_aliases
+        else _scope_nodes(incidence, supplied, targets)
+    )
 
     constraints: dict[int, BasicEquation | BasicTransform] = {}
     boundaries: list[StructuralBoundary] = []
@@ -164,5 +171,82 @@ def _scope_nodes(
             connected = {incidence.graph[neighbor] for neighbor in incidence.graph.neighbors(constituent_node)}
             attributes.update(connected)
             pending.extend(sorted(connected - supplied, reverse=True))
+
+    return selected, child_ports, attributes
+
+
+def _alias_groups(
+    incidence: FullIncidenceGraph, supplied: frozenset[str]
+) -> tuple[dict[str, str], dict[str, set[str]]]:
+    """Group local equality ports without crossing supplied inputs."""
+    parent = {name: name for name in incidence.attribute_nodes}
+
+    def find(name: str) -> str:
+        while parent[name] != name:
+            parent[name] = parent[parent[name]]
+            name = parent[name]
+        return name
+
+    for node in incidence.constituent_nodes:
+        operation = incidence.graph[node]
+        if not isinstance(operation, BasicEquation):
+            continue
+        pair = _direct_equal_ports(operation)
+        if pair is None or any(name in supplied or name not in parent for name in pair):
+            continue
+        left, right = find(pair[0]), find(pair[1])
+        if left != right:
+            parent[max(left, right)] = min(left, right)
+
+    groups: dict[str, set[str]] = {}
+    for name in parent:
+        groups.setdefault(find(name), set()).add(name)
+
+    return {name: find(name) for name in parent}, groups
+
+
+def _scope_nodes_aliased(
+    incidence: FullIncidenceGraph, supplied: frozenset[str], targets: frozenset[str]
+) -> tuple[set[int], dict[int, set[str]], set[str]]:
+    """Traverse local unknown-port alias classes while preserving original rows.
+
+    This is experimental. Alias groups are request-local: any equality touching
+    a supplied port remains a normal equation and cannot propagate an alias.
+    """
+    representatives, groups = _alias_groups(incidence, supplied)
+
+    selected: set[int] = set()
+    visited: set[str] = set()
+    attributes = set(targets)
+    pending = sorted(targets, reverse=True)
+    child_ports: dict[int, set[str]] = {}
+
+    while pending:
+        name = pending.pop()
+        if name in supplied:
+            continue
+        representative = representatives.get(name, name)
+        if representative in visited:
+            continue
+        visited.add(representative)
+        members = sorted(groups.get(representative, {name}))
+        attributes.update(members)
+        for member in members:
+            node = incidence.attribute_nodes.get(member)
+            if node is None:
+                continue
+            for constituent_node in incidence.graph.neighbors(node):
+                constituent = incidence.graph[constituent_node]
+                if isinstance(constituent, SubSystemConstituent):
+                    child_ports.setdefault(constituent_node, set()).add(constituent.child_port(member))
+                    continue
+                if isinstance(constituent, BasicTransform) and member != constituent.__bilt_name__:
+                    continue
+                if constituent_node in selected:
+                    continue
+                selected.add(constituent_node)
+                connected = {incidence.graph[neighbor] for neighbor in incidence.graph.neighbors(constituent_node)}
+                attributes.update(connected)
+                pending.extend(sorted(connected - supplied, reverse=True))
 
     return selected, child_ports, attributes

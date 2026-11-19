@@ -47,10 +47,8 @@ def _compatible(left: PortDeclaration | None, right: PortDeclaration | None) -> 
     )
 
 
-def _alias_pair(row: ExpandedConstraint) -> tuple[str, str] | None:
-    operation = row.operation
-    if not isinstance(operation, BasicEquation):
-        return None
+def _direct_equal_ports(operation: BasicEquation) -> tuple[str, str] | None:
+    """Identify a direct, metadata-compatible two-port equality in local names."""
     tree = operation.__bilt_equation_tree__
     if not tree.is_equality or not tree.left.is_leaf or not tree.right.is_leaf:
         return None
@@ -58,13 +56,27 @@ def _alias_pair(row: ExpandedConstraint) -> tuple[str, str] | None:
         return None
     left = typing.cast("str", tree.left.head.value)
     right = typing.cast("str", tree.right.head.value)
-    if left == right or not _compatible(
-        operation.__bilt_port_declarations__.get(left),
-        operation.__bilt_port_declarations__.get(right),
+    if (
+        left == right
+        or frozenset(operation.__bilt_parameters__) != frozenset({left, right})
+        or not _compatible(
+            operation.__bilt_port_declarations__.get(left),
+            operation.__bilt_port_declarations__.get(right),
+        )
     ):
         return None
+    return left, right
+
+
+def _alias_pair(row: ExpandedConstraint) -> tuple[str, str] | None:
+    operation = row.operation
+    if not isinstance(operation, BasicEquation):
+        return None
+    pair = _direct_equal_ports(operation)
+    if pair is None:
+        return None
     prefix = ".".join((*row.path, "")) if row.path else ""
-    qualified = (prefix + left, prefix + right)
+    qualified = (prefix + pair[0], prefix + pair[1])
     return qualified if row.attributes == frozenset(qualified) else None
 
 
