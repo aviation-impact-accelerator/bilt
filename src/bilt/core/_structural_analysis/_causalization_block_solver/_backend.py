@@ -61,6 +61,7 @@ class CausalizationStructuralAnalyzer:
         self.backend = backend
         self.full_incidence_graph = FullIncidenceGraph(constituents)
         self._failures: dict[PlanStep, RealizationFailure] = {}
+        self._matching_cache: dict[tuple[object, object], dict[str, BiltModelConstituent]] = {}
 
     def analyse(self, request: EvaluationRequest) -> BackendCase:
         """Find and realise a plan, sharing request caches across nested analysis."""
@@ -85,7 +86,8 @@ class CausalizationStructuralAnalyzer:
         block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
 
         for assignments in search.candidate_assignments(
-            graph, self._failures, output=None if request.output in available else request.output
+            graph, self._failures, output=None if request.output in available else request.output,
+            matching_cache=self._matching_cache,
         ):
             attempted_routes: set[tuple[tuple[str, frozenset[str] | None], ...]] = set()
 
@@ -183,7 +185,8 @@ class CausalizationStructuralAnalyzer:
         needs_expanded = False
 
         for assignments in search.candidate_assignments(
-            graph, self._failures, output=None if output in available else output
+            graph, self._failures, output=None if output in available else output,
+            matching_cache=self._matching_cache,
         ):
             try:
                 blocks = planning.plan_blocks(assignments, available, output, backend=self.backend)
