@@ -3,7 +3,7 @@
 import dataclasses
 import typing
 
-from bilt._backend._callable import BackendCallable
+from bilt._backend._callable import BackendCallable, BackendOutput
 from bilt._backend._case import BackendCase
 from bilt.core._errors import BiltAnalysisError
 from bilt.core._port import mangle_name
@@ -38,6 +38,7 @@ def realize_qualified_plan(
     """Keep block rejections request-local and preserve qualified step identity."""
     domains = plan.request.input_domains.copy()
     intermediates = []
+    outputs: list[BackendOutput] = []
     reserved = set(map(mangle_name, plan.outputs | plan.request.input_domains.keys()))
     for index, block in enumerate(plan.blocks):
         if isinstance(block, QualifiedBlock):
@@ -59,17 +60,20 @@ def realize_qualified_plan(
             intermediates.extend(callables)
             for output, callable_ in zip(block.unknowns, callables[1:], strict=True):
                 domains[output] = _output_domain(callable_, output)
+                outputs.append(BackendOutput(backend_name=callable_.name, port=output, domain=domains[output]))
         else:
             result = _realize_step(block, backend, domains)
             if isinstance(result, QualifiedRealizationFailure):
                 return result
             intermediates.append(result)
             domains[block.output] = _output_domain(result, block.output)
+            outputs.append(BackendOutput(backend_name=result.name, port=block.output, domain=domains[block.output]))
     return BackendCase(
         name=mangle_name(plan.request.output),
         parameters=tuple(map(mangle_name, sorted(plan.request.input_domains))),
         intermediates=intermediates,
         return_name=mangle_name(plan.request.output),
+        outputs=tuple(outputs),
     )
 
 

@@ -49,8 +49,18 @@ with model:
 ```
 
 An instance retains the implementation selected on its first calculated lookup
-and caches requested outputs. Use a fresh instance when comparing implementations,
-inputs or backends. Registering an implementation alone does not activate it.
+and caches requested outputs and intermediate ports computed along the selected plan.
+Later lookups can reuse those values, including ports without interface fields.
+Each value retains its own tensor domain and declared unit. Parent-visible child
+ports use dotted names, while private child internals are not exposed.
+Bilt plans each request using only constructor-supplied inputs, so retaining
+intermediates never adds structural constraints. Subsequent execution may use
+only the cached ports required by that already-validated plan; unneeded
+intermediates are not lowered or aligned again.
+No values are shared between instances. Large intermediate tensors remain in
+memory for the lifetime of the instance. Direct `Implementation.evaluate(...)`
+continues to return only the requested value.
+Use a fresh instance when comparing implementations, inputs or backends. Registering an implementation alone does not activate it.
 Component order does not prescribe execution order.
 
 ## Evaluation and structural analysis
@@ -62,9 +72,10 @@ blocks spanning parent and child equations. There is no separate public solver
 selection argument. Exhaustive analysis remains available internally for
 comparison tests and benchmarks.
 
-Instance results are cached, but only constructor-supplied values are boundary
-inputs for subsequent requests. Reading one calculated output does not add an
-extra supplied constraint when another output of the same block is requested.
+Instance results and intermediate ports are cached. Later requests can reuse
+only the ports required by a structurally valid execution plan. Structural
+planning uses the original constructor-supplied inputs, so calculated ports
+cannot turn a well-constrained model into an overconstrained one.
 
 SCC validates simultaneous constraints in the relevant scope. Two equations
 that independently determine the same unknown from supplied values can therefore

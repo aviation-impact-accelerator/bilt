@@ -72,6 +72,9 @@ def lift_output(output_value: object, lifting_plan: LiftingPlan) -> Tensor | obj
 
 
 def _squeeze_axes(value: object, axes: tuple[int, ...]) -> object:
+    # Scalar intermediates have no axes to remove, even in a batched JAX call.
+    if getattr(value, "ndim", None) == 0:
+        return value
     squeeze = getattr(value, "squeeze", None)
     if squeeze is None:
         return value
