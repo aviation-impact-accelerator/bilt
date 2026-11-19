@@ -70,9 +70,7 @@ def _compile_program(  # noqa: C901
     for block in plan.blocks:
         instruction = next(instructions)
         if block.is_cyclic:
-            realized = _realize_cyclic_with_domains(
-                block, backend, symbol_domains, instruction.output, block_failures
-            )
+            realized = _realize_cyclic_with_domains(block, backend, symbol_domains, instruction.output, block_failures)
             if isinstance(realized, BlockRealizationFailure):
                 return realized
             callables, resolved = realized
