@@ -6,6 +6,8 @@ import dataclasses
 import typing
 
 from bilt.core._equation import BasicEquation
+
+from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._causalization_block_solver._alias_contraction import _direct_equal_ports
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
 from bilt.core._structural_analysis._causalization_block_solver._structural_cache import get_structural_cache
@@ -15,7 +17,6 @@ from bilt.core._transform import BasicTransform
 if typing.TYPE_CHECKING:
     import collections.abc
 
-    from bilt.core._equation import BasicEquation
     from bilt.core._model_constituent import BiltModelConstituent
 
 
@@ -176,14 +177,11 @@ def _scope_nodes(
     return selected, child_ports, attributes
 
 
-def _scope_nodes_aliased(
-    incidence: FullIncidenceGraph, supplied: frozenset[str], targets: frozenset[str]
-) -> tuple[set[int], dict[int, set[str]], set[str]]:
-    """Traverse local unknown-port alias classes while preserving original rows.
 
-    This is experimental. Alias groups are request-local: any equality touching
-    a supplied port remains a normal equation and cannot propagate an alias.
-    """
+def _alias_groups(
+    incidence: FullIncidenceGraph, supplied: frozenset[str]
+) -> tuple[dict[str, str], dict[str, set[str]]]:
+    """Group local equality ports without crossing supplied inputs."""
     parent = {name: name for name in incidence.attribute_nodes}
 
     def find(name: str) -> str:
@@ -207,6 +205,19 @@ def _scope_nodes_aliased(
     for name in parent:
         groups.setdefault(find(name), set()).add(name)
 
+    return {name: find(name) for name in parent}, groups
+
+
+def _scope_nodes_aliased(
+    incidence: FullIncidenceGraph, supplied: frozenset[str], targets: frozenset[str]
+) -> tuple[set[int], dict[int, set[str]], set[str]]:
+    """Traverse local unknown-port alias classes while preserving original rows.
+
+    This is experimental. Alias groups are request-local: any equality touching
+    a supplied port remains a normal equation and cannot propagate an alias.
+    """
+    representatives, groups = _alias_groups(incidence, supplied)
+
     selected: set[int] = set()
     visited: set[str] = set()
     attributes = set(targets)
@@ -217,7 +228,7 @@ def _scope_nodes_aliased(
         name = pending.pop()
         if name in supplied:
             continue
-        representative = find(name) if name in parent else name
+        representative = representatives.get(name, name)
         if representative in visited:
             continue
         visited.add(representative)
