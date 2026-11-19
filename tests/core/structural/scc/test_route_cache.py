@@ -231,6 +231,7 @@ def test_opt_in_child_compilation_failure_does_not_invalidate_independent_routes
     monkeypatch: pytest.MonkeyPatch, graph_builds: list[FullIncidenceGraph]
 ) -> None:
     """Failed child routes invalidate parent queries but not unrelated systems."""
+
     @system
     class Ports(metaclass=Interface):
         a: float = field()
