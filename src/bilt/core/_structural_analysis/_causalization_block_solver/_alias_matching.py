@@ -17,7 +17,6 @@ import rustworkx as rx
 
 from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
-from bilt.core._structural_analysis._causalization_block_solver._alias_contraction import _direct_equal_ports
 from bilt.core._structural_analysis._causalization_block_solver._matching import build_matching_graph
 from bilt.core._structural_analysis._plan import PlanStep
 
@@ -116,32 +115,13 @@ def build_alias_matching(  # noqa: C901, PLR0912 - experimental matching graph p
     safe alias exists, leaving normal matching and failure handling untouched.
     """
     supplied = frozenset(available)
-    parent = {name: name for name in incidence.attribute_nodes}
-
-    def find(name: str) -> str:
-        while parent[name] != name:
-            parent[name] = parent[parent[name]]
-            name = parent[name]
-        return name
-
-    alias_edges: list[tuple[BasicEquation, str, str]] = []
-    for node in incidence.constituent_nodes:
-        operation = incidence.graph[node]
-        if not isinstance(operation, BasicEquation):
-            continue
-        pair = _direct_equal_ports(operation)
-        if pair is None or any(name in supplied or name not in parent for name in pair):
-            continue
-        left, right = find(pair[0]), find(pair[1])
-        if left == right:
-            continue  # Keep redundant/cyclic source equations for validation.
-        parent[max(left, right)] = min(left, right)
-        alias_edges.append((operation, *pair))
-
-    if not alias_edges:
+    view = incidence.canonical_index.view(supplied)
+    if not view.spanning:
         return None
+    representatives = view.representatives
+    removed = view.removed
+    alias_edges = tuple((link.operation, link.left, link.right) for link in view.spanning)
 
-    representatives = {name: find(name) for name in sorted(parent)}
     original = matching_graph if matching_graph is not None else build_matching_graph(incidence, supplied)
     graph = rx.PyGraph(multigraph=False)
     attributes = {
@@ -154,7 +134,7 @@ def build_alias_matching(  # noqa: C901, PLR0912 - experimental matching graph p
             continue
         operation = source.operation if isinstance(source, PlanStep) else typing.cast("BiltModelConstituent", source)
         # Direct aliases already have a retained spanning forest for recovery.
-        if isinstance(operation, BasicEquation) and any(operation is item[0] for item in alias_edges):
+        if node in removed:
             continue
         natives: dict[str, str] = {}
         for neighbor in original.neighbors(node):
