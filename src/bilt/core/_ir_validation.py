@@ -81,17 +81,16 @@ def _validate_block(block: Block, visible: set[Value], defined: set[Value]) -> N
         if operation.opcode == "arith.constant" and "value" not in attributes:
             message = "IR constants require a value."
             raise ValueError(message)
-        if operation.opcode.startswith("bilt.") and operation.opcode in (
+        if operation.opcode in (
             "bilt.sum",
             "bilt.mean",
             "bilt.min",
             "bilt.max",
             "bilt.prod",
             "bilt.isel",
-        ):
-            if type(attributes.get("axis")) is not int or attributes["axis"] < 0:
-                message = "IR tensor operations require a nonnegative positional axis."
-                raise ValueError(message)
+        ) and (type(attributes.get("axis")) is not int or attributes["axis"] < 0):
+            message = "IR tensor operations require a nonnegative positional axis."
+            raise ValueError(message)
         defined.add(operation.result)
         for region in operation.regions:
             _validate_block(region, scope, defined)
