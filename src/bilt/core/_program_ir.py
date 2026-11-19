@@ -123,9 +123,17 @@ def program_from_plan(plan: AnalysisPlan) -> ProgramIR:
             inputs = step.consumed
         except NotImplementedError:
             inputs = ()
+        # A transform callable retains its declared function name; a hand-built
+        # PlanStep can name a different output, which existing realisation
+        # deliberately leaves unchanged.
+        from bilt.core._transform import BasicTransform  # noqa: PLC0415
+
+        actual_output = (
+            step.operation.__bilt_name__ if isinstance(step.operation, BasicTransform) else step.output
+        )
         steps.append(
             CallStep(
-                mangle_name(step.output),
+                mangle_name(actual_output),
                 tuple(map(mangle_name, inputs)),
                 kind=_operation_kind(step),
                 block_index=index,
