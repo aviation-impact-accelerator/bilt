@@ -4,7 +4,7 @@ import typing
 
 from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
 from bilt.core._structural_analysis._causalization_block_solver import _planning as planning
-from bilt.core._structural_analysis._causalization_block_solver import _search as search
+from bilt.core._structural_analysis._causalization_block_solver import _alias_matching as alias_matching
 from bilt.core._structural_analysis._causalization_block_solver._coupling import unavoidable_coupled_outputs
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltExecutionPlanError,
@@ -84,8 +84,8 @@ class CausalizationStructuralAnalyzer:
         last_error: Exception | None = None
         block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
 
-        for assignments in search.candidate_assignments(
-            graph, self._failures, output=None if request.output in available else request.output
+        for assignments in alias_matching.candidate_assignments(
+            self.full_incidence_graph, graph, available, self._failures, request.output
         ):
             attempted_routes: set[tuple[tuple[str, frozenset[str] | None], ...]] = set()
 
@@ -182,8 +182,8 @@ class CausalizationStructuralAnalyzer:
         self._prefer_child_producers(graph, available, output)
         needs_expanded = False
 
-        for assignments in search.candidate_assignments(
-            graph, self._failures, output=None if output in available else output
+        for assignments in alias_matching.candidate_assignments(
+            self.full_incidence_graph, graph, available, self._failures, output
         ):
             try:
                 blocks = planning.plan_blocks(assignments, available, output, backend=self.backend)
