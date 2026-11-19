@@ -41,36 +41,46 @@ _ARITY: Mapping[str, int] = {
 def validate_function_ir(function: FunctionIR) -> None:
     """Verify operands, SSA identity, region dominance and operation shapes."""
     if len(function.parameters) != len(set(function.parameters)):
-        raise ValueError("IR function parameters must be unique.")
+        message = "IR function parameters must be unique."
+        raise ValueError(message)
     if len({name for name, _ in function.parameter_types}) != len(function.parameter_types):
-        raise ValueError("IR parameter type names must be unique.")
+        message = "IR parameter type names must be unique."
+        raise ValueError(message)
     if any(name not in function.parameters for name, _ in function.parameter_types):
-        raise ValueError("IR parameter types must belong to parameters.")
+        message = "IR parameter types must belong to parameters."
+        raise ValueError(message)
     known = {Value(name) for name in function.parameters}
     _validate_block(function.body, known, set())
 
 
-def _validate_block(block: Block, visible: set[Value], defined: set[Value]) -> None:
+def _validate_block(block: Block, visible: set[Value], defined: set[Value]) -> None:  # noqa: C901, PLR0912
     scope = visible.copy()
     for operation in block.operations:
         if operation.result in defined or operation.result in scope:
-            raise ValueError(f"IR value {operation.result.key!r} defined more than once.")
+            message = f"IR value {operation.result.key!r} defined more than once."
+            raise ValueError(message)
         expected = _ARITY.get(operation.opcode)
         if expected is None:
-            raise ValueError(f"Unsupported IR operation {operation.opcode!r}.")
+            message = f"Unsupported IR operation {operation.opcode!r}."
+            raise ValueError(message)
         if len(operation.operands) != expected:
-            raise ValueError(f"IR operation {operation.opcode!r} expects {expected} operands.")
+            message = f"IR operation {operation.opcode!r} expects {expected} operands."
+            raise ValueError(message)
         for operand in operation.operands:
             if operand not in scope:
-                raise ValueError(f"IR operand {operand.key!r} is not defined in this scope.")
+                message = f"IR operand {operand.key!r} is not defined in this scope."
+                raise ValueError(message)
         region_count = 2 if operation.opcode == "scf.if" else 0
         if len(operation.regions) != region_count:
-            raise ValueError(f"IR operation {operation.opcode!r} expects {region_count} regions.")
+            message = f"IR operation {operation.opcode!r} expects {region_count} regions."
+            raise ValueError(message)
         attributes = dict(operation.attributes)
         if len(attributes) != len(operation.attributes):
-            raise ValueError("IR operation attributes must be unique.")
+            message = "IR operation attributes must be unique."
+            raise ValueError(message)
         if operation.opcode == "arith.constant" and "value" not in attributes:
-            raise ValueError("IR constants require a value.")
+            message = "IR constants require a value."
+            raise ValueError(message)
         if operation.opcode.startswith("bilt.") and operation.opcode in (
             "bilt.sum",
             "bilt.mean",
@@ -80,10 +90,12 @@ def _validate_block(block: Block, visible: set[Value], defined: set[Value]) -> N
             "bilt.isel",
         ):
             if type(attributes.get("axis")) is not int or attributes["axis"] < 0:
-                raise ValueError("IR tensor operations require a nonnegative positional axis.")
+                message = "IR tensor operations require a nonnegative positional axis."
+                raise ValueError(message)
         defined.add(operation.result)
         for region in operation.regions:
             _validate_block(region, scope, defined)
         scope.add(operation.result)
     if block.yield_value not in scope:
-        raise ValueError(f"IR yielded value {block.yield_value.key!r} is not defined.")
+        message = f"IR yielded value {block.yield_value.key!r} is not defined."
+        raise ValueError(message)
