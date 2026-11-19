@@ -105,7 +105,10 @@ class AliasMatching:
 
 
 def build_alias_matching(  # noqa: C901, PLR0912 - experimental matching graph projection
-    incidence: FullIncidenceGraph, available: collections.abc.Set[str]
+    incidence: FullIncidenceGraph,
+    available: collections.abc.Set[str],
+    *,
+    matching_graph: rx.PyGraph | None = None,
 ) -> AliasMatching | None:
     """Contract independent direct-equality ports for one matching request.
 
@@ -139,7 +142,7 @@ def build_alias_matching(  # noqa: C901, PLR0912 - experimental matching graph p
         return None
 
     representatives = {name: find(name) for name in sorted(parent)}
-    original = build_matching_graph(incidence, supplied)
+    original = matching_graph if matching_graph is not None else build_matching_graph(incidence, supplied)
     graph = rx.PyGraph(multigraph=False)
     attributes = {
         name: graph.add_node(name)
@@ -200,7 +203,7 @@ def candidate_assignments(
     reduced structural matching exists, not that its native equation directions
     can be realised with the requested domains or chosen child routes.
     """
-    contracted = build_alias_matching(incidence, available) if alias_matching_enabled() else None
+    contracted = build_alias_matching(incidence, available, matching_graph=original_graph) if alias_matching_enabled() else None
     if contracted is not None:
         target = None if output in available else contracted.canonical(output)
         # Try only the first reduced matching; exploring alternatives can expand exponentially.
