@@ -35,7 +35,9 @@ def test_exact_settlement_reuses_original_result(monkeypatch: pytest.MonkeyPatch
     assignments = {"b": relation, "result": result}
     with settlement_memo_scope(), settlement_cache_scope():
         first = settlement.settle_assignments(assignments, {"a"}, PYTHON_BACKEND, target="result")
-        second = settlement.settle_assignments(dict(reversed(tuple(assignments.items()))), {"a"}, PYTHON_BACKEND, target="result")
+        second = settlement.settle_assignments(
+            dict(reversed(tuple(assignments.items()))), {"a"}, PYTHON_BACKEND, target="result"
+        )
         assert first == second
         assert len(calls) == 1
         settlement.settle_assignments(assignments, set(), PYTHON_BACKEND, target="result")
