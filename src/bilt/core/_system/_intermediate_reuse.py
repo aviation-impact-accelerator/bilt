@@ -7,7 +7,12 @@ if typing.TYPE_CHECKING:
     from bilt._backend._case import BackendCase
 
 
-def reuse_plan_outputs(case: BackendCase, available_ports: frozenset[str]) -> BackendCase:
+def reuse_plan_outputs(
+    case: BackendCase,
+    available_ports: frozenset[str],
+    *,
+    required_ports: tuple[str, ...] | None = None,
+) -> BackendCase:
     """Prune a *validated* pipeline backwards from its requested output.
 
     Cached values replace only operations actually needed by the selected plan.
@@ -18,7 +23,14 @@ def reuse_plan_outputs(case: BackendCase, available_ports: frozenset[str]) -> Ba
     if not known_names:
         return case
 
-    needed = {case.return_name}
+    if required_ports is None:
+        needed = {case.return_name}
+    else:
+        by_port = {item.port: item.backend_name for item in case.outputs}
+        if missing := set(required_ports) - by_port.keys():
+            msg = f"Joint plan did not produce requested ports: {sorted(missing)}."
+            raise RuntimeError(msg)
+        needed = {by_port[port] for port in required_ports}
     kept = []
     for step in reversed(case.intermediates):
         if step.name not in needed:

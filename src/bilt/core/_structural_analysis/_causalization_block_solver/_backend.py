@@ -129,6 +129,61 @@ class CausalizationStructuralAnalyzer:
 
         raise BiltExecutionPlanError(msg)
 
+
+    def analyse_many(self, request: EvaluationRequest, outputs: tuple[str, ...]) -> BackendCase:
+        """Choose one matching and realise the union of target dependencies.
+
+        Each target is validated against the *original* supplied-input boundary.
+        This experimental path supports ordinary parent/child plans; callers may
+        fall back to separate evaluation when no compatible joint route exists.
+        """
+        targets = tuple(dict.fromkeys(outputs))
+        if not targets or request.output not in targets:
+            msg = "Multi-output planning requires a nonempty target set containing the primary output."
+            raise ValueError(msg)
+        if len(targets) == 1:
+            return self.analyse(request)
+        with structural_cache_scope(), route_cache_scope():
+            available = set(request.input_domains)
+            for target in targets:
+                structure = validate_request_structure(self.full_incidence_graph, available, target)
+                if structure is None or self._preflight(request, structure) is not None:
+                    msg = f"Multi-output prototype cannot jointly plan the coupled target {target!r}."
+                    raise BiltExecutionPlanError(msg)
+
+            graph = build_matching_graph(self.full_incidence_graph, available)
+            self._prefer_child_producers(graph, available, targets[0])
+            block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
+            last_error: Exception | None = None
+            # Bound candidate exploration; the existing single-output route
+            # remains the correctness-preserving fallback for unsupported sets.
+            for index, assignments in enumerate(search.candidate_assignments(graph, self._failures, output=None)):
+                if index >= 24:
+                    break
+                try:
+                    blocks = planning.plan_blocks_many(assignments, available, targets, backend=self.backend)
+                except BiltAnalysisError as error:
+                    last_error = error
+                    continue
+                result = realize_plan(
+                    AnalysisPlan(request=request, blocks=blocks),
+                    self.backend,
+                    block_failures=block_failures,
+                )
+                if isinstance(result, (RealizationFailure, BlockRealizationFailure)):
+                    last_error = result.cause
+                    invalidate_route_cache()
+                    self._retry_child(result)
+                    continue
+                produced = {item.port for item in result.outputs}
+                if not set(targets) <= (produced | available):
+                    last_error = BiltExecutionPlanError("Joint plan omitted a requested output.")
+                    continue
+                return result
+
+            msg = f"Cannot jointly plan {targets!r} from supplied inputs {sorted(available)}."
+            raise BiltExecutionPlanError(msg) from last_error
+
     def _preflight(self, request: EvaluationRequest, structure: ValidatedStructure | None) -> BackendCase | None:
         """Keep local requests on their existing path; expand execution only for cross-boundary coupling."""
         if structure is None or not (

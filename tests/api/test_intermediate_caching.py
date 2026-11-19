@@ -498,3 +498,72 @@ def test_linear_block_intermediates_are_exposed(backend: Backend) -> None:
         assert instance.x == pytest.approx(5.0)
         assert instance.y == pytest.approx(3.0)
         assert {"x", "y"} <= _variables(instance).keys()
+
+
+def test_joint_multi_output_prefetch_preserves_cached_intermediates(backend: Backend) -> None:
+    from bilt.core._system._dispatch import _prefetch_outputs
+
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        base: float = field()
+        left: float = field()
+        right: float = field()
+
+    @transform
+    def base(a: float) -> float:
+        return a + 1
+
+    @transform
+    def left(base: float) -> float:
+        return base * 2
+
+    @transform
+    def right(base: float) -> float:
+        return base * 3
+
+    implementation = Implementation(Demo, [base, left, right])
+    with backend, implementation:
+        example = Demo(a=4.0)
+        _prefetch_outputs(example, ("left", "right"))
+        assert example.left == pytest.approx(10.0)
+        assert example.right == pytest.approx(15.0)
+        assert example.base == pytest.approx(5.0)
+        cached_plan = next(iter(implementation._multi_plan_cache.values()))  # noqa: SLF001
+        assert {"base", "left", "right"} <= {item.port for item in cached_plan.outputs}
+
+
+def test_multi_output_prefetch_uses_previous_intermediates(backend: Backend) -> None:
+    from bilt.core._system._dispatch import _prefetch_outputs
+
+    @system
+    class Demo(metaclass=Interface):
+        x: float = field()
+        shared: float = field()
+        one: float = field()
+        two: float = field()
+        three: float = field()
+
+    @transform
+    def shared(x: float) -> float:
+        return x + 2
+
+    @transform
+    def one(shared: float) -> float:
+        return shared * 2
+
+    @transform
+    def two(shared: float) -> float:
+        return shared * 3
+
+    @transform
+    def three(shared: float) -> float:
+        return shared * 4
+
+    with backend, Implementation(Demo, [shared, one, two, three]):
+        example = Demo(x=3.0)
+        assert example.one == pytest.approx(10.0)
+        _prefetch_outputs(example, ("two", "three"))
+        assert example.two == pytest.approx(15.0)
+        assert example.three == pytest.approx(20.0)
+        assert example.shared == pytest.approx(5.0)
