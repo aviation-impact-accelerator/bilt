@@ -28,6 +28,7 @@ nav = [
         { "Equations and acausal modelling" = "guide/equations-and-acausal-modelling.md" },
         { "Transforms and implementations" = "guide/transforms-and-implementations.md" },
         { "Models to computation" = "guide/models-to-computation.md" },
+        { "How structural search works" = "guide/structural-search.md" },
         { "Dimensions, domains and tensors" = "guide/dimensions-domains-and-tensors.md" },
         { "Systems of systems" = "guide/systems-of-systems.md" },
         { "Coupled systems" = "guide/coupled-systems.md" },
@@ -42,6 +43,10 @@ nav = [
         { "Quantity annotations and typing" = "api/quantity-annotations.md" },
         { "Tensors" = "api/tensors.md" },
         { "Backends" = "api/backends.md" },
+    ] },
+
+    { "Developer internals" = [
+        { "Structural analyser internals" = "development/structural-analysis.md" },
     ] },
 
     { "Tools and configuration" = [
