@@ -146,7 +146,9 @@ class CausalizationStructuralAnalyzer:
             available = set(request.input_domains)
             for target in targets:
                 structure = validate_request_structure(self.full_incidence_graph, available, target)
-                if structure is None or self._preflight(request, structure) is not None:
+                if structure is None or unavoidable_coupled_outputs(
+                    structure.well_determined, target, allow_local_linear=True
+                ):
                     msg = f"Multi-output prototype cannot jointly plan the coupled target {target!r}."
                     raise BiltExecutionPlanError(msg)
 
