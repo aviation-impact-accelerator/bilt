@@ -111,7 +111,7 @@ class StructuralExpansion:
             (): _Context(
                 functools.partial(inspect_structure, incidence, early_aliases=early_aliases),
                 frozenset(incidence.attribute_nodes),
-                frozenset()
+                frozenset(),
             )
         }
         self.attributes: set[str] = set()
