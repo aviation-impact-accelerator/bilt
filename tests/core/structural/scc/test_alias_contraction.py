@@ -161,7 +161,6 @@ def test_cycle_remains_a_source_constraint() -> None:
     assert result.graph.num_nodes() == 2
 
 
-
 def test_repeated_same_source_object_is_not_removed_twice() -> None:
     row = ExpandedConstraint((), connect, frozenset({"a", "b"}))
     snapshot = _snapshot((row, row))
@@ -213,7 +212,6 @@ def test_invalid_structural_classification_is_preserved(
     snapshot = _snapshot(rows)
     assert _classification(snapshot, False, output) == expected
     assert _classification(snapshot, True, output) == expected
-
 
 
 year = dim("year")
