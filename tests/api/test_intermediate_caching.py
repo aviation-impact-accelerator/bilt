@@ -501,8 +501,6 @@ def test_linear_block_intermediates_are_exposed(backend: Backend) -> None:
 
 
 def test_joint_multi_output_prefetch_preserves_cached_intermediates(backend: Backend) -> None:
-    from bilt.core._system._dispatch import _prefetch_outputs
-
     @system
     class Demo(metaclass=Interface):
         a: float = field()
@@ -534,8 +532,6 @@ def test_joint_multi_output_prefetch_preserves_cached_intermediates(backend: Bac
 
 
 def test_multi_output_prefetch_uses_previous_intermediates(backend: Backend) -> None:
-    from bilt.core._system._dispatch import _prefetch_outputs
-
     @system
     class Demo(metaclass=Interface):
         x: float = field()
