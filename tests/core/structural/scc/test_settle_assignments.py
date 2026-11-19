@@ -415,10 +415,11 @@ def test_batched_child_route_skips_unsuccessful_intermediate_inputs(
         del backend
         offered_ports = frozenset(available)
         calls.append(offered_ports)
-        return PlanStep(operation=operation, output=output, child_inputs=frozenset({"a", "b"})) if {
-            "child.a",
-            "child.b",
-        } <= offered_ports else None
+        return (
+            PlanStep(operation=operation, output=output, child_inputs=frozenset({"a", "b"}))
+            if {"child.a", "child.b"} <= offered_ports
+            else None
+        )
 
     monkeypatch.setattr(settlement, "_assignment_step", offered)
     instance = settlement._TargetSettlement(  # noqa: SLF001 - targeted route settlement test
