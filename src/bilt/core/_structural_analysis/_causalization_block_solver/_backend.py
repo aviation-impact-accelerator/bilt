@@ -86,7 +86,9 @@ class CausalizationStructuralAnalyzer:
         block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
 
         for assignments in search.candidate_assignments(
-            graph, self._failures, output=None if request.output in available else request.output,
+            graph,
+            self._failures,
+            output=None if request.output in available else request.output,
             matching_cache=self._matching_cache,
         ):
             attempted_routes: set[tuple[tuple[str, frozenset[str] | None], ...]] = set()
@@ -185,7 +187,9 @@ class CausalizationStructuralAnalyzer:
         needs_expanded = False
 
         for assignments in search.candidate_assignments(
-            graph, self._failures, output=None if output in available else output,
+            graph,
+            self._failures,
+            output=None if output in available else output,
             matching_cache=self._matching_cache,
         ):
             try:
