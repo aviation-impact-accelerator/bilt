@@ -32,7 +32,11 @@ def settle_assignments(
     Follow the target's dependencies and potential inputs of selected children.
     """
     return memoized_settlement(
-        assignments, available, backend, target, lambda: _TargetSettlement(assignments, available, backend).settle(target)
+        assignments,
+        available,
+        backend,
+        target,
+        lambda: _TargetSettlement(assignments, available, backend).settle(target),
     )
 
 
