@@ -39,8 +39,7 @@ def reuse_plan_outputs(case: BackendCase, available_ports: frozenset[str]) -> Ba
     computed = {step.name for step in kept}
     return dataclasses.replace(
         case,
-        parameters=tuple(name for name in case.parameters if name in needed)
-        + tuple(sorted(needed & known_names)),
+        parameters=tuple(name for name in case.parameters if name in needed) + tuple(sorted(needed & known_names)),
         intermediates=kept,
         outputs=tuple(item for item in case.outputs if item.backend_name in computed),
     )
