@@ -164,4 +164,4 @@ def _expr(  # noqa: C901, PLR0911, PLR0912
         ) and "axis" not in dict(attrs):
             raise _UnsupportedIRError()
         return builder.emit(opcode, tuple(_expr(arg, builder, names) for arg in node.args), tuple(attrs))
-    raise _UnsupportedIRError().__name__}")
+    raise _UnsupportedIRError()
