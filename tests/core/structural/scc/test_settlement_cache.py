@@ -1,3 +1,4 @@
+# ruff: noqa: SLF001, PLR2004, ANN202
 """Exact settlement memoization never changes default structural planning."""
 
 lazy import pytest
