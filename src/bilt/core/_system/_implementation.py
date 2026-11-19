@@ -26,6 +26,8 @@ from bilt.core._system._input_validation import validate_inputs
 from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic._domains import Domain
 
+_DEFAULT_STRUCTURAL_ANALYSER = CausalizationStructuralAnalyzer
+
 if typing.TYPE_CHECKING:
     import collections.abc
 
@@ -101,7 +103,12 @@ class Implementation:
         """The structural analyser for this implementation's components under ``backend``."""
         analyser = self._analysers.get(backend)
         if analyser is None:
-            analyser = CausalizationStructuralAnalyzer(self.structural_analysis().incidence, backend)
+            # Alternative analyser implementations retain the established
+            # constructor protocol of receiving constituent operations.
+            if CausalizationStructuralAnalyzer is _DEFAULT_STRUCTURAL_ANALYSER:
+                analyser = CausalizationStructuralAnalyzer(self.structural_analysis().incidence, backend)
+            else:
+                analyser = CausalizationStructuralAnalyzer(tuple(self._components.values()), backend)
             self._analysers[backend] = analyser
         return analyser
 
