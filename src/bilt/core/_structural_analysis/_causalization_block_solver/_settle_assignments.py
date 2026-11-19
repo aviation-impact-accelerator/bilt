@@ -79,7 +79,7 @@ class _TargetSettlement:
             frozenset((self.requested & self.assignments.keys()) - self.steps.keys()),
         )
 
-    def _walk_target(self, output: str) -> None:
+    def _walk_target(self, output: str) -> None:  # noqa: C901
         """Resolve dependencies using explicit frames instead of nested generators."""
         pending: list[tuple[str, collections.abc.Iterator[str], PlanStep | None]] = []
 
