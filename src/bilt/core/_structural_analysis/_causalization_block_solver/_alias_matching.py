@@ -15,7 +15,6 @@ from itertools import islice
 
 import rustworkx as rx
 
-from bilt.core._equation import BasicEquation
 from bilt.core._structural_analysis._causalization_block_solver import _search as search
 from bilt.core._structural_analysis._causalization_block_solver._matching import build_matching_graph
 from bilt.core._structural_analysis._plan import PlanStep
@@ -23,6 +22,7 @@ from bilt.core._structural_analysis._plan import PlanStep
 if typing.TYPE_CHECKING:
     import collections.abc
 
+    from bilt.core._equation import BasicEquation
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
     from bilt.core._structural_analysis._realize import RealizationFailure
@@ -103,7 +103,7 @@ class AliasMatching:
         return self.original_edges - self.graph.num_edges()
 
 
-def build_alias_matching(  # noqa: C901, PLR0912 - experimental matching graph projection
+def build_alias_matching(
     incidence: FullIncidenceGraph,
     available: collections.abc.Set[str],
     *,
@@ -126,7 +126,7 @@ def build_alias_matching(  # noqa: C901, PLR0912 - experimental matching graph p
     graph = rx.PyGraph(multigraph=False)
     attributes = {
         name: graph.add_node(name)
-        for name in sorted({representatives[name] for name in parent if name not in supplied})
+        for name in sorted({representatives[name] for name in representatives if name not in supplied})
     }
     for node in original.node_indices():
         source = original[node]
