@@ -1,6 +1,6 @@
 """Exact settlement memoization never changes default structural planning."""
 
-import pytest
+lazy import pytest
 
 from bilt import equation, transform
 from bilt._backend._python._backend import PYTHON_BACKEND
