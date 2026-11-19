@@ -7,6 +7,7 @@ from bilt._backend._callable import BackendCallable
 from bilt._backend._case import BackendCase
 from bilt.core._errors import BiltAnalysisError
 from bilt.core._port import mangle_name
+from bilt.core._program_ir import ProgramIR, program_from_qualified_plan
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._plan import PlanStep
 from bilt.core._structural_analysis._qualified_block import QualifiedBlock, QualifiedPlan, QualifiedStep
@@ -35,20 +36,29 @@ def realize_qualified_plan(
     backend: Backend,
     block_failures: dict[QualifiedFailureKey, QualifiedRealizationFailure],
 ) -> BackendCase | QualifiedRealizationFailure:
-    """Keep block rejections request-local and preserve qualified step identity."""
+    """Build the neutral qualified schedule before compiling candidate blocks."""
+    program = program_from_qualified_plan(plan)
+    return _compile_qualified_program(plan, program, backend, block_failures)
+
+
+def _compile_qualified_program(
+    plan: QualifiedPlan,
+    program: ProgramIR,
+    backend: Backend,
+    block_failures: dict[QualifiedFailureKey, QualifiedRealizationFailure],
+) -> BackendCase | QualifiedRealizationFailure:
+    """Compile the IR steps without losing the original qualified failure identities."""
     domains = plan.request.input_domains.copy()
-    intermediates = []
-    reserved = set(map(mangle_name, plan.outputs | plan.request.input_domains.keys()))
-    for index, block in enumerate(plan.blocks):
+    intermediates: list[BackendCallable] = []
+    instructions = iter(program.steps)
+    for block in plan.blocks:
+        instruction = next(instructions)
         if isinstance(block, QualifiedBlock):
             key = block, frozenset((name, domains[name]) for name in block.inputs)
             if key in block_failures:
                 return block_failures[key]
-            name = f"__bilt_qualified_solution_{index}"
-            while name in reserved:
-                name += "_"
             try:
-                callables = realize_linear_block(block, backend, domains, solution_name=name)
+                callables = realize_linear_block(block, backend, domains, solution_name=instruction.output)
             except (BiltLinearBlockError, BiltSymbolicLoweringError, BiltTensorDomainError) as error:
                 sources = ", ".join(row.label for row in block.rows)
                 cause = BiltLinearBlockError(f"Qualified block from [{sources}] was rejected: {error}")
@@ -56,6 +66,12 @@ def realize_qualified_plan(
                 failure = QualifiedRealizationFailure(block, cause)
                 block_failures[key] = failure
                 return failure
+            for callable_, projected in zip(
+                callables[1:], (next(instructions) for _ in block.unknowns), strict=True
+            ):
+                if callable_.name != projected.output:
+                    message = f"IR projection {projected.output!r} does not match compiled output {callable_.name!r}."
+                    raise BiltAnalysisError(message)
             intermediates.extend(callables)
             for output, callable_ in zip(block.unknowns, callables[1:], strict=True):
                 domains[output] = _output_domain(callable_, output)
@@ -63,13 +79,16 @@ def realize_qualified_plan(
             result = _realize_step(block, backend, domains)
             if isinstance(result, QualifiedRealizationFailure):
                 return result
+            if result.name != instruction.output:
+                message = f"IR step {instruction.output!r} does not match compiled output {result.name!r}."
+                raise BiltAnalysisError(message)
             intermediates.append(result)
             domains[block.output] = _output_domain(result, block.output)
     return BackendCase(
-        name=mangle_name(plan.request.output),
-        parameters=tuple(map(mangle_name, sorted(plan.request.input_domains))),
+        name=program.result,
+        parameters=program.parameters,
         intermediates=intermediates,
-        return_name=mangle_name(plan.request.output),
+        return_name=program.result,
     )
 
 
