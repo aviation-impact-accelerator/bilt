@@ -1,0 +1,142 @@
+name: Profile ProgramIR cache
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/profile-program-ir-cache.yml"
+      - "src/bilt/core/_program_ir.py"
+      - "src/bilt/core/_program_ir_cache.py"
+      - "src/bilt/core/_structural_analysis/_causalization_block_solver/_backend.py"
+  workflow_dispatch:
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      UV_LOCKED: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: aviation-impact-accelerator/bilt
+          ref: f3a0d15d028213451c426593b018cd602a07a381
+          path: baseline
+      - uses: actions/checkout@v7
+        with:
+          repository: aviation-impact-accelerator/bilt
+          ref: da5e193af0549c64eeb08bf951df657d841120d0
+          path: uncached
+      - uses: actions/checkout@v7
+        with:
+          repository: aviation-impact-accelerator/bilt
+          ref: ${{ github.event.pull_request.head.sha || 'prototype/program-ir-request-cache' }}
+          path: cached
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          python-version: "3.15"
+          enable-cache: true
+      - run: rustup toolchain install
+      - name: Install dependencies
+        run: |
+          for revision in baseline uncached cached; do
+            (cd "$revision" && uv sync --all-extras --all-groups)
+          done
+      - name: Benchmark all revisions using an ABCCBA order
+        run: |
+          for revision in baseline uncached cached cached uncached baseline; do
+            occurrence=$(ls "${revision}-profile-"*.json 2>/dev/null | wc -l)
+            (cd "$revision" && uv run pytest \
+              benchmarks/test_nested_coupled_plan_search.py \
+              benchmarks/test_coupled_group_planning.py \
+              --search-rounds=40 --benchmark-warmup=off \
+              --benchmark-json="../${revision}-profile-${occurrence}.json" --timeout=30)
+          done
+      - name: Measure cache reuse on representative nested searches
+        working-directory: cached
+        run: |
+          uv run python - <<'PY'
+          import sys
+          from unittest.mock import patch
+          sys.path.insert(0, "benchmarks")
+          from nested_coupled_plan_search import NestedCoupledTrial
+          from coupled_group_planning import CoupledGroupTrial
+          import bilt.core._program_ir as ir
+          import bilt.core._structural_analysis._realize as realization
+          import bilt.core._structural_analysis._realize_qualified as qualified
+
+          def sample(label, prepare):
+              totals = {"calls": 0, "hits": 0, "unique": 0}
+              def run_once():
+                  seen = set()
+                  def wrapped(original):
+                      def measure(plan):
+                          value = original(plan)
+                          totals["calls"] += 1
+                          if id(value) in seen:
+                              totals["hits"] += 1
+                          else:
+                              seen.add(id(value))
+                          return value
+                      return measure
+                  original_direct = ir.program_from_plan
+                  original_qualified = ir.program_from_qualified_plan
+                  with (
+                      patch.object(realization, "program_from_plan", wrapped(original_direct)),
+                      patch.object(qualified, "program_from_qualified_plan", wrapped(original_qualified)),
+                  ):
+                      trial = prepare()
+                      try:
+                          trial.analyse()
+                          trial.check()
+                      finally:
+                          trial.close()
+                  totals["unique"] += len(seen)
+              for _ in range(30):
+                  run_once()
+              print(f"CACHE {label} {totals}", flush=True)
+
+          sample("group3", lambda: CoupledGroupTrial.prepare(3))
+          sample("group4", lambda: CoupledGroupTrial.prepare(4))
+          sample("nested_explicit", lambda: NestedCoupledTrial.prepare(coupled=False))
+          sample("nested_coupled", lambda: NestedCoupledTrial.prepare(coupled=True))
+          PY
+      - name: Summarise comparisons
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          import os
+          from pathlib import Path
+
+          medians = {}
+          for revision in ("baseline", "uncached", "cached"):
+              for iteration in (0, 1):
+                  raw = json.loads(Path(f"{revision}-profile-{iteration}.json").read_text())
+                  for entry in raw["benchmarks"]:
+                      medians.setdefault(entry["name"], {})[(revision, iteration)] = entry["stats"]["median"] * 1000
+          lines = [
+              "## Same-run ABCCBA cold-search comparison",
+              "",
+              "40 fresh model/context trials per benchmark per revision and repetition.",
+              "Lower is better. #486 = baseline; #487 = uncached; #490 = cached.",
+              "",
+              "| Scenario | #486 (ms) | #487/#486 | #490/#486 | #490/#487 |",
+              "|---|---:|---:|---:|---:|",
+          ]
+          for name, values in sorted(medians.items()):
+              mid = lambda rev: math.sqrt(values[(rev, 0)] * values[(rev, 1)])
+              base, old, new = mid("baseline"), mid("uncached"), mid("cached")
+              lines.append(f"| {name} | {base:.3f} | {old/base:.3f}x | {new/base:.3f}x | {new/old:.3f}x |")
+              print(f"COMPARE {name} baseline={base:.6f} uncached={old:.6f} cached={new:.6f} cached_to_uncached={new/old:.6f}")
+          summary = "\n".join(lines) + "\n"
+          print(summary)
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as output:
+              output.write(summary)
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: program-ir-cache-distributions
+          path: "*-profile-*.json"
+          if-no-files-found: warn
