@@ -71,7 +71,6 @@ def program_from_case(case: BackendCase) -> ProgramIR:
     return program
 
 
-
 def _operation_kind(step: PlanStep | QualifiedStep) -> typing.Literal["equation", "transform", "child", "primitive"]:
     """Identify a model operation without importing any backend functionality."""
     from bilt.core._equation import BasicEquation  # noqa: PLC0415
