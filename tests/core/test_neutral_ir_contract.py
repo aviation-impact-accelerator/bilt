@@ -287,3 +287,40 @@ def test_physical_dimension_mismatch_and_axis_errors() -> None:
     )
     with pytest.raises(IRValidationError, match="Invalid positional tensor axis"):
         validate_function(bad_axis)
+
+
+def test_multiplication_and_division_compose_physical_dimensions() -> None:
+    energy = ValueType(ValueKind.FLOAT, Domain.scalar(), ENERGY)
+    time = ValueType(ValueKind.FLOAT, Domain.scalar(), TIME)
+    power = ValueType(ValueKind.FLOAT, Domain.scalar(), POWER)
+    function = FunctionIR(
+        "power",
+        (Value("energy", energy), Value("time", time)),
+        Block(
+            (Operation(Value("power", power), Opcode.DIV, ("energy", "time")),),
+            "power",
+        ),
+    )
+    validate_function(function)
+
+    wrong = FunctionIR(
+        "power",
+        (Value("energy", energy), Value("time", time)),
+        Block(
+            (Operation(Value("power", energy), Opcode.DIV, ("energy", "time")),),
+            "power",
+        ),
+    )
+    with pytest.raises(IRValidationError, match="physical dimension mismatch"):
+        validate_function(wrong)
+
+
+def test_inverse_composes_physical_dimension() -> None:
+    energy = ValueType(ValueKind.FLOAT, Domain.scalar(), ENERGY)
+    inverse = ValueType(ValueKind.FLOAT, Domain.scalar(), ENERGY**-1)
+    function = FunctionIR(
+        "inverse",
+        (Value("energy", energy),),
+        Block((Operation(Value("inverse", inverse), Opcode.INV, ("energy",)),), "inverse"),
+    )
+    validate_function(function)
