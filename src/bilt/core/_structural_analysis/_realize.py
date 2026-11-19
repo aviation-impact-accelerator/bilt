@@ -14,8 +14,8 @@ from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementEr
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._ir import ir_to_functiondef, tree_to_ir
-from bilt.core._program_ir import ProgramIR, program_from_plan
 from bilt.core._port import mangle_name
+from bilt.core._program_ir import ProgramIR, program_from_plan
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._realize_linear import realize_linear_block
 from bilt.core._sub_system import SubSystemConstituent
@@ -52,7 +52,7 @@ def realize_plan(
     return _compile_program(plan, program, backend, block_failures=block_failures)
 
 
-def _compile_program(
+def _compile_program(  # noqa: C901
     plan: AnalysisPlan,
     program: ProgramIR,
     backend: Backend,
