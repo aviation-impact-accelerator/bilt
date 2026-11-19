@@ -109,7 +109,11 @@ class StructuralExpansion:
         self.available = frozenset(available)
         self.contexts: dict[tuple[str, ...], _Context] = {
             (): _Context(
-                functools.partial(inspect_structure, incidence, early_aliases=early_aliases),
+                (
+                    functools.partial(inspect_structure, incidence, early_aliases=True)
+                    if early_aliases
+                    else functools.partial(inspect_structure, incidence)
+                ),
                 frozenset(incidence.attribute_nodes),
                 frozenset(),
             )
@@ -206,11 +210,12 @@ class StructuralExpansion:
             message = f"Recursive subsystem containment at {'.'.join(path)!r} is not supported."
             raise BiltAnalysisError(message)
         analysis = implementation.structural_analysis()
-        self.contexts[path] = _Context(
-            functools.partial(inspect_structure, analysis.incidence, early_aliases=self._early_aliases),
-            analysis.attribute_names,
-            ancestors | {id(implementation)},
+        query = (
+            functools.partial(inspect_structure, analysis.incidence, early_aliases=True)
+            if self._early_aliases
+            else analysis.inspect
         )
+        self.contexts[path] = _Context(query, analysis.attribute_names, ancestors | {id(implementation)})
         # Expansion can expose ports referenced by parent or sibling constraints.
         # Replay existing attributes into the new child context, too.
         for attribute in sorted(self.attributes):
