@@ -106,5 +106,5 @@ def test_implementation_reuses_incidence_across_structural_and_backend_analysers
     implementation = Implementation(SharedPorts, [connect])
     incidence = implementation.structural_analysis().incidence
     analyser = implementation.analyser_for(PYTHON_BACKEND)
-    assert analyser.full_incidence_graph is incidence
+    assert getattr(analyser, "full_incidence_graph") is incidence
     assert incidence.canonical_index is implementation.structural_analysis().incidence.canonical_index
