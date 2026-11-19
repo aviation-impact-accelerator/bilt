@@ -16,10 +16,10 @@ Topology (node C is ground):
 A Wheatstone bridge is by definition four resistive arms, a galvanometer and a supply,
 so every implementation of it has these children. They are therefore declared as
 fields: their ports are part of the bridge's interface, and no pass-through equations
-are needed. The implementation is just the topology, one `@connection` per node.
+are needed. The implementation is just the topology, one `Connection` per node.
 """
 
-from bilt_proposals import connection, field
+from bilt_proposals import Connection, equation, field
 
 from bilt import Implementation, Interface, system
 from examples.circuits._ground import Ground
@@ -41,28 +41,28 @@ class WheatstoneBridge(metaclass=Interface):
     galvanometer: Resistor = field()
 
 
-@connection
-def node_a(source: VoltageSource, arm1: Resistor, arm3: Resistor) -> tuple[Pin, Pin, Pin]:
+@equation
+def node_a(source: VoltageSource, arm1: Resistor, arm3: Resistor) -> Connection[Pin]:
     """Node A: source +, arm1 +, arm3 +."""
-    return source.positive, arm1.positive, arm3.positive
+    return Connection(source.positive, arm1.positive, arm3.positive)
 
 
-@connection
-def node_b(arm1: Resistor, arm2: Resistor, galvanometer: Resistor) -> tuple[Pin, Pin, Pin]:
+@equation
+def node_b(arm1: Resistor, arm2: Resistor, galvanometer: Resistor) -> Connection[Pin]:
     """Node B: arm1 -, arm2 +, galvanometer +."""
-    return arm1.negative, arm2.positive, galvanometer.positive
+    return Connection(arm1.negative, arm2.positive, galvanometer.positive)
 
 
-@connection
-def node_c(source: VoltageSource, arm2: Resistor, arm4: Resistor, ground: Ground) -> tuple[Pin, Pin, Pin, Pin]:
+@equation
+def node_c(source: VoltageSource, arm2: Resistor, arm4: Resistor, ground: Ground) -> Connection[Pin]:
     """Node C: source -, arm2 -, arm4 -, ground."""
-    return source.negative, arm2.negative, arm4.negative, ground.terminal
+    return Connection(source.negative, arm2.negative, arm4.negative, ground.terminal)
 
 
-@connection
-def node_d(arm3: Resistor, arm4: Resistor, galvanometer: Resistor) -> tuple[Pin, Pin, Pin]:
+@equation
+def node_d(arm3: Resistor, arm4: Resistor, galvanometer: Resistor) -> Connection[Pin]:
     """Node D: arm3 -, arm4 +, galvanometer -."""
-    return arm3.negative, arm4.positive, galvanometer.negative
+    return Connection(arm3.negative, arm4.positive, galvanometer.negative)
 
 
 ideal_wheatstone_bridge = Implementation(WheatstoneBridge, [node_a, node_b, node_c, node_d])

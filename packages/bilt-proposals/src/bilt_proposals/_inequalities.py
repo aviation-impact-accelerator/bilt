@@ -37,13 +37,16 @@ Strict and non-strict inequalities are accepted, and differ only in that check.
 `!=` is not part of this proposal: it excludes a single value, so cannot bound a solve.
 
 **`equation` (decorator).** The same as `bilt.equation`, except that it raises
-`ProposalNotImplementedError` for a relation other than `==`; it exists so a module can
-import a single `equation` for all its relations.
+`ProposalNotImplementedError` for a relation other than `==`, and for an equation
+returning a `Connection` (see `_connectors.py`); it exists so a module can import a
+single `equation` for all its relations.
 """
 
+import annotationlib
 import typing
 
 import bilt
+from bilt_proposals._connectors import Connection
 from bilt_proposals._errors import not_implemented
 
 if typing.TYPE_CHECKING:
@@ -53,7 +56,10 @@ if typing.TYPE_CHECKING:
 
 
 def equation[R, **P](function: collections.abc.Callable[P, R]) -> BasicEquation[R, P]:
-    """Decorate a function returning an equality or an inequality between ports."""
+    """Decorate a function returning an equality or an inequality between ports, or a `Connection`."""
+    returned = annotationlib.get_annotations(function, format=annotationlib.Format.FORWARDREF).get("return")
+    if returned is Connection or typing.get_origin(returned) is Connection:
+        not_implemented(f"an @equation returning a Connection ({getattr(function, '__name__', function)})")
     declared = bilt.equation(function)
     tree = declared.__bilt_equation_tree__
     if tree.is_relation and not tree.is_equality:
