@@ -47,6 +47,7 @@ Look up precise declarations, supported operations and limitations:
 ## Developer internals
 
 - [Structural analyser internals](development/structural-analysis.md) — objects, call flows, caches, tests and debugging.
+- [Computational planning, realisation and lowering](development/computational-planning-and-lowering.md) — from selected producers to symbolic expressions, AST and backend callables.
 
 ## Tools and configuration
 

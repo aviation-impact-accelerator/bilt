@@ -47,6 +47,7 @@ nav = [
 
     { "Developer internals" = [
         { "Structural analyser internals" = "development/structural-analysis.md" },
+        { "Computational planning and lowering" = "development/computational-planning-and-lowering.md" },
     ] },
 
     { "Tools and configuration" = [

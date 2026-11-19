@@ -168,6 +168,8 @@ When diagnosing a failure, trace **request → scope → completed expansion →
 
 The target-route pruning tests include exhaustive small-graph comparisons. Keep them when changing heuristics: reducing search work must not lose viable alternatives.
 
+For the next phase—dependency planning, symbolic representations, realisation and backend lowering—see [Computational planning, realisation and lowering](computational-planning-and-lowering.md).
+
 ## Related reading
 
 - [How structural search works](../guide/structural-search.md) — algorithms and search biases.
