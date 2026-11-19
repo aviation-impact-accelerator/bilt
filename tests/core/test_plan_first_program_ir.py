@@ -37,6 +37,7 @@ def double(total: float) -> float:
 @system
 class Child(metaclass=Interface):
     value: float = field()
+    source: float = field()
 
 
 def test_plan_ir_is_constructed_without_a_backend() -> None:
