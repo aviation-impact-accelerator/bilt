@@ -1,5 +1,7 @@
 __all__ = ["settle_assignments"]
 
+import contextlib
+import contextvars
 import typing
 
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
@@ -14,6 +16,21 @@ if typing.TYPE_CHECKING:
 
     from bilt._backend._base_backend import Backend
     from bilt.core._model_constituent import BiltModelConstituent
+
+
+_batch_child_routes: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "bilt_batch_child_routes", default=False
+)
+
+
+@contextlib.contextmanager
+def batched_child_route_scope() -> collections.abc.Generator[None]:
+    """Opt into batching sibling-produced child inputs before route retries."""
+    token = _batch_child_routes.set(True)
+    try:
+        yield
+    finally:
+        _batch_child_routes.reset(token)
 
 
 def settle_assignments(
@@ -121,13 +138,29 @@ class _TargetSettlement:
         step = self._child_route(operation, output)
         if step is not None:
             return step
+        # With batching enabled, settle sibling-produced boundary ports before
+        # querying again. If the final available set fails, try the intermediate
+        # sets in their original order so no executable route is discarded.
+        snapshots: list[frozenset[str]] = []
         for port in ports:
             if not isinstance(self.assignments.get(port), SubSystemConstituent):
                 continue
             before = len(self.established)
             yield port
-            if len(self.established) != before:
+            if len(self.established) == before:
+                continue
+            if not _batch_child_routes.get():
                 step = _assignment_step(operation, output, self.established, self.backend)
+                if step is not None:
+                    return step
+            else:
+                snapshots.append(frozenset(self.established))
+        if snapshots:
+            final_step = _assignment_step(operation, output, snapshots[-1], self.backend)
+            if final_step is not None:
+                return final_step
+            for available in snapshots[:-1]:
+                step = _assignment_step(operation, output, available, self.backend)
                 if step is not None:
                     return step
         # Preserve cyclic/unresolved candidates for explicit checks, without
