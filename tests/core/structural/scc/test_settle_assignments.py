@@ -398,3 +398,80 @@ def test_explicitly_supplied_sibling_port_is_never_discarded() -> None:
     steps, rejected = settle_assignments({"child.c": child}, {"child.a", "child.b"}, PYTHON_BACKEND, target="child.c")
     assert not rejected
     assert steps[0].child_inputs == frozenset({"a", "b"})
+
+
+def test_batched_child_route_skips_unsuccessful_intermediate_inputs(
+    child: SubSystemConstituent, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The batched route should probe once after sibling inputs are settled."""
+    calls: list[frozenset[str]] = []
+
+    def offered(
+        operation: BiltModelConstituent, output: str, available: collections.abc.Set[str], backend: Backend
+    ) -> PlanStep | None:
+        del backend
+        offered_ports = frozenset(available)
+        calls.append(offered_ports)
+        return PlanStep(operation=operation, output=output, child_inputs=frozenset({"a", "b"})) if {
+            "child.a",
+            "child.b",
+        } <= offered_ports else None
+
+    monkeypatch.setattr(settlement, "_assignment_step", offered)
+    instance = settlement._TargetSettlement(  # noqa: SLF001 - targeted route settlement test
+        {"child.a": child, "child.b": child, "child.c": child}, set(), PYTHON_BACKEND
+    )
+    with settlement.batched_child_route_scope():
+        generator = instance._child_step(child, "child.c")  # noqa: SLF001
+        while True:
+            try:
+                dependency = next(generator)
+            except StopIteration as result:
+                step = result.value
+                break
+            instance.established.add(dependency)
+
+    assert step is not None
+    assert step.child_inputs == frozenset({"a", "b"})
+    assert calls == [frozenset(), frozenset({"child.a", "child.b"})]
+
+
+def test_batched_child_route_retries_intermediate_inputs_if_final_route_fails(
+    child: SubSystemConstituent, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep viable intermediate routes when extra supplied ports overconstrain."""
+    calls: list[frozenset[str]] = []
+
+    def offered(
+        operation: BiltModelConstituent, output: str, available: collections.abc.Set[str], backend: Backend
+    ) -> PlanStep | None:
+        del backend
+        ports = frozenset(available)
+        calls.append(ports)
+        if ports == frozenset({"child.a"}):
+            return PlanStep(operation=operation, output=output, child_inputs=frozenset({"a"}))
+        return None
+
+    monkeypatch.setattr(settlement, "_assignment_step", offered)
+    instance = settlement._TargetSettlement(  # noqa: SLF001 - targeted route fallback test
+        {"child.a": child, "child.b": child, "child.c": child}, set(), PYTHON_BACKEND
+    )
+    with settlement.batched_child_route_scope():
+        generator = instance._child_step(child, "child.c")  # noqa: SLF001
+        while True:
+            try:
+                dependency = next(generator)
+            except StopIteration as result:
+                step = result.value
+                break
+            instance.established.add(dependency)
+
+    assert step is not None
+    assert step.child_inputs == frozenset({"a"})
+    assert calls == [frozenset(), frozenset({"child.a", "child.b"}), frozenset({"child.a"})]
+
+
+def test_batched_child_route_scope_restores_default_after_error() -> None:
+    with pytest.raises(ValueError, match="scope error"), settlement.batched_child_route_scope():
+        raise ValueError("scope error")
+    assert not settlement._batch_child_routes.get()  # noqa: SLF001 - verify context reset
