@@ -238,5 +238,6 @@ RAW_INPUTS = {
     "input_specific_energy": 18e6,
     "input_efficiency": 0.65,
     "energy_per_unit": 0.25e6,
-    "flow_ratio": 2.0,
+    # Keep the derived ratio clear of the 2.0 cutoff after the linear solve.
+    "flow_ratio": 2.1,
 }
