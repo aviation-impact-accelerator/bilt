@@ -1,0 +1,90 @@
+name: Compare complete benchmark matrix for Bilt 467
+on:
+  pull_request:
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    env:
+      UV_PYTHON: '3.15'
+      PYTHONHASHSEED: '0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          python-version: '3.15'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install Rust
+        run: rustup toolchain install stable
+      - name: Run complete baseline benchmark
+        id: baseline
+        continue-on-error: true
+        run: |
+          git checkout --detach 1b1b1fa6d08fba60433d23215dd76c725ad29f5e
+          uv sync --locked --all-extras --all-groups
+          echo "PYO3_PYTHON=$(uv run python -c 'import sys; print(sys.executable)')" >> "$GITHUB_ENV"
+          timeout 1800s uv run --all-extras pytest benchmarks --search-extended --benchmark-only --search-rounds=5 --timeout=100 --benchmark-json="$RUNNER_TEMP/baseline.json" -q
+      - name: Run complete prototype benchmark
+        id: prototype
+        continue-on-error: true
+        run: |
+          git checkout --detach 950f53123c1f46c960273bbfbf457f22748be01e
+          uv sync --locked --all-extras --all-groups
+          timeout 1800s uv run --all-extras pytest benchmarks --search-extended --benchmark-only --search-rounds=5 --timeout=100 --benchmark-json="$RUNNER_TEMP/prototype.json" -q
+      - name: Summarise results
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from statistics import median
+          root = Path(os.environ['RUNNER_TEMP'])
+          paths = [root / 'baseline.json', root / 'prototype.json']
+          if not all(p.exists() for p in paths):
+              print('At least one suite failed before producing JSON.', [(p.name, p.exists()) for p in paths])
+              raise SystemExit(1)
+          left, right = [{x['fullname']: x for x in json.loads(p.read_text())['benchmarks']} for p in paths]
+          if set(left) != set(right):
+              print('Different cases:', sorted(set(left) ^ set(right)))
+              raise SystemExit(1)
+          rows = []
+          for name in left:
+              before = left[name]['stats']['median'] * 1000
+              after = right[name]['stats']['median'] * 1000
+              rows.append((after/before if before else float('inf'), after-before, name, before, after))
+          rows.sort(reverse=True)
+          print('Cases:', len(rows), 'median of ratios:', median(x[0] for x in rows))
+          for ratio, delta, name, b, p in rows[:50]:
+              print(f'{ratio:.3f}x delta={delta:+.3f}ms base={b:.3f}ms prototype={p:.3f}ms {name}')
+          material = [x for x in rows if x[0] > 1.25 and x[1] > 0.25]
+          print('Material slowdown candidates:', len(material))
+          for ratio, delta, name, b, p in material:
+              print(f'REGRESSION_CANDIDATE {ratio:.3f}x delta={delta:+.3f}ms {name}')
+          summary = Path(os.environ['GITHUB_STEP_SUMMARY'])
+          with summary.open('a') as f:
+              f.write('### Full comparison for #467\n\nBaseline: 1b1b1fa6d08f; prototype: 950f53123c1f. Five rounds, same runner.\n\n')
+              f.write(f'Cases: {len(rows)}; median ratio: {median(x[0] for x in rows):.3f}x; material slowdown candidates: {len(material)}.\n\n')
+              f.write('| Ratio | Delta ms | Baseline ms | Prototype ms | Case |\n|---:|---:|---:|---:|---|\n')
+              for ratio, delta, name, b, p in rows[:40]:
+                  f.write(f'| {ratio:.3f}x | {delta:+.3f} | {b:.3f} | {p:.3f} | {name} |\n')
+          PY
+      - name: Upload benchmark JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bilt-467-benchmark-comparison
+          path: |
+            ${{ runner.temp }}/baseline.json
+            ${{ runner.temp }}/prototype.json
+          if-no-files-found: warn
+      - name: Require successful baseline and prototype
+        if: always()
+        env:
+          BASELINE: ${{ steps.baseline.outcome }}
+          PROTOTYPE: ${{ steps.prototype.outcome }}
+        run: |
+          test "$BASELINE" = success
+          test "$PROTOTYPE" = success
