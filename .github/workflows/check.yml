@@ -91,11 +91,51 @@ jobs:
       - name: Check with prek
         run: uv run prek run --all-files
 
+  optimisation-ipopt:
+    name: Compare IPOPT and POUNCE optimisation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Install uv with Python 3.15
+        uses: astral-sh/setup-uv@v10.3.2
+        with:
+          python-version: "3.15"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Rust
+        run: rustup toolchain install
+
+      - name: Install IPOPT development libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config coinor-libipopt-dev
+          pkg-config --modversion ipopt
+
+      - name: Install Bilt and JAX
+        run: uv sync --extra jax --group dev
+
+      - name: Install compatible JAX 0.11, asdex 0.6.1 and cyipopt
+        run: uv pip install --python .venv/bin/python "jax==0.11.2" "jaxlib==0.11.2" "cyipopt==1.7.0" "git+https://github.com/adrhill/asdex.git@84a9fc1a8926ce5ffd729cabc4fc811f69af0a80"
+
+      - name: Install prebuilt POUNCE wheel
+        run: uv pip install --python .venv/bin/python "pounce-solver==0.16.0"
+
+      - name: Verify solver imports
+        run: uv run --no-sync python -c "import asdex, cyipopt, pounce; print('All three solver dependencies installed')"
+
+      - name: Verify sparse derivatives and run IPOPT
+        run: uv run --no-sync pytest -v -o log_cli=true -o log_cli_level=INFO packages/examples/tests/test_asdex_ipopt_cruise.py::test_sparse_derivatives_match_dense_jax packages/examples/tests/test_asdex_ipopt_cruise.py::test_ipopt_matches_analytic_solution packages/examples/tests/test_asdex_ipopt_cruise.py::test_pounce_and_ipopt_agree_on_lowered_bilt_model
+
   check:
     name: Checks and tests
     runs-on: ubuntu-latest
     needs:
       - matrix-check
+      - optimisation-ipopt
     if: ${{ always() }}
 
     steps:
@@ -106,4 +146,9 @@ jobs:
             exit 1
           fi
 
-          echo "All matrix checks passed."
+          if [[ "${{ needs.optimisation-ipopt.result }}" != "success" ]]; then
+            echo "Bilt/IPOPT/POUNCE comparison failed or was cancelled."
+            exit 1
+          fi
+
+          echo "All checks, including IPOPT optimisation, passed."
