@@ -17,6 +17,7 @@ The guide introduces Bilt's ideas and shows how to use its modelling features:
 - [Equations and acausal modelling](guide/equations-and-acausal-modelling.md) — express relationships that can answer different questions.
 - [Transforms and implementations](guide/transforms-and-implementations.md) — use directed calculations and choose implementations.
 - [Models to computation](guide/models-to-computation.md) — understand how Bilt chooses a calculation.
+- [How structural search works](guide/structural-search.md) — discover constraints, validate and search candidate producers.
 - [Dimensions, domains and tensors](guide/dimensions-domains-and-tensors.md) — work with named axes and broadcasting.
 - [Systems of systems](guide/systems-of-systems.md) — compose reusable models.
 - [Coupled systems](guide/coupled-systems.md) — solve supported simultaneous linear equations.
@@ -42,6 +43,11 @@ Look up precise declarations, supported operations and limitations:
 - [Tensors](api/tensors.md)
 - [Units](api/units.md)
 - [Quantity annotations and typing](api/quantity-annotations.md)
+
+## Developer internals
+
+- [Structural analyser internals](development/structural-analysis.md) — objects, call flows, caches, tests and debugging.
+- [Computational planning, realisation and lowering](development/computational-planning-and-lowering.md) — from selected producers to symbolic expressions, AST and backend callables.
 
 ## Tools and configuration
 
