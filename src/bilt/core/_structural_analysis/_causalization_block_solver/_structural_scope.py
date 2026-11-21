@@ -132,6 +132,105 @@ def inspect_structure(
     return scope
 
 
+class _IncrementalStructuralScope:
+    """Track new structural evidence for one request-local subsystem instance."""
+
+    def __init__(self, incidence: FullIncidenceGraph) -> None:
+        self.incidence = incidence
+        self.supplied: frozenset[str] | None = None
+        self.visited: set[str] = set()
+        self.selected: set[int] = set()
+        self.child_ports: dict[int, set[str]] = {}
+        self.order = {node: index for index, node in enumerate(incidence.constituent_nodes)}
+        self.nodes_by_identity = {id(incidence.graph[node]): node for node in incidence.constituent_nodes}
+
+    def _walk(
+        self, targets: frozenset[str], supplied: frozenset[str]
+    ) -> tuple[set[str], set[int], dict[int, set[str]]]:
+        pending = sorted(targets, reverse=True)
+        attributes = set(targets)
+        new_constraints: set[int] = set()
+        new_child_ports: dict[int, set[str]] = {}
+        graph = self.incidence.graph
+
+        while pending:
+            attribute = pending.pop()
+            if attribute in supplied or attribute in self.visited:
+                continue
+            self.visited.add(attribute)
+            node = self.incidence.attribute_nodes.get(attribute)
+            if node is None:
+                continue
+            for constituent_node in graph.neighbors(node):
+                constituent = graph[constituent_node]
+                if isinstance(constituent, SubSystemConstituent):
+                    port = constituent.child_port(attribute)
+                    child_ports = self.child_ports.setdefault(constituent_node, set())
+                    if port not in child_ports:
+                        child_ports.add(port)
+                        new_child_ports.setdefault(constituent_node, set()).add(port)
+                    continue
+                if isinstance(constituent, BasicTransform) and attribute != constituent.__bilt_name__:
+                    continue
+                if constituent_node in self.selected:
+                    continue
+                self.selected.add(constituent_node)
+                new_constraints.add(constituent_node)
+                connected = {graph[neighbor] for neighbor in graph.neighbors(constituent_node)}
+                attributes.update(connected)
+                pending.extend(sorted(connected - supplied, reverse=True))
+
+        return attributes, new_constraints, new_child_ports
+
+    def inspect(self, available: collections.abc.Set[str], required: collections.abc.Set[str]) -> StructuralScope:
+        """Return only constraints and boundary ports not previously discovered."""
+        supplied = frozenset(available)
+        if self.supplied != supplied:
+            self.supplied = supplied
+            self.visited.clear()
+            self.selected.clear()
+            self.child_ports.clear()
+
+        targets = frozenset(required)
+        if not self.visited:
+            # Reuse an existing request-local cache entry for shared implementations.
+            initial = inspect_structure(self.incidence, supplied, targets)
+            self.visited.update(initial.attributes - supplied)
+            self.selected.update(self.nodes_by_identity[id(operation)] for operation in initial.constraints)
+            for boundary in initial.boundaries:
+                self.child_ports[self.nodes_by_identity[id(boundary.operation)]] = set(boundary.required)
+            return initial
+
+        attributes, new_constraints, new_child_ports = self._walk(targets, supplied)
+
+        graph = self.incidence.graph
+        constraints: dict[int, BasicEquation | BasicTransform] = {}
+        for node in sorted(new_constraints, key=self.order.__getitem__):
+            constituent = graph[node]
+            constraints[id(constituent)] = typing.cast("BasicEquation | BasicTransform", constituent)
+
+        boundaries = []
+        for node in sorted(new_child_ports, key=self.order.__getitem__):
+            child = typing.cast("SubSystemConstituent", graph[node])
+            boundaries.append(
+                StructuralBoundary(
+                    operation=child,
+                    available=frozenset(
+                        child.child_port(port) for port in child.__bilt_parameters__ if port in supplied
+                    ),
+                    required=frozenset(new_child_ports[node]),
+                )
+            )
+
+        return StructuralScope(
+            constraints=tuple(constraints.values()),
+            boundaries=tuple(boundaries),
+            attributes=frozenset(attributes),
+            available=supplied,
+            required=targets,
+        )
+
+
 def _scope_nodes(
     incidence: FullIncidenceGraph, supplied: frozenset[str], targets: frozenset[str]
 ) -> tuple[set[int], dict[int, set[str]], set[str]]:
