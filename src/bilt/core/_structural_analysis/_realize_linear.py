@@ -3,6 +3,7 @@
 import ast
 import collections
 import dataclasses
+import math
 import typing
 
 from bilt._backend import LinearSolveBackend
@@ -171,6 +172,7 @@ class _LinearLowering:
                 {name: self.symbol_domains[name] for name in self.parameters},
                 hints,
                 self.canonical,
+                allow_mixed_layout=isinstance(self.linear, LinearOperatorBlock),
             )
             pointwise = isinstance(self.linear, LinearBlock) and all(domain == common for domain in result.values())
         return result, pointwise
@@ -218,8 +220,19 @@ class _LinearLowering:
             constants = [_names(value, self.parameters) for value, _ in rhs]
             extra = []
         if collections.Counter(domains.values()) != collections.Counter(self.ordered(domain) for domain in row_domains):
-            message = "Tensor block scalar equations must have the same domain layout as its unknowns."
-            raise BiltLinearBlockError(message)
+            # Pointwise blocks require matching layouts. General linear operators
+            # may map a source domain onto a different target domain; require
+            # the total scalar equation/unknown counts to agree instead.
+            extents = current_evaluation().domains
+
+            def size(domain: Domain) -> int:
+                return math.prod(extents.size(dim) for dim in domain.dims)
+
+            if not isinstance(self.linear, LinearOperatorBlock) or sum(map(size, domains.values())) != sum(
+                map(size, row_domains)
+            ):
+                message = "Tensor block scalar equations must have the same domain layout as its unknowns."
+                raise BiltLinearBlockError(message)
         layout = (
             tuple(self.axes(domains[name]) for name in self.linear.unknowns),
             tuple(map(self.axes, row_domains)),

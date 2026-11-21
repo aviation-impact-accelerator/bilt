@@ -2,8 +2,10 @@
 
 import collections
 import dataclasses
+import math
 import typing
 
+from bilt.core._evaluation_context import current_evaluation
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.symbolic._atoms import DimensionType, IndexOpType, ReductionOpType, SymbolType
 from bilt.symbolic._domains import Domain
@@ -36,6 +38,7 @@ class _Axis:
     unknowns: int
     rows: tuple[_Presence, ...]
     required: tuple[_Presence, ...]
+    allow_mixed: bool = False
 
     def propagate(self, included: int, excluded: int) -> tuple[int, int] | None:
         for required in self.required:
@@ -45,6 +48,10 @@ class _Axis:
             remaining = required.mask & ~excluded
             if state is None and remaining.bit_count() == 1:
                 included |= remaining
+        if self.allow_mixed:
+            # A source-to-target operator need not balance coordinate counts
+            # independently on each axis. Check the full flattened sizes.
+            return included, excluded
         states = [row.value(included, excluded) for row in self.rows]
         row_min = sum(state is True for state in states)
         row_max = sum(state is not False for state in states)
@@ -64,6 +71,8 @@ class _Constraints:
     names: tuple[str, ...]
     dims: tuple[Dim, ...]
     axes: tuple[_Axis, ...]
+    allow_mixed: bool = False
+    sizes: tuple[int, ...] = ()
 
     @property
     def all_bits(self) -> int:
@@ -87,6 +96,12 @@ class _Constraints:
                     rows[index] |= 1 << axis
                 if included & (1 << (axis * width + index)):
                     outputs[index] |= 1 << axis
+        if self.allow_mixed:
+
+            def size(bits: int) -> int:
+                return math.prod(extent for axis, extent in enumerate(self.sizes) if bits & (1 << axis))
+
+            return sum(map(size, outputs)) == sum(map(size, rows))
         return collections.Counter(outputs) == collections.Counter(rows)
 
     def propagate(self, included: int, excluded: int, omit: int) -> tuple[int, int] | None:
@@ -136,20 +151,22 @@ class _Constraints:
         )
 
 
-def infer_linear_domains(
+def infer_linear_domains(  # noqa: PLR0913 - solver context includes layout and mode.
     names: tuple[str, ...],
     rows: tuple[tuple[Tree, Tree], ...],
     known: Mapping[str, Domain],
     hints: Mapping[str, Domain],
     canonical: Domain,
+    *,
+    allow_mixed_layout: bool = False,
 ) -> dict[str, Domain]:
     """Choose a layout contained in every other supported layout, or request hints.
 
     Only named axes present in known inputs are available. Domain hints are exact.
-    Square layouts follow the joint assembler's equation/unknown domain multiset
-    rule, independently of coordinate counts and matching row order.
+    Pointwise layouts follow the existing row/unknown domain multiset rule.
+    Linear operators may instead map different domains with equal scalar sizes.
     """
-    constraints = _compile_constraints(names, rows, known, canonical)
+    constraints = _compile_constraints(names, rows, known, canonical, allow_mixed_layout=allow_mixed_layout)
     dims = constraints.dims
     width = len(names)
     included = excluded = 0
@@ -176,7 +193,12 @@ def infer_linear_domains(
 
 
 def _compile_constraints(
-    names: tuple[str, ...], rows: tuple[tuple[Tree, Tree], ...], known: Mapping[str, Domain], canonical: Domain
+    names: tuple[str, ...],
+    rows: tuple[tuple[Tree, Tree], ...],
+    known: Mapping[str, Domain],
+    canonical: Domain,
+    *,
+    allow_mixed_layout: bool,
 ) -> _Constraints:
     available = {dim for domain in known.values() for dim in domain.dims}
     dims = tuple(dim for dim in canonical.dims if dim in available)
@@ -186,14 +208,15 @@ def _compile_constraints(
         variables = {name: 1 << (axis * width + index) for index, name in enumerate(names)}
         compiler = _AxisCompiler(dim, variables, known, available)
         presence = tuple(compiler.presence(left).combine(compiler.presence(right)) for left, right in rows)
-        axes.append(_Axis(sum(variables.values()), presence, tuple(compiler.required)))
+        axes.append(_Axis(sum(variables.values()), presence, tuple(compiler.required), allow_mixed_layout))
     if not dims:
         # Still inspect operators: an unbound reduction cannot invent an extent.
         compiler = _AxisCompiler(None, {}, known, available)
         for left, right in rows:
             compiler.presence(left)
             compiler.presence(right)
-    return _Constraints(names, dims, tuple(axes))
+    sizes = tuple(current_evaluation().domains.size(dim) for dim in dims) if allow_mixed_layout else ()
+    return _Constraints(names, dims, tuple(axes), allow_mixed_layout, sizes)
 
 
 @dataclasses.dataclass
