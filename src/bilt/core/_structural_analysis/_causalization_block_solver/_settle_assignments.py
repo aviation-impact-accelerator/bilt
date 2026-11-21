@@ -3,6 +3,7 @@ __all__ = ["settle_assignments"]
 import typing
 
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
+from bilt.core._structural_analysis._causalization_block_solver._settlement_cache import memoized_settlement
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import (
     validate_request_structure,
 )
@@ -30,7 +31,13 @@ def settle_assignments(
     candidate input set, not a permanent rejection of the child output.
     Follow the target's dependencies and potential inputs of selected children.
     """
-    return _TargetSettlement(assignments, available, backend).settle(target)
+    return memoized_settlement(
+        assignments,
+        available,
+        backend,
+        target,
+        lambda: _TargetSettlement(assignments, available, backend).settle(target),
+    )
 
 
 def _assignment_step(

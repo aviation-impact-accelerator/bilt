@@ -6,6 +6,8 @@ import contextlib
 import contextvars
 import typing
 
+from bilt.core._structural_analysis._causalization_block_solver._settlement_cache import invalidate_settlement_cache
+
 if typing.TYPE_CHECKING:
     import collections.abc
 
@@ -36,7 +38,8 @@ def route_cache_scope() -> collections.abc.Generator[RouteCache]:
 
 
 def invalidate_route_cache() -> None:
-    """Discard every route answer when realisation may change failure knowledge."""
+    """Discard route and settlement answers after realisation changes failure knowledge."""
+    invalidate_settlement_cache()
     cache = _cache.get()
     if cache is not None:
         cache.clear()

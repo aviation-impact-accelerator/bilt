@@ -25,6 +25,7 @@ from bilt.core._structural_analysis._causalization_block_solver._route_cache imp
     invalidate_route_cache,
     route_cache_scope,
 )
+from bilt.core._structural_analysis._causalization_block_solver._settlement_cache import settlement_cache_scope
 from bilt.core._structural_analysis._causalization_block_solver._structural_cache import structural_cache_scope
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import (
     validate_request_structure,
@@ -64,7 +65,7 @@ class CausalizationStructuralAnalyzer:
 
     def analyse(self, request: EvaluationRequest) -> BackendCase:
         """Find and realise a plan, sharing request caches across nested analysis."""
-        with structural_cache_scope(), route_cache_scope():
+        with structural_cache_scope(), route_cache_scope(), settlement_cache_scope():
             return self._analyse(request)
 
     def _analyse(self, request: EvaluationRequest) -> BackendCase:
@@ -170,7 +171,7 @@ class CausalizationStructuralAnalyzer:
         output: str,
     ) -> frozenset[str] | None:
         """Reuse an execution-route query within the current nested analysis."""
-        with structural_cache_scope(), route_cache_scope() as cache:
+        with structural_cache_scope(), route_cache_scope() as cache, settlement_cache_scope():
             key = self, frozenset(available), output
             if key not in cache:
                 cache[key] = self._required_inputs_for_target(available, output)
