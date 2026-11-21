@@ -71,11 +71,15 @@ class ExpansionSnapshot:
             message = "Cannot build definitive structural incidence with unresolved subsystem boundaries."
             raise BiltAnalysisError(message)
         graph = rx.PyGraph(multigraph=False)
-        attributes = {name: graph.add_node(name) for name in sorted(self.attributes - self.available)}
-        for constraint in self.constraints:
-            node = graph.add_node(constraint.label)
-            for attribute in sorted(constraint.attributes - self.available):
-                graph.add_edge(node, attributes[attribute], None)
+        names = sorted(self.attributes - self.available)
+        attributes = dict(zip(names, graph.add_nodes_from(names), strict=True))
+        constraint_nodes = graph.add_nodes_from([constraint.label for constraint in self.constraints])
+        edges = [
+            (node, attributes[attribute], None)
+            for constraint, node in zip(self.constraints, constraint_nodes, strict=True)
+            for attribute in sorted(constraint.attributes - self.available)
+        ]
+        graph.add_edges_from(edges)
         return graph, attributes
 
 

@@ -45,8 +45,12 @@ def validate_structure(
     """
     unknown_nodes = attribute_nodes - input_nodes
 
-    reduced = graph.copy()
-    reduced.remove_nodes_from(list(attribute_nodes & input_nodes))
+    fixed = attribute_nodes & input_nodes
+    if fixed:
+        reduced = graph.copy()
+        reduced.remove_nodes_from(list(fixed))
+    else:
+        reduced = graph
 
     partition = dulmage_mendelsohn(reduced, unknown_nodes)
 
