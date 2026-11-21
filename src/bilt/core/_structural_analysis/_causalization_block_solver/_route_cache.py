@@ -1,6 +1,6 @@
 """Reuse execution-route queries within one nested analysis call."""
 
-__all__ = ["invalidate_route_cache", "route_cache_scope"]
+__all__ = ["invalidate_route_cache", "route_cache_generation", "route_cache_scope"]
 
 import contextlib
 import contextvars
@@ -13,6 +13,7 @@ if typing.TYPE_CHECKING:
 type RouteCache = dict[tuple[object, frozenset[str], str], frozenset[str] | None]
 
 _cache: contextvars.ContextVar[RouteCache | None] = contextvars.ContextVar("bilt_route_cache", default=None)
+_generation: contextvars.ContextVar[int] = contextvars.ContextVar("bilt_route_cache_generation", default=0)
 
 
 @contextlib.contextmanager
@@ -29,9 +30,11 @@ def route_cache_scope() -> collections.abc.Generator[RouteCache]:
 
     cache: RouteCache = {}
     token = _cache.set(cache)
+    generation_token = _generation.set(0)
     try:
         yield cache
     finally:
+        _generation.reset(generation_token)
         _cache.reset(token)
 
 
@@ -40,3 +43,9 @@ def invalidate_route_cache() -> None:
     cache = _cache.get()
     if cache is not None:
         cache.clear()
+        _generation.set(_generation.get() + 1)
+
+
+def route_cache_generation() -> int:
+    """Return the failure-sensitive route-cache revision in this request."""
+    return _generation.get()

@@ -2,9 +2,12 @@
 
 __all__ = ["candidate_assignments"]
 
+import contextlib
+import contextvars
 import typing
 
 from bilt.core._structural_analysis._causalization_block_solver._matching import find_matching
+from bilt.core._structural_analysis._causalization_block_solver._route_cache import route_cache_generation
 from bilt.core._structural_analysis._plan import PlanStep
 
 if typing.TYPE_CHECKING:
@@ -14,6 +17,69 @@ if typing.TYPE_CHECKING:
 
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis._realize import RealizationFailure
+
+
+_deduplicate: contextvars.ContextVar[bool] = contextvars.ContextVar("bilt_matching_dedup", default=False)
+_matching_cache: contextvars.ContextVar[dict[tuple[object, object], dict[str, BiltModelConstituent]] | None] = (
+    contextvars.ContextVar("bilt_matching_cache", default=None)
+)
+
+
+@contextlib.contextmanager
+def matching_dedup_scope() -> collections.abc.Generator[None]:
+    """Experimentally suppress duplicate candidate routes within one search."""
+    token = _deduplicate.set(True)
+    try:
+        yield
+    finally:
+        _deduplicate.reset(token)
+
+
+@contextlib.contextmanager
+def matching_cache_scope(
+    cache: dict[tuple[object, object], dict[str, BiltModelConstituent]],
+) -> collections.abc.Generator[None]:
+    """Use an analyser-owned exact-graph matching cache for nested search calls."""
+    token = _matching_cache.set(cache)
+    try:
+        yield
+    finally:
+        _matching_cache.reset(token)
+
+
+def _matching_signature(graph: rx.PyGraph) -> tuple[object, object]:
+    """Key a matching by node meaning, weighted edges and exact node indices."""
+    nodes: list[tuple[int, tuple[str, int | str, str]]] = []
+    for index in graph.node_indices():
+        source = graph[index]
+        if isinstance(source, str):
+            label: tuple[str, int | str, str] = ("attribute", source, "")
+        elif isinstance(source, PlanStep):
+            label = ("step", id(source.operation), source.output)
+        else:
+            label = ("operation", id(source), "")
+        nodes.append((index, label))
+    edges = tuple(
+        sorted(
+            (min(first, second), max(first, second), graph.get_edge_data(first, second))
+            for first, second in graph.edge_list()
+        )
+    )
+    return tuple(nodes), edges
+
+
+def _memoized_matching(
+    graph: rx.PyGraph,
+    cache: dict[tuple[object, object], dict[str, BiltModelConstituent]],
+) -> dict[str, BiltModelConstituent]:
+    key = _matching_signature(graph)
+    if (cached := cache.get(key)) is not None:
+        return cached
+    assignments = find_matching(graph)
+    if len(cache) >= 256:  # noqa: PLR2004 - bounded persistent analyser cache
+        del cache[next(iter(cache))]
+    cache[key] = assignments
+    return assignments
 
 
 def _edge_step(graph: rx.PyGraph, first: int, second: int) -> PlanStep:
@@ -101,6 +167,7 @@ def candidate_assignments(
     failures: collections.abc.Mapping[PlanStep, RealizationFailure],
     *,
     output: str | None,
+    matching_cache: dict[tuple[object, object], dict[str, BiltModelConstituent]] | None = None,
 ) -> collections.abc.Iterator[dict[str, BiltModelConstituent]]:
     """Try matchings while excluding failed or unsuccessful choices.
 
@@ -108,6 +175,7 @@ def candidate_assignments(
     candidates branch by removing selected matching edges. An unavailable
     output must retain a producer edge; supplied outputs pass output=None.
     """
+    matching_cache = matching_cache if matching_cache is not None else _matching_cache.get()
     output_node = (
         next((node for node in graph.node_indices() if isinstance(graph[node], str) and graph[node] == output), None)
         if output is not None
@@ -118,6 +186,7 @@ def candidate_assignments(
 
     pending = [graph]
     visited: set[frozenset[tuple[int, int]]] = set()
+    yielded: set[tuple[frozenset[tuple[str, int]], frozenset[PlanStep], int]] = set()
 
     while pending:
         candidate_graph = pending.pop()
@@ -137,8 +206,22 @@ def candidate_assignments(
             continue
         visited.add(signature)
 
-        assignments = find_matching(candidate_graph)
-        yield assignments
+        assignments = (
+            _memoized_matching(candidate_graph, matching_cache)
+            if _deduplicate.get() and matching_cache is not None
+            else find_matching(candidate_graph)
+        )
+        if _deduplicate.get():
+            signature = (
+                frozenset((name, id(operation)) for name, operation in assignments.items()),
+                frozenset(failures),
+                route_cache_generation(),
+            )
+            if signature not in yielded:
+                yielded.add(signature)
+                yield assignments
+        else:
+            yield assignments
 
         # Realisation may have added failures while the generator yielded.
         # Retry this graph with those assignments excluded first.
