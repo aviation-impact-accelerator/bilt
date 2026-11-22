@@ -1,5 +1,6 @@
 """Exact bounded polynomial normalisation on Bilt's expression trees."""
 
+import typing
 from fractions import Fraction
 
 import pytest
@@ -71,4 +72,4 @@ def test_zero_polynomial_is_immutable() -> None:
     x = symbol_tree("x")
     poly = as_polynomial(x)
     with pytest.raises(TypeError):
-        poly.coefficients[("new",)] = Fraction(2)  # type: ignore[index]
+        typing.cast("dict[tuple[str, ...], Fraction]", poly.coefficients)[("new",)] = Fraction(2)
