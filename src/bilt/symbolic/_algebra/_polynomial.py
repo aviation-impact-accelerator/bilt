@@ -51,7 +51,7 @@ class Polynomial:
         return not self.coefficients
 
 
-def as_polynomial(  # noqa: C901, PLR0912, PLR0915
+def as_polynomial(  # noqa: C901, PLR0915
     tree: Tree, *, max_degree: int = 4, max_terms: int = 256
 ) -> Polynomial:
     """Expand supported scalar arithmetic and combine equal monomials.
@@ -112,7 +112,7 @@ def as_polynomial(  # noqa: C901, PLR0912, PLR0915
                 base = multiplication(base, base)
         return result
 
-    def convert(node: Tree) -> Polynomial:  # noqa: C901, PLR0911
+    def convert(node: Tree) -> Polynomial:  # noqa: C901, PLR0911, PLR0912
         head = node.head
         if node.is_leaf:
             if head.atom_type is SymbolType:
