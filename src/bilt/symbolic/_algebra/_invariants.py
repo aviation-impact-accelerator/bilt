@@ -111,10 +111,7 @@ def discover_boundary_invariants(  # noqa: C901
         return len(monomial) == 1 and monomial[0] in boundary_ports
 
     unwanted = sorted({key for poly in residuals for key in poly.coefficients if not allowed(key)})
-    elimination = [
-        [poly.coefficients.get(monomial, Fraction()) for poly in residuals]
-        for monomial in unwanted
-    ]
+    elimination = [[poly.coefficients.get(monomial, Fraction()) for poly in residuals] for monomial in unwanted]
     candidates: list[DiscoveredInvariant] = []
     seen: set[tuple[tuple[Monomial, Fraction], ...]] = set()
     for weights in _nullspace(elimination, len(equations)):
