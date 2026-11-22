@@ -25,7 +25,7 @@ def electric(power_in: Power, efficiency: Efficiency, power_out: Power) -> bool:
 
 @equation
 def loss(power_in: Power, efficiency: Efficiency, heat: Power) -> bool:
-    return heat == (1 - efficiency) * power_in
+    return heat + efficiency * power_in == power_in
 
 
 def test_automatically_discovers_power_boundary() -> None:
