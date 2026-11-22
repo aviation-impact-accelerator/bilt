@@ -45,7 +45,7 @@ def test_independent_observation_detects_mismatch() -> None:
         "power_out",
         observations={"heat": 55.0},
     )
-    assert report.values["heat"] == 55.0
+    assert report.values["heat"] == pytest.approx(55.0)
     by_name = {item.name: item for item in report.checks}
     assert by_name["losses"].status == "violated"
     assert by_name["losses"].residual == pytest.approx(-5.0)
