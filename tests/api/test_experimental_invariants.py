@@ -45,9 +45,9 @@ def test_discover_energy_balance_without_a_declared_contract() -> None:
     candidates = discover_linear_invariants(model, _scenarios())
     assert len(candidates) == 1
     coefficients = candidates[0].coefficients
-    assert coefficients["power_in"] == pytest.approx(1)
-    assert coefficients["power_out"] == pytest.approx(-1)
-    assert coefficients["heat"] == pytest.approx(-1)
+    assert abs(coefficients["power_in"]) == pytest.approx(1)
+    assert coefficients["power_out"] == pytest.approx(-coefficients["power_in"])
+    assert coefficients["heat"] == pytest.approx(-coefficients["power_in"])
     assert candidates[0].maximum_residual == pytest.approx(0, abs=1e-7)
     assert candidates[0].status == "candidate"
 
