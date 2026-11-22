@@ -12,6 +12,7 @@ import numpy as np
 from bilt._backend._python import PYTHON_BACKEND
 from bilt.core._errors import BiltAnalysisError
 from bilt.units import Quantity
+from bilt.units._units import BASE_UNIT_SYSTEM
 
 if typing.TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -33,7 +34,7 @@ class LinearInvariant:
 def _numeric(value: object) -> float:
     """Use coherent values, rather than mixing user-selected units."""
     if isinstance(value, Quantity):
-        return float(value.convert_to(value.unit).value * value.unit.scale)  # type: ignore[attr-defined]
+        return float(value.convert_to(BASE_UNIT_SYSTEM.coherent_unit(value.unit.dimension)).value)
     if isinstance(value, (int, float)):
         return float(value)
     raise ValueError(f"Cannot use {type(value).__name__} in scalar invariant discovery.")
