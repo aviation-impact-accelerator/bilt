@@ -107,7 +107,7 @@ def discover_linear_invariants(  # noqa: C901, PLR0912, PLR0915
                 break
             try:
                 row = [_numeric(known[port]) for port in ports]
-            except (ValueError, KeyError, AttributeError):
+            except ValueError, KeyError, AttributeError:
                 failed = True
                 break
             if not all(math.isfinite(value) for value in row):
