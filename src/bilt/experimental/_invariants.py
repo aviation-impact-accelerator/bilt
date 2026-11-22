@@ -58,14 +58,14 @@ def _port_groups(implementation: Implementation) -> tuple[tuple[str, tuple[str, 
     )
 
 
-def discover_linear_invariants(
+def discover_linear_invariants(  # noqa: C901, PLR0912, PLR0915
     implementation: Implementation,
     scenarios: Sequence[Mapping[str, object]],
     *,
     backend: Backend = PYTHON_BACKEND,
     tolerance: float = 1e-9,
     maximum_terms: int = 5,
-) -> tuple[LinearInvariant, ...]:  # noqa: C901, PLR0912, PLR0915
+) -> tuple[LinearInvariant, ...]:
     """Sample system outputs and detect dimensionally compatible linear relations.
 
     Every candidate is derived from a numerical nullspace across the supplied
