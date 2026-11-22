@@ -3,6 +3,8 @@
 This deliberately does not add the checked equations as solve constraints.
 """
 
+from __future__ import annotations
+
 import dataclasses
 import math
 import typing
@@ -41,21 +43,22 @@ class AuditReport:
     checks: tuple[EquationCheck, ...]
 
 
-def _evaluate_expr(tree: Tree, values: Mapping[str, object]) -> object:
+def _evaluate_expr(tree: Tree, values: Mapping[str, object]) -> object:  # noqa: PLR0911
     """Evaluate the supported scalar arithmetic subset of a Bilt expression tree."""
     if tree.is_leaf:
         if tree.head.atom_type is SymbolType:
             return values[str(tree.head.value)]
         if tree.head.atom_type in (IntType, FloatType):
             return tree.head.value
-        raise ValueError(f"Unsupported literal {tree.head!r}.")
+        message = f"Unsupported literal {tree.head!r}."
+        raise ValueError(message)
 
     args = tuple(_evaluate_expr(child, values) for child in tree.args)
     if tree.head is ADD:
         return sum(args)
     if tree.head is MUL:
-        result: object = 1
-        for value in args:
+        result: object = args[0]
+        for value in args[1:]:
             result = result * value  # type: ignore[operator]
         return result
     if tree.head is NEG:
@@ -64,7 +67,8 @@ def _evaluate_expr(tree: Tree, values: Mapping[str, object]) -> object:
         return 1 / args[0]  # type: ignore[operator]
     if tree.head is POW:
         return args[0] ** args[1]  # type: ignore[operator]
-    raise ValueError(f"Unsupported expression operator {tree.head!r}.")
+    message = f"Unsupported expression operator {tree.head!r}."
+    raise ValueError(message)
 
 
 def _residual(left: object, right: object) -> tuple[float, float]:
@@ -74,7 +78,8 @@ def _residual(left: object, right: object) -> tuple[float, float]:
         return float(left.value - right.value), max(abs(float(left.value)), abs(float(right.value)))
     if isinstance(left, (int, float)) and isinstance(right, (int, float)):
         return float(left - right), max(abs(float(left)), abs(float(right)))
-    raise ValueError("Only scalar numbers or compatible scalar quantities are supported.")
+    message = "Only scalar numbers or compatible scalar quantities are supported."
+    raise ValueError(message)
 
 
 def audit_equations(
@@ -86,7 +91,7 @@ def audit_equations(
     backend: Backend = PYTHON_BACKEND,
     atol: float = 1e-9,
     rtol: float = 1e-9,
-) -> AuditReport:
+) -> AuditReport:  # noqa: C901, PLR0913
     """Evaluate one output and check all direct equations in the implementation.
 
     Missing values are requested through ordinary Bilt evaluation, reusing
@@ -95,11 +100,13 @@ def audit_equations(
     transforms, conditionals, tensors and unsupported expression operators.
     """
     if atol < 0 or rtol < 0:
-        raise ValueError("Tolerances must be nonnegative.")
+        message = "Tolerances must be nonnegative."
+        raise ValueError(message)
     observed = dict(observations or {})
     overlap = set(observed) & set(inputs)
     if overlap:
-        raise ValueError(f"Observations duplicate solver inputs: {sorted(overlap)}.")
+        message = f"Observations duplicate solver inputs: {sorted(overlap)}."
+        raise ValueError(message)
 
     values = dict(inputs)
     values.update(implementation._evaluate_with_intermediates(dict(inputs), output, backend))  # noqa: SLF001
@@ -137,7 +144,8 @@ def audit_equations(
         try:
             residual, scale = _residual(_evaluate_expr(tree.left, present), _evaluate_expr(tree.right, present))
             if not math.isfinite(residual) or not math.isfinite(scale):
-                raise ValueError("Non-finite residual.")
+                checks.append(EquationCheck(name, "unavailable", None, independent, "Non-finite residual."))
+                continue
         except (ValueError, TypeError, KeyError, ZeroDivisionError) as exc:
             checks.append(EquationCheck(name, "unavailable", None, independent, str(exc)))
             continue
