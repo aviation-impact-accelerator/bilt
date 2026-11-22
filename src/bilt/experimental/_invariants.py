@@ -3,6 +3,8 @@
 A numerical nullspace is evidence of a relationship, not a symbolic proof.
 """
 
+from __future__ import annotations
+
 import dataclasses
 import math
 import typing
@@ -37,7 +39,8 @@ def _numeric(value: object) -> float:
         return float(value.convert_to(BASE_UNIT_SYSTEM.coherent_unit(value.unit.dimension)).value)
     if isinstance(value, (int, float)):
         return float(value)
-    raise ValueError(f"Cannot use {type(value).__name__} in scalar invariant discovery.")
+    message = f"Cannot use {type(value).__name__} in scalar invariant discovery."
+    raise ValueError(message)
 
 
 def _port_groups(implementation: Implementation) -> tuple[tuple[str, tuple[str, ...]], ...]:
@@ -51,7 +54,7 @@ def _port_groups(implementation: Implementation) -> tuple[tuple[str, tuple[str, 
     return tuple(
         (dimension, tuple(sorted(set(names))))
         for dimension, names in sorted(groups.items())
-        if len(set(names)) >= 3
+        if len(set(names)) >= 3  # noqa: PLR2004
     )
 
 
@@ -62,7 +65,7 @@ def discover_linear_invariants(
     backend: Backend = PYTHON_BACKEND,
     tolerance: float = 1e-9,
     maximum_terms: int = 5,
-) -> tuple[LinearInvariant, ...]:
+) -> tuple[LinearInvariant, ...]:  # noqa: C901, PLR0912, PLR0915
     """Sample system outputs and detect dimensionally compatible linear relations.
 
     Every candidate is derived from a numerical nullspace across the supplied
@@ -72,10 +75,12 @@ def discover_linear_invariants(
     The prototype supports scalar quantity ports only. Unsupported or
     uncomputable groups are omitted, rather than silently filled with zero.
     """
-    if len(scenarios) < 4:
-        raise ValueError("Supply at least four diverse operating points.")
-    if tolerance <= 0 or maximum_terms < 2:
-        raise ValueError("Tolerance must be positive and maximum_terms at least 2.")
+    if len(scenarios) < 4:  # noqa: PLR2004
+        message = "Supply at least four diverse operating points."
+        raise ValueError(message)
+    if tolerance <= 0 or maximum_terms < 2:  # noqa: PLR2004
+        message = "Tolerance must be positive and maximum_terms at least 2."
+        raise ValueError(message)
 
     candidates: list[LinearInvariant] = []
     for dimension, ports in _port_groups(implementation):
@@ -127,7 +132,7 @@ def discover_linear_invariants(
             coefficients = coefficients / largest
             coefficients[np.abs(coefficients) < tolerance * 10] = 0
             active = np.flatnonzero(coefficients)
-            if len(active) < 2 or len(active) > maximum_terms:
+            if len(active) < 2 or len(active) > maximum_terms:  # noqa: PLR2004
                 continue
             # Exclude undersampled/constant apparent relationships.
             if any(np.ptp(matrix[:, i]) < tolerance * max(np.max(np.abs(matrix[:, i])), 1.0) for i in active):
