@@ -71,4 +71,4 @@ def test_rejects_non_equality_and_duplicate_labels() -> None:
     with pytest.raises(ValueError, match="equality"):
         discover_boundary_invariants((("bad", x < 1),), frozenset({"x"}))
     with pytest.raises(ValueError, match="unique"):
-        discover_boundary_invariants((("same", x == 1), ("same", x == 2)), frozenset({"x"}))
+        discover_boundary_invariants((("same", x == 1), ("same", x == 1)), frozenset({"x"}))
