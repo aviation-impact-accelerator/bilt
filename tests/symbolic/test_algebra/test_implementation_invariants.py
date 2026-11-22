@@ -4,26 +4,27 @@ from typing import Annotated
 
 from bilt import Implementation, Interface, Quantity, equation, field, system
 from bilt.symbolic._algebra._implementation_invariants import discover_implementation_invariants
-from bilt.units.dimensions import MASS, POWER
+from bilt.units.dimensions import DIMENSIONLESS, MASS, POWER
 
 Power = Annotated[Quantity, POWER]
+Efficiency = Annotated[Quantity, DIMENSIONLESS]
 
 
 @system
 class Converter(metaclass=Interface):
     power_in: Power = field()
-    efficiency: float = field()
+    efficiency: Efficiency = field()
     power_out: Power = field()
     heat: Power = field()
 
 
 @equation
-def electric(power_in: Power, efficiency: float, power_out: Power) -> bool:
+def electric(power_in: Power, efficiency: Efficiency, power_out: Power) -> bool:
     return power_out == efficiency * power_in
 
 
 @equation
-def loss(power_in: Power, efficiency: float, heat: Power) -> bool:
+def loss(power_in: Power, efficiency: Efficiency, heat: Power) -> bool:
     return heat == (1 - efficiency) * power_in
 
 
