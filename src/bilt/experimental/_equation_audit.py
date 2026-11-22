@@ -55,7 +55,10 @@ def _evaluate_expr(tree: Tree, values: Mapping[str, object]) -> object:  # noqa:
 
     args = tuple(_evaluate_expr(child, values) for child in tree.args)
     if tree.head is ADD:
-        return sum(args)
+        result: object = args[0]
+        for value in args[1:]:
+            result = result + value  # type: ignore[operator]
+        return result
     if tree.head is MUL:
         result: object = args[0]
         for value in args[1:]:
