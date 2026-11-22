@@ -88,6 +88,7 @@ def discover_linear_invariants(  # noqa: C901, PLR0912, PLR0915
             # Need more independent observations than unknown coefficients.
             continue
         rows: list[list[float]] = []
+        failed = False
         for scenario in scenarios:
             known = dict(scenario)
             failed = False
