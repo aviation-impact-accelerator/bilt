@@ -77,7 +77,7 @@ def _nullspace(matrix: list[list[Fraction]], columns: int) -> tuple[tuple[Fracti
     )
 
 
-def discover_boundary_invariants(
+def discover_boundary_invariants(  # noqa: C901
     equations: Sequence[tuple[str, Tree]],
     boundary_ports: frozenset[str],
     *,
