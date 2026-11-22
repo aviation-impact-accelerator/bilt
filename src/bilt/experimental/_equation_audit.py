@@ -82,7 +82,7 @@ def _residual(left: object, right: object) -> tuple[float, float]:
     raise ValueError(message)
 
 
-def audit_equations(
+def audit_equations(  # noqa: C901, PLR0913
     implementation: Implementation,
     inputs: Mapping[str, object],
     output: str,
@@ -91,7 +91,7 @@ def audit_equations(
     backend: Backend = PYTHON_BACKEND,
     atol: float = 1e-9,
     rtol: float = 1e-9,
-) -> AuditReport:  # noqa: C901, PLR0913
+) -> AuditReport:
     """Evaluate one output and check all direct equations in the implementation.
 
     Missing values are requested through ordinary Bilt evaluation, reusing
