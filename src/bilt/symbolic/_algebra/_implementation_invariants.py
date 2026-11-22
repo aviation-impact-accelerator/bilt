@@ -12,8 +12,8 @@ from bilt.core._equation import BasicEquation
 from bilt.symbolic._algebra._invariants import DiscoveredInvariant, discover_boundary_invariants
 
 if typing.TYPE_CHECKING:
-    from bilt.units.dimensions._dimensions import Dimension
     from bilt.core._system._implementation import Implementation
+    from bilt.units.dimensions._dimensions import Dimension
 
 
 def discover_implementation_invariants(
