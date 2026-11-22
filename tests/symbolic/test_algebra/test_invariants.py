@@ -60,10 +60,13 @@ def test_one_efficiency_equation_is_not_a_conservation_law() -> None:
     input_power = Expr.symbol("input_power")
     output_power = Expr.symbol("output_power")
     efficiency = Expr.symbol("efficiency")
-    assert discover_boundary_invariants(
-        (("efficiency", output_power == efficiency * input_power),),
-        frozenset({"input_power", "output_power"}),
-    ) == ()
+    assert (
+        discover_boundary_invariants(
+            (("efficiency", output_power == efficiency * input_power),),
+            frozenset({"input_power", "output_power"}),
+        )
+        == ()
+    )
 
 
 def test_rejects_non_equality_and_duplicate_labels() -> None:
