@@ -51,7 +51,9 @@ class Polynomial:
         return not self.coefficients
 
 
-def as_polynomial(tree: Tree, *, max_degree: int = 4, max_terms: int = 256) -> Polynomial:
+def as_polynomial(  # noqa: C901, PLR0912, PLR0915
+    tree: Tree, *, max_degree: int = 4, max_terms: int = 256
+) -> Polynomial:
     """Expand supported scalar arithmetic and combine equal monomials.
 
     Integers and decimal spellings of floating literals become exact Fractions.
@@ -137,7 +139,7 @@ def as_polynomial(tree: Tree, *, max_degree: int = 4, max_terms: int = 256) -> P
             for child in node.args:
                 result = multiplication(result, convert(child))
             return result
-        if head is POW and len(node.args) == 2:
+        if head is POW and len(node.args) == 2:  # noqa: PLR2004
             exponent_tree = node.args[1]
             if not exponent_tree.is_leaf or exponent_tree.head.atom_type is not IntType:
                 message = "Only nonnegative integer polynomial powers are supported."
