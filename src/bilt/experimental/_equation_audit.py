@@ -124,7 +124,10 @@ def audit_equations(  # noqa: C901, PLR0913
             try:
                 values.update(
                     implementation._evaluate_with_intermediates(  # noqa: SLF001
-                        dict(inputs), port, backend, cached={key: val for key, val in values.items() if key not in inputs}
+                        dict(inputs),
+                        port,
+                        backend,
+                        cached={key: val for key, val in values.items() if key not in inputs},
                     )
                 )
             except BiltAnalysisError as exc:
