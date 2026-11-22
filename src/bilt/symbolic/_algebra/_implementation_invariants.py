@@ -10,9 +10,9 @@ import typing
 
 from bilt.core._equation import BasicEquation
 from bilt.symbolic._algebra._invariants import DiscoveredInvariant, discover_boundary_invariants
-from bilt.units.dimensions._dimensions import Dimension
 
 if typing.TYPE_CHECKING:
+    from bilt.units.dimensions._dimensions import Dimension
     from bilt.core._system._implementation import Implementation
 
 
