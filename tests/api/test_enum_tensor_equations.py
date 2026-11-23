@@ -118,7 +118,8 @@ def test_qualified_child_enum_tensor_selects_parent_equation(backend: AbstractCo
         ParentScenario, [parent_result], internal_implementations={"child": Implementation(ChildScenario, [])}
     )
     scenarios = tensor([Scenario.MINIMUM, Scenario.AVERAGE, Scenario.MAXIMUM], over=dim("scenario"))
-    calculated = implementation.evaluate({"child.scenario": scenarios}, "result", backend)
+    with backend, implementation:
+        calculated = ParentScenario(**{"child.scenario": scenarios}).result
     assert isinstance(calculated, Tensor)
     assert calculated.domain == scenarios.domain
     np.testing.assert_allclose(calculated.values, [1.0, 2.0, 3.0])
@@ -140,7 +141,8 @@ def echoed(scenario: Scenario | Tensor) -> Scenario | Tensor:
 def test_transform_passthrough_decodes_categorical_tensor_output(backend: AbstractContextManager[object]) -> None:
     implementation = Implementation(EnumEcho, [echoed])
     scenarios = tensor([Scenario.MAXIMUM, Scenario.MINIMUM], over=dim("scenario"))
-    calculated = implementation.evaluate({"scenario": scenarios}, "echoed", backend)
+    with backend, implementation:
+        calculated = EnumEcho(scenario=scenarios).echoed
     assert isinstance(calculated, Tensor)
     assert calculated.domain == scenarios.domain
     assert list(calculated.values) == [Scenario.MAXIMUM, Scenario.MINIMUM]
