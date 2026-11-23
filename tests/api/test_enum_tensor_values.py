@@ -73,7 +73,7 @@ def test_enum_port_accepts_scalar_or_matching_tensor() -> None:
 def test_scalar_only_port_rejects_categorical_tensor() -> None:
     value = tensor([Mode.MINIMUM], over=dim("scenario"))
     with pytest.raises(BiltEvaluationError, match="requires a Mode enum member"):
-        ScalarOnly(mode=value)
+        ScalarOnly(mode=value)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
 
 
 def test_categorical_port_rejects_numeric_and_other_enum_tensors() -> None:
