@@ -1,6 +1,8 @@
 """Scalar categorical ports and directed transform execution with both backends."""
 
 import enum
+import typing
+
 import pytest
 
 from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, field, system, transform
