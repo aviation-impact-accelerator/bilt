@@ -7,6 +7,7 @@ import dataclasses
 import types
 import typing
 
+from bilt.core._enum_encoding import enum_from_code
 from bilt.core._equation import BasicEquation
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
@@ -77,6 +78,9 @@ class Implementation:
             named_components | sub_systems
         )
         check_dimensional_consistency(system, self._components.values())
+        self._enum_types = dict(system.__bilt_enum_ports__)
+        for component in self._components.values():
+            self._enum_types.update(getattr(component, "__bilt_enum_ports__", {}))
         self._port_declarations: dict[str, PortDeclaration] = {
             port: declaration
             for component in self._components.values()
@@ -135,7 +139,7 @@ class Implementation:
         expose_intermediates: bool,
         cached: dict[str, object] | None = None,
     ) -> dict[str, object]:
-        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs, enum_types=self._enum_types)
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
             if output in inputs:
@@ -170,12 +174,12 @@ class Implementation:
                     raw_outputs = {output: backend_callable.evaluate(backend_inputs)}
                     output_domains = {output: typing.cast("Domain", backend_callable.output_domain)}
                 outputs = {
-                    name: lift_output(
-                        value, generate_lifting_plan(output_domains[name], self._port_declarations.get(name))
-                    )
+                    name: enum_from_code(enum_type, typing.cast("typing.SupportsIndex", value))
+                    if (enum_type := self._enum_types.get(name)) is not None
+                    else lift_output(value, generate_lifting_plan(output_domains[name], self._port_declarations.get(name)))
                     for name, value in raw_outputs.items()
                 }
-            validate_inputs(self._system.__bilt_name__, self._port_declarations, outputs)
+            validate_inputs(self._system.__bilt_name__, self._port_declarations, outputs, enum_types=self._enum_types)
             evaluation.domains.bind_all(outputs.values())
         return outputs
 

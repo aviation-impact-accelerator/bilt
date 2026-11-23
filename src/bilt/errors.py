@@ -15,6 +15,8 @@ Conventions:
 
 __all__ = [
     "BiltAnalysisError",
+    "BiltCategoricalConsistencyError",
+    "BiltCategoricalPortError",
     "BiltAtomMutationError",
     "BiltBackendError",
     "BiltCheckConfigurationError",
@@ -69,6 +71,8 @@ from bilt._base_error import BiltError
 from bilt._errors import BiltCheckConfigurationError, BiltCheckError
 from bilt.core._errors import (
     BiltAnalysisError,
+    BiltCategoricalConsistencyError,
+    BiltCategoricalPortError,
     BiltCollectedValidationError,
     BiltDefinitionError,
     BiltDomainBindingError,
