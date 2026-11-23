@@ -30,7 +30,7 @@ def test_absolute_conversion_returns_scale_and_offset() -> None:
 
 def test_absolute_year_converts_through_a_non_adjacent_absolute_origin() -> None:
     """A year is defined through day/hour/minute, not directly through second."""
-    seconds_per_year = (365.25 * 24.0 * 60.0 * 60.0)
+    seconds_per_year = 365.25 * 24.0 * 60.0 * 60.0
 
     forward = conversion_between(absolute_year, absolute_second)
     backward = conversion_between(absolute_second, absolute_year)
