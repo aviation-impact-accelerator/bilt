@@ -176,7 +176,9 @@ class Implementation:
                 outputs = {
                     name: enum_from_code(enum_type, typing.cast("typing.SupportsIndex", value))
                     if (enum_type := self._enum_types.get(name)) is not None
-                    else lift_output(value, generate_lifting_plan(output_domains[name], self._port_declarations.get(name)))
+                    else lift_output(
+                        value, generate_lifting_plan(output_domains[name], self._port_declarations.get(name))
+                    )
                     for name, value in raw_outputs.items()
                 }
             validate_inputs(self._system.__bilt_name__, self._port_declarations, outputs, enum_types=self._enum_types)

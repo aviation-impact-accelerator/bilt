@@ -40,9 +40,7 @@ class BasicTransform[R, **P]:
             msg = "has different categorical types for its input and output of the same name."
             raise BiltCategoricalPortError(self.__bilt_name__, self.__bilt_name__, msg)
         self.__bilt_enum_ports__ = input_types | output_types
-        self.__bilt_port_declarations__ = port_declarations(
-            self.__bilt_name__, input_annotations | output_annotation
-        )
+        self.__bilt_port_declarations__ = port_declarations(self.__bilt_name__, input_annotations | output_annotation)
         self._function = function
         self._function_ast = erase_units(
             typing.cast("ast.FunctionDef", ast.parse(textwrap.dedent(inspect.getsource(function))).body[0]),

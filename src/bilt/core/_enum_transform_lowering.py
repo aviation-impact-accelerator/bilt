@@ -11,7 +11,9 @@ if typing.TYPE_CHECKING:
     import collections.abc
 
 
-def lower_enum_literals(function_ast: ast.FunctionDef, function: collections.abc.Callable[..., object]) -> ast.FunctionDef:
+def lower_enum_literals(
+    function_ast: ast.FunctionDef, function: collections.abc.Callable[..., object]
+) -> ast.FunctionDef:
     """Compiled transform inputs are encoded; make literal members match that representation."""
     closure = inspect.getclosurevars(function)
     bindings = closure.globals | closure.nonlocals
