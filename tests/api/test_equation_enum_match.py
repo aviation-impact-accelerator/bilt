@@ -28,6 +28,8 @@ if typing.TYPE_CHECKING:
 
     from bilt.core._equation import BasicEquation
 
+
+
 class Mode(enum.Enum):
     OFF = "off"
     CRUISE = "cruise"
