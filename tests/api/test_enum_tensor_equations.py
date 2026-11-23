@@ -114,9 +114,9 @@ def parent_result(child: ChildScenario, result: float) -> bool:
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 def test_qualified_child_enum_tensor_selects_parent_equation(backend: AbstractContextManager[object]) -> None:
-    implementation = Implementation(ParentScenario, [parent_result], internal_implementations={
-        "child": Implementation(ChildScenario, [])
-    })
+    implementation = Implementation(
+        ParentScenario, [parent_result], internal_implementations={"child": Implementation(ChildScenario, [])}
+    )
     scenarios = tensor([Scenario.MINIMUM, Scenario.AVERAGE, Scenario.MAXIMUM], over=dim("scenario"))
     calculated = implementation.evaluate({"child.scenario": scenarios}, "result", backend)
     assert isinstance(calculated, Tensor)
