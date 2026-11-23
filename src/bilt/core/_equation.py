@@ -11,7 +11,7 @@ import typing
 lazy import enum
 
 from bilt.core._dimensional_analysis import absoluteness_of, dimensionality_of
-from bilt.core._enum_matching import enum_port_types
+from bilt.core._enum_matching import enum_port_types, enum_tensor_ports
 from bilt.core._equation_ast import BiltCategoricalEquationError
 from bilt.core._equation_tracing import validated_symbolic_function
 from bilt.core._errors import (
@@ -46,6 +46,7 @@ class Equation[R, **P](typing.Protocol):
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     __bilt_enum_ports__: dict[str, type[enum.Enum]]
+    __bilt_enum_tensor_ports__: frozenset[str]
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
@@ -58,6 +59,7 @@ class BasicEquation[R, **P]:
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
     __bilt_enum_ports__: dict[str, type[enum.Enum]]
+    __bilt_enum_tensor_ports__: frozenset[str]
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
     _function: collections.abc.Callable[P, R]
 
@@ -71,9 +73,9 @@ class BasicEquation[R, **P]:
         _validate_equation_signature(name, signature)
 
         sub_systems = _sub_system_parameters(signature)
-        enum_types = enum_port_types(
-            name, {port: parameter.annotation for port, parameter in signature.parameters.items()}
-        )
+        annotations = {port: parameter.annotation for port, parameter in signature.parameters.items()}
+        enum_types = enum_port_types(name, annotations)
+        tensor_ports = enum_tensor_ports(annotations)
         sub_system_enum_types = {
             port: enum_type
             for child, interface in sub_systems.items()
@@ -91,6 +93,11 @@ class BasicEquation[R, **P]:
             port: enum_type for port, enum_type in sub_system_enum_types.items() if port in equation_symbols
         }
         self.__bilt_enum_ports__ = enum_types | referenced_enum_types
+        self.__bilt_enum_tensor_ports__ = tensor_ports | frozenset(
+            f"{child}.{port}" for child, interface in sub_systems.items()
+            for port in interface.__bilt_enum_tensor_ports__
+            if f"{child}.{port}" in equation_symbols
+        )
         _validate_enum_uses(occurring, self.__bilt_enum_ports__)
         self.__bilt_name__ = name
         self.__bilt_parameters__ = tuple(equation_symbols)
