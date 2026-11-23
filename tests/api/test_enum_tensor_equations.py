@@ -1,7 +1,7 @@
 """Ordinary enum-valued tensors select equation branches elementwise."""
 
 import enum
-from contextlib import AbstractContextManager
+lazy from contextlib import AbstractContextManager
 
 import numpy as np
 import pytest
