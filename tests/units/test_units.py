@@ -11,6 +11,7 @@ from bilt.units import (
     absolute_celsius,
     absolute_fahrenheit,
     absolute_kelvin,
+    absolute_second,
     absolute_year,
     acre,
     ampere,
@@ -1037,6 +1038,7 @@ class TestAbsoluteUnit:
             (20.0 * absolute_celsius, 293.15),
             (32.0 * absolute_fahrenheit, 273.15),
             (20.0 * celsius, 20.0),
+            (2025.0 * absolute_year, 2025.0 * 365.25 * 24.0 * 60.0 * 60.0),
         ),
     )
     def test_coherent_value_counts_an_absolute_quantity_from_absolute_zero(quantity: Quantity, expected: float) -> None:
@@ -1048,9 +1050,12 @@ class TestAbsoluteUnit:
             BASE_UNIT_SYSTEM.coherent_value(60.0 * kilogram * absolute_celsius)
 
     @staticmethod
-    def test_coherent_value_unit_error_if_coherent_unit_has_no_absolute_counterpart() -> None:
-        with pytest.raises(BiltUnitError, match="No absolute unit corresponding to second exists"):
-            BASE_UNIT_SYSTEM.coherent_value(2020.0 * absolute_year)
+    def test_coherent_absolute_time_is_measured_in_absolute_seconds() -> None:
+        assert abs(second) is absolute_second
+        assert abs(year) is absolute_year
+        assert BASE_UNIT_SYSTEM.coherent_value(2020.0 * absolute_year) == pytest.approx(
+            2020.0 * 365.25 * 24.0 * 60.0 * 60.0
+        )
 
 
 class TestTaggedUnit:

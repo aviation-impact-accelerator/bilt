@@ -35,7 +35,7 @@ use `Unit.new_named()` to define others.
 | Time | `millisecond`, `second`, `minute`, `hour`, `day`, `year` |
 | Temperature change | `kelvin`, `celsius`, `fahrenheit` |
 | Absolute temperature | `absolute_kelvin`, `absolute_celsius`, `absolute_fahrenheit` |
-| Absolute time | `absolute_year` |
+| Absolute time | `absolute_second`, `absolute_year` |
 | Electric current | `ampere` |
 | Amount of substance | `mole`, `kilomole` |
 | Luminous intensity | `candela` |
@@ -58,8 +58,12 @@ Compose other units with `*`, `/`, integer powers, and reciprocals:
 Conventions:
 
 - `percent` represents `0.01 * UNITLESS`; `radian` is dimensionless and a degree is π/180 radians.
-- `year` is 365.25 days. `absolute_year` exists as a unit, but model evaluation
-  currently has no coherent absolute-second counterpart and rejects absolute time inputs.
+- `absolute_second` is the coherent unit for absolute time; `absolute_year` converts
+  to it using the fixed `year` duration of 365.25 days. Both share an arbitrary
+  modelling-coordinate zero (`0 absolute_year = 0 absolute_second`), **not** a
+  civil-calendar epoch. Absolute-year coordinates and elapsed years can be used
+  in equations, but do not model Gregorian leap years, months, or timezones.
+  Convert real-world dates explicitly at the application boundary.
 - Use `celsius` for a temperature difference and `absolute_celsius` for a reading.
   Absolute and relative units cannot be interconverted.
 - Currency conversions use fixed, bundled annual exchange and inflation data,
