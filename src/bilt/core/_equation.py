@@ -23,7 +23,7 @@ from bilt.core._errors import (
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
 from bilt.core._port_declaration import PortDeclaration, annotated_parts, port_declarations, quantity_magnitude_kind
-from bilt.core._sub_system import validate_name
+from bilt.core._sub_system import qualified_enum_ports, validate_name
 from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.core._validation import validate_independently
 from bilt.symbolic import _atoms as ops
@@ -74,16 +74,23 @@ class BasicEquation[R, **P]:
         enum_types = enum_port_types(
             name, {port: parameter.annotation for port, parameter in signature.parameters.items()}
         )
-        # Nested categorical selectors and their qualified metadata are added in PR 4.
+        sub_system_enum_types = {
+            port: enum_type
+            for child, interface in sub_systems.items()
+            for port, enum_type in qualified_enum_ports(child, interface).items()
+        }
         symbols = _build_symbols(signature, sub_systems)
-        traced_function = validated_symbolic_function(function, enum_types=enum_types)
+        traced_function = validated_symbolic_function(function, enum_types=enum_types | sub_system_enum_types)
         tree = _build_equation_tree(name, traced_function, symbols)
         occurring = subtrees(tree)
         equation_symbols, referenced_sub_systems, sub_system_declarations = _expand_sub_system_parameters(
             symbols, sub_systems, occurring
         )
 
-        self.__bilt_enum_ports__ = enum_types
+        referenced_enum_types = {
+            port: enum_type for port, enum_type in sub_system_enum_types.items() if port in equation_symbols
+        }
+        self.__bilt_enum_ports__ = enum_types | referenced_enum_types
         _validate_enum_uses(occurring, self.__bilt_enum_ports__)
         self.__bilt_name__ = name
         self.__bilt_parameters__ = tuple(equation_symbols)
