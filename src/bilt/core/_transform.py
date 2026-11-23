@@ -6,6 +6,7 @@ import textwrap
 import typing
 
 from bilt.core._enum_matching import enum_port_types
+from bilt.core._enum_transform_matching import lower_enum_matches
 from bilt.core._errors import BiltCategoricalPortError, BiltUnresolvedAnnotationError
 from bilt.core._port_declaration import PortDeclaration, port_declarations
 from bilt.core._unit_erasure import erase_units
@@ -42,9 +43,14 @@ class BasicTransform[R, **P]:
         self.__bilt_enum_ports__ = input_types | output_types
         self.__bilt_port_declarations__ = port_declarations(self.__bilt_name__, input_annotations | output_annotation)
         self._function = function
-        self._function_ast = erase_units(
-            typing.cast("ast.FunctionDef", ast.parse(textwrap.dedent(inspect.getsource(function))).body[0]),
-            self,
+        self._function_ast = lower_enum_matches(
+            erase_units(
+                typing.cast("ast.FunctionDef", ast.parse(textwrap.dedent(inspect.getsource(function))).body[0]),
+                self,
+            ),
+            function,
+            input_types,
+            output_types.get(self.__bilt_name__),
         )
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
