@@ -12,11 +12,11 @@ from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltEvaluationError
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._port import mangle_inputs, mangle_name
+from bilt.core._port import QualifiedPort, mangle_inputs, mangle_name
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralAnalysis
 from bilt.core._sub_system import SubSystemConstituent
-from bilt.core._system._dimensional_unification import check_dimensional_consistency
+from bilt.core._system._dimensional_unification import check_categorical_consistency, check_dimensional_consistency
 from bilt.core._system._errors import (
     BiltSubSystemConflictError,
     BiltSubSystemMismatchedImplementationError,
@@ -28,6 +28,7 @@ from bilt.core._system._input_validation import validate_inputs
 from bilt.core._system._intermediate_reuse import reuse_plan_outputs
 from bilt.core._tensors._tensors import Tensor
 from bilt.core._transform import BasicTransform
+from bilt.core._validation import validate_independently
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
@@ -75,7 +76,7 @@ class Implementation:
         internal = internal_implementations or {}
 
         sub_systems = _build_sub_system_constituents(named_components, internal)
-        _validate_sub_systems(named_components, internal, sub_systems)
+        _validate_sub_systems(system, named_components, internal, sub_systems)
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             named_components | sub_systems
         )
@@ -142,14 +143,7 @@ class Implementation:
         cached: dict[str, object] | None = None,
     ) -> dict[str, object]:
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs, enum_types=self._enum_types)
-        if (
-            output in self._enum_types
-            and output not in inputs
-            and not any(
-                isinstance(component, BasicTransform) and component.__bilt_name__ == output
-                for component in self._components.values()
-            )
-        ):
+        if output in self._enum_types and output not in inputs and not _has_categorical_producer(self, output):
             msg = f"Cannot solve categorical enum port {output!r}; enum equation selectors are forward-only."
             raise BiltEvaluationError(msg)
         with EvaluationContext() as evaluation:
@@ -278,6 +272,7 @@ class Implementation:
 
 
 def _required_sub_system_interfaces(
+    system: Interface,
     components: collections.abc.Iterable[BiltModelConstituent],
 ) -> dict[str, Interface]:
     """Read off the equations which interface each sub-system they have as a parameter ."""
@@ -287,6 +282,7 @@ def _required_sub_system_interfaces(
             for name, interface in component.__bilt_sub_systems__.items():
                 declared = required.setdefault(name, interface)
                 if declared is not interface:
+                    _check_sub_system_enum_types(system, name, declared, interface)
                     raise BiltSubSystemConflictError(name, declared.__bilt_name__, interface.__bilt_name__)
     return required
 
@@ -307,12 +303,13 @@ def _build_sub_system_constituents(
 
 
 def _validate_sub_systems(
+    system: Interface,
     components: collections.abc.Mapping[str, BiltModelConstituent],
     internal_implementations: collections.abc.Mapping[str, Implementation],
     sub_systems: collections.abc.Mapping[str, SubSystemConstituent],
 ) -> None:
     """Validate we have exactly as many internal sub-systems as we need."""
-    required_interfaces = _required_sub_system_interfaces(components.values())
+    required_interfaces = _required_sub_system_interfaces(system, components.values())
 
     for name, interface in required_interfaces.items():
         constituent = sub_systems.get(name)
@@ -321,6 +318,7 @@ def _validate_sub_systems(
                 name, interface.__bilt_name__, sorted(internal_implementations)
             )
         if constituent.interface is not interface:
+            _check_sub_system_enum_types(system, name, interface, constituent.interface)
             raise BiltSubSystemMismatchedImplementationError(
                 name, interface.__bilt_name__, constituent.interface.__bilt_name__
             )
@@ -328,3 +326,33 @@ def _validate_sub_systems(
     for name in internal_implementations:
         if name not in required_interfaces:
             raise BiltSubSystemUnreferencedEntryError(name, sorted(required_interfaces))
+
+
+def _check_sub_system_enum_types(system: Interface, name: str, expected: Interface, actual: Interface) -> None:
+    """Report qualified enum disagreements before generic interface identity errors."""
+    shared = sorted(set(expected.__bilt_parameters__).intersection(actual.__bilt_parameters__))
+    validate_independently(
+        lambda port=port: check_categorical_consistency(
+            system.__bilt_name__,
+            QualifiedPort(name, port).dotted,
+            (
+                (expected.__bilt_name__, expected.__bilt_enum_ports__.get(port)),
+                (actual.__bilt_name__, actual.__bilt_enum_ports__.get(port)),
+            ),
+        )
+        for port in shared
+    )
+
+
+def _has_categorical_producer(implementation: Implementation, output: str) -> bool:
+    """Find directed enum-producing transforms, also in nested child implementations."""
+    for component in implementation._components.values():  # noqa: SLF001
+        if isinstance(component, BasicTransform) and component.__bilt_name__ == output:
+            return True
+        if isinstance(component, SubSystemConstituent):
+            child_port = QualifiedPort.unqualify(
+                output, component.__bilt_name__, component.interface.__bilt_parameters__
+            )
+            if child_port is not None and _has_categorical_producer(component.implementation, child_port):
+                return True
+    return False
