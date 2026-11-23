@@ -82,7 +82,7 @@ def test_nested_enum_arithmetic_rejected() -> None:
 
         @equation
         def bad(child: Child, total: float) -> bool:
-            return total == child.mode * 2
+            return total == child.mode * 2  # pyrefly: ignore[unsupported-operation]  # ty: ignore[unsupported-operator]
 
 
 @transform
