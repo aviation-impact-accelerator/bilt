@@ -23,7 +23,7 @@ def lower_enum_matches(
     enum_inputs: collections.abc.Mapping[str, type[enum.Enum]],
     output_type: type[enum.Enum] | None,
 ) -> ast.FunctionDef:
-    """Validate and lower enum match statements during transform definition."""
+    """Validate and lower enum matches without changing direct Python execution."""
     closure = inspect.getclosurevars(function)
     bindings = {**closure.globals, **closure.nonlocals}
     lowered = _EnumMatchLowerer(function_ast.name, bindings, enum_inputs, output_type).visit(function_ast)
@@ -174,7 +174,10 @@ class _EnumMatchLowerer(ast.NodeTransformer):
                 ops=[ast.Eq()],
                 comparators=[ast.Constant(enum_code(member))],
             )
-            result = ast.IfExp(test=test, body=copy.deepcopy(expression), orelse=result)
+            conditional = ast.IfExp(test=test, body=copy.deepcopy(expression), orelse=result)
+            # Preserve the typed selector for domain-sensitive backend lowering.
+            conditional._bilt_enum_selector = port  # type: ignore[attr-defined]  # noqa: SLF001
+            result = conditional
         if kind == "return":
             replacement: ast.stmt = ast.Return(value=result)
         else:
