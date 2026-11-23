@@ -5,8 +5,10 @@ import linecache
 import sys
 import textwrap
 import typing
+lazy import enum
 
-from bilt.core._errors import BiltDefinitionError
+from bilt.core._errors import BiltCategoricalError, BiltDefinitionError
+from bilt.core._port import QualifiedPort
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -14,6 +16,10 @@ if typing.TYPE_CHECKING:
 
 class BiltEquationSyntaxError(BiltDefinitionError, SyntaxError):
     """Unsupported syntax in an equation."""
+
+
+class BiltCategoricalEquationError(BiltEquationSyntaxError, BiltCategoricalError):
+    """An equation uses categorical values outside supported enum matching."""
 
 
 def _register_markdown_exec_source(function: collections.abc.Callable[..., object]) -> None:
@@ -55,11 +61,50 @@ def extract_equation_ast(function: collections.abc.Callable[..., object]) -> ast
     return node
 
 
-def normalise_equation_ast(function: ast.FunctionDef) -> ast.FunctionDef:
-    """Validate and rewrite supported if/else and match/case conditionals."""
+class _EnumMatchContext(typing.NamedTuple):
+    types: collections.abc.Mapping[str, type[enum.Enum]]
+    namespace: collections.abc.Mapping[str, object]
+
+    def port_type(self, node: ast.AST) -> type[enum.Enum] | None:
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            return self.types.get(node.id)
+        if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load) and isinstance(node.value, ast.Name):
+            return self.types.get(QualifiedPort(node.value.id, node.attr).dotted)
+        return None
+
+    def is_enum_member(self, node: ast.AST) -> bool:
+        if isinstance(node, ast.Name):
+            return isinstance(self.namespace.get(node.id), enum.Enum)
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            enum_class = self.namespace.get(node.value.id)
+            return (
+                isinstance(enum_class, type)
+                and issubclass(enum_class, enum.Enum)
+                and node.attr in enum_class.__members__
+            )
+        return False
+
+
+def normalise_equation_ast(
+    function: ast.FunctionDef,
+    *,
+    enum_types: collections.abc.Mapping[str, type[enum.Enum]] | None = None,
+    enum_namespace: collections.abc.Mapping[str, object] | None = None,
+) -> ast.FunctionDef:
+    """Validate and rewrite supported if/elif/else and match/case conditions."""
     node = copy.deepcopy(function)
     node.decorator_list = []
-    _validate_function(node)
+    params = _parameter_names(node)
+    nodes = tuple(item for statement in node.body for item in ast.walk(statement))
+    assigned = {item.id for item in nodes if isinstance(item, ast.Name) and isinstance(item.ctx, ast.Store)}
+    globals_ = enum_namespace or {}
+    namespace = {
+        item.id: globals_[item.id]
+        for item in nodes
+        if isinstance(item, ast.Name) and item.id not in params and item.id not in assigned and item.id in globals_
+    }
+    enum_context = _EnumMatchContext(enum_types or {}, namespace)
+    _validate_function(node, params, nodes, enum_context)
 
     normalised: list[ast.stmt] = []
     for statement in node.body:
@@ -67,7 +112,7 @@ def normalise_equation_ast(function: ast.FunctionDef) -> ast.FunctionDef:
             normalised.append(statement)
             continue
 
-        name, value = _normalise_branch(statement)
+        name, value = _normalise_branch(statement, {}, enum_context)
         replacement = ast.Assign(
             targets=[ast.copy_location(ast.Name(id=name, ctx=ast.Store()), statement)],
             value=value,
@@ -93,29 +138,31 @@ def _substitute_locals(expression: ast.expr, bindings: dict[str, ast.expr]) -> a
     return typing.cast("ast.expr", _LocalSubstitution(bindings).visit(copy.deepcopy(expression)))
 
 
-def _normalise_arm(statements: list[ast.stmt], inherited: dict[str, ast.expr]) -> tuple[str, ast.expr]:
+def _normalise_arm(
+    statements: list[ast.stmt], inherited: dict[str, ast.expr], enum_context: _EnumMatchContext
+) -> tuple[str, ast.expr]:
     bindings = inherited.copy()
     for statement in statements[:-1]:
         bindings[_assignment_name(statement)] = _substitute_locals(_assignment_value(statement), bindings)
 
     last = statements[-1]
     if isinstance(last, (ast.If, ast.Match)):
-        return _normalise_branch(last, bindings)
+        return _normalise_branch(last, bindings, enum_context)
     return _assignment_name(last), _substitute_locals(_assignment_value(last), bindings)
 
 
 def _normalise_branch(
-    statement: ast.If | ast.Match, inherited: dict[str, ast.expr] | None = None
+    statement: ast.If | ast.Match, bindings: dict[str, ast.expr], enum_context: _EnumMatchContext
 ) -> tuple[str, ast.expr]:
-    bindings = {} if inherited is None else inherited
     if isinstance(statement, ast.Match):
-        name, result = _normalise_arm(statement.cases[-1].body, bindings)
+        subject_type = enum_context.port_type(statement.subject)
+        name, result = _normalise_arm(statement.cases[-1].body, bindings, enum_context)
         for case in reversed(statement.cases[:-1]):
-            _, selected = _normalise_arm(case.body, bindings)
+            _, selected = _normalise_arm(case.body, bindings, enum_context)
             predicate = ast.Compare(
                 left=_substitute_locals(statement.subject, bindings),
                 ops=[ast.Eq()],
-                comparators=[_match_literal(case.pattern)],
+                comparators=[_match_literal(case.pattern, subject_type, enum_context.namespace)],
             )
             result = ast.copy_location(
                 ast.Call(
@@ -127,8 +174,8 @@ def _normalise_branch(
             )
         return name, result
 
-    true_name, when_true = _normalise_arm(statement.body, bindings)
-    _, when_false = _normalise_arm(statement.orelse, bindings)
+    true_name, when_true = _normalise_arm(statement.body, bindings, enum_context)
+    _, when_false = _normalise_arm(statement.orelse, bindings, enum_context)
     expression = ast.Call(
         func=ast.Name(id="_bilt_conditional", ctx=ast.Load()),
         args=[_substitute_locals(statement.test, bindings), when_true, when_false],
@@ -137,11 +184,13 @@ def _normalise_branch(
     return true_name, ast.copy_location(expression, statement)
 
 
-def _reject(node: ast.AST, message: str) -> typing.NoReturn:
+def _reject(
+    node: ast.AST, message: str, error_type: type[BiltEquationSyntaxError] = BiltEquationSyntaxError
+) -> typing.NoReturn:
     line = getattr(node, "lineno", None)
     location = f" (line {line})" if line is not None else ""
     msg = f"Unsupported equation syntax{location}: {message}"
-    raise BiltEquationSyntaxError(msg)
+    raise error_type(msg)
 
 
 def _assignment_name(statement: ast.stmt) -> str:
@@ -219,7 +268,11 @@ def _branch_binding_name(statement: ast.stmt) -> str:
 
 
 def _validate_branch_arm(
-    statements: list[ast.stmt], conditional: ast.If | ast.Match, params: set[str], assigned: set[str]
+    statements: list[ast.stmt],
+    conditional: ast.If | ast.Match,
+    params: set[str],
+    assigned: set[str],
+    enum_context: _EnumMatchContext,
 ) -> str:
     if not statements:
         _reject(conditional, "each branch must contain exactly one assignment or nested if/else")
@@ -235,7 +288,7 @@ def _validate_branch_arm(
 
     last = statements[-1]
     if isinstance(last, (ast.If, ast.Match)):
-        return _validate_conditional(last, params, local_assigned)
+        return _validate_conditional(last, params, local_assigned, enum_context)
     name = _assignment_name(last)
     _validate_expression(_assignment_value(last))
     _check_fresh_binding(last, name, params, local_assigned)
@@ -259,29 +312,50 @@ def _validate_mask_predicate(node: ast.expr) -> None:
     _reject(node, "mask predicates require a symbolic comparison, optionally combined with &, | or ~")
 
 
-def _validate_branch(statement: ast.If, params: set[str], assigned: set[str]) -> str:
+def _validate_branch(statement: ast.If, params: set[str], assigned: set[str], enum_context: _EnumMatchContext) -> str:
     _validate_mask_predicate(statement.test)
 
-    left = _validate_branch_arm(statement.body, statement, params, assigned)
-    right = _validate_branch_arm(statement.orelse, statement, params, assigned)
+    left = _validate_branch_arm(statement.body, statement, params, assigned, enum_context)
+    right = _validate_branch_arm(statement.orelse, statement, params, assigned, enum_context)
     if left != right:
         _reject(statement, "all branches must assign the same local variable")
     _check_fresh_binding(statement, left, params, assigned)
     return left
 
 
-def _match_literal(pattern: ast.pattern) -> ast.expr:
-    if isinstance(pattern, ast.MatchValue):
-        value = pattern.value
-        if isinstance(value, ast.Constant) and type(value.value) in (int, float):
-            return value
+def _match_literal(
+    pattern: ast.pattern,
+    subject_type: type[enum.Enum] | None = None,
+    enum_namespace: collections.abc.Mapping[str, object] | None = None,
+) -> ast.expr:
+    """Resolve numeric or typed enum cases using one validation path.
+
+    Enum members remain qualified values here. Their type and member identity
+    are preserved by the symbolic tree, not replaced by an ordinal in the AST.
+    """
+    if not isinstance(pattern, ast.MatchValue):
+        _reject(pattern, "match cases require numeric literals or members of the subject's enum type")
+    value = pattern.value
+    if subject_type is not None:
         if (
-            isinstance(value, ast.UnaryOp)
-            and isinstance(value.op, ast.USub)
-            and isinstance(value.operand, ast.Constant)
-            and type(value.operand.value) in (int, float)
+            isinstance(value, ast.Attribute)
+            and isinstance(value.value, ast.Name)
+            and enum_namespace is not None
+            and enum_namespace.get(value.value.id) is subject_type
+            and value.attr in subject_type.__members__
         ):
-            return value
+            return copy.deepcopy(value)
+        _reject(pattern, "enum cases must name members of the match subject's enum type")
+
+    if isinstance(value, ast.Constant) and type(value.value) in (int, float):
+        return copy.deepcopy(value)
+    if (
+        isinstance(value, ast.UnaryOp)
+        and isinstance(value.op, ast.USub)
+        and isinstance(value.operand, ast.Constant)
+        and type(value.operand.value) in (int, float)
+    ):
+        return copy.deepcopy(value)
     _reject(pattern, "match cases must be numeric literals followed by a final case _")
 
 
@@ -289,7 +363,33 @@ def _is_wildcard(pattern: ast.pattern) -> bool:
     return isinstance(pattern, ast.MatchAs) and pattern.pattern is None and pattern.name is None
 
 
-def _validate_match(statement: ast.Match, params: set[str], assigned: set[str]) -> str:
+def _validate_match(statement: ast.Match, params: set[str], assigned: set[str], enum_context: _EnumMatchContext) -> str:
+    subject_type = enum_context.port_type(statement.subject)
+    if subject_type is None and any(
+        enum_context.is_enum_member(item) for case in statement.cases for item in ast.walk(case.pattern)
+    ):
+        _reject(
+            statement.subject,
+            "enum patterns require a match subject declared with that enum type",
+            BiltCategoricalEquationError,
+        )
+    try:
+        name = _validate_match_arms(statement, params, assigned, enum_context, subject_type)
+    except BiltEquationSyntaxError as error:
+        if subject_type is None or isinstance(error, BiltCategoricalEquationError):
+            raise
+        raise BiltCategoricalEquationError(str(error)) from error
+    else:
+        return name
+
+
+def _validate_match_arms(
+    statement: ast.Match,
+    params: set[str],
+    assigned: set[str],
+    enum_context: _EnumMatchContext,
+    subject_type: type[enum.Enum] | None,
+) -> str:
     _validate_expression(statement.subject)
     if not statement.cases[:-1] or not _is_wildcard(statement.cases[-1].pattern):
         _reject(statement, "match requires literal cases and a final case _")
@@ -299,8 +399,8 @@ def _validate_match(statement: ast.Match, params: set[str], assigned: set[str]) 
         if case.guard is not None:
             _reject(case.guard, "match guards are not supported")
         if index < len(statement.cases) - 1:
-            _match_literal(case.pattern)
-        names.add(_validate_branch_arm(case.body, statement, params, assigned))
+            _match_literal(case.pattern, subject_type, enum_context.namespace)
+        names.add(_validate_branch_arm(case.body, statement, params, assigned, enum_context))
     if len(names) != 1:
         _reject(statement, "all branches must assign the same local variable")
     name = next(iter(names))
@@ -308,13 +408,15 @@ def _validate_match(statement: ast.Match, params: set[str], assigned: set[str]) 
     return name
 
 
-def _validate_conditional(statement: ast.If | ast.Match, params: set[str], assigned: set[str]) -> str:
+def _validate_conditional(
+    statement: ast.If | ast.Match, params: set[str], assigned: set[str], enum_context: _EnumMatchContext
+) -> str:
     if isinstance(statement, ast.Match):
-        return _validate_match(statement, params, assigned)
-    return _validate_branch(statement, params, assigned)
+        return _validate_match(statement, params, assigned, enum_context)
+    return _validate_branch(statement, params, assigned, enum_context)
 
 
-def _validate_bindings(function: ast.FunctionDef, params: set[str]) -> set[str]:
+def _validate_bindings(function: ast.FunctionDef, params: set[str], enum_context: _EnumMatchContext) -> set[str]:
     assigned: set[str] = set()
     conditional_count = 0
     for index, statement in enumerate(function.body[:-1]):
@@ -333,7 +435,7 @@ def _validate_bindings(function: ast.FunctionDef, params: set[str]) -> set[str]:
             conditional_count += 1
             if conditional_count > 1:
                 _reject(statement, "at most one if/else or match/case is supported at top level")
-            name = _validate_conditional(statement, params, assigned)
+            name = _validate_conditional(statement, params, assigned, enum_context)
         else:
             _reject(statement, f"{type(statement).__name__} is not supported")
         assigned.add(name)
@@ -389,8 +491,26 @@ def _check_local_reads(function: ast.FunctionDef, params: set[str], assigned: se
             _check_expression_reads(statement.value, available, local_names)
 
 
-def _validate_function(function: ast.FunctionDef) -> None:
+def _validate_function(
+    function: ast.FunctionDef, params: set[str], nodes: tuple[ast.AST, ...], enum_context: _EnumMatchContext
+) -> None:
     _validate_return(function)
-    params = _parameter_names(function)
-    assigned = _validate_bindings(function, params)
+    _validate_categorical_expressions(nodes, enum_context)
+    assigned = _validate_bindings(function, params, enum_context)
     _check_local_reads(function, params, assigned)
+
+
+def _validate_categorical_expressions(nodes: tuple[ast.AST, ...], enum_context: _EnumMatchContext) -> None:
+    allowed_subjects = {id(statement.subject) for statement in nodes if isinstance(statement, ast.Match)}
+    allowed_patterns = {id(item.value) for item in nodes if isinstance(item, ast.MatchValue)}
+    for node in nodes:
+        if not isinstance(node, (ast.Name, ast.Attribute)) or not isinstance(node.ctx, ast.Load):
+            continue
+        if id(node) not in allowed_subjects and enum_context.port_type(node) is not None:
+            _reject(
+                node,
+                f"enum parameters may only be used as match subjects. Found {ast.unparse(node)!r}.",
+                BiltCategoricalEquationError,
+            )
+        if id(node) not in allowed_patterns and enum_context.is_enum_member(node):
+            _reject(node, "enum members may only be used in match case patterns", BiltCategoricalEquationError)

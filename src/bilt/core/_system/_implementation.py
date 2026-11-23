@@ -9,6 +9,7 @@ import typing
 
 from bilt.core._enum_encoding import enum_from_code
 from bilt.core._equation import BasicEquation
+from bilt.core._errors import BiltEvaluationError
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs, mangle_name
@@ -26,6 +27,7 @@ from bilt.core._system._errors import (
 from bilt.core._system._input_validation import validate_inputs
 from bilt.core._system._intermediate_reuse import reuse_plan_outputs
 from bilt.core._tensors._tensors import Tensor
+from bilt.core._transform import BasicTransform
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
@@ -140,6 +142,16 @@ class Implementation:
         cached: dict[str, object] | None = None,
     ) -> dict[str, object]:
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs, enum_types=self._enum_types)
+        if (
+            output in self._enum_types
+            and output not in inputs
+            and not any(
+                isinstance(component, BasicTransform) and component.__bilt_name__ == output
+                for component in self._components.values()
+            )
+        ):
+            msg = f"Cannot solve categorical enum port {output!r}; enum equation selectors are forward-only."
+            raise BiltEvaluationError(msg)
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
             if output in inputs:
