@@ -91,7 +91,7 @@ class _EnumMatchLowerer(ast.NodeTransformer):
             and isinstance(statement.targets[0], ast.Name)
         ):
             return "assign", statement.targets[0].id, statement.value
-        self._reject(port, "enum match arms must each contain one return or one assignment.")
+        raise BiltCategoricalPortError(self.owner, port, "enum match arms must each contain one return or one assignment.")
 
     def _check_output(self, expression: ast.expr, port: str) -> None:
         """Reject statically known wrong categorical results before ordinal conversion."""
@@ -111,7 +111,7 @@ class _EnumMatchLowerer(ast.NodeTransformer):
         if isinstance(value, enum.Enum) and type(value) is not expected:
             self._reject(port, "returns a different enum class than its declared output.")
 
-    def visit_Match(self, node: ast.Match) -> ast.stmt:
+    def visit_Match(self, node: ast.Match) -> ast.stmt:  # noqa: C901, PLR0912, PLR0915
         if not isinstance(node.subject, ast.Name):
             self._reject("<match>", "enum transforms require a directly named selector.")
         port = node.subject.id
@@ -176,6 +176,5 @@ class _EnumMatchLowerer(ast.NodeTransformer):
         if kind == "return":
             replacement: ast.stmt = ast.Return(value=result)
         else:
-            assert target is not None
-            replacement = ast.Assign(targets=[ast.Name(id=target, ctx=ast.Store())], value=result)
+            replacement = ast.Assign(targets=[ast.Name(id=typing.cast("str", target), ctx=ast.Store())], value=result)
         return ast.copy_location(replacement, node)

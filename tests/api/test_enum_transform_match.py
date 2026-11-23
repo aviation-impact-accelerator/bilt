@@ -118,7 +118,7 @@ def test_cyof_style_exhaustive_match_with_assert_never(backend: Backend) -> None
 def test_enum_match_assigns_one_local_before_return(backend: Backend) -> None:
     implementation = Implementation(AlternativePrices, [alternative_price])
     assert implementation.evaluate({"scenario": Scenario.AVERAGE}, "alternative_price", backend) == 1.0
-    assert implementation.evaluate({"scenario": Scenario.MAXIMUM}, "alternative_price", backend) == 1.4
+    assert implementation.evaluate({"scenario": Scenario.MAXIMUM}, "alternative_price", backend) == pytest.approx(1.4)
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
@@ -207,6 +207,6 @@ def test_different_enum_result_type_rejected() -> None:
 
 
 def test_direct_python_transform_is_not_modified() -> None:
-    assert price(Scenario.MINIMUM) == 0.7
+    assert price(Scenario.MINIMUM) == pytest.approx(0.7)
     with pytest.raises(AssertionError):
         price(typing.cast("Scenario", OtherScenario.MINIMUM))
