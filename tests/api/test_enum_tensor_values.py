@@ -42,7 +42,9 @@ class ScalarOrTensor(metaclass=Interface):
     mode: Mode | Tensor = field()
 
 
-@pytest.mark.parametrize("members", ([Mode.MINIMUM, Mode.MAXIMUM], [Number.FIRST, Number.SECOND], [Word.FIRST, Word.SECOND]))
+@pytest.mark.parametrize(
+    "members", ([Mode.MINIMUM, Mode.MAXIMUM], [Number.FIRST, Number.SECOND], [Word.FIRST, Word.SECOND])
+)
 def test_tensor_keeps_exact_enum_members(members: list[enum.Enum]) -> None:
     value = tensor(members, over=dim("scenario"))
     assert value.unit is None

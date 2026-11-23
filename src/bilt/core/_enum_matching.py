@@ -58,7 +58,6 @@ def enum_port_types(owner: str, annotations: typing.Mapping[str, object]) -> dic
     return result
 
 
-
 def _enum_shape(annotation: object) -> tuple[type[enum.Enum] | None, bool]:
     """Recognise a scalar enum or the same enum paired with ordinary Tensor."""
     if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
@@ -74,6 +73,4 @@ def _enum_shape(annotation: object) -> tuple[type[enum.Enum] | None, bool]:
 
 def enum_tensor_ports(annotations: typing.Mapping[str, object]) -> frozenset[str]:
     """Ports that explicitly accept a tensor of their declared enum type."""
-    return frozenset(
-        name for name, annotation in annotations.items() if _enum_shape(annotated_parts(annotation)[0])[1]
-    )
+    return frozenset(name for name, annotation in annotations.items() if _enum_shape(annotated_parts(annotation)[0])[1])

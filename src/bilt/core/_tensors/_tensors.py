@@ -277,7 +277,6 @@ def _symbolic_operation_only() -> TypeError:
     return TypeError("Tensor operations are symbolic and may only be used within Bilt equations and transforms.")
 
 
-
 def _has_enum_members(values: np.ndarray) -> bool:
     return values.dtype == object and any(isinstance(value, enum.Enum) for value in values.flat)
 
