@@ -74,4 +74,4 @@ def test_decoding_requires_valid_nonnegative_ordinal() -> None:
 
 def test_decoding_rejects_non_integral_code() -> None:
     with pytest.raises(TypeError):
-        enum_from_code(Mode, 1.5)  # type: ignore[arg-type]
+        enum_from_code(Mode, 1.5)  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
