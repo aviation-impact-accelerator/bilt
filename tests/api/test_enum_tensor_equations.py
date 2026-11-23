@@ -6,7 +6,7 @@ lazy from contextlib import AbstractContextManager
 import numpy as np
 import pytest
 
-from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, Tensor, dim, equation, field, system, tensor
+from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, Tensor, dim, equation, field, system, tensor, transform
 from bilt.errors import BiltEvaluationError
 from bilt.symbolic._domains import domain
 
@@ -76,3 +76,60 @@ def test_enum_input_is_preserved_when_returned_directly() -> None:
     scenarios = tensor([Scenario.MINIMUM, Scenario.MAXIMUM], over=dim("scenario"))
     implementation = Implementation(ScenarioCalculation, [result])
     assert implementation.evaluate({"scenario": scenarios}, "scenario", PYTHON_BACKEND) is scenarios
+
+
+@system
+class ChildScenario(metaclass=Interface):
+    scenario: Scenario | Tensor = field()
+
+
+@system
+class ParentScenario(metaclass=Interface):
+    result: Tensor = field()
+
+
+@equation
+def parent_result(child: ChildScenario, result: float) -> bool:
+    match child.scenario:
+        case Scenario.MINIMUM:
+            selected = 1.0
+        case Scenario.AVERAGE:
+            selected = 2.0
+        case _:
+            selected = 3.0
+    return result == selected
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+def test_qualified_child_enum_tensor_selects_parent_equation(backend: AbstractContextManager[object]) -> None:
+    implementation = Implementation(ParentScenario, [parent_result], internal_implementations={
+        "child": Implementation(ChildScenario, [])
+    })
+    scenarios = tensor([Scenario.MINIMUM, Scenario.AVERAGE, Scenario.MAXIMUM], over=dim("scenario"))
+    calculated = implementation.evaluate({"child.scenario": scenarios}, "result", backend)
+    assert isinstance(calculated, Tensor)
+    assert calculated.domain == scenarios.domain
+    np.testing.assert_allclose(calculated.values, [1.0, 2.0, 3.0])
+    assert parent_result.__bilt_enum_tensor_ports__ == frozenset({"child.scenario"})
+
+
+@system
+class EnumEcho(metaclass=Interface):
+    scenario: Scenario | Tensor = field()
+    echoed: Scenario | Tensor = field()
+
+
+@transform
+def echoed(scenario: Scenario | Tensor) -> Scenario | Tensor:
+    return scenario
+
+
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
+def test_transform_passthrough_decodes_categorical_tensor_output(backend: AbstractContextManager[object]) -> None:
+    implementation = Implementation(EnumEcho, [echoed])
+    scenarios = tensor([Scenario.MAXIMUM, Scenario.MINIMUM], over=dim("scenario"))
+    calculated = implementation.evaluate({"scenario": scenarios}, "echoed", backend)
+    assert isinstance(calculated, Tensor)
+    assert calculated.domain == scenarios.domain
+    assert list(calculated.values) == [Scenario.MAXIMUM, Scenario.MINIMUM]
+    assert all(type(member) is Scenario for member in calculated.values.flat)
