@@ -5,7 +5,7 @@ Bilt preserves the original Python function for direct calls and compiles a supp
 backend-neutral conditional expressions for Python and JAX. The compiled enum values use the
 same ordinal encoding as equation selectors.
 
-```python
+```python exec="off"
 class Scenario(enum.Enum):
     MINIMUM = "minimum"
     AVERAGE = "average"
