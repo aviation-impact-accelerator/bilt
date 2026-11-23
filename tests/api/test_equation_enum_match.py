@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
     from collections.abc import Callable
     from types import FunctionType
 
-        from bilt.core._equation import BasicEquation
+
 
 
 class Mode(enum.Enum):
