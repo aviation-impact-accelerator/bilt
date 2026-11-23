@@ -25,14 +25,14 @@ def relative_cost(scenario: Scenario) -> float:
             typing.assert_never(scenario)
 ```
 
-Match subjects must be named scalar enum parameters. Guards and mixed enum types are rejected
+Match subjects must be named enum parameters (scalar, or `Scenario | Tensor` for elementwise compiled matching). Guards and mixed enum types are rejected
 at definition time. Each arm returns one expression, or assigns one common local followed by
 a return. All enum members must be covered unless the final arm is `case _` with a value.
 An exhaustive match may use `typing.assert_never(scenario)` as its unreachable fallback,
 which is removed from the compiled function. Non-enum Python matches are unchanged.
 
 As with other JAX conditionals, branch outputs must have compatible JAX types and shapes.
-This feature does not implement enum tensors or arbitrary Python control-flow lowering.
+This feature does not introduce a separate enum tensor API or arbitrary Python control-flow lowering.
 
 
 ## Tensor-valued enum selectors in equations
@@ -79,4 +79,39 @@ named-domain `WHERE` operation, broadcasting scalar or tensor branches as
 required. Inputs retain nominal enum identity at the API boundary and are
 encoded only for backend execution. Numeric tensors do not implicitly become
 enum tensors; a tensor constructed from raw integer codes is rejected.
-Tensor-valued enum outputs of directed transforms are outside this PR's scope.
+Directed transforms can also return tensor-valued categorical outputs, decoded to ordinary `Tensor` instances of the declared enum class.
+
+
+## Tensor-valued enum matching in transforms
+
+The same `Scenario | Tensor` selector works in directed transforms, too.
+Bilt compiles scalar enum matches as conditional expressions and tensor matches
+as elementwise `WHERE`, reusing named-domain alignment from the numeric tensor
+system. This also supports nominal enum-valued results:
+
+```python exec="off"
+class Fuel(enum.Enum):
+    FOSSIL = enum.auto()
+    HYDROGEN = enum.auto()
+
+
+@transform
+def fuel(scenario: Scenario | Tensor) -> Fuel | Tensor:
+    match scenario:
+        case Scenario.MINIMUM:
+            return Fuel.FOSSIL
+        case Scenario.AVERAGE:
+            return Fuel.FOSSIL
+        case _:
+            return Fuel.HYDROGEN
+```
+
+For a scalar selector, the original Python function is still callable directly.
+For tensor selectors, use Bilt's evaluation context; Python's native
+`match/case` statement does **not** perform elementwise matching on a
+`Tensor` when the original undecorated function is called directly.
+
+Outputs retain the named input dimensions and are decoded into ordinary
+`Tensor` objects containing exact enum members. Only supported simple
+`match/case` arms are lowered; arbitrary Python control flow and construction
+of new enum tensors from lists inside compiled transforms are not added.
