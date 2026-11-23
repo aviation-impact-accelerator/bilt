@@ -45,6 +45,7 @@ from bilt.units import (
     watt,
     watthour,
     yard,
+    year,
 )
 from bilt.units._metadata import Metadata
 from bilt.units._prefix import Prefix
