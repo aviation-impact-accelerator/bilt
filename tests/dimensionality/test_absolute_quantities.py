@@ -25,6 +25,8 @@ from bilt.units.units import (
 
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
 AbsoluteTemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
+AbsoluteTime = typing.Annotated[Quantity, TIME, ABSOLUTE]
+ElapsedTime = typing.Annotated[Quantity, TIME]
 Temperature = typing.Annotated[Quantity, TEMPERATURE]
 TemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE]
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
@@ -417,9 +419,6 @@ def test_absolute_year_can_be_constructed_in_an_absolute_time_transform() -> Non
 
 
 def test_absolute_year_ports_support_acausal_time_arithmetic() -> None:
-    Date = typing.Annotated[Quantity, TIME, ABSOLUTE]
-    Duration = typing.Annotated[Quantity, TIME]
-
     @system
     class Timeline(metaclass=Interface):
         date: typing.Annotated[Quantity | QuantityTensor, TIME, ABSOLUTE] = field()
@@ -427,7 +426,7 @@ def test_absolute_year_ports_support_acausal_time_arithmetic() -> None:
         elapsed: typing.Annotated[Quantity | QuantityTensor, TIME] = field()
 
     @equation
-    def elapsed(date: Date, start_date: Date, elapsed: Duration) -> bool:
+    def elapsed(date: AbsoluteTime, start_date: AbsoluteTime, elapsed: ElapsedTime) -> bool:
         return elapsed == date - start_date
 
     with Implementation(Timeline, [elapsed]):
@@ -445,9 +444,6 @@ def test_absolute_year_ports_support_acausal_time_arithmetic() -> None:
 
 
 def test_absolute_year_tensors_preserve_named_axes_in_equations() -> None:
-    Date = typing.Annotated[Quantity, TIME, ABSOLUTE]
-    Duration = typing.Annotated[Quantity, TIME]
-
     @system
     class Timeline(metaclass=Interface):
         date: typing.Annotated[Quantity | QuantityTensor, TIME, ABSOLUTE] = field()
@@ -455,7 +451,7 @@ def test_absolute_year_tensors_preserve_named_axes_in_equations() -> None:
         elapsed: typing.Annotated[Quantity | QuantityTensor, TIME] = field()
 
     @equation
-    def elapsed(date: Date, start_date: Date, elapsed: Duration) -> bool:
+    def elapsed(date: AbsoluteTime, start_date: AbsoluteTime, elapsed: ElapsedTime) -> bool:
         return elapsed == date - start_date
 
     with Implementation(Timeline, [elapsed]):
