@@ -7,6 +7,7 @@ __all__ = [
 
 import collections.abc
 import dataclasses
+import enum
 import typing
 
 import numpy as np
@@ -31,14 +32,16 @@ class Tensor:
     unit: Unit | None = None
 
     def __post_init__(self) -> None:
-        values = np.asarray(self.values)
+        values = _enum_preserving_array(self.values)
+        if self.unit is not None and _has_enum_members(values):
+            raise BiltTensorDomainError("Categorical tensors cannot carry physical units.")
         object.__setattr__(self, "values", values)
 
         _check_rank(values, self.domain)
 
     @classmethod
     def scalar(cls, value: object, unit: Unit | None = None) -> Tensor:
-        values = np.asarray(value)
+        values = _enum_preserving_array(value)
 
         if values.ndim != 0:
             message = f"Cannot create scalar Tensor from rank-{values.ndim} value."
@@ -221,7 +224,7 @@ def tensor(
         message = "Pass either over= or domain=, not both."
         raise BiltTensorDomainError(message)
 
-    array = np.asarray(values)
+    array = _enum_preserving_array(values)
 
     match over, domain:
         case None, Domain():
@@ -271,3 +274,22 @@ def _arithmetic_not_implemented() -> NotImplementedError:
 
 def _symbolic_operation_only() -> TypeError:
     return TypeError("Tensor operations are symbolic and may only be used within Bilt equations and transforms.")
+
+
+
+def _has_enum_members(values: np.ndarray) -> bool:
+    return values.dtype == object and any(isinstance(value, enum.Enum) for value in values.flat)
+
+
+def _enum_preserving_array(values: object) -> np.ndarray:
+    """Do not coerce IntEnum and StrEnum members to numeric/string NumPy dtypes."""
+    if isinstance(values, np.ndarray) and values.dtype != object:
+        return values
+    objects = np.asarray(values, dtype=object)
+    if not _has_enum_members(objects):
+        return np.asarray(values)
+    members = list(objects.flat)
+    enum_type = type(members[0])
+    if not isinstance(members[0], enum.Enum) or any(type(member) is not enum_type for member in members):
+        raise BiltTensorDomainError("Categorical tensor values must all belong to the same enum class.")
+    return objects

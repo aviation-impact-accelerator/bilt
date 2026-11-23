@@ -3,6 +3,8 @@
 import enum
 import typing
 
+import numpy as np
+
 from bilt.core._errors import BiltEvaluationError
 from bilt.core._system._errors import BiltInputDimensionalityError
 from bilt.core._system._sentinel import MISSING
@@ -22,6 +24,7 @@ def validate_inputs(
     values: collections.abc.Mapping[str, object],
     *,
     enum_types: collections.abc.Mapping[str, type[enum.Enum]] | None = None,
+    enum_tensor_ports: collections.abc.Container[str] = (),
 ) -> None:
     """Ensure every supplied value satisfies the declaration of its port."""
     enum_types = enum_types or {}
@@ -30,6 +33,16 @@ def validate_inputs(
             continue
         enum_type = enum_types.get(port)
         if enum_type is not None:
+            if isinstance(value, Tensor) and port in enum_tensor_ports:
+                if (
+                    value.unit is not None
+                    or value.values.size == 0
+                    or value.values.dtype != np.dtype(object)
+                    or any(type(member) is not enum_type for member in value.values.flat)
+                ):
+                    msg = f"Input {port!r} of {system_name!r} requires a Tensor of {enum_type.__name__} members."
+                    raise BiltEvaluationError(msg)
+                continue
             if type(value) is not enum_type:
                 msg = f"Input {port!r} of {system_name!r} requires a {enum_type.__name__} enum member, got {value!r}."
                 raise BiltEvaluationError(msg)
