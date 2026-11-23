@@ -1,7 +1,7 @@
 """Ordinary enum-valued tensors select equation branches elementwise."""
 
 import enum
-lazy from contextlib import AbstractContextManager
+import typing
 
 import numpy as np
 import pytest
@@ -21,6 +21,9 @@ from bilt import (
 )
 from bilt.errors import BiltEvaluationError
 from bilt.symbolic._domains import domain
+
+if typing.TYPE_CHECKING:
+    from bilt._backend._base_backend import Backend
 
 
 class Scenario(enum.Enum):
@@ -49,7 +52,7 @@ def result(scenario: Scenario | Tensor, multiplier: float, result: float) -> boo
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_enum_tensor_match_is_elementwise(backend: AbstractContextManager[object]) -> None:
+def test_enum_tensor_match_is_elementwise(backend: Backend) -> None:
     scenario_axis = dim("scenario")
     implementation = Implementation(ScenarioCalculation, [result])
     values = tensor([Scenario.MINIMUM, Scenario.AVERAGE, Scenario.MAXIMUM], over=scenario_axis)
@@ -61,7 +64,7 @@ def test_enum_tensor_match_is_elementwise(backend: AbstractContextManager[object
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_enum_selector_broadcasts_over_other_named_dimensions(backend: AbstractContextManager[object]) -> None:
+def test_enum_selector_broadcasts_over_other_named_dimensions(backend: Backend) -> None:
     scenario_axis = dim("scenario")
     time_axis = dim("time")
     implementation = Implementation(ScenarioCalculation, [result])
@@ -113,13 +116,12 @@ def parent_result(child: ChildScenario, result: float) -> bool:
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_qualified_child_enum_tensor_selects_parent_equation(backend: AbstractContextManager[object]) -> None:
+def test_qualified_child_enum_tensor_selects_parent_equation(backend: Backend) -> None:
     implementation = Implementation(
         ParentScenario, [parent_result], internal_implementations={"child": Implementation(ChildScenario, [])}
     )
     scenarios = tensor([Scenario.MINIMUM, Scenario.AVERAGE, Scenario.MAXIMUM], over=dim("scenario"))
-    with backend, implementation:
-        calculated = ParentScenario(**{"child.scenario": scenarios}).result
+    calculated = implementation.evaluate({"child.scenario": scenarios}, "result", backend)
     assert isinstance(calculated, Tensor)
     assert calculated.domain == scenarios.domain
     np.testing.assert_allclose(calculated.values, [1.0, 2.0, 3.0])
@@ -138,7 +140,7 @@ def echoed(scenario: Scenario | Tensor) -> Scenario | Tensor:
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_transform_passthrough_decodes_categorical_tensor_output(backend: AbstractContextManager[object]) -> None:
+def test_transform_passthrough_decodes_categorical_tensor_output(backend: Backend) -> None:
     implementation = Implementation(EnumEcho, [echoed])
     scenarios = tensor([Scenario.MAXIMUM, Scenario.MINIMUM], over=dim("scenario"))
     with backend, implementation:
