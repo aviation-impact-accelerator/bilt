@@ -430,7 +430,6 @@ def test_absolute_time_port_can_be_declared() -> None:
     assert Timeline.__bilt_port_declarations__ == {"reference": PortDeclaration(TIME, absolute=True)}
 
 
-
 def test_a_dimensionality_on_a_tensor_is_the_same_declaration_as_on_a_quantity() -> None:
     @system
     class Rig(metaclass=Interface):
