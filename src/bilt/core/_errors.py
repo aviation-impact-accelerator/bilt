@@ -3,6 +3,7 @@
 __all__ = [
     "BiltAnalysisError",
     "BiltCategoricalConsistencyError",
+    "BiltCategoricalError",
     "BiltCategoricalPortError",
     "BiltCollectedValidationError",
     "BiltDefinitionError",
@@ -61,7 +62,11 @@ class BiltPortDeclarationError(BiltDefinitionError, TypeError):
         super().__init__(f"Port {port!r} of {owner_name!r} {problem}")
 
 
-class BiltCategoricalPortError(BiltPortDeclarationError):
+class BiltCategoricalError(BiltError):
+    """A definition violates supported categorical type rules."""
+
+
+class BiltCategoricalPortError(BiltPortDeclarationError, BiltCategoricalError):
     """A port has an unsupported categorical annotation."""
 
 
@@ -94,7 +99,7 @@ class BiltImplementationDimensionalityError(BiltDimensionalityError):
         super().__init__(f"Implementation of {system_name!r} {problem}")
 
 
-class BiltCategoricalConsistencyError(BiltImplementationDimensionalityError):
+class BiltCategoricalConsistencyError(BiltImplementationDimensionalityError, BiltCategoricalError):
     """Different model constituents declare incompatible categorical port types."""
 
 

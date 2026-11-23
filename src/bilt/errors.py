@@ -18,6 +18,7 @@ __all__ = [
     "BiltAtomMutationError",
     "BiltBackendError",
     "BiltCategoricalConsistencyError",
+    "BiltCategoricalError",
     "BiltCategoricalPortError",
     "BiltCheckConfigurationError",
     "BiltCheckError",
@@ -72,6 +73,7 @@ from bilt._errors import BiltCheckConfigurationError, BiltCheckError
 from bilt.core._errors import (
     BiltAnalysisError,
     BiltCategoricalConsistencyError,
+    BiltCategoricalError,
     BiltCategoricalPortError,
     BiltCollectedValidationError,
     BiltDefinitionError,
