@@ -143,11 +143,7 @@ class Implementation:
         cached: dict[str, object] | None = None,
     ) -> dict[str, object]:
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs, enum_types=self._enum_types)
-        if (
-            output in self._enum_types
-            and output not in inputs
-            and not _has_categorical_producer(self, output)
-        ):
+        if output in self._enum_types and output not in inputs and not _has_categorical_producer(self, output):
             msg = f"Cannot solve categorical enum port {output!r}; enum equation selectors are forward-only."
             raise BiltEvaluationError(msg)
         with EvaluationContext() as evaluation:
