@@ -91,7 +91,9 @@ class _EnumMatchLowerer(ast.NodeTransformer):
             and isinstance(statement.targets[0], ast.Name)
         ):
             return "assign", statement.targets[0].id, statement.value
-        raise BiltCategoricalPortError(self.owner, port, "enum match arms must each contain one return or one assignment.")
+        raise BiltCategoricalPortError(
+            self.owner, port, "enum match arms must each contain one return or one assignment."
+        )
 
     def _check_output(self, expression: ast.expr, port: str) -> None:
         """Reject statically known wrong categorical results before ordinal conversion."""

@@ -11,6 +11,7 @@ class Scenario(enum.Enum):
     AVERAGE = "average"
     MAXIMUM = "maximum"
 
+
 @transform
 def relative_cost(scenario: Scenario) -> float:
     match scenario:
