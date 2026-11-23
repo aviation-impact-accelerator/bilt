@@ -131,7 +131,7 @@ def test_enum_match_can_produce_another_enum(backend: Backend) -> None:
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 def test_final_wildcard_uses_default_result(backend: Backend) -> None:
     implementation = Implementation(SelectedPrices, [selected_price])
-    assert implementation.evaluate({"scenario": Scenario.MAXIMUM}, "selected_price", backend) == 1.4
+    assert implementation.evaluate({"scenario": Scenario.MAXIMUM}, "selected_price", backend) == pytest.approx(1.4)
 
 
 def test_wrong_enum_case_rejected_at_definition() -> None:
