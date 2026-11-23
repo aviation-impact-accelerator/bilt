@@ -4,7 +4,7 @@ __all__ = ["check_dimensional_consistency"]
 
 import typing
 
-from bilt.core._errors import BiltImplementationDimensionalityError
+from bilt.core._errors import BiltCategoricalConsistencyError, BiltImplementationDimensionalityError
 from bilt.core._transform import BasicTransform
 from bilt.core._validation import validate_independently
 
@@ -46,6 +46,20 @@ def _check_port(
     """Validate a single port independently of the declarations of other ports."""
     naming = [owner for owner in owners if port in named[owner]]
     declaring = [owner for owner in naming if port in owner.__bilt_port_declarations__]
+    enums = [(owner.__bilt_name__, getattr(owner, "__bilt_enum_ports__", {}).get(port)) for owner in naming]
+    expected = next((enum_type for _, enum_type in enums if enum_type is not None), None)
+    if expected is not None:
+        if any(enum_type is not expected for _, enum_type in enums):
+            details = ", ".join(
+                f"{name!r} declares {enum_type.__qualname__ if enum_type is not None else 'a non-enum port'}"
+                for name, enum_type in enums
+            )
+            msg = f"gives categorical port {port!r} inconsistent enum types: {details}."
+            raise BiltCategoricalConsistencyError(system.__bilt_name__, msg)
+        if declaring:
+            msg = f"gives categorical port {port!r} a physical dimensionality."
+            raise BiltCategoricalConsistencyError(system.__bilt_name__, msg)
+        return
     if not declaring:
         return
 

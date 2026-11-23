@@ -1,8 +1,10 @@
 import dataclasses
+import enum
 import functools
 from typing import TYPE_CHECKING, SupportsFloat, cast
 
 from bilt.core._canonical_ordering import canonicalized
+from bilt.core._enum_encoding import enum_code
 from bilt.core._evaluation_context import current_evaluation
 from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.units import Quantity
@@ -39,6 +41,8 @@ def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
                 )
         elif isinstance(input_value, Quantity):
             lowered_inputs[input_name] = BASE_UNIT_SYSTEM.coherent_value(input_value)
+        elif isinstance(input_value, enum.Enum):
+            lowered_inputs[input_name] = enum_code(input_value)
         else:
             lowered_inputs[input_name] = input_value
     return lowered_inputs
