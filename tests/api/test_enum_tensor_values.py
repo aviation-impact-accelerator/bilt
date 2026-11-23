@@ -9,6 +9,7 @@ from bilt import Interface, Tensor, dim, field, system, tensor
 from bilt.core._enum_encoding import enum_codes, enum_from_codes
 from bilt.core._tensors._errors import BiltTensorDomainError
 from bilt.errors import BiltEvaluationError
+from bilt.units import year
 
 
 class Mode(enum.Enum):
@@ -90,7 +91,5 @@ def test_mixed_enum_classes_are_rejected_at_construction() -> None:
 
 
 def test_enum_tensor_does_not_accept_units() -> None:
-    from bilt.units import year
-
     with pytest.raises(BiltTensorDomainError, match="cannot carry physical units"):
         tensor([Mode.MINIMUM], over=dim("scenario"), unit=year)

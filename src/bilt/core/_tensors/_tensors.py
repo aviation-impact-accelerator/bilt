@@ -34,7 +34,8 @@ class Tensor:
     def __post_init__(self) -> None:
         values = _enum_preserving_array(self.values)
         if self.unit is not None and _has_enum_members(values):
-            raise BiltTensorDomainError("Categorical tensors cannot carry physical units.")
+            msg = "Categorical tensors cannot carry physical units."
+            raise BiltTensorDomainError(msg)
         object.__setattr__(self, "values", values)
 
         _check_rank(values, self.domain)
@@ -291,5 +292,6 @@ def _enum_preserving_array(values: object) -> np.ndarray:
     members = list(objects.flat)
     enum_type = type(members[0])
     if not isinstance(members[0], enum.Enum) or any(type(member) is not enum_type for member in members):
-        raise BiltTensorDomainError("Categorical tensor values must all belong to the same enum class.")
+        msg = "Categorical tensor values must all belong to the same enum class."
+        raise BiltTensorDomainError(msg)
     return objects

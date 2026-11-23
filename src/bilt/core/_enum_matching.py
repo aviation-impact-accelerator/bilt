@@ -65,7 +65,7 @@ def _enum_shape(annotation: object) -> tuple[type[enum.Enum] | None, bool]:
         return annotation, False
     if typing.get_origin(annotation) in (typing.Union, types.UnionType):
         options = typing.get_args(annotation)
-        if len(options) == 2 and Tensor in options:
+        if len(options) == 2 and Tensor in options:  # noqa: PLR2004
             other = next(option for option in options if option is not Tensor)
             if isinstance(other, type) and issubclass(other, enum.Enum):
                 return other, True
