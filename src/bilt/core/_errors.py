@@ -62,7 +62,7 @@ class BiltPortDeclarationError(BiltDefinitionError, TypeError):
         super().__init__(f"Port {port!r} of {owner_name!r} {problem}")
 
 
-class BiltCategoricalError(BiltError):
+class BiltCategoricalError(BiltDefinitionError):
     """A definition violates supported categorical type rules."""
 
 
