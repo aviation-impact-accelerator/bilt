@@ -60,7 +60,8 @@ def total(child: Child, total: float) -> bool:
 def test_parent_enum_match_with_qualified_child_input(backend: Backend) -> None:
     child = Implementation(Child, [result])
     parent = Implementation(Parent, [total], internal_implementations={"child": child})
-    assert parent.evaluate({"child.mode": Mode.ON, "child.power": 4.0}, "total", backend) == 4.0
+    expected_on = 4.0
+    assert parent.evaluate({"child.mode": Mode.ON, "child.power": expected_on}, "total", backend) == expected_on
     assert parent.evaluate({"child.mode": Mode.OFF, "child.power": 4.0}, "total", backend) == 0.0
     assert parent.evaluate({"child.mode": Mode.ON}, "child.mode", backend) is Mode.ON
     for wrong in (OtherMode.ON, 1, "on"):
@@ -104,4 +105,5 @@ def test_nested_transform_can_produce_enum_for_parent_equation(backend: Backend)
     child = Implementation(Child, [mode])
     parent = Implementation(Parent, [chosen_total], internal_implementations={"child": child})
     assert parent.evaluate({}, "child.mode", backend) is Mode.ON
-    assert parent.evaluate({}, "total", backend) == 1.5
+    expected_total = 1.5
+    assert parent.evaluate({}, "total", backend) == expected_total
