@@ -15,10 +15,10 @@ Conventions:
 
 __all__ = [
     "BiltAnalysisError",
-    "BiltCategoricalConsistencyError",
-    "BiltCategoricalPortError",
     "BiltAtomMutationError",
     "BiltBackendError",
+    "BiltCategoricalConsistencyError",
+    "BiltCategoricalPortError",
     "BiltCheckConfigurationError",
     "BiltCheckError",
     "BiltCollectedValidationError",

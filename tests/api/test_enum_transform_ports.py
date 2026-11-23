@@ -4,8 +4,10 @@ import enum
 import pytest
 
 from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, field, system, transform
-from bilt._backend._base_backend import Backend
 from bilt.errors import BiltEvaluationError, BiltImplementationDimensionalityError, BiltPortDeclarationError
+
+if typing.TYPE_CHECKING:
+    from bilt._backend._base_backend import Backend
 
 
 class Mode(enum.Enum):
@@ -83,7 +85,8 @@ class Echo(metaclass=Interface):
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
 def test_enum_selector_transform_uses_encoded_input(backend: Backend) -> None:
     impl = Implementation(Selector, [output])
-    assert impl.evaluate({"mode": Mode.ON}, "output", backend) == 5.0
+    expected_on = 5.0
+    assert impl.evaluate({"mode": Mode.ON}, "output", backend) == expected_on
     assert impl.evaluate({"mode": Mode.OFF}, "output", backend) == 0.0
 
 
@@ -118,7 +121,7 @@ def test_enum_values_are_validated_at_system_and_implementation_boundaries() -> 
 def test_shared_categorical_ports_require_identical_enum_classes() -> None:
     @transform
     def output(mode: OtherMode) -> float:
-        return 1.0
+        return 1.0 if mode is OtherMode.ON else 0.0
 
     with pytest.raises(BiltImplementationDimensionalityError, match="inconsistent enum types"):
         Implementation(Selector, [output])
