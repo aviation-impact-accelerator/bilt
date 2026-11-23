@@ -176,7 +176,7 @@ class _EnumMatchLowerer(ast.NodeTransformer):
             )
             conditional = ast.IfExp(test=test, body=copy.deepcopy(expression), orelse=result)
             # Preserve the typed selector for domain-sensitive backend lowering.
-            conditional._bilt_enum_selector = port  # type: ignore[attr-defined]  # noqa: SLF001
+            conditional._bilt_enum_selector = port  # pyrefly: ignore[missing-attribute]  # ty: ignore[missing-attribute]  # noqa: SLF001
             result = conditional
         if kind == "return":
             replacement: ast.stmt = ast.Return(value=result)
