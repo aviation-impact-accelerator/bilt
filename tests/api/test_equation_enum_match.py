@@ -18,14 +18,15 @@ from bilt.errors import (
     BiltEvaluationError,
     BiltImplementationDimensionalityError,
 )
+from bilt.symbolic._atoms import CONDITIONAL, EnumType
 from bilt.symbolic._domains import Domain
+from bilt.symbolic._walk import subtrees
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
     from types import FunctionType
 
-    from bilt._backend._base_backend import Backend
-    from bilt.core._equation import BasicEquation
+        from bilt.core._equation import BasicEquation
 
 
 class Mode(enum.Enum):
@@ -296,9 +297,6 @@ def test_jit_accepts_float_branches_with_weak_and_explicit_dtypes() -> None:
         assert result == expected
 
 def test_enum_match_uses_existing_conditional_tree() -> None:
-    from bilt.symbolic._atoms import CONDITIONAL, EnumType
-    from bilt.symbolic._walk import subtrees
-
     assert any(node.head is CONDITIONAL for node in subtrees(enum_output.__bilt_equation_tree__))
     members = [
         node for node in subtrees(int_output.__bilt_equation_tree__) if node.head.atom_type is EnumType

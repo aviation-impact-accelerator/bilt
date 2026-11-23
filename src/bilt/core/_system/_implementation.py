@@ -10,7 +10,6 @@ import typing
 from bilt.core._enum_encoding import enum_from_code
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltEvaluationError
-from bilt.core._transform import BasicTransform
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs, mangle_name
@@ -28,6 +27,7 @@ from bilt.core._system._errors import (
 from bilt.core._system._input_validation import validate_inputs
 from bilt.core._system._intermediate_reuse import reuse_plan_outputs
 from bilt.core._tensors._tensors import Tensor
+from bilt.core._transform import BasicTransform
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
