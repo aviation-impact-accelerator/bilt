@@ -5,9 +5,9 @@ __all__ = ["Implementation"]
 
 import dataclasses
 import types
+import typing
 
 import numpy as np
-import typing
 
 from bilt.core._enum_encoding import enum_from_code, enum_from_codes
 from bilt.core._equation import BasicEquation

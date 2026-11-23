@@ -1,6 +1,7 @@
 """Ordinary enum-valued tensors select equation branches elementwise."""
 
 import enum
+from contextlib import AbstractContextManager
 
 import numpy as np
 import pytest
@@ -36,7 +37,7 @@ def result(scenario: Scenario | Tensor, multiplier: float, result: float) -> boo
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_enum_tensor_match_is_elementwise(backend: object) -> None:
+def test_enum_tensor_match_is_elementwise(backend: AbstractContextManager[object]) -> None:
     scenario_axis = dim("scenario")
     implementation = Implementation(ScenarioCalculation, [result])
     values = tensor([Scenario.MINIMUM, Scenario.AVERAGE, Scenario.MAXIMUM], over=scenario_axis)
@@ -48,7 +49,7 @@ def test_enum_tensor_match_is_elementwise(backend: object) -> None:
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
-def test_enum_selector_broadcasts_over_other_named_dimensions(backend: object) -> None:
+def test_enum_selector_broadcasts_over_other_named_dimensions(backend: AbstractContextManager[object]) -> None:
     scenario_axis = dim("scenario")
     time_axis = dim("time")
     implementation = Implementation(ScenarioCalculation, [result])
