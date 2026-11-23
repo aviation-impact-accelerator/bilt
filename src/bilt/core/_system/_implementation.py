@@ -190,8 +190,7 @@ class Implementation:
                     raw_outputs = {output: backend_callable.evaluate(backend_inputs)}
                     output_domains = {output: typing.cast("Domain", backend_callable.output_domain)}
                 outputs = {
-                    name: self._lift_value(name, value, output_domains[name])
-                    for name, value in raw_outputs.items()
+                    name: self._lift_value(name, value, output_domains[name]) for name, value in raw_outputs.items()
                 }
             validate_inputs(
                 self._system.__bilt_name__,

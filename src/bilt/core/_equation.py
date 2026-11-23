@@ -94,7 +94,8 @@ class BasicEquation[R, **P]:
         }
         self.__bilt_enum_ports__ = enum_types | referenced_enum_types
         self.__bilt_enum_tensor_ports__ = tensor_ports | frozenset(
-            f"{child}.{port}" for child, interface in sub_systems.items()
+            f"{child}.{port}"
+            for child, interface in sub_systems.items()
             for port in interface.__bilt_enum_tensor_ports__
             if f"{child}.{port}" in equation_symbols
         )
