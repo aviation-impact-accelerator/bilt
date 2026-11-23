@@ -373,6 +373,43 @@ for broadcasting and backend details.
 Bilt can calculate `result` from `x` in these examples. It cannot currently
 work backwards through a conditional to find `x` from `result`.
 
+### Using `match/case` in an equation
+
+For several fixed numeric choices, you can use `match/case` instead of a
+chain of comparisons:
+
+```python exec="on" session="motion-equations"
+@equation
+def selected_result(x: float, result: float) -> bool:
+    match x:
+        case 0:
+            selected = 0.0
+        case 1:
+            selected = 2.0
+        case _:
+            selected = x * 3.0
+    return result == selected
+
+
+match_model = Implementation(Piecewise, [selected_result])
+with match_model:
+    assert Piecewise(x=0.0).result == 0.0
+    assert Piecewise(x=1.0).result == 2.0
+    assert Piecewise(x=2.0).result == 6.0
+
+with JAX_BACKEND, match_model:
+    assert Piecewise(x=1.0).result == 2.0
+```
+
+Cases must be numeric literals (integers or floats) and end with `case _`
+for any other value. Every path must end by assigning the same result name,
+with a single `return` outside the `match`. Cases can use intermediate local
+assignments and nest `if/else` or another `match/case`. Guards (such as
+`case 1 if x > 0`), variable captures and structural patterns are not supported.
+
+As with `if/else`, Bilt needs inputs from every case and cannot work backwards
+through the selection to calculate `x` from `result`.
+
 ### Not every equation can simply be rearranged
 
 Our kinematic equation is pleasantly straightforward:
@@ -407,7 +444,7 @@ But not every piece of a model is best described this way.
 
 Some operations have a natural direction of computation. Others involve more complicated instructions or calculations that Bilt cannot treat as equations.
 
-For those cases, Bilt provides **transforms**. Equations can include supported `if/elif/else` and nested conditionals, but transforms are better suited to calculations that do not describe a mathematical relationship.
+For those cases, Bilt provides **transforms**. Equations can include supported `if/elif/else`, nested conditionals and `match/case`, but transforms are better suited to calculations that do not describe a mathematical relationship.
 
 A useful distinction is:
 

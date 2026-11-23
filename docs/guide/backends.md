@@ -179,12 +179,13 @@ def root(value: float) -> float:
 The JAX backend is well suited to array-based numerical calculations built from
 supported arithmetic and JAX operations.
 
-Both backends also support `if/elif/else` and nested conditions inside an
-`@equation`. Conditions can select from scalar values or named tensors; a tensor
+Both backends support `if/elif/else`, nested conditionals and numeric-literal
+`match/case` inside an `@equation`. Conditions can select from scalar values or named tensors; a tensor
 predicate selects elementwise and broadcasts over named dimensions. The same
 equation syntax works on Python and JAX, but elementwise selection evaluates
 both branches, even where the mask excludes one. See
 [Using `if/else` in an equation](equations-and-acausal-modelling.md#using-ifelse-in-an-equation)
+[Using `match/case` in an equation](equations-and-acausal-modelling.md#using-matchcase-in-an-equation)
 and [Conditional selection](../api/tensors.md#conditional-selection-in-equations).
 
 Some ordinary Python behaviour is not suitable for JAX execution. Examples
