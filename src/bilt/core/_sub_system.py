@@ -1,4 +1,4 @@
-__all__ = ["SubSystemConstituent"]
+__all__ = ["SubSystemConstituent", "qualified_enum_ports"]
 
 import typing
 
@@ -7,8 +7,10 @@ from bilt.core._port import MANGLED_SEPARATOR, QualifiedPort
 
 if typing.TYPE_CHECKING:
     import collections.abc
+    import enum
 
     from bilt._backend._base_backend import Backend
+    from bilt.core._interface import Interface
     from bilt.core._port_declaration import PortDeclaration
     from bilt.core._system._implementation import Implementation
 
@@ -22,6 +24,7 @@ class SubSystemConstituent:
         self.implementation = implementation
         self.interface = implementation.system
         self.__bilt_parameters__ = tuple(self.qualify(port) for port in self.interface.__bilt_parameters__)
+        self.__bilt_enum_ports__ = qualified_enum_ports(name, self.interface)
         self.__bilt_port_declarations__: dict[str, PortDeclaration] = {
             self.qualify(port): declaration for port, declaration in self.interface.__bilt_port_declarations__.items()
         }
@@ -69,6 +72,11 @@ class SubSystemConstituent:
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(name={self.__bilt_name__!r}, interface={self.interface.__bilt_name__!r})"
+
+
+def qualified_enum_ports(name: str, interface: Interface) -> dict[str, type[enum.Enum]]:
+    """Expose the exact enum classes for the child ports visible to this parent."""
+    return {QualifiedPort(name, port).dotted: enum_type for port, enum_type in interface.__bilt_enum_ports__.items()}
 
 
 def validate_name(name: str) -> None:

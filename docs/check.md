@@ -49,6 +49,8 @@ Discovery is based on Python source, not a complete static analysis. It recognis
 
 Imports execute module-level Python code. For recognised top-level Bilt definitions, a failed definition does not prevent independent later definitions from being checked. Definitions depending on a failed one are reported as skipped. The recovery mechanism is intentionally limited to recognised top-level declarations; nested Python code and unrelated Python errors retain normal behaviour. Bilt checks definitions constructed by imports, including dimensional consistency, declarations and subsystem wiring. It does not invoke transforms with dummy values, perform numerical evaluation, test structural solvability or infer tensor domains without inputs. Some checks remain runtime-dependent.
 
+Categorical definition errors use diagnostic code `BILT004`. These include unsupported enum annotations, invalid enum cases or operations, and disagreements about an enum type on a shared port. Diagnostics for child ports use qualified names such as `engine.mode`. Bilt validates input values when they are supplied and checks JAX branch dtypes during compilation.
+
 Files with Python syntax errors encountered during discovery are reported rather than silently ignored. No Bilt models found is a failure, not a successful check.
 
 Exit status: `0` for success, `1` for model or source errors, `2` for invalid CLI usage or configuration.

@@ -1,5 +1,6 @@
 import typing
 import weakref
+lazy import enum
 
 from bilt.symbolic._errors import BiltAtomMutationError
 
@@ -38,6 +39,7 @@ __all__ = [
     "AxisType",
     "CoordinateType",
     "DimensionType",
+    "EnumType",
     "FloatType",
     "IndexOpType",
     "IntType",
@@ -51,6 +53,7 @@ __all__ = [
     "clear_atom_cache",
     "coordinate",
     "dimension",
+    "enum_member",
     "floating",
     "integer",
     "quantity",
@@ -102,6 +105,7 @@ AxisType = AtomType("Axis")
 IntType = AtomType("Integer")
 FloatType = AtomType("Float")
 QuantityType = AtomType("Quantity")
+EnumType = AtomType("Enum")
 
 
 @typing.final
@@ -172,6 +176,15 @@ def integer(value: int) -> Atom:
 
 def floating(value: float) -> Atom:
     return Atom(FloatType, value)
+
+
+def enum_member(value: enum.Enum) -> Atom:
+    """Retain both enum class identity and canonical member name.
+
+    IntEnum members from distinct classes may compare equal numerically, so
+    the Enum object itself must not be the atom-cache key.
+    """
+    return Atom(EnumType, (type(value), value.name))
 
 
 def axis(value: int) -> Atom:

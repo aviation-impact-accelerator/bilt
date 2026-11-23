@@ -49,13 +49,74 @@ Some notebooks and interactive environments may not make the source available.
 | Loops | `for`, `while` and comprehensions are not supported. |
 | Function calls | Allowed when Bilt understands the mathematical result. Bilt cannot detect every side effect inside a called function. |
 | Python `if/elif/else` | A single conditional chain may contain `elif` and nested `if/else`; all paths must end by assigning the same result name and end in an `else`; sequential local assignments are allowed in each branch. |
-| Python `match/case` | Numeric literal cases (integers or floats), followed by a final `case _`. All paths must end by assigning the same result name. Guards, captures, enum-member patterns and structural patterns are not supported. |
+| Python `match/case` | Numeric literal cases, or enum-member cases for an enum-annotated input, followed by a final `case _`. All paths must end by assigning the same result name. Guards, captures and structural patterns are not supported. |
 | Inline `if` | Expressions such as `a if flag else b` work when `flag` is an ordinary Python value known when Bilt reads the equation, not a value being solved for. |
 
 Ordinary equations can use constants from outside the function, including
 values from an enclosing function. With `if/else`, constants defined at
 module level work, but values captured from an enclosing function are not
 currently supported.
+
+### Enum matching (prototype)
+
+A scalar input annotated with a specific `enum.Enum`, `enum.IntEnum` or
+`enum.StrEnum` subclass can be matched against members of **the same enum
+class**. Bilt accepts enum instances at the system boundary, validates the
+exact class, and retains the enum class and member identity in the symbolic
+representation. Numerical ordinals are generated only when lowering to NumPy
+and JAX execution.
+
+```python exec="off"
+import enum
+
+from bilt import Implementation, Interface, equation, field, system
+
+
+class Mode(enum.StrEnum):
+    IDLE = "idle"
+    CRUISE = "cruise"
+
+
+@system
+class Engine(metaclass=Interface):
+    mode: Mode = field()
+    output: float = field()
+
+
+@equation
+def output(mode: Mode, output: float) -> bool:
+    match mode:
+        case Mode.IDLE:
+            selected = 0.0
+        case Mode.CRUISE:
+            selected = 5.0
+        case _:
+            selected = -1.0
+    return output == selected
+
+
+with Implementation(Engine, [output]):
+    assert Engine(mode=Mode.CRUISE).output == 5.0
+```
+
+The enum class must be importable as a module-level name in the equation,
+and all categorical declarations for the same port must use the exact same
+class. In a parent equation, an enum port on a child interface can be a
+`match` subject using its qualified name, such as `match engine.mode`.
+Declare a concrete enum class directly on each scalar port that uses it.
+Enum ports are forward-only match selectors. Bilt reports categorical
+definition errors for flag types (`enum.Flag` and `enum.IntFlag`), union
+annotations containing enums, unit or tensor annotations on enum ports, and
+enum-typed transform ports. Only members of the selector's declared enum
+class are valid case patterns, followed by a final `case _`.
+
+With the JAX backend, the compiled branches must return the same numerical
+dtype. For example, use `0.0` for a zero-valued branch when the other branches
+return floats.
+
+Enum values represent categorical configuration, **not** numerical or
+physical quantities. For simultaneous scenario evaluation, use named tensor
+dimensions instead of an enum port.
 
 ### Conditional equations
 

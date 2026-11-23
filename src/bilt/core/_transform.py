@@ -5,6 +5,7 @@ import inspect
 import textwrap
 import typing
 
+from bilt.core._enum_matching import enum_port_types
 from bilt.core._errors import BiltUnresolvedAnnotationError
 from bilt.core._port_declaration import PortDeclaration, port_declarations
 from bilt.core._unit_erasure import erase_units
@@ -29,11 +30,13 @@ class BasicTransform[R, **P]:
         except NameError as error:
             raise BiltUnresolvedAnnotationError(self.__bilt_name__, error) from error
         self.__bilt_parameters__ = tuple(signature.parameters.keys())
-        self.__bilt_port_declarations__ = port_declarations(
-            self.__bilt_name__,
-            {port: parameter.annotation for port, parameter in signature.parameters.items()}
-            | {self.__bilt_name__: signature.return_annotation},
-        )
+        annotations = {port: parameter.annotation for port, parameter in signature.parameters.items()}
+        # A transform can consume a port with the same name as its result.
+        # Check input and output annotations independently before merging declarations.
+        enum_port_types(self.__bilt_name__, annotations, allow_selectors=False)
+        output_annotation = {self.__bilt_name__: signature.return_annotation}
+        enum_port_types(self.__bilt_name__, output_annotation, allow_selectors=False)
+        self.__bilt_port_declarations__ = port_declarations(self.__bilt_name__, annotations | output_annotation)
         self._function = function
         self._function_ast = erase_units(
             typing.cast("ast.FunctionDef", ast.parse(textwrap.dedent(inspect.getsource(function))).body[0]),
