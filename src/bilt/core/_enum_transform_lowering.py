@@ -16,7 +16,7 @@ def lower_enum_literals(
 ) -> ast.FunctionDef:
     """Compiled transform inputs are encoded; make literal members match that representation."""
     closure = inspect.getclosurevars(function)
-    bindings = closure.globals | closure.nonlocals
+    bindings = {**closure.globals, **closure.nonlocals}
     local_names = {
         node.id for node in ast.walk(function_ast) if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
     } | {node.arg for node in ast.walk(function_ast) if isinstance(node, ast.arg)}

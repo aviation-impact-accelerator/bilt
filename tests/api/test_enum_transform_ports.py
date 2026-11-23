@@ -112,9 +112,9 @@ def test_enum_pass_through_transform_returns_the_declared_type(backend: Backend)
 
 def test_enum_values_are_validated_at_system_and_implementation_boundaries() -> None:
     with pytest.raises(BiltEvaluationError, match="requires a Mode enum member"):
-        Selector(mode=OtherMode.ON)
+        Selector(mode=OtherMode.ON)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
     with pytest.raises(BiltEvaluationError, match="requires a Mode enum member"):
-        Selector(mode="on")
+        Selector(mode="on")  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
     impl = Implementation(Selector, [output])
     with pytest.raises(BiltEvaluationError, match="requires a Mode enum member"):
         impl.evaluate({"mode": Speed.ON}, "output", PYTHON_BACKEND)
@@ -160,4 +160,4 @@ def test_enum_member_is_not_accepted_as_a_numeric_port() -> None:
         value: float = field()
 
     with pytest.raises(BiltEvaluationError, match="does not declare an enum type"):
-        Numeric(value=Mode.ON)
+        Numeric(value=Mode.ON)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
