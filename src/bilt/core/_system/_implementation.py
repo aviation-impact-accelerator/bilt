@@ -142,9 +142,13 @@ class Implementation:
         cached: dict[str, object] | None = None,
     ) -> dict[str, object]:
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs, enum_types=self._enum_types)
-        if output in self._enum_types and output not in inputs and not any(
-            isinstance(component, BasicTransform) and component.__bilt_name__ == output
-            for component in self._components.values()
+        if (
+            output in self._enum_types
+            and output not in inputs
+            and not any(
+                isinstance(component, BasicTransform) and component.__bilt_name__ == output
+                for component in self._components.values()
+            )
         ):
             msg = f"Cannot solve categorical enum port {output!r}; enum equation selectors are forward-only."
             raise BiltEvaluationError(msg)

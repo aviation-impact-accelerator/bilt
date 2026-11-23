@@ -28,9 +28,6 @@ if typing.TYPE_CHECKING:
 
     from bilt.core._equation import BasicEquation
 
-
-
-
 class Mode(enum.Enum):
     OFF = "off"
     CRUISE = "cruise"
@@ -298,9 +295,8 @@ def test_jit_accepts_float_branches_with_weak_and_explicit_dtypes() -> None:
         assert result.dtype == explicit_float.dtype
         assert result == expected
 
+
 def test_enum_match_uses_existing_conditional_tree() -> None:
     assert any(node.head is CONDITIONAL for node in subtrees(enum_output.__bilt_equation_tree__))
-    members = [
-        node for node in subtrees(int_output.__bilt_equation_tree__) if node.head.atom_type is EnumType
-    ]
+    members = [node for node in subtrees(int_output.__bilt_equation_tree__) if node.head.atom_type is EnumType]
     assert {node.head.value for node in members} == {(Speed, "OFF"), (Speed, "CRUISE")}
