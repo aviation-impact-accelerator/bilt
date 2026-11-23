@@ -26,8 +26,8 @@ def lower_enum_matches(
     """Validate and lower enum match statements during transform definition."""
     closure = inspect.getclosurevars(function)
     bindings = {**closure.globals, **closure.nonlocals}
-    lowered = _EnumMatchLowerer(function.__name__, bindings, enum_inputs, output_type).visit(function_ast)
-    return typing.cast("ast.FunctionDef", ast.fix_missing_locations(lowered))
+    lowered = _EnumMatchLowerer(function_ast.name, bindings, enum_inputs, output_type).visit(function_ast)
+    return ast.fix_missing_locations(lowered)
 
 
 class _EnumMatchLowerer(ast.NodeTransformer):

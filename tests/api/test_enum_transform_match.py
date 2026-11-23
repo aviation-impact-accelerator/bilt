@@ -164,7 +164,7 @@ def test_non_exhaustive_match_without_default_rejected() -> None:
     with pytest.raises(BiltCategoricalPortError, match="non-exhaustive"):
 
         @transform
-        def incomplete(scenario: Scenario) -> float:  # pyrefly: ignore[bad-return]
+        def incomplete(scenario: Scenario) -> float:  # pyrefly: ignore[bad-return]  # ty: ignore[invalid-return-type]
             match scenario:
                 case Scenario.MINIMUM:
                     return 0.7
@@ -179,7 +179,7 @@ def test_assert_never_requires_exhaustive_coverage() -> None:
                 case Scenario.MINIMUM:
                     return 0.7
                 case _:
-                    typing.assert_never(scenario)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[invalid-argument-type]
+                    typing.assert_never(scenario)  # pyrefly: ignore[bad-argument-type]  # ty: ignore[type-assertion-failure]
 
 
 def test_guards_rejected() -> None:
