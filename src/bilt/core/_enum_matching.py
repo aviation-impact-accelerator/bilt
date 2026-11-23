@@ -36,7 +36,7 @@ def enum_port_types(owner: str, annotations: typing.Mapping[str, object]) -> dic
         enum_type, _ = _enum_shape(base)
         if enum_type is None:
             if _contains_enum(base):
-                msg = "must use a concrete enum class or a union of that class with Tensor."
+                msg = "must use a concrete enum class directly or a union of that class with Tensor."
                 raise BiltCategoricalPortError(owner, name, msg)
             return
         base = enum_type
