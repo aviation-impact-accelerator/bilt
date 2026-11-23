@@ -25,6 +25,9 @@ class SubSystemConstituent:
         self.interface = implementation.system
         self.__bilt_parameters__ = tuple(self.qualify(port) for port in self.interface.__bilt_parameters__)
         self.__bilt_enum_ports__ = qualified_enum_ports(name, self.interface)
+        self.__bilt_enum_tensor_ports__ = frozenset(
+            self.qualify(port) for port in self.interface.__bilt_enum_tensor_ports__
+        )
         self.__bilt_port_declarations__: dict[str, PortDeclaration] = {
             self.qualify(port): declaration for port, declaration in self.interface.__bilt_port_declarations__.items()
         }

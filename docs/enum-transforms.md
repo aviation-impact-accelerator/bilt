@@ -33,3 +33,50 @@ which is removed from the compiled function. Non-enum Python matches are unchang
 
 As with other JAX conditionals, branch outputs must have compatible JAX types and shapes.
 This feature does not implement enum tensors or arbitrary Python control-flow lowering.
+
+
+## Tensor-valued enum selectors in equations
+
+Use ordinary `Tensor` values and the named-domain `tensor()` constructor; no
+categorical tensor class or constructor is needed. A port declared as
+`Scenario | Tensor` accepts either a member of `Scenario` or a `Tensor`
+containing members of exactly that enum class.
+
+```python exec="off"
+class Scenario(enum.Enum):
+    MINIMUM = enum.auto()
+    AVERAGE = enum.auto()
+    MAXIMUM = enum.auto()
+
+
+@system
+class PriceModel(metaclass=Interface):
+    scenario: Scenario | Tensor = field()
+    price: Tensor = field()
+
+
+@equation
+def price(scenario: Scenario | Tensor, price: float) -> bool:
+    match scenario:
+        case Scenario.MINIMUM:
+            selected = 0.65
+        case Scenario.AVERAGE:
+            selected = 0.70
+        case _:
+            selected = 0.75
+    return price == selected
+
+
+all_scenarios = tensor(
+    [Scenario.MINIMUM, Scenario.AVERAGE, Scenario.MAXIMUM],
+    over=dim("scenario"),
+)
+```
+
+Scalar enum matches retain scalar conditional execution. For a tensor selector,
+Bilt compares encoded enum ordinals elementwise and lowers to its existing
+named-domain `WHERE` operation, broadcasting scalar or tensor branches as
+required. Inputs retain nominal enum identity at the API boundary and are
+encoded only for backend execution. Numeric tensors do not implicitly become
+enum tensors; a tensor constructed from raw integer codes is rejected.
+Tensor-valued enum outputs of directed transforms are outside this PR's scope.

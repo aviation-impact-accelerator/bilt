@@ -7,7 +7,9 @@ import dataclasses
 import types
 import typing
 
-from bilt.core._enum_encoding import enum_from_code
+import numpy as np
+
+from bilt.core._enum_encoding import enum_from_code, enum_from_codes
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltEvaluationError
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
@@ -82,8 +84,10 @@ class Implementation:
         )
         check_dimensional_consistency(system, self._components.values())
         self._enum_types = dict(system.__bilt_enum_ports__)
+        self._enum_tensor_ports = set(system.__bilt_enum_tensor_ports__)
         for component in self._components.values():
             self._enum_types.update(getattr(component, "__bilt_enum_ports__", {}))
+            self._enum_tensor_ports.update(getattr(component, "__bilt_enum_tensor_ports__", ()))
         self._port_declarations: dict[str, PortDeclaration] = {
             port: declaration
             for component in self._components.values()
@@ -142,7 +146,13 @@ class Implementation:
         expose_intermediates: bool,
         cached: dict[str, object] | None = None,
     ) -> dict[str, object]:
-        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs, enum_types=self._enum_types)
+        validate_inputs(
+            self._system.__bilt_name__,
+            self._port_declarations,
+            inputs,
+            enum_types=self._enum_types,
+            enum_tensor_ports=self._enum_tensor_ports,
+        )
         if output in self._enum_types and output not in inputs and not _has_categorical_producer(self, output):
             msg = f"Cannot solve categorical enum port {output!r}; enum equation selectors are forward-only."
             raise BiltEvaluationError(msg)
@@ -180,16 +190,26 @@ class Implementation:
                     raw_outputs = {output: backend_callable.evaluate(backend_inputs)}
                     output_domains = {output: typing.cast("Domain", backend_callable.output_domain)}
                 outputs = {
-                    name: enum_from_code(enum_type, typing.cast("typing.SupportsIndex", value))
-                    if (enum_type := self._enum_types.get(name)) is not None
-                    else lift_output(
-                        value, generate_lifting_plan(output_domains[name], self._port_declarations.get(name))
-                    )
-                    for name, value in raw_outputs.items()
+                    name: self._lift_value(name, value, output_domains[name]) for name, value in raw_outputs.items()
                 }
-            validate_inputs(self._system.__bilt_name__, self._port_declarations, outputs, enum_types=self._enum_types)
+            validate_inputs(
+                self._system.__bilt_name__,
+                self._port_declarations,
+                outputs,
+                enum_types=self._enum_types,
+                enum_tensor_ports=self._enum_tensor_ports,
+            )
             evaluation.domains.bind_all(outputs.values())
         return outputs
+
+    def _lift_value(self, name: str, value: object, output_domain: Domain) -> object:
+        plan = generate_lifting_plan(output_domain, self._port_declarations.get(name))
+        enum_type = self._enum_types.get(name)
+        if enum_type is None:
+            return lift_output(value, plan)
+        if not output_domain.is_scalar:
+            return lift_output(enum_from_codes(enum_type, np.asarray(value)), plan)
+        return enum_from_code(enum_type, typing.cast("typing.SupportsIndex", value))
 
     def get_evaluation(
         self,

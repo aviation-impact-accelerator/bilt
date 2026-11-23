@@ -5,7 +5,7 @@ import inspect
 import textwrap
 import typing
 
-from bilt.core._enum_matching import enum_port_types
+from bilt.core._enum_matching import enum_port_types, enum_tensor_ports
 from bilt.core._enum_transform_matching import lower_enum_matches
 from bilt.core._errors import BiltCategoricalPortError, BiltUnresolvedAnnotationError
 from bilt.core._port_declaration import PortDeclaration, port_declarations
@@ -41,6 +41,7 @@ class BasicTransform[R, **P]:
             msg = "has different categorical types for its input and output of the same name."
             raise BiltCategoricalPortError(self.__bilt_name__, self.__bilt_name__, msg)
         self.__bilt_enum_ports__ = input_types | output_types
+        self.__bilt_enum_tensor_ports__ = enum_tensor_ports(input_annotations | output_annotation)
         self.__bilt_port_declarations__ = port_declarations(self.__bilt_name__, input_annotations | output_annotation)
         self._function = function
         self._function_ast = lower_enum_matches(
