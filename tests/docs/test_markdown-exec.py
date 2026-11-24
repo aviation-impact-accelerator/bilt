@@ -9,6 +9,11 @@ from markdown_exec import formatter, validator
 
 DOCS = Path("docs")
 VISIBLE_EXAMPLES = {
+    "docs/guide/units.md": (
+        "class Motion(metaclass=Interface):",
+        "def distance_km(",
+        "class Heater(metaclass=Interface):",
+    ),
     "docs/guide/backends.md": ("class Motion(metaclass=Interface):", "with JAX_BACKEND, motion_model:"),
     "docs/guide/dimensions-domains-and-tensors.md": ("class FlightEnergy(metaclass=Interface):", "def select_route("),
     "docs/guide/models-to-computation.md": ("def gamma(", "class Pair(metaclass=Interface):"),

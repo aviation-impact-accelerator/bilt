@@ -10,11 +10,11 @@ For choosing scalar, tensor and pointwise field annotations, see
 ```python exec="on" source="above" session="units-api"
 from typing import Annotated
 
-from bilt import Quantity, tensor
+from bilt import Quantity, QuantityTensor, tensor
 from bilt.units import Metadata, Prefix, Unit, kilometer, meter
 from bilt.units.dimensions import LENGTH
 
-Length = Annotated[Quantity, LENGTH]
+Length = Annotated[Quantity | QuantityTensor, LENGTH]
 ```
 
 Model annotations use physical dimensions such as `LENGTH`, not units such as `meter`.
@@ -115,6 +115,9 @@ Inside transforms, extract numbers with `q.convert_to(unit).value` and construct
 quantities with `Quantity(value, unit)` or a float multiplied by a unit. Bare
 quantity `.value`, representation-dependent `.unit` access, and `cast_to()` are
 refused. Transform checks do not prove dimensional correctness of arbitrary Python.
+These restrictions apply to quantity operations; ordinary Python objects may
+have similarly named attributes and methods. Recognition of locally constructed
+plain objects is currently limited.
 
 ## Defining and inspecting units
 
