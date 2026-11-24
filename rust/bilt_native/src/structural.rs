@@ -15,6 +15,12 @@ enum PlanTargets<'a> {
     Discovery(Id),
 }
 
+#[derive(Clone, Copy)]
+enum ScopeFailure {
+    Overdetermined,
+    Underdetermined,
+}
+
 #[derive(Clone)]
 struct Row {
     operation: Id,
@@ -97,9 +103,14 @@ impl NativeStructuralModel {
     // DM classification without constructing a Python graph. Overdetermination
     // anywhere in the relevant scope, or underdetermination of the target,
     // causes a reference-engine fallback (which owns diagnostic messages).
-    fn validated_scope(&self, root: Id, available: &Set, target: Id) -> Option<Vec<(Id, Id)>> {
+    fn validated_scope(
+        &self,
+        root: Id,
+        available: &Set,
+        target: Id,
+    ) -> Result<Vec<(Id, Id)>, ScopeFailure> {
         if available.contains(&target) {
-            return Some(Vec::new());
+            return Ok(Vec::new());
         }
         let (attributes, selected) = self.scope(root, available, target);
         let unknown: Set = attributes.difference(available).copied().collect();
@@ -117,7 +128,7 @@ impl NativeStructuralModel {
         let mates = matching(&edges);
         // Any unmatched operation is in the overdetermined region.
         if mates.len() != edges.len() {
-            return None;
+            return Err(ScopeFailure::Overdetermined);
         }
         // Follow alternating edges from every unmatched attribute.
         let mut pending: Vec<_> = unknown
@@ -129,7 +140,7 @@ impl NativeStructuralModel {
         let row_mates: BTreeMap<_, _> = mates.iter().map(|(&p, &r)| (r, p)).collect();
         while let Some(port) = pending.pop() {
             if port == target {
-                return None;
+                return Err(ScopeFailure::Underdetermined);
             }
             for (row, ports) in edges.iter().enumerate() {
                 if ports.contains(&port) && mates.get(&port) != Some(&row) {
@@ -141,7 +152,7 @@ impl NativeStructuralModel {
                 }
             }
         }
-        Some(selected)
+        Ok(selected)
     }
 
     // Forward producers are a preference only; every other candidate edge is
@@ -178,14 +189,30 @@ impl NativeStructuralModel {
         budget: &mut usize,
         depth: usize,
     ) -> Option<Vec<Id>> {
+        let exploratory = match self.validated_scope(context, available, target) {
+            Ok(_) => false,
+            Err(ScopeFailure::Underdetermined) => return None,
+            Err(ScopeFailure::Overdetermined) => true,
+        };
+        // Only overdetermined candidate boundaries need the experiment.
+        // A small independent allowance prevents speculative search from
+        // consuming the entire parent's search budget.
+        let allowance = if exploratory {
+            (*budget).min(128)
+        } else {
+            *budget
+        };
+        let mut remaining = allowance;
         let plan = self.plan_inner(
             context,
             available,
             PlanTargets::Discovery(target),
             &BTreeSet::new(),
-            budget,
+            &mut remaining,
             depth,
-        )?;
+        );
+        *budget -= allowance - remaining;
+        let plan = plan?;
         let mut required = Set::new();
         for (operation, output, inputs) in plan {
             let source = self.contexts[context]
@@ -206,7 +233,9 @@ impl NativeStructuralModel {
         }
         // Do not accept an invalid formulation merely because an exploratory
         // matching succeeded. The chosen subset must pass the same DM check.
-        self.validated_scope(context, &required, target)?;
+        if exploratory {
+            self.validated_scope(context, &required, target).ok()?;
+        }
         Some(required.into_iter().collect())
     }
 
@@ -231,7 +260,7 @@ impl NativeStructuralModel {
         for &target in targets {
             match request {
                 PlanTargets::Strict(_) => {
-                    scope.extend(self.validated_scope(context, available, target)?);
+                    scope.extend(self.validated_scope(context, available, target).ok()?);
                 }
                 PlanTargets::Discovery(_) => {
                     scope.extend(self.scope(context, available, target).1);
@@ -346,9 +375,10 @@ impl Settlement<'_> {
         if self.established.contains(&port) {
             return true;
         }
-        if self.active.len() > 512 || !self.active.insert(port) {
+        if *self.budget == 0 || self.active.len() > 512 || !self.active.insert(port) {
             return false;
         }
+        *self.budget -= 1;
         let result = self.resolve_inner(port);
         self.active.remove(&port);
         result
@@ -375,8 +405,15 @@ impl Settlement<'_> {
             let mut route = self.child_route(&row, child, port, false);
             if route.is_none() {
                 for &p in &row.ports {
+                    if *self.budget == 0 {
+                        return false;
+                    }
                     if p != port && !self.established.contains(&p) {
+                        let before = self.established.len();
                         self.resolve(p);
+                        if self.established.len() == before {
+                            continue;
+                        }
                         route = self.child_route(&row, child, port, false);
                         if route.is_some() {
                             break;
