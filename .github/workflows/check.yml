@@ -48,6 +48,8 @@ jobs:
       - name: Configure PyO3 Python
         run: |
           echo "PYO3_PYTHON=$(uv run python -c 'import sys; print(sys.executable)')" >> "$GITHUB_ENV"
+          python_libdir="$(uv run python -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))')"
+          echo "LD_LIBRARY_PATH=$python_libdir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
 
       - name: Verify generated README illustrations
         run: uv run python scripts/generate_readme_svgs.py --check
@@ -83,9 +85,7 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Test with cargo
-        run: |
-          python_libdir="$(uv run python -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))')"
-          LD_LIBRARY_PATH="$python_libdir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" cargo test --all-targets --all-features
+        run: cargo test --all-targets --all-features
 
       - name: Build docs with Zensical
         run: uv run zensical build --clean --strict
