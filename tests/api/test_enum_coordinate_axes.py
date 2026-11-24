@@ -6,7 +6,18 @@ import typing
 import numpy as np
 import pytest
 
-from bilt import JAX_BACKEND, PYTHON_BACKEND, Implementation, Interface, Tensor, coordinate_axis, dim, equation, field, system
+from bilt import (
+    JAX_BACKEND,
+    PYTHON_BACKEND,
+    Implementation,
+    Interface,
+    Tensor,
+    coordinate_axis,
+    dim,
+    equation,
+    field,
+    system,
+)
 from bilt.core._domain_registry import DomainRegistry
 from bilt.errors import BiltDomainRegistryError, BiltEvaluationError
 from bilt.symbolic._dimensions import CoordinateAxis

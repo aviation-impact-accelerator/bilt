@@ -7,8 +7,8 @@ import typing
 from bilt.core._errors import BiltCategoricalPortError
 from bilt.core._port_declaration import annotated_parts
 from bilt.core._tensors._tensors import Tensor
-from bilt.symbolic._dimensions import CoordinateAxis
 from bilt.core._validation import validate_independently
+from bilt.symbolic._dimensions import CoordinateAxis
 from bilt.symbolic._domains import Domain
 from bilt.units import Dimension, Metadata, Unit
 from bilt.units.dimensions import ABSOLUTE

@@ -2,9 +2,9 @@
 
 __all__ = [
     "Diagnostic",
+    "checking_model_definitions",
     "code_for",
     "collecting_validation_errors",
-    "checking_model_definitions",
     "validate_independently",
 ]
 

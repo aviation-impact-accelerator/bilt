@@ -29,9 +29,9 @@ from bilt.core._system._errors import (
 from bilt.core._system._input_validation import validate_inputs
 from bilt.core._system._intermediate_reuse import reuse_plan_outputs
 from bilt.core._tensors._tensors import Tensor, tensor
-from bilt.symbolic._dimensions import CoordinateAxis
 from bilt.core._transform import BasicTransform
 from bilt.core._validation import validate_independently
+from bilt.symbolic._dimensions import CoordinateAxis
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
