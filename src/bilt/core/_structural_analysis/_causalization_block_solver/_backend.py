@@ -72,6 +72,10 @@ class CausalizationStructuralAnalyzer:
 
     def _analyse(self, request: EvaluationRequest) -> BackendCase:
         """Search within the current request's cache scopes."""
+        from ._native_prototype import attempt  # noqa: PLC0415
+
+        if (native := attempt(self, request, (request.output,))) is not None:
+            return native
         available = set(request.input_domains)
         structure = validate_request_structure(
             self.full_incidence_graph,
@@ -170,7 +174,11 @@ class CausalizationStructuralAnalyzer:
             raise ValueError(msg)
         if len(targets) == 1:
             return self.analyse(request)
+        from ._native_prototype import attempt  # noqa: PLC0415
+
         with structural_cache_scope(), route_cache_scope():
+            if (native := attempt(self, request, targets)) is not None:
+                return native
             available = set(request.input_domains)
             for target in targets:
                 structure = validate_request_structure(self.full_incidence_graph, available, target)
