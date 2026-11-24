@@ -1,6 +1,7 @@
 //! Experimental native structural planner. No Python objects in the search state.
 use pyo3::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::sync::Mutex;
 
 type Id = usize;
 type Set = BTreeSet<Id>;
@@ -10,16 +11,22 @@ type RawRow = (Id, Vec<Id>, Option<Id>, Option<Id>); // local index, ports, tran
 type RouteKey = (Id, Id, usize, Vec<Id>); // context, target, depth, available
 type PlanReport = (Option<Vec<Step>>, BTreeMap<String, usize>);
 
+const MODEL_ROUTE_CACHE_LIMIT: usize = 4096;
+
+#[derive(Clone)]
 struct CachedRoute {
     inputs: Option<Vec<Id>>,
     cost: usize,
 }
 
-// A cache belongs to one top-level plan, never to a model or a numerical
-// evaluation. Retain the logical search budget even when replaying a result.
+// Request-local cache and budget. A separate bounded model cache is optional.
 struct Search {
     budget: usize,
     cache_enabled: bool,
+    model_cache_enabled: bool,
+    diagnostics: bool,
+    model_hits: usize,
+    model_admissions: usize,
     routes: HashMap<RouteKey, CachedRoute>,
     observed: HashMap<RouteKey, u8>,
     queries: usize,
@@ -30,10 +37,19 @@ struct Search {
 }
 
 impl Search {
+    #[cfg(test)]
     fn new(cache_enabled: bool) -> Self {
+        Self::configured(cache_enabled, false, true)
+    }
+
+    fn configured(cache_enabled: bool, model_cache_enabled: bool, diagnostics: bool) -> Self {
         Self {
             budget: 4096,
             cache_enabled,
+            model_cache_enabled: cache_enabled && model_cache_enabled,
+            diagnostics,
+            model_hits: 0,
+            model_admissions: 0,
             routes: HashMap::new(),
             observed: HashMap::new(),
             queries: 0,
@@ -45,12 +61,18 @@ impl Search {
     }
 
     fn record(&mut self, key: RouteKey, success: bool) {
+        if !self.diagnostics {
+            return;
+        }
         let flag = if success { 1 } else { 2 };
         *self.observed.entry(key).or_default() |= flag;
         self.successes += usize::from(success);
     }
 
     fn stats(&self) -> BTreeMap<String, usize> {
+        if !self.diagnostics {
+            return BTreeMap::new();
+        }
         [
             ("child_route_queries", self.queries),
             ("child_route_successes", self.successes),
@@ -74,6 +96,8 @@ impl Search {
             ("child_route_failure_hits", self.failure_hits),
             ("child_route_budget_skips", self.budget_skips),
             ("child_route_cache_entries", self.routes.len()),
+            ("child_route_model_hits", self.model_hits),
+            ("child_route_model_admissions", self.model_admissions),
             ("logical_search_budget_used", 4096 - self.budget),
         ]
         .into_iter()
@@ -99,6 +123,7 @@ struct Context {
 #[pyclass]
 pub struct NativeStructuralModel {
     contexts: Vec<Context>,
+    model_routes: Mutex<HashMap<RouteKey, CachedRoute>>,
 }
 
 fn augment(row: Id, edges: &[Vec<Id>], seen: &mut Set, mates: &mut BTreeMap<Id, Id>) -> bool {
@@ -243,15 +268,33 @@ impl NativeStructuralModel {
         search: &mut Search,
         depth: usize,
     ) -> Option<Vec<Id>> {
+        if !search.cache_enabled && !search.diagnostics {
+            return self.uncached_route(child, available, port, search, depth);
+        }
         search.queries += 1;
         let key = (child, port, depth, available.iter().copied().collect());
         if search.cache_enabled {
-            if let Some(cached) = search.routes.get(&key) {
-                // A result computed with spare budget can be replayed only
-                // when the caller has enough budget to reproduce that search.
+            // Never hold the model-cache lock during recursive search.
+            let local = search.routes.get(&key).cloned();
+            let shared = if local.is_none() && search.model_cache_enabled {
+                self.model_routes.lock().ok().and_then(|cache| {
+                    cache
+                        .get(&key)
+                        .filter(|entry| search.budget > entry.cost)
+                        .cloned()
+                })
+            } else {
+                None
+            };
+            if let Some(cached) = local.or(shared.clone()) {
+                // Replay only complete searches with sufficient logical budget.
                 if search.budget > cached.cost {
                     let result = cached.inputs.clone();
                     search.budget -= cached.cost;
+                    if shared.is_some() {
+                        search.model_hits += 1;
+                        search.routes.insert(key.clone(), cached);
+                    }
                     if result.is_some() {
                         search.success_hits += 1;
                     } else {
@@ -264,7 +307,9 @@ impl NativeStructuralModel {
         }
         let before = search.budget;
         let result = self.uncached_route(child, available, port, search, depth);
-        search.record(key.clone(), result.is_some());
+        if search.diagnostics {
+            search.record(key.clone(), result.is_some());
+        }
         // Budget-exhausted searches are not evidence of an impossible route.
         if search.budget == 0 {
             search.budget_skips += 1;
@@ -543,7 +588,10 @@ impl NativeStructuralModel {
             }
             result.push(Context { rows, adjacent });
         }
-        Ok(Self { contexts: result })
+        Ok(Self {
+            contexts: result,
+            model_routes: Mutex::new(HashMap::new()),
+        })
     }
 
     /// Return an acyclic candidate schedule or None for reference fallback.
@@ -553,7 +601,8 @@ impl NativeStructuralModel {
         targets: Vec<Id>,
         blocked: Vec<(Id, Id)>,
     ) -> Option<Vec<Step>> {
-        self.plan_with_stats(available, targets, blocked, true).0
+        self.plan_configured(available, targets, blocked, true, false, false)
+            .0
     }
 
     /// Compare cache-on and cache-off without changing the search budget.
@@ -564,7 +613,20 @@ impl NativeStructuralModel {
         blocked: Vec<(Id, Id)>,
         cache_enabled: bool,
     ) -> PlanReport {
-        let mut search = Search::new(cache_enabled);
+        self.plan_configured(available, targets, blocked, cache_enabled, false, true)
+    }
+
+    /// Experiment: independent switches for request cache, model cache and diagnostics.
+    fn plan_configured(
+        &self,
+        available: Vec<Id>,
+        targets: Vec<Id>,
+        blocked: Vec<(Id, Id)>,
+        cache_enabled: bool,
+        model_cache_enabled: bool,
+        diagnostics: bool,
+    ) -> PlanReport {
+        let mut search = Search::configured(cache_enabled, model_cache_enabled, diagnostics);
         let result = self.plan_inner(
             0,
             &available.into_iter().collect(),
@@ -573,6 +635,22 @@ impl NativeStructuralModel {
             &mut search,
             0,
         );
+        // Cache only completed structural subqueries, not realized callables,
+        // numerical values, or top-level plans (which can have blocked steps).
+        // At capacity, stop admitting entries; no unbounded retained state.
+        if search.model_cache_enabled {
+            if let Ok(mut cache) = self.model_routes.lock() {
+                for (key, entry) in &search.routes {
+                    if cache.len() >= MODEL_ROUTE_CACHE_LIMIT {
+                        break;
+                    }
+                    if !cache.contains_key(key) {
+                        cache.insert(key.clone(), entry.clone());
+                        search.model_admissions += 1;
+                    }
+                }
+            }
+        }
         (result, search.stats())
     }
 }
@@ -661,6 +739,38 @@ mod tests {
             control_stats["logical_search_budget_used"],
             cached_stats["logical_search_budget_used"]
         );
+    }
+
+    #[test]
+    fn model_cache_reuses_routes_across_requests_without_changing_budget() {
+        let model = NativeStructuralModel::new(vec![
+            vec![(0, vec![0, 1], None, Some(1)), (1, vec![1, 2], None, None)],
+            vec![(0, vec![0, 1], None, None)],
+        ])
+        .unwrap();
+        let (first, first_stats) =
+            model.plan_configured(vec![0], vec![1], vec![], true, true, true);
+        assert!(first.is_some());
+        assert_eq!(first_stats["child_route_model_hits"], 0);
+        assert!(first_stats["child_route_model_admissions"] > 0);
+        let (second, second_stats) =
+            model.plan_configured(vec![0], vec![2], vec![], true, true, true);
+        let (control, control_stats) = model.plan_with_stats(vec![0], vec![2], vec![], false);
+        assert_eq!(second, control);
+        assert!(second_stats["child_route_model_hits"] > 0);
+        assert_eq!(
+            second_stats["logical_search_budget_used"],
+            control_stats["logical_search_budget_used"]
+        );
+        let (changed, _) = model.plan_configured(vec![1], vec![0], vec![], true, true, true);
+        assert_eq!(changed, model.plan_with_stats(vec![1], vec![0], vec![], false).0);
+        let (blocked, _) =
+            model.plan_configured(vec![0], vec![2], vec![(0, 1)], true, true, true);
+        assert_eq!(blocked, model.plan_with_stats(vec![0], vec![2], vec![(0, 1)], false).0);
+        let (quiet, stats) =
+            model.plan_configured(vec![0], vec![2], vec![], true, true, false);
+        assert_eq!(quiet, control);
+        assert!(stats.is_empty());
     }
 
     #[test]
