@@ -7,8 +7,8 @@ from bilt._backend._errors import BiltUnsupportedNodeError
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._structural_analysis._causalization_block_solver import _structural_scope as scope_module
 from bilt.core._structural_analysis._causalization_block_solver import _native_prototype as native
+from bilt.core._structural_analysis._causalization_block_solver import _structural_scope as scope_module
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltExecutionPlanError,
