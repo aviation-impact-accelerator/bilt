@@ -413,10 +413,7 @@ def _validate_match_arms(
     if subject_type is not None:
         missing = set(subject_type.__members__) - members
         if missing and (not wildcard or checking_model_definitions()):
-            msg = (
-                f"non-exhaustive {subject_type.__name__} match: "
-                f"explicitly handle {', '.join(sorted(missing))}"
-            )
+            msg = f"non-exhaustive {subject_type.__name__} match: explicitly handle {', '.join(sorted(missing))}"
             _reject(statement, msg, BiltCategoricalEquationError)
     if len(names) != 1:
         _reject(statement, "all branches must assign the same local variable")

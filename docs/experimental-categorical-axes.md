@@ -14,12 +14,15 @@ class Scenario(enum.Enum):
     AVERAGE = enum.auto()
     MAXIMUM = enum.auto()
 
+
 scenario_axis = coordinate_axis(dim("scenario"), tuple(Scenario))
+
 
 @system
 class Prices(metaclass=Interface):
     scenario: Scenario | CoordinateAxis = field()
     price: Tensor = field()
+
 
 @equation
 def price(scenario: Scenario | Tensor, price: float) -> bool:
@@ -31,6 +34,7 @@ def price(scenario: Scenario | Tensor, price: float) -> bool:
         case Scenario.MAXIMUM:
             selected = 0.75
     return price == selected
+
 
 with PYTHON_BACKEND, Implementation(Prices, [price]):
     prices = Prices(scenario=scenario_axis).price

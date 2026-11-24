@@ -36,7 +36,9 @@ def validate_inputs(  # noqa: C901
         if enum_type is not None:
             if isinstance(value, CoordinateAxis) and port in enum_tensor_ports:
                 if not value.coordinates or any(type(member) is not enum_type for member in value.coordinates):
-                    msg = f"Input {port!r} of {system_name!r} requires a CoordinateAxis of {enum_type.__name__} members."
+                    msg = (
+                        f"Input {port!r} of {system_name!r} requires a CoordinateAxis of {enum_type.__name__} members."
+                    )
                     raise BiltEvaluationError(msg)
                 continue
             if isinstance(value, Tensor) and port in enum_tensor_ports:
