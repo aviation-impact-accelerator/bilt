@@ -1,10 +1,10 @@
-## Coupled systems
+# Coupled systems
 
 Some equations must be solved together because their unknowns depend on one another. Bilt identifies these **coupled blocks** and currently supports solving blocks that are **linear in their unknowns**. Other calculations in the model may still be nonlinear.
 
 Coupled equations can span systems and subsystems. You do not need to flatten the model or rearrange the equations into matrix form.
 
-### Start with two unknowns
+## Start with two unknowns
 
 Consider:
 
@@ -53,7 +53,7 @@ assert np.isclose(y, 4.0)
 
 Bilt’s default causalization (SCC) structural analyser identifies the coupled block. Bilt then extracts its coefficients and solves the resulting linear system. The Python or JAX backend determines how the calculations execute.
 
-### Different inputs can give a different plan
+## Different inputs can give a different plan
 
 Supply `x` and `q` instead, and ask for `p`:
 
@@ -70,7 +70,7 @@ Bilt can now calculate `y=x-q`, then `p=x+y`. No coupled solve is needed.
 
 The equations are unchanged. The supplied values determine what remains unknown and how the model can be evaluated.
 
-### Linear in which unknowns?
+## Linear in which unknowns?
 
 A block must be linear **in the values being solved together**.
 
@@ -86,7 +86,7 @@ If both `a` and `x` are unknowns in the same block, their product is nonlinear. 
 
 The restriction therefore applies to the coupled block, not to every relationship in the model.
 
-### Independent solves over a domain
+## Independent solves over a domain
 
 A tensor holds values over named dimensions. Suppose `p` varies over operating points while the known value `q` is shared:
 
@@ -111,7 +111,7 @@ Each operating point has its own unknown `x` and `y`. Bilt broadcasts the known 
 
 Sharing a **known value** does not connect the unknowns at different points.
 
-### A shared unknown connects the points
+## A shared unknown connects the points
 
 Now consider:
 
@@ -158,7 +158,7 @@ Bilt infers the unknowns’ domains from the known inputs and relationships. Whe
 
 See [Domains and tensors](dimensions-domains-and-tensors.md) for inference and hint details.
 
-### Units and subsystem boundaries
+## Units and subsystem boundaries
 
 Each output retains its own physical units and inferred or explicitly hinted domain. Solving values together does not require them to have matching units or domains. See [Units in models](units.md) for physical declarations and conversions.
 
@@ -166,7 +166,7 @@ Coupling can also cross subsystem boundaries. In the [two springs in series](../
 
 Given the total extension and both stiffnesses, Bilt solves the common force and both extensions together. The model remains composed of reusable child systems. The same principle applies through nested subsystems; calculations outside the coupled block remain separate steps.
 
-### What if the solve fails?
+## What if the solve fails?
 
 Failures can occur at two stages:
 
@@ -182,5 +182,7 @@ a x+y=p,\qquad x+y=q
 A numerical failure for one set of coefficients does not permanently invalidate the model.
 
 A successful solve also does not establish physical validity. For example, negative flows or efficiencies above one still require engineering checks.
+
+The [two springs in series](../worked_examples/two-springs-in-series.md) and [recuperated gas turbine](../worked_examples/two-shaft-gas-turbine.md#14-close-the-loop-with-recuperation) examples show coupled solves across subsystem boundaries.
 
 [← Systems of systems](systems-of-systems.md) · [Index](../index.md) · [Backends →](backends.md)

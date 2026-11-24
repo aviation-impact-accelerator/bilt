@@ -22,8 +22,8 @@ nav = [
         { "Your first Bilt model" = "getting-started/first-model.md" },
     ] },
 
-    { "Bilt user guide" = [
-        { "Modelling philosophy" = "guide/modelling-philosophy.md" },
+    { "User guide" = [
+        { "Modelling with Bilt" = "guide/modelling-philosophy.md" },
         { "Systems and values" = "guide/systems-and-values.md" },
         { "Equations and acausal modelling" = "guide/equations-and-acausal-modelling.md" },
         { "Transforms and implementations" = "guide/transforms-and-implementations.md" },
@@ -49,15 +49,15 @@ nav = [
         { "Ruff configuration" = "config.md" },
     ] },
 
-    { "Bilt worked examples" = [
+    { "Worked examples" = [
 
         { "Systems of systems" = [
             {"Two springs in series" = "worked_examples/two-springs-in-series.md"},
-            {"Two shaft gas turbine" = "worked_examples/two-shaft-gas-turbine.md"},
+            {"Two-shaft gas turbine" = "worked_examples/two-shaft-gas-turbine.md"},
         ] },
 
-        { "Dimensions, Tensors and broadcasting" = [
-            {"Battery electric mission model with quasi-monte carlo broadcasting" = "worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md"},
+        { "Dimensions, domains and tensors" = [
+            {"Battery-electric mission uncertainty analysis" = "worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md"},
         ] },
 
         { "Backends" = [

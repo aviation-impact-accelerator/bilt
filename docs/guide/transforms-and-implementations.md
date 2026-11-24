@@ -1,4 +1,4 @@
-## Transforms and implementations
+# Transforms and implementations
 
 An equation describes a mathematical relationship. A **transform** describes a calculation with a fixed direction: given these values, calculate this result.
 
@@ -6,7 +6,7 @@ Both can be used in the same implementation. We will build a small aircraft drag
 
 For simplicity, the examples use plain numbers in consistent SI units. See [Units in models](units.md) for how to declare physical dimensions.
 
-### Start with a system
+## Start with a system
 
 ```python exec="on" source="above" session="drag-model"
 from bilt import Implementation, Interface, equation, field, system, transform
@@ -23,7 +23,7 @@ class Drag(metaclass=Interface):
 
 The system describes the values available at its boundary. It does not yet say how to calculate any of them.
 
-### A transform describes a directed calculation
+## A transform describes a directed calculation
 
 Suppose we have a simple lookup rule for the drag coefficient based on the lift coefficient. The values below are illustrative, not aircraft performance data.
 
@@ -65,7 +65,7 @@ Transforms are useful for empirical lookups, data processing and calls to extern
 
 Define transforms in Python source files so Bilt can read their source. Imports needed by a Python-only routine can go inside the transform body; ordinary globals and closure state are not automatically carried into the compiled calculation.
 
-### Combine a transform with an equation
+## Combine a transform with an equation
 
 The drag force itself has an ordinary mathematical relationship:
 
@@ -90,7 +90,7 @@ lookup_model = Implementation(Drag, [drag_relation, drag_coefficient])
 
 The system defines the boundary. The implementation supplies the relationships and assumptions for that boundary.
 
-### Ask for a result
+## Ask for a result
 
 Supply the known values and select the implementation:
 
@@ -125,7 +125,7 @@ with lookup_model:
     assert Drag(lift_coefficient=0.6).drag_coefficient == 0.04
 ```
 
-### Ask a different question
+## Ask a different question
 
 The transform still runs in its original direction, but the equation can be used differently. Suppose we know the drag and want to calculate the reference area consistent with those assumptions:
 
@@ -141,7 +141,7 @@ with lookup_model:
 
 Bilt obtains the coefficient in the same way, then rearranges the drag equation. We did not need to define an inverse transform or another drag equation.
 
-### Compare implementations
+## Compare implementations
 
 We could use a continuous drag polar instead of the lookup rule:
 
@@ -184,7 +184,7 @@ Use a fresh system instance for each comparison. An instance retains the impleme
 
 The two coefficient models are separate implementations, not competing constraints in one implementation.
 
-### Choosing equations and transforms
+## Choosing equations and transforms
 
 Use an equation when you want to describe a mathematical relationship. Use a transform when you want to describe a particular calculation, such as a lookup or a call to an external routine. An equation need not be invertible in every direction to be useful.
 

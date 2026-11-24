@@ -6,7 +6,7 @@ You only need basic Python. You do not need to understand symbolic algebra or so
 
 ## 1. Set up a project
 
-Bilt requires Python 3.15 or newer, [uv](https://docs.astral.sh/uv/) and a [Rust toolchain](https://www.rust-lang.org/tools/install). Create a project and install Bilt from GitHub:
+Bilt requires Python 3.15 or newer and a [Rust toolchain](https://www.rust-lang.org/tools/install) when building from source. We'll use [uv](https://docs.astral.sh/uv/) to create a project and install Bilt from GitHub:
 
 ```sh
 uv init --python 3.15 my-bilt-project
@@ -101,6 +101,8 @@ This small model illustrates the central idea: **the model describes relationshi
 In real engineering models, you can also give values physical units, connect reusable subsystems and work with named tensors. Bilt supports many, but not all, possible rearrangements or coupled solves.
 
 ## Where next?
+
+Read the [modelling philosophy](../guide/modelling-philosophy.md) and [systems and values](../guide/systems-and-values.md) chapters to continue through the guide in order, or jump to a particular topic:
 
 - [Equations and acausal modelling](../guide/equations-and-acausal-modelling.md) explains how Bilt represents relationships and what kinds of equations it supports.
 - [Units in models](../guide/units.md) adds physical dimensions and unit conversions.

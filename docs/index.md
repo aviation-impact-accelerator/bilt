@@ -12,7 +12,7 @@ If you already have experience with equation-oriented modelling, you can jump to
 
 The guide introduces Bilt's ideas and shows how to use its modelling features:
 
-- [Modelling philosophy](guide/modelling-philosophy.md) — why relationships are kept separate from computation.
+- [Modelling with Bilt](guide/modelling-philosophy.md) — why relationships are kept separate from computation.
 - [Systems and values](guide/systems-and-values.md) — declare model interfaces.
 - [Equations and acausal modelling](guide/equations-and-acausal-modelling.md) — express relationships that can answer different questions.
 - [Transforms and implementations](guide/transforms-and-implementations.md) — use directed calculations and choose implementations.
@@ -38,10 +38,10 @@ Look up precise declarations, supported operations and limitations:
 
 - [Systems and implementations](api/systems.md)
 - [Equations and transforms](api/relationships.md)
-- [Backends](api/backends.md)
-- [Tensors](api/tensors.md)
 - [Units](api/units.md)
 - [Quantity annotations and typing](api/quantity-annotations.md)
+- [Tensors](api/tensors.md)
+- [Backends](api/backends.md)
 
 ## Tools and configuration
 

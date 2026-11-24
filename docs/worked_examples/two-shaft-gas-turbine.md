@@ -1,6 +1,6 @@
 # A two-shaft gas turbine with useful shaft power: a more complex acausal system of systems
 
-This worked example takes the same compositional idea as the two-spring example and applies it to a more recognisable engineering system: a small two-shaft gas turbine.
+This worked example takes the same compositional idea as the [two-spring example](two-springs-in-series.md) and applies it to a more recognisable engineering system: a small two-shaft gas turbine.
 
 You do not need to know gas-turbine design to follow the example.
 
@@ -645,7 +645,7 @@ core_model = Implementation(
 
 The hierarchy organises the model. It does not prescribe an execution order.
 
-A child system can also have more than one valid internal route to the same port. Which route Bilt uses depends on the values available in the surrounding model, so nesting a subsystem does not turn it into a fixed one-way calculation.
+A child system can support different directions of computation depending on which values are known. Nesting a subsystem does not turn it into a fixed one-way calculation; the applicable equations remain simultaneous constraints.
 
 For the forward and inverse requests below, Bilt can evaluate each child from values already established by the surrounding model. We will keep this implementation unchanged when we add recuperation later.
 
@@ -1471,3 +1471,5 @@ This check also confirms that the exhaust is hot enough to preheat the compresse
 At effectiveness one, this simplified feedback problem loses its temperature anchor: the reduced equation's denominator vanishes. The model therefore needs a sensible effectiveness and boundary assumptions as well as a structurally valid plan. The linear solver is not a substitute for checking them.
 
 The useful change is in how the model can be used. The original core still supports decomposable forward and inverse questions. The recuperated assembly adds a request whose valid computation contains a simultaneous linear block spanning its children.
+
+[Systems of systems](../guide/systems-of-systems.md) · [Coupled systems](../guide/coupled-systems.md) · [Worked examples](../index.md#worked-examples)

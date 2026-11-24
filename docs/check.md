@@ -1,4 +1,4 @@
-## Check model definitions
+# Check model definitions
 
 `bilt check` finds Bilt models in a project and runs the checks Bilt already performs when systems, equations, transforms and implementations are constructed. It does not need numerical inputs or a configuration file.
 
@@ -24,7 +24,7 @@ modules = ["myproject.dynamic_models"]
 
 The optional `modules` list **adds to automatic discovery**. Repeated `--module` arguments override that list, but still include automatically discovered models. Use `--config` to select a different `pyproject.toml`.
 
-### Run with prek
+## Run with prek
 
 Add a local hook to your project's `prek.toml`:
 
@@ -43,7 +43,7 @@ always_run = true
 
 The hook uses the project's environment, where Bilt and the model's dependencies are installed. Run `prek run bilt-check --all-files` to try it.
 
-### Scope and limitations
+## Scope and limitations
 
 Discovery is based on Python source, not a complete static analysis. It recognises direct Bilt imports and aliases, but can miss re-exported decorators, dynamically created models or model factories requiring execution. Add such modules explicitly when needed. A module imported successfully is **not a guarantee** that a factory inside it was executed.
 

@@ -1,10 +1,10 @@
-## Equations and acausal models
+# Equations and acausal modelling
 
 In the previous chapter, we saw that named values lie on the boundary of a system. The system itself, however, does not describe how those values are related.
 
 For that, Bilt provides **equations**.
 
-### Equations describe relationships
+## Equations describe relationships
 
 Consider a simple relationship between distance, speed, and time:
 
@@ -65,7 +65,7 @@ distance = speed × time
 
 in a form that Bilt can inspect and reason about.
 
-### Using an equation
+## Using an equation
 
 Equations become part of a system through an **implementation**:
 
@@ -102,7 +102,7 @@ distance = speed × time
 
 But it is not restricted to this single form of the mathematical relationship.
 
-### The same equation can be used in another direction
+## The same equation can be used in another direction
 
 Suppose instead that we know the distance and time:
 
@@ -158,7 +158,7 @@ distance = speed × time
 
 The direction is chosen when Bilt works out how to satisfy a particular request.
 
-### This is what we mean by acausal
+## This is what we mean by acausal
 
 Bilt is often described as supporting **acausal modelling**.
 
@@ -196,7 +196,7 @@ The relationship is acausal.
 
 The eventual calculation is not. Once Bilt decides how the equation is being used, there is still a concrete computation to perform.
 
-### Equations are symbolic
+## Equations are symbolic
 
 An equation describes a mathematical expression that Bilt can inspect and reason about.
 
@@ -222,7 +222,9 @@ This symbolic representation is what allows Bilt to reason about different ways 
 
 It also means an equation is not simply an arbitrary Python function. The expression needs to consist of mathematical operations that Bilt can represent symbolically.
 
-### Writing equations
+## Writing equations
+
+See the [Equations and transforms API](../api/relationships.md) for the supported syntax and restrictions.
 
 An equation should describe a mathematical relationship, rather than a series of instructions.
 
@@ -259,7 +261,7 @@ You can call other functions, provided Bilt understands the mathematical operati
 
 Bilt also needs to read your function's original Python code. For this reason, define equations in Python files. Functions created dynamically, such as with `exec`, will not work, and some notebook environments may have difficulty providing the source code.
 
-### Using `if/else` in an equation
+## Using `if/else` in an equation
 
 Sometimes a relationship depends on a condition. For example, we might want to square positive values but change the sign of negative ones:
 
@@ -373,7 +375,7 @@ for broadcasting and backend details.
 Bilt can calculate `result` from `x` in these examples. It cannot currently
 work backwards through a conditional to find `x` from `result`.
 
-### Using `match/case` in an equation
+## Using `match/case` in an equation
 
 For several fixed numeric choices, you can use `match/case` instead of a
 chain of comparisons:
@@ -410,7 +412,7 @@ assignments and nest `if/else` or another `match/case`. Guards (such as
 As with `if/else`, Bilt needs inputs from every case and cannot work backwards
 through the selection to calculate `x` from `result`.
 
-### Not every equation can simply be rearranged
+## Not every equation can simply be rearranged
 
 Our kinematic equation is pleasantly straightforward:
 
@@ -432,11 +434,9 @@ It means:
 
 > Bilt knows the mathematical relationship and can reason about the ways it may be used.
 
-For simple relationships, that may mean rearranging the equation directly. More complicated systems may require several equations to be considered together or eventually passed to a numerical solver.
+For simple relationships, that may mean rearranging the equation directly. More complicated systems may require several equations to be considered together. Bilt supports coupled linear blocks; see [Coupled systems](coupled-systems.md).
 
-We'll return to those cases later.
-
-### Not every relationship is an equation
+## Not every relationship is an equation
 
 Equations are a natural starting point for Bilt because many engineering models are written as mathematical relationships.
 

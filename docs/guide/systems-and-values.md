@@ -1,4 +1,4 @@
-## Systems and values
+# Systems and values
 
 For signatures and usage rules, see the [Systems and implementations API](../api/systems.md).
 
@@ -6,7 +6,7 @@ A Bilt model starts with a **system**.
 
 A system describes the values that make up the boundary of a model. It tells Bilt what exists, but not yet how those values are calculated.
 
-Here is a small example using Newtons second law, `F = m*a`.
+Here is a small example using Newton's second law, `F = m * a`.
 
 ```python exec="on" source="above" session="systems-values"
 from bilt import Interface, field, system
@@ -57,7 +57,7 @@ Here, `mass` and `acceleration` are known, while `force` has not been supplied.
 
 Whether Bilt can obtain `force` depends on the relationships provided by the system's implementation. We'll introduce those relationships in the next chapter.
 
-### Values aren't permanently inputs or outputs
+## Values aren't permanently inputs or outputs
 
 It is tempting to think of `mass` and `acceleration` as inputs and `force` as an output, but Bilt does not assign those roles permanently.
 
@@ -89,4 +89,4 @@ In the next chapter, we'll introduce **acausal modelling** and **equations**, be
 
 ---
 
-[Index](../index.md) · [Equations and acausal modelling →](equations-and-acausal-modelling.md)
+[← Modelling with Bilt](modelling-philosophy.md) · [Index](../index.md) · [Equations and acausal modelling →](equations-and-acausal-modelling.md)
