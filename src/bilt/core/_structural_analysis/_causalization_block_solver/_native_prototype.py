@@ -35,6 +35,7 @@ if MODE not in {"python", "rust", "hybrid"}:
     msg = f"Unknown experimental structural engine: {MODE!r}."
     raise ValueError(msg)
 STATS: Counter[str] = Counter()
+TRACE_BOUNDARIES = "BILT_EXPERIMENTAL_TRACE_BOUNDARIES" in os.environ
 
 
 def report() -> None:
@@ -116,6 +117,11 @@ class NativePlanner:
             for index, operation in enumerate(self.operations)
             if step.operation is operation and step.output in self.names
         ]
+        if TRACE_BOUNDARIES:
+            print(  # noqa: T201
+                "NATIVE_REQUEST " + json.dumps({"targets": targets, "available": sorted(available), "ports": self.reverse}),
+                flush=True,
+            )
         start = time.perf_counter_ns()
         schedule = self.model.plan(
             [self.names[p] for p in available if p in self.names],

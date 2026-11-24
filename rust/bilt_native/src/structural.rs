@@ -24,6 +24,7 @@ struct Context {
 #[pyclass]
 pub struct NativeStructuralModel {
     contexts: Vec<Context>,
+    trace: bool,
 }
 
 fn augment(row: Id, edges: &[Vec<Id>], seen: &mut Set, mates: &mut BTreeMap<Id, Id>) -> bool {
@@ -109,6 +110,9 @@ impl NativeStructuralModel {
         let mates = matching(&edges);
         // Any unmatched operation is in the overdetermined region.
         if mates.len() != edges.len() {
+            if self.trace {
+                eprintln!("NATIVE_BOUNDARY overdetermined context={root} target={target} available={available:?}");
+            }
             return None;
         }
         // Follow alternating edges from every unmatched attribute.
@@ -355,6 +359,9 @@ impl Settlement<'_> {
                         }))
             })
             .collect();
+        if self.model.trace && reduced {
+            eprintln!("NATIVE_BOUNDARY reduced_probe context={child} target={port} available={available:?}");
+        }
         let plan = self.model.plan_inner(
             child,
             &available,
@@ -380,6 +387,9 @@ impl Settlement<'_> {
                         .filter(|&p| p != output && available.contains(&p)),
                 );
             }
+        }
+        if self.model.trace && reduced {
+            eprintln!("NATIVE_BOUNDARY reduced_success context={child} target={port} required={required:?}");
         }
         Some(required.into_iter().collect())
     }
@@ -418,7 +428,10 @@ impl NativeStructuralModel {
             }
             result.push(Context { rows, adjacent });
         }
-        Ok(Self { contexts: result })
+        Ok(Self {
+            contexts: result,
+            trace: std::env::var_os("BILT_EXPERIMENTAL_TRACE_BOUNDARIES").is_some(),
+        })
     }
 
     /// Return an acyclic candidate schedule or None for reference fallback.
