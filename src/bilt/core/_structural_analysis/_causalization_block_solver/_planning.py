@@ -1,13 +1,16 @@
 """Construct an ordered execution plan from candidate assignments."""
 
-__all__ = ["plan_blocks"]
+__all__ = ["plan_blocks", "plan_blocks_many"]
 
 import typing
 
 from bilt.core._structural_analysis._causalization_block_solver._blocks import ordered_blocks
 from bilt.core._structural_analysis._causalization_block_solver._dependency_graph import build_dependency_graph
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
-from bilt.core._structural_analysis._causalization_block_solver._settle_assignments import settle_assignments
+from bilt.core._structural_analysis._causalization_block_solver._settle_assignments import (
+    settle_assignments,
+    settle_assignments_many,
+)
 from bilt.core._structural_analysis._linear_block import BiltLinearBlockError
 from bilt.core._structural_analysis._linear_operator import extract_supported_linear_block
 
@@ -80,4 +83,48 @@ def plan_blocks(
             )
             raise BiltExecutionPlanError(msg) from error
 
+    return blocks
+
+
+def plan_blocks_many(
+    assignments: collections.abc.Mapping[str, BiltModelConstituent],
+    available: set[str],
+    outputs: tuple[str, ...],
+    *,
+    backend: Backend,
+) -> tuple[PlanBlock, ...]:
+    """Find the joint dependency closure using one matching and settlement."""
+    targets = tuple(dict.fromkeys(outputs))
+    if any(target not in assignments and target not in available for target in targets):
+        msg = f"No candidate producer for multi-output targets {targets!r}."
+        raise BiltExecutionPlanError(msg)
+
+    settled, _ = settle_assignments_many(assignments, available, backend, targets=targets)
+    by_output = {step.output: step for step in settled}
+    selected: dict[str, PlanStep] = {}
+    pending = list(targets)
+    while pending:
+        attribute = pending.pop()
+        if attribute in available or attribute in selected:
+            continue
+        step = by_output.get(attribute)
+        if step is None:
+            msg = f"No supported joint execution route for {attribute!r}."
+            raise BiltExecutionPlanError(msg)
+        selected[attribute] = step
+        pending.extend(step.consumed)
+
+    graph, unresolved = build_dependency_graph(tuple(selected.values()), available)
+    if unresolved:
+        msg = f"Unresolved multi-output execution dependencies: {unresolved}."
+        raise BiltExecutionPlanError(msg)
+
+    blocks = ordered_blocks(graph)
+    for block in blocks:
+        if block.is_cyclic:
+            try:
+                extract_supported_linear_block(block)
+            except BiltLinearBlockError as error:
+                msg = f"Unsupported coupled multi-output block {sorted(block.outputs)!r}: {error}"
+                raise BiltExecutionPlanError(msg) from error
     return blocks

@@ -550,6 +550,8 @@ For a new output request, Bilt still plans using the original constructor-suppli
 
 This distinction matters: a cached result is a consequence of the model, not an independently imposed boundary condition. Use a fresh instance when changing the supplied values, implementation or backend.
 
+Bilt can also plan several requested outputs together, sharing intermediate calculations rather than compiling and running separate plans. Joint planning is currently internal, opt-in infrastructure; normal property access does not automatically group requests. If no compatible joint route exists, Bilt uses the ordinary individual evaluation routes. The supplied-input boundary and structural validation rules are unchanged.
+
 ### Structural and numerical solvability
 
 Structural analysis works with the available relationships, known values and requested result. A request may be underconstrained, overconstrained, or require a calculation Bilt does not support.
