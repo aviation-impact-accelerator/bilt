@@ -124,7 +124,7 @@ def render_plot() -> None:
 
 We start with a compressor. Its system fields use named pointwise quantity
 aliases, allowing scalar or tensor values without fixing array shapes.
-The equations retain scalar aliases, which Bilt can lift over tensor domains.
+The equations use the same aliases, which Bilt can lift over tensor domains.
 
 Temperatures are absolute readings; subtracting two readings gives a relative
 temperature change. Specific heat multiplies that change to produce specific
@@ -134,6 +134,8 @@ dimensionless quantities, supplied using `UNITLESS`.
 Port names describe physical quantities. Units are carried by values rather
 than encoded in names such as `_k` or `_kj_per_kg`.
 
+<!-- model-source: start -->
+
 ```python exec="off"
 from typing import Annotated
 
@@ -142,30 +144,23 @@ from bilt.units import UNITLESS, absolute_kelvin, kelvin, kilogram, kilojoule, k
 from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, MASS, TEMPERATURE, TIME
 
 
-AbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]
-SpecificHeat = Annotated[Quantity, ENERGY / (MASS * TEMPERATURE)]
-SpecificWork = Annotated[Quantity, ENERGY / MASS]
-MassFlow = Annotated[Quantity, MASS / TIME]
-Power = Annotated[Quantity, ENERGY / TIME]
-Ratio = Annotated[Quantity, DIMENSIONLESS]
-
-PointwiseAbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
-PointwiseSpecificHeat = Annotated[Quantity | QuantityTensor, ENERGY / (MASS * TEMPERATURE)]
-PointwiseSpecificWork = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
-PointwiseMassFlow = Annotated[Quantity | QuantityTensor, MASS / TIME]
-PointwisePower = Annotated[Quantity | QuantityTensor, ENERGY / TIME]
-PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
+AbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
+SpecificHeat = Annotated[Quantity | QuantityTensor, ENERGY / (MASS * TEMPERATURE)]
+SpecificWork = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
+MassFlow = Annotated[Quantity | QuantityTensor, MASS / TIME]
+Power = Annotated[Quantity | QuantityTensor, ENERGY / TIME]
+Ratio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
 
 
 @system
 class Compressor(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    pressure_ratio: PointwiseRatio = field()
-    isentropic_efficiency: PointwiseRatio = field()
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    pressure_ratio: Ratio = field()
+    isentropic_efficiency: Ratio = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 
 @equation
@@ -219,15 +214,12 @@ does not permanently designate specific work as the output. With a different set
 The turbine is similarly small:
 
 ```python exec="off"
-from bilt import QuantityTensor
-
-
 @system
 class Turbine(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    outlet_temperature: AbsoluteTemperature = field()
+    specific_heat: SpecificHeat = field()
+    specific_work: SpecificWork = field()
 
 
 @equation
@@ -251,43 +243,40 @@ turbine_model = Implementation(
 The parent system contains the values needed to connect the four child systems.
 
 ```python exec="off"
-from bilt import QuantityTensor
-
-
 @system
 class TwoShaftCore(metaclass=Interface):
     # Gas-path temperatures.
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    low_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    turbine_inlet_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_turbine_exit_temperature: PointwiseAbsoluteTemperature = field()
-    exit_temperature: PointwiseAbsoluteTemperature = field()
+    inlet_temperature: AbsoluteTemperature = field()
+    low_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    high_pressure_compressor_exit_temperature: AbsoluteTemperature = field()
+    turbine_inlet_temperature: AbsoluteTemperature = field()
+    high_pressure_turbine_exit_temperature: AbsoluteTemperature = field()
+    exit_temperature: AbsoluteTemperature = field()
 
     # Compressor design assumptions.
-    low_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    high_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    low_pressure_compressor_efficiency: PointwiseRatio = field()
-    high_pressure_compressor_efficiency: PointwiseRatio = field()
+    low_pressure_compressor_pressure_ratio: Ratio = field()
+    high_pressure_compressor_pressure_ratio: Ratio = field()
+    low_pressure_compressor_efficiency: Ratio = field()
+    high_pressure_compressor_efficiency: Ratio = field()
 
     # Shared fluid properties.
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
 
     # Shaft efficiencies.
-    low_pressure_shaft_efficiency: PointwiseRatio = field()
-    high_pressure_shaft_efficiency: PointwiseRatio = field()
+    low_pressure_shaft_efficiency: Ratio = field()
+    high_pressure_shaft_efficiency: Ratio = field()
 
     # Coupling values used by the two shaft balances.
-    low_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_turbine_work: PointwiseSpecificWork = field()
-    low_pressure_turbine_work: PointwiseSpecificWork = field()
+    low_pressure_compressor_work: SpecificWork = field()
+    high_pressure_compressor_work: SpecificWork = field()
+    high_pressure_turbine_work: SpecificWork = field()
+    low_pressure_turbine_work: SpecificWork = field()
 
     # Useful LP-shaft output.
-    shaft_output_work: PointwiseSpecificWork = field()
-    mass_flow: PointwiseMassFlow = field()
-    shaft_power: PointwisePower = field()
+    shaft_output_work: SpecificWork = field()
+    mass_flow: MassFlow = field()
+    shaft_power: Power = field()
 ```
 
 Some of these values exist mainly to provide an explicit hand-off between child systems.
@@ -660,413 +649,16 @@ A child system can also have more than one valid internal route to the same port
 
 For the forward and inverse requests below, Bilt can evaluate each child from values already established by the surrounding model. We will keep this implementation unchanged when we add recuperation later.
 
-For the executable documentation below, the same model is loaded from a temporary Python module. This gives Bilt a real source file for `inspect.getsource()` during the `markdown-exec` build.
+The documentation build loads the displayed definitions directly into a temporary Python module.
+
+<!-- model-source: end -->
 
 <!-- markdown-exec: hidden setup -->
 
 ```python exec="on" session="turbomachinery"
-model_source = """
-from typing import Annotated
-
-from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, field, system
-from bilt.units import UNITLESS, absolute_kelvin, kelvin, kilogram, kilojoule, kilowatt, megawatt, second
-from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, MASS, TEMPERATURE, TIME
-
-
-AbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]
-SpecificHeat = Annotated[Quantity, ENERGY / (MASS * TEMPERATURE)]
-SpecificWork = Annotated[Quantity, ENERGY / MASS]
-MassFlow = Annotated[Quantity, MASS / TIME]
-Power = Annotated[Quantity, ENERGY / TIME]
-Ratio = Annotated[Quantity, DIMENSIONLESS]
-
-PointwiseAbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
-PointwiseSpecificHeat = Annotated[Quantity | QuantityTensor, ENERGY / (MASS * TEMPERATURE)]
-PointwiseSpecificWork = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
-PointwiseMassFlow = Annotated[Quantity | QuantityTensor, MASS / TIME]
-PointwisePower = Annotated[Quantity | QuantityTensor, ENERGY / TIME]
-PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
-
-@system
-class Compressor(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    pressure_ratio: PointwiseRatio = field()
-    isentropic_efficiency: PointwiseRatio = field()
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
-
-@equation
-def compressor_temperature_relation(
-    inlet_temperature: AbsoluteTemperature,
-    outlet_temperature: AbsoluteTemperature,
-    pressure_ratio: Ratio,
-    isentropic_efficiency: Ratio,
-    gamma: Ratio,
-) -> bool:
-    return (
-        (outlet_temperature - inlet_temperature)
-        * isentropic_efficiency
-        == (inlet_temperature - Quantity(0.0, absolute_kelvin))
-        * (
-            pressure_ratio ** ((gamma - 1.0) / gamma)
-            - 1.0
-        )
-    )
-
-@equation
-def compressor_work_relation(
-    specific_work: SpecificWork,
-    specific_heat: SpecificHeat,
-    inlet_temperature: AbsoluteTemperature,
-    outlet_temperature: AbsoluteTemperature,
-) -> bool:
-    return (
-        specific_work
-        == specific_heat
-        * (outlet_temperature - inlet_temperature)
-    )
-
-compressor_model = Implementation(
-    Compressor,
-    [
-        compressor_temperature_relation,
-        compressor_work_relation,
-    ],
-)
-
-@system
-class Turbine(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    outlet_temperature: PointwiseAbsoluteTemperature = field()
-    specific_heat: PointwiseSpecificHeat = field()
-    specific_work: PointwiseSpecificWork = field()
-
-@equation
-def turbine_work_relation(
-    specific_work: SpecificWork,
-    specific_heat: SpecificHeat,
-    inlet_temperature: AbsoluteTemperature,
-    outlet_temperature: AbsoluteTemperature,
-) -> bool:
-    return (
-        specific_work
-        == specific_heat
-        * (inlet_temperature - outlet_temperature)
-    )
-
-turbine_model = Implementation(
-    Turbine,
-    [turbine_work_relation],
-)
-
-@system
-class TwoShaftCore(metaclass=Interface):
-    inlet_temperature: PointwiseAbsoluteTemperature = field()
-    low_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_compressor_exit_temperature: PointwiseAbsoluteTemperature = field()
-    turbine_inlet_temperature: PointwiseAbsoluteTemperature = field()
-    high_pressure_turbine_exit_temperature: PointwiseAbsoluteTemperature = field()
-    exit_temperature: PointwiseAbsoluteTemperature = field()
-
-    low_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    high_pressure_compressor_pressure_ratio: PointwiseRatio = field()
-    low_pressure_compressor_efficiency: PointwiseRatio = field()
-    high_pressure_compressor_efficiency: PointwiseRatio = field()
-
-    gamma: PointwiseRatio = field()
-    specific_heat: PointwiseSpecificHeat = field()
-
-    low_pressure_shaft_efficiency: PointwiseRatio = field()
-    high_pressure_shaft_efficiency: PointwiseRatio = field()
-
-    low_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_compressor_work: PointwiseSpecificWork = field()
-    high_pressure_turbine_work: PointwiseSpecificWork = field()
-    low_pressure_turbine_work: PointwiseSpecificWork = field()
-
-    # Useful LP-shaft output.
-    shaft_output_work: PointwiseSpecificWork = field()
-    mass_flow: PointwiseMassFlow = field()
-    shaft_power: PointwisePower = field()
-
-@equation
-def low_pressure_compressor_inlet_connection(
-    inlet_temperature: AbsoluteTemperature,
-    low_pressure_compressor: Compressor,
-) -> bool:
-    return inlet_temperature == low_pressure_compressor.inlet_temperature
-
-@equation
-def low_pressure_compressor_exit_connection(
-    low_pressure_compressor_exit_temperature: AbsoluteTemperature,
-    low_pressure_compressor: Compressor,
-) -> bool:
-    return (
-        low_pressure_compressor_exit_temperature
-        == low_pressure_compressor.outlet_temperature
-    )
-
-@equation
-def low_pressure_compressor_pressure_ratio_connection(
-    low_pressure_compressor_pressure_ratio: Ratio,
-    low_pressure_compressor: Compressor,
-) -> bool:
-    return low_pressure_compressor_pressure_ratio == low_pressure_compressor.pressure_ratio
-
-@equation
-def low_pressure_compressor_efficiency_connection(
-    low_pressure_compressor_efficiency: Ratio,
-    low_pressure_compressor: Compressor,
-) -> bool:
-    return (
-        low_pressure_compressor_efficiency
-        == low_pressure_compressor.isentropic_efficiency
-    )
-
-@equation
-def low_pressure_compressor_gamma_connection(
-    gamma: Ratio,
-    low_pressure_compressor: Compressor,
-) -> bool:
-    return gamma == low_pressure_compressor.gamma
-
-@equation
-def low_pressure_compressor_specific_heat_connection(
-    specific_heat: SpecificHeat,
-    low_pressure_compressor: Compressor,
-) -> bool:
-    return (
-        specific_heat
-        == low_pressure_compressor.specific_heat
-    )
-
-@equation
-def low_pressure_compressor_work_connection(
-    low_pressure_compressor_work: SpecificWork,
-    low_pressure_compressor: Compressor,
-) -> bool:
-    return (
-        low_pressure_compressor_work
-        == low_pressure_compressor.specific_work
-    )
-
-@equation
-def high_pressure_compressor_inlet_connection(
-    low_pressure_compressor_exit_temperature: AbsoluteTemperature,
-    high_pressure_compressor: Compressor,
-) -> bool:
-    return (
-        low_pressure_compressor_exit_temperature
-        == high_pressure_compressor.inlet_temperature
-    )
-
-@equation
-def high_pressure_compressor_exit_connection(
-    high_pressure_compressor_exit_temperature: AbsoluteTemperature,
-    high_pressure_compressor: Compressor,
-) -> bool:
-    return (
-        high_pressure_compressor_exit_temperature
-        == high_pressure_compressor.outlet_temperature
-    )
-
-@equation
-def high_pressure_compressor_pressure_ratio_connection(
-    high_pressure_compressor_pressure_ratio: Ratio,
-    high_pressure_compressor: Compressor,
-) -> bool:
-    return (
-        high_pressure_compressor_pressure_ratio
-        == high_pressure_compressor.pressure_ratio
-    )
-
-@equation
-def high_pressure_compressor_efficiency_connection(
-    high_pressure_compressor_efficiency: Ratio,
-    high_pressure_compressor: Compressor,
-) -> bool:
-    return (
-        high_pressure_compressor_efficiency
-        == high_pressure_compressor.isentropic_efficiency
-    )
-
-@equation
-def high_pressure_compressor_gamma_connection(
-    gamma: Ratio,
-    high_pressure_compressor: Compressor,
-) -> bool:
-    return gamma == high_pressure_compressor.gamma
-
-@equation
-def high_pressure_compressor_specific_heat_connection(
-    specific_heat: SpecificHeat,
-    high_pressure_compressor: Compressor,
-) -> bool:
-    return (
-        specific_heat
-        == high_pressure_compressor.specific_heat
-    )
-
-@equation
-def high_pressure_compressor_work_connection(
-    high_pressure_compressor_work: SpecificWork,
-    high_pressure_compressor: Compressor,
-) -> bool:
-    return (
-        high_pressure_compressor_work
-        == high_pressure_compressor.specific_work
-    )
-
-@equation
-def high_pressure_turbine_inlet_connection(
-    turbine_inlet_temperature: AbsoluteTemperature,
-    high_pressure_turbine: Turbine,
-) -> bool:
-    return turbine_inlet_temperature == high_pressure_turbine.inlet_temperature
-
-@equation
-def high_pressure_turbine_exit_connection(
-    high_pressure_turbine_exit_temperature: AbsoluteTemperature,
-    high_pressure_turbine: Turbine,
-) -> bool:
-    return (
-        high_pressure_turbine_exit_temperature
-        == high_pressure_turbine.outlet_temperature
-    )
-
-@equation
-def high_pressure_turbine_specific_heat_connection(
-    specific_heat: SpecificHeat,
-    high_pressure_turbine: Turbine,
-) -> bool:
-    return (
-        specific_heat
-        == high_pressure_turbine.specific_heat
-    )
-
-@equation
-def high_pressure_turbine_work_connection(
-    high_pressure_turbine_work: SpecificWork,
-    high_pressure_turbine: Turbine,
-) -> bool:
-    return (
-        high_pressure_turbine_work
-        == high_pressure_turbine.specific_work
-    )
-
-@equation
-def low_pressure_turbine_inlet_connection(
-    high_pressure_turbine_exit_temperature: AbsoluteTemperature,
-    low_pressure_turbine: Turbine,
-) -> bool:
-    return (
-        high_pressure_turbine_exit_temperature
-        == low_pressure_turbine.inlet_temperature
-    )
-
-@equation
-def core_exit_connection(
-    exit_temperature: AbsoluteTemperature,
-    low_pressure_turbine: Turbine,
-) -> bool:
-    return exit_temperature == low_pressure_turbine.outlet_temperature
-
-@equation
-def low_pressure_turbine_specific_heat_connection(
-    specific_heat: SpecificHeat,
-    low_pressure_turbine: Turbine,
-) -> bool:
-    return (
-        specific_heat
-        == low_pressure_turbine.specific_heat
-    )
-
-@equation
-def low_pressure_turbine_work_connection(
-    low_pressure_turbine_work: SpecificWork,
-    low_pressure_turbine: Turbine,
-) -> bool:
-    return (
-        low_pressure_turbine_work
-        == low_pressure_turbine.specific_work
-    )
-
-@equation
-def high_pressure_shaft_balance(
-    high_pressure_compressor_work: SpecificWork,
-    high_pressure_turbine_work: SpecificWork,
-    high_pressure_shaft_efficiency: Ratio,
-) -> bool:
-    return (
-        high_pressure_compressor_work
-        == high_pressure_shaft_efficiency
-        * high_pressure_turbine_work
-    )
-
-@equation
-def low_pressure_shaft_balance(
-    low_pressure_compressor_work: SpecificWork,
-    low_pressure_turbine_work: SpecificWork,
-    low_pressure_shaft_efficiency: Ratio,
-    shaft_output_work: SpecificWork,
-) -> bool:
-    return (
-        low_pressure_shaft_efficiency
-        * low_pressure_turbine_work
-        == low_pressure_compressor_work
-        + shaft_output_work
-    )
-
-@equation
-def shaft_power_relation(
-    shaft_output_work: SpecificWork,
-    mass_flow: MassFlow,
-    shaft_power: Power,
-) -> bool:
-    return (
-        shaft_power
-        == shaft_output_work * mass_flow
-    )
-
-core_model = Implementation(
-    TwoShaftCore,
-    [
-        low_pressure_compressor_inlet_connection,
-        low_pressure_compressor_exit_connection,
-        low_pressure_compressor_pressure_ratio_connection,
-        low_pressure_compressor_efficiency_connection,
-        low_pressure_compressor_gamma_connection,
-        low_pressure_compressor_specific_heat_connection,
-        low_pressure_compressor_work_connection,
-        high_pressure_compressor_inlet_connection,
-        high_pressure_compressor_exit_connection,
-        high_pressure_compressor_pressure_ratio_connection,
-        high_pressure_compressor_efficiency_connection,
-        high_pressure_compressor_gamma_connection,
-        high_pressure_compressor_specific_heat_connection,
-        high_pressure_compressor_work_connection,
-        high_pressure_turbine_inlet_connection,
-        high_pressure_turbine_exit_connection,
-        high_pressure_turbine_specific_heat_connection,
-        high_pressure_turbine_work_connection,
-        low_pressure_turbine_inlet_connection,
-        core_exit_connection,
-        low_pressure_turbine_specific_heat_connection,
-        low_pressure_turbine_work_connection,
-        high_pressure_shaft_balance,
-        low_pressure_shaft_balance,
-        shaft_power_relation,
-    ],
-    internal_implementations={
-        "low_pressure_compressor": compressor_model,
-        "high_pressure_compressor": compressor_model,
-        "high_pressure_turbine": turbine_model,
-        "low_pressure_turbine": turbine_model,
-    },
-)
-"""
+guide = Path("docs/worked_examples/two-shaft-gas-turbine.md").read_text(encoding="utf-8")
+model_section = guide.split("<!-- model-source: start -->", 1)[1].split("<!-- model-source: end -->", 1)[0]
+model_source = "\n\n".join(block.split("```", 1)[0] for block in model_section.split('```python exec="off"\n')[1:])
 
 model_path = Path(tempfile.gettempdir()) / "bilt_two_shaft_acausal_uncoupled.py"
 model_path.write_text(model_source)

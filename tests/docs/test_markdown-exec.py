@@ -9,6 +9,20 @@ from markdown_exec import formatter, validator
 
 DOCS = Path("docs")
 VISIBLE_EXAMPLES = {
+    "docs/worked_examples/two-springs-in-series.md": ("class DoubleSpring(metaclass=Interface):", "def hookes_law("),
+    "docs/worked_examples/two-shaft-gas-turbine.md": (
+        "class TwoShaftCore(metaclass=Interface):",
+        "def low_pressure_shaft_balance(",
+    ),
+    "docs/worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md": (
+        "class Mission(metaclass=Interface):",
+        "def battery_mass(",
+    ),
+    "docs/worked_examples/compiling-a-bilt-model-with-JAX.md": (
+        "class CruiseImpact(metaclass=Interface):",
+        "def dynamic_pressure(",
+        "def output_value(",
+    ),
     "docs/guide/units.md": (
         "class Motion(metaclass=Interface):",
         "def distance_km(",

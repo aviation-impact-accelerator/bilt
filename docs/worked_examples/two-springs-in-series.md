@@ -84,9 +84,10 @@ A spring has three boundary values: stiffness, extension, and force. We declare
 their dimensions rather than fixing particular units. Stiffness has dimension
 force per length, extension has dimension length, and force has dimension force.
 
-The system fields use pointwise aliases to accept scalar quantities or
-unit-carrying tensors. The equations retain scalar aliases that Bilt can lift
-over named domains. Here we supply stiffness in N/m, extension in m, and force in N:
+The system fields and equations use the same quantity aliases. Bilt can lift
+these relationships over named domains. Here we supply stiffness in N/m, extension in m, and force in N:
+
+<!-- model-source: start -->
 
 ```python exec="off"
 from typing import Annotated
@@ -96,20 +97,16 @@ from bilt.units import meter, newton
 from bilt.units.dimensions import FORCE, LENGTH
 
 
-Stiffness = Annotated[Quantity, FORCE / LENGTH]
-Length = Annotated[Quantity, LENGTH]
-Force = Annotated[Quantity, FORCE]
-
-PointwiseStiffness = Annotated[Quantity | QuantityTensor, FORCE / LENGTH]
-PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]
-PointwiseForce = Annotated[Quantity | QuantityTensor, FORCE]
+Stiffness = Annotated[Quantity | QuantityTensor, FORCE / LENGTH]
+Length = Annotated[Quantity | QuantityTensor, LENGTH]
+Force = Annotated[Quantity | QuantityTensor, FORCE]
 
 
 @system
 class Spring(metaclass=Interface):
-    stiffness: PointwiseStiffness = field()
-    extension: PointwiseLength = field()
-    force: PointwiseForce = field()
+    stiffness: Stiffness = field()
+    extension: Length = field()
+    force: Force = field()
 ```
 
 Hooke's law is an equation:
@@ -151,19 +148,16 @@ That is the acausal part of the component model.
 The parent system exposes the values we want to use when working with two springs:
 
 ```python exec="off"
-from bilt import QuantityTensor
-
-
 @system
 class DoubleSpring(metaclass=Interface):
-    first_stiffness: PointwiseStiffness = field()
-    second_stiffness: PointwiseStiffness = field()
+    first_stiffness: Stiffness = field()
+    second_stiffness: Stiffness = field()
 
-    first_extension: PointwiseLength = field()
-    second_extension: PointwiseLength = field()
-    total_extension: PointwiseLength = field()
+    first_extension: Length = field()
+    second_extension: Length = field()
+    total_extension: Length = field()
 
-    force: PointwiseForce = field()
+    force: Force = field()
 ```
 
 The two `Spring` occurrences are not public fields. They belong to this implementation of `DoubleSpring`.
@@ -317,124 +311,16 @@ DoubleSpring
     └── second → Spring
 ```
 
-For the executable documentation below, the same model is loaded from a temporary Python module. This gives Bilt a real source file for `inspect.getsource()` during the `markdown-exec` build.
+The documentation build loads the displayed definitions directly into a temporary Python module.
+
+<!-- model-source: end -->
 
 <!-- markdown-exec: hidden setup -->
 
 ```python exec="on" session="springs"
-model_source = """
-from typing import Annotated
-
-from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, field, system
-from bilt.units import meter, newton
-from bilt.units.dimensions import FORCE, LENGTH
-
-
-Stiffness = Annotated[Quantity, FORCE / LENGTH]
-Length = Annotated[Quantity, LENGTH]
-Force = Annotated[Quantity, FORCE]
-
-PointwiseStiffness = Annotated[Quantity | QuantityTensor, FORCE / LENGTH]
-PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]
-PointwiseForce = Annotated[Quantity | QuantityTensor, FORCE]
-
-@system
-class Spring(metaclass=Interface):
-    stiffness: PointwiseStiffness = field()
-    extension: PointwiseLength = field()
-    force: PointwiseForce = field()
-
-@equation
-def hookes_law(
-    stiffness: Stiffness,
-    extension: Length,
-    force: Force,
-) -> bool:
-    return force == stiffness * extension
-
-linear_spring = Implementation(
-    Spring,
-    [hookes_law],
-)
-
-@system
-class DoubleSpring(metaclass=Interface):
-    first_stiffness: PointwiseStiffness = field()
-    second_stiffness: PointwiseStiffness = field()
-
-    first_extension: PointwiseLength = field()
-    second_extension: PointwiseLength = field()
-    total_extension: PointwiseLength = field()
-
-    force: PointwiseForce = field()
-
-@equation
-def first_stiffness_connection(
-    first_stiffness: Stiffness,
-    first: Spring,
-) -> bool:
-    return first_stiffness == first.stiffness
-
-@equation
-def first_extension_connection(
-    first_extension: Length,
-    first: Spring,
-) -> bool:
-    return first_extension == first.extension
-
-@equation
-def first_force_connection(
-    force: Force,
-    first: Spring,
-) -> bool:
-    return force == first.force
-
-@equation
-def second_stiffness_connection(
-    second_stiffness: Stiffness,
-    second: Spring,
-) -> bool:
-    return second_stiffness == second.stiffness
-
-@equation
-def second_extension_connection(
-    second_extension: Length,
-    second: Spring,
-) -> bool:
-    return second_extension == second.extension
-
-@equation
-def second_force_connection(
-    force: Force,
-    second: Spring,
-) -> bool:
-    return force == second.force
-
-@equation
-def total_extension_relation(
-    first_extension: Length,
-    second_extension: Length,
-    total_extension: Length,
-) -> bool:
-    return total_extension == first_extension + second_extension
-
-double_spring = Implementation(
-    DoubleSpring,
-    [
-        first_stiffness_connection,
-        first_extension_connection,
-        first_force_connection,
-        second_stiffness_connection,
-        second_extension_connection,
-        second_force_connection,
-        total_extension_relation,
-    ],
-    internal_implementations={
-        "first": linear_spring,
-        "second": linear_spring,
-    },
-)
-"""
+guide = Path("docs/worked_examples/two-springs-in-series.md").read_text(encoding="utf-8")
+model_section = guide.split("<!-- model-source: start -->", 1)[1].split("<!-- model-source: end -->", 1)[0]
+model_source = "\n\n".join(block.split("```", 1)[0] for block in model_section.split('```python exec="off"\n')[1:])
 
 model_path = Path(tempfile.gettempdir()) / "bilt_two_springs.py"
 model_path.write_text(model_source)

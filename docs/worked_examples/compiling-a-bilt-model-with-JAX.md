@@ -58,21 +58,9 @@ flowchart TD
 
 The full model contains a number of small transforms. For example:
 
+<!-- model-source: aerodynamic-excerpt -->
+
 ```python exec="off"
-from typing import Annotated
-
-from bilt import Quantity, transform
-from bilt.units.dimensions import DIMENSIONLESS, FORCE, LENGTH, MASS, TIME
-
-
-Density = Annotated[Quantity, MASS / LENGTH**3]
-Speed = Annotated[Quantity, LENGTH / TIME]
-Pressure = Annotated[Quantity, FORCE / LENGTH**2]
-Area = Annotated[Quantity, LENGTH**2]
-Force = Annotated[Quantity, FORCE]
-Ratio = Annotated[Quantity, DIMENSIONLESS]
-
-
 @transform
 def dynamic_pressure(density: Density, true_airspeed: Speed) -> Pressure:
     return 0.5 * density * true_airspeed**2
@@ -88,8 +76,9 @@ def induced_drag(
     return dynamic_pressure * wing_area * induced_drag_factor * lift_coefficient**2
 ```
 
-The system uses named pointwise aliases such as `PointwiseRatio` for fields accepting
-scalar or tensor quantities, and scalar aliases such as `Ratio` for transforms.
+The system and transforms share quantity aliases such as `Ratio`, which accepts
+scalar or tensor quantities. The temperature transforms that extract a scalar
+number use a separate `ScalarAbsoluteTemperature` annotation.
 The transforms lift over compatible tensor domains, so the model does not
 prescribe the shape of the ensemble. Efficiencies, Mach number, aerodynamic
 coefficients, and emission indices are dimensionless quantities supplied with `UNITLESS`.
@@ -104,433 +93,41 @@ The score uses arbitrary weights; it is not a validated climate metric or a
 CO2-equivalent emission rate. The soot-dependent factor uses an explicit
 inverse mass-rate coefficient so its correction is dimensionless.
 
-The complete model is executed as part of this page, but its remaining
-definitions are hidden to keep the worked example focused.
+The remaining model declarations are in [Model source](#model-source) below. The documentation build combines the displayed blocks into one Python module, so the backend comparison runs exactly these definitions.
 
-```python exec="on" session="jax-backend" source="above"
-# Example model setup is executed here but hidden from the rendered page.
-import importlib.util  # markdown-exec: hide
-import sys  # markdown-exec: hide
-import tempfile  # markdown-exec: hide
-from pathlib import Path  # markdown-exec: hide
+<!-- markdown-exec: hidden setup -->
 
-# markdown-exec: hide
-_example_dir = Path(tempfile.mkdtemp(prefix="bilt_jax_example_"))  # markdown-exec: hide
-_example_module = _example_dir / "jax_backend_cruise.py"  # markdown-exec: hide
-_model_source = (  # markdown-exec: hide
-    "\n".join(  # markdown-exec: hide
-        [  # markdown-exec: hide
-            '"""Models for the Bilt JAX worked example."""',  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "from __future__ import annotations",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "from bilt import (",  # markdown-exec: hide
-            "    Implementation,",  # markdown-exec: hide
-            "    Interface,",  # markdown-exec: hide
-            "    Quantity,",  # markdown-exec: hide
-            "    QuantityTensor,",  # markdown-exec: hide
-            "    field,",  # markdown-exec: hide
-            "    system,",  # markdown-exec: hide
-            "    transform,",  # markdown-exec: hide
-            ")",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "from typing import Annotated",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "from bilt.units import UNITLESS, absolute_kelvin, joule, kelvin, kilogram, meter, pascal, second",  # markdown-exec: hide
-            "from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, FORCE, LENGTH, MASS, TEMPERATURE, TIME",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "Length = Annotated[Quantity, LENGTH]",  # markdown-exec: hide
-            "Mass = Annotated[Quantity, MASS]",  # markdown-exec: hide
-            "Area = Annotated[Quantity, LENGTH**2]",  # markdown-exec: hide
-            "TemperatureChange = Annotated[Quantity, TEMPERATURE]",  # markdown-exec: hide
-            "AbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]",  # markdown-exec: hide
-            "Pressure = Annotated[Quantity, FORCE / LENGTH**2]",  # markdown-exec: hide
-            "Density = Annotated[Quantity, MASS / LENGTH**3]",  # markdown-exec: hide
-            "Speed = Annotated[Quantity, LENGTH / TIME]",  # markdown-exec: hide
-            "Force = Annotated[Quantity, FORCE]",  # markdown-exec: hide
-            "Power = Annotated[Quantity, ENERGY / TIME]",  # markdown-exec: hide
-            "MassRate = Annotated[Quantity, MASS / TIME]",  # markdown-exec: hide
-            "Ratio = Annotated[Quantity, DIMENSIONLESS]",  # markdown-exec: hide
-            "PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]",  # markdown-exec: hide
-            "PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]",  # markdown-exec: hide
-            "PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]",  # markdown-exec: hide
-            "PointwiseTemperatureChange = Annotated[Quantity | QuantityTensor, TEMPERATURE]",  # markdown-exec: hide
-            "PointwiseArea = Annotated[Quantity | QuantityTensor, LENGTH**2]",  # markdown-exec: hide
-            "PointwiseAbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]",  # markdown-exec: hide
-            "PointwisePressure = Annotated[Quantity | QuantityTensor, FORCE / LENGTH**2]",  # markdown-exec: hide
-            "PointwiseDensity = Annotated[Quantity | QuantityTensor, MASS / LENGTH**3]",  # markdown-exec: hide
-            "PointwiseSpeed = Annotated[Quantity | QuantityTensor, LENGTH / TIME]",  # markdown-exec: hide
-            "PointwiseForce = Annotated[Quantity | QuantityTensor, FORCE]",  # markdown-exec: hide
-            "PointwisePower = Annotated[Quantity | QuantityTensor, ENERGY / TIME]",  # markdown-exec: hide
-            "PointwiseMassRate = Annotated[Quantity | QuantityTensor, MASS / TIME]",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@system",  # markdown-exec: hide
-            "class CruiseImpact(metaclass=Interface):",  # markdown-exec: hide
-            "    # Inputs",  # markdown-exec: hide
-            "    altitude: PointwiseLength = field()",  # markdown-exec: hide
-            "    mach: PointwiseRatio = field()",  # markdown-exec: hide
-            "    mass: PointwiseMass = field()",  # markdown-exec: hide
-            "    temperature_offset: PointwiseTemperatureChange = field()",  # markdown-exec: hide
-            "    wing_area: PointwiseArea = field()",  # markdown-exec: hide
-            "    zero_lift_drag_coefficient: PointwiseRatio = field()",  # markdown-exec: hide
-            "    induced_drag_factor: PointwiseRatio = field()",  # markdown-exec: hide
-            "    propulsive_efficiency: PointwiseRatio = field()",  # markdown-exec: hide
-            "    nox_emission_index: PointwiseRatio = field()",  # markdown-exec: hide
-            "    soot_emission_index: PointwiseRatio = field()",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "    # Atmosphere",  # markdown-exec: hide
-            "    temperature: PointwiseAbsoluteTemperature = field()",  # markdown-exec: hide
-            "    pressure: PointwisePressure = field()",  # markdown-exec: hide
-            "    density: PointwiseDensity = field()",  # markdown-exec: hide
-            "    speed_of_sound: PointwiseSpeed = field()",  # markdown-exec: hide
-            "    true_airspeed: PointwiseSpeed = field()",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "    # Aerodynamics",  # markdown-exec: hide
-            "    weight: PointwiseForce = field()",  # markdown-exec: hide
-            "    dynamic_pressure: PointwisePressure = field()",  # markdown-exec: hide
-            "    lift_coefficient: PointwiseRatio = field()",  # markdown-exec: hide
-            "    parasite_drag: PointwiseForce = field()",  # markdown-exec: hide
-            "    induced_drag: PointwiseForce = field()",  # markdown-exec: hide
-            "    compressibility_drag: PointwiseForce = field()",  # markdown-exec: hide
-            "    trim_drag: PointwiseForce = field()",  # markdown-exec: hide
-            "    total_drag: PointwiseForce = field()",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "    # Propulsion",  # markdown-exec: hide
-            "    propulsive_power: PointwisePower = field()",  # markdown-exec: hide
-            "    fuel_power: PointwisePower = field()",  # markdown-exec: hide
-            "    fuel_flow: PointwiseMassRate = field()",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "    # Emissions",  # markdown-exec: hide
-            "    co2_rate: PointwiseMassRate = field()",  # markdown-exec: hide
-            "    water_rate: PointwiseMassRate = field()",  # markdown-exec: hide
-            "    nox_rate: PointwiseMassRate = field()",  # markdown-exec: hide
-            "    soot_rate: PointwiseMassRate = field()",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "    # Illustrative climate-effect outputs",  # markdown-exec: hide
-            "    co2_effect: PointwiseMassRate = field()",  # markdown-exec: hide
-            "    water_effect: PointwiseMassRate = field()",  # markdown-exec: hide
-            "    nox_effect: PointwiseMassRate = field()",  # markdown-exec: hide
-            "    soot_effect: PointwiseMassRate = field()",  # markdown-exec: hide
-            "    contrail_effect: PointwiseMassRate = field()",  # markdown-exec: hide
-            "    total_climate_effect: PointwiseMassRate = field()",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "# Atmosphere -----------------------------------------------------------------",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def temperature(altitude: Length, temperature_offset: TemperatureChange) -> AbsoluteTemperature:",  # markdown-exec: hide
-            "    return Quantity(288.15, absolute_kelvin) - (0.0065 * kelvin / meter) * altitude + temperature_offset",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def pressure(temperature: AbsoluteTemperature) -> Pressure:",  # markdown-exec: hide
-            "    # The empirical reference temperature is 288.15 kelvin.",  # markdown-exec: hide
-            "    return (101325.0 * pascal) * (temperature.convert_to(absolute_kelvin).value / 288.15) ** 5.2561",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def density(pressure: Pressure, temperature: AbsoluteTemperature) -> Density:",  # markdown-exec: hide
-            "    temperature_scale = temperature.convert_to(absolute_kelvin).value * kelvin",  # markdown-exec: hide
-            "    return pressure / ((287.05 * joule / (kilogram * kelvin)) * temperature_scale)",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def speed_of_sound(temperature: AbsoluteTemperature) -> Speed:",  # markdown-exec: hide
-            "    temperature_scale = temperature.convert_to(absolute_kelvin).value * kelvin",  # markdown-exec: hide
-            "    speed_squared = 1.4 * (287.05 * joule / (kilogram * kelvin)) * temperature_scale",  # markdown-exec: hide
-            "    return speed_squared.convert_to(meter**2 / second**2).value**0.5 * meter / second",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def true_airspeed(mach: Ratio, speed_of_sound: Speed) -> Speed:",  # markdown-exec: hide
-            "    return mach * speed_of_sound",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "# Aerodynamics ---------------------------------------------------------------",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def weight(mass: Mass) -> Force:",  # markdown-exec: hide
-            "    return mass * (9.80665 * meter / second**2)",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def dynamic_pressure(density: Density, true_airspeed: Speed) -> Pressure:",  # markdown-exec: hide
-            "    return 0.5 * density * true_airspeed**2",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def lift_coefficient(",  # markdown-exec: hide
-            "    weight: Force,",  # markdown-exec: hide
-            "    dynamic_pressure: Pressure,",  # markdown-exec: hide
-            "    wing_area: Area,",  # markdown-exec: hide
-            ") -> Ratio:",  # markdown-exec: hide
-            "    return weight / (dynamic_pressure * wing_area)",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def parasite_drag(",  # markdown-exec: hide
-            "    dynamic_pressure: Pressure,",  # markdown-exec: hide
-            "    wing_area: Area,",  # markdown-exec: hide
-            "    zero_lift_drag_coefficient: Ratio,",  # markdown-exec: hide
-            ") -> Force:",  # markdown-exec: hide
-            "    return dynamic_pressure * wing_area * zero_lift_drag_coefficient",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def induced_drag(",  # markdown-exec: hide
-            "    dynamic_pressure: Pressure,",  # markdown-exec: hide
-            "    wing_area: Area,",  # markdown-exec: hide
-            "    lift_coefficient: Ratio,",  # markdown-exec: hide
-            "    induced_drag_factor: Ratio,",  # markdown-exec: hide
-            ") -> Force:",  # markdown-exec: hide
-            "    return (",  # markdown-exec: hide
-            "        dynamic_pressure",  # markdown-exec: hide
-            "        * wing_area",  # markdown-exec: hide
-            "        * induced_drag_factor",  # markdown-exec: hide
-            "        * lift_coefficient**2",  # markdown-exec: hide
-            "    )",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def compressibility_drag(",  # markdown-exec: hide
-            "    dynamic_pressure: Pressure,",  # markdown-exec: hide
-            "    wing_area: Area,",  # markdown-exec: hide
-            "    mach: Ratio,",  # markdown-exec: hide
-            ") -> Force:",  # markdown-exec: hide
-            "    correction = 0.002 * mach**2 + 0.004 * mach**4",  # markdown-exec: hide
-            "    return dynamic_pressure * wing_area * correction",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def trim_drag(",  # markdown-exec: hide
-            "    dynamic_pressure: Pressure,",  # markdown-exec: hide
-            "    wing_area: Area,",  # markdown-exec: hide
-            "    lift_coefficient: Ratio,",  # markdown-exec: hide
-            ") -> Force:",  # markdown-exec: hide
-            "    return dynamic_pressure * wing_area * 0.0015 * lift_coefficient**2",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def total_drag(",  # markdown-exec: hide
-            "    parasite_drag: Force,",  # markdown-exec: hide
-            "    induced_drag: Force,",  # markdown-exec: hide
-            "    compressibility_drag: Force,",  # markdown-exec: hide
-            "    trim_drag: Force,",  # markdown-exec: hide
-            ") -> Force:",  # markdown-exec: hide
-            "    return parasite_drag + induced_drag + compressibility_drag + trim_drag",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "# Propulsion -----------------------------------------------------------------",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def propulsive_power(total_drag: Force, true_airspeed: Speed) -> Power:",  # markdown-exec: hide
-            "    return total_drag * true_airspeed",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def fuel_power(",  # markdown-exec: hide
-            "    propulsive_power: Power,",  # markdown-exec: hide
-            "    propulsive_efficiency: Ratio,",  # markdown-exec: hide
-            ") -> Power:",  # markdown-exec: hide
-            "    return propulsive_power / propulsive_efficiency",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def fuel_flow(fuel_power: Power) -> MassRate:",  # markdown-exec: hide
-            "    # Approximate kerosene lower heating value, J/kg.",  # markdown-exec: hide
-            "    return fuel_power / (43_000_000.0 * joule / kilogram)",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "# Emissions ------------------------------------------------------------------",  # markdown-exec: hide
-            "#",  # markdown-exec: hide
-            "# These four transforms form independent branches from fuel_flow.",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def co2_rate(fuel_flow: MassRate) -> MassRate:",  # markdown-exec: hide
-            "    return 3.16 * fuel_flow",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def water_rate(fuel_flow: MassRate) -> MassRate:",  # markdown-exec: hide
-            "    return 1.23 * fuel_flow",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def nox_rate(fuel_flow: MassRate, nox_emission_index: Ratio) -> MassRate:",  # markdown-exec: hide
-            "    return fuel_flow * nox_emission_index",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def soot_rate(fuel_flow: MassRate, soot_emission_index: Ratio) -> MassRate:",  # markdown-exec: hide
-            "    return fuel_flow * soot_emission_index",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "# Illustrative climate effects -----------------------------------------------",  # markdown-exec: hide
-            "#",  # markdown-exec: hide
-            "# These are deliberately simple surrogate relationships. They are not intended",  # markdown-exec: hide
-            "# to be scientifically defensible climate metrics.",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def co2_effect(co2_rate: MassRate) -> MassRate:",  # markdown-exec: hide
-            "    return co2_rate",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def water_effect(water_rate: MassRate, altitude: Length) -> MassRate:",  # markdown-exec: hide
-            "    altitude_factor = Quantity(0.8, UNITLESS) + altitude / (50_000.0 * meter)",  # markdown-exec: hide
-            "    return 0.15 * water_rate * altitude_factor",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def nox_effect(",  # markdown-exec: hide
-            "    nox_rate: MassRate,",  # markdown-exec: hide
-            "    altitude: Length,",  # markdown-exec: hide
-            "    temperature: AbsoluteTemperature,",  # markdown-exec: hide
-            ") -> MassRate:",  # markdown-exec: hide
-            "    altitude_factor = Quantity(0.5, UNITLESS) + altitude / (20_000.0 * meter)",  # markdown-exec: hide
-            "    temperature_factor = 288.15 / temperature.convert_to(absolute_kelvin).value",  # markdown-exec: hide
-            "    return 40.0 * nox_rate * altitude_factor * temperature_factor",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def soot_effect(soot_rate: MassRate, altitude: Length) -> MassRate:",  # markdown-exec: hide
-            "    altitude_factor = Quantity(0.5, UNITLESS) + altitude / (15_000.0 * meter)",  # markdown-exec: hide
-            "    return 1000.0 * soot_rate * altitude_factor",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def contrail_effect(",  # markdown-exec: hide
-            "    water_rate: MassRate,",  # markdown-exec: hide
-            "    soot_rate: MassRate,",  # markdown-exec: hide
-            "    altitude: Length,",  # markdown-exec: hide
-            "    temperature: AbsoluteTemperature,",  # markdown-exec: hide
-            ") -> MassRate:",  # markdown-exec: hide
-            "    altitude_factor = (altitude / (12_000.0 * meter)) ** 2",  # markdown-exec: hide
-            "    temperature_factor = (288.15 / temperature.convert_to(absolute_kelvin).value) ** 2",  # markdown-exec: hide
-            "    return (",  # markdown-exec: hide
-            "        0.08",  # markdown-exec: hide
-            "        * water_rate",  # markdown-exec: hide
-            "        * (Quantity(1.0, UNITLESS) + (100.0 * second / kilogram) * soot_rate)",  # markdown-exec: hide
-            "        * altitude_factor",  # markdown-exec: hide
-            "        * temperature_factor",  # markdown-exec: hide
-            "    )",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def total_climate_effect(",  # markdown-exec: hide
-            "    co2_effect: MassRate,",  # markdown-exec: hide
-            "    water_effect: MassRate,",  # markdown-exec: hide
-            "    nox_effect: MassRate,",  # markdown-exec: hide
-            "    soot_effect: MassRate,",  # markdown-exec: hide
-            "    contrail_effect: MassRate,",  # markdown-exec: hide
-            ") -> MassRate:",  # markdown-exec: hide
-            "    return (",  # markdown-exec: hide
-            "        co2_effect",  # markdown-exec: hide
-            "        + water_effect",  # markdown-exec: hide
-            "        + nox_effect",  # markdown-exec: hide
-            "        + soot_effect",  # markdown-exec: hide
-            "        + contrail_effect",  # markdown-exec: hide
-            "    )",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "cruise_impact = Implementation(",  # markdown-exec: hide
-            "    CruiseImpact,",  # markdown-exec: hide
-            "    [",  # markdown-exec: hide
-            "        temperature,",  # markdown-exec: hide
-            "        pressure,",  # markdown-exec: hide
-            "        density,",  # markdown-exec: hide
-            "        speed_of_sound,",  # markdown-exec: hide
-            "        true_airspeed,",  # markdown-exec: hide
-            "        weight,",  # markdown-exec: hide
-            "        dynamic_pressure,",  # markdown-exec: hide
-            "        lift_coefficient,",  # markdown-exec: hide
-            "        parasite_drag,",  # markdown-exec: hide
-            "        induced_drag,",  # markdown-exec: hide
-            "        compressibility_drag,",  # markdown-exec: hide
-            "        trim_drag,",  # markdown-exec: hide
-            "        total_drag,",  # markdown-exec: hide
-            "        propulsive_power,",  # markdown-exec: hide
-            "        fuel_power,",  # markdown-exec: hide
-            "        fuel_flow,",  # markdown-exec: hide
-            "        co2_rate,",  # markdown-exec: hide
-            "        water_rate,",  # markdown-exec: hide
-            "        nox_rate,",  # markdown-exec: hide
-            "        soot_rate,",  # markdown-exec: hide
-            "        co2_effect,",  # markdown-exec: hide
-            "        water_effect,",  # markdown-exec: hide
-            "        nox_effect,",  # markdown-exec: hide
-            "        soot_effect,",  # markdown-exec: hide
-            "        contrail_effect,",  # markdown-exec: hide
-            "        total_climate_effect,",  # markdown-exec: hide
-            "    ],",  # markdown-exec: hide
-            ")",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@system",  # markdown-exec: hide
-            "class JaxSubproblem(metaclass=Interface):",  # markdown-exec: hide
-            "    value: float = field()",  # markdown-exec: hide
-            "    result: float = field()",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def result(value: float) -> float:",  # markdown-exec: hide
-            "    return value**2 + 2.0 * value + 1.0",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "jax_subproblem = Implementation(",  # markdown-exec: hide
-            "    JaxSubproblem,",  # markdown-exec: hide
-            "    [result],",  # markdown-exec: hide
-            ")",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@system",  # markdown-exec: hide
-            "class HybridModel(metaclass=Interface):",  # markdown-exec: hide
-            "    input_value: float = field()",  # markdown-exec: hide
-            "    output_value: float = field()",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "@transform",  # markdown-exec: hide
-            "def output_value(input_value: float) -> float:",  # markdown-exec: hide
-            "    from bilt import JAX_BACKEND",  # markdown-exec: hide
-            "    from jax_backend_cruise import JaxSubproblem, jax_subproblem",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "    value = abs(input_value)",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "    with JAX_BACKEND, jax_subproblem:",  # markdown-exec: hide
-            "        return JaxSubproblem(value=value).result",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "",  # markdown-exec: hide
-            "hybrid_model = Implementation(",  # markdown-exec: hide
-            "    HybridModel,",  # markdown-exec: hide
-            "    [output_value],",  # markdown-exec: hide
-            ")",  # markdown-exec: hide
-        ]  # markdown-exec: hide
-    )  # markdown-exec: hide
-    + "\n"  # markdown-exec: hide
-)  # markdown-exec: hide
-_example_module.write_text(_model_source)  # markdown-exec: hide
-# markdown-exec: hide
-_spec = importlib.util.spec_from_file_location(  # markdown-exec: hide
-    "jax_backend_cruise",  # markdown-exec: hide
-    _example_module,  # markdown-exec: hide
-)  # markdown-exec: hide
-assert _spec is not None and _spec.loader is not None  # markdown-exec: hide
-_module = importlib.util.module_from_spec(_spec)  # markdown-exec: hide
-sys.modules[_spec.name] = _module  # markdown-exec: hide
-_spec.loader.exec_module(_module)  # markdown-exec: hide
-# markdown-exec: hide
-CruiseImpact = _module.CruiseImpact  # markdown-exec: hide
-cruise_impact = _module.cruise_impact  # markdown-exec: hide
-HybridModel = _module.HybridModel  # markdown-exec: hide
-hybrid_model = _module.hybrid_model  # markdown-exec: hide
+```python exec="on" session="jax-backend"
+import importlib.util
+import sys
+import tempfile
+from pathlib import Path
+
+guide = Path("docs/worked_examples/compiling-a-bilt-model-with-JAX.md").read_text(encoding="utf-8")
+
+
+def model_block(name: str) -> str:
+    section = guide.split(f"<!-- model-source: {name} -->", 1)[1]
+    return section.split('```python exec="off"\n', 1)[1].split("```", 1)[0]
+
+
+_model_source = "\n\n".join(
+    model_block(name) for name in ("cruise-definitions", "aerodynamic-excerpt", "cruise-implementation", "hybrid")
+)
+_example_dir = Path(tempfile.mkdtemp(prefix="bilt_jax_example_"))
+_example_module = _example_dir / "jax_backend_cruise.py"
+_example_module.write_text(_model_source, encoding="utf-8")
+
+_spec = importlib.util.spec_from_file_location("jax_backend_cruise", _example_module)
+assert _spec is not None and _spec.loader is not None
+_module = importlib.util.module_from_spec(_spec)
+sys.modules[_spec.name] = _module
+_spec.loader.exec_module(_module)
+
+CruiseImpact = _module.CruiseImpact
+cruise_impact = _module.cruise_impact
+HybridModel = _module.HybridModel
+hybrid_model = _module.hybrid_model
 ```
 
 ## Build a large ensemble
@@ -803,8 +400,9 @@ implementation using the JAX backend.
 
 The following handoff demonstration uses plain mathematical values rather
 than physical quantities. Its plain values are separate from the
-unit-aware cruise model above. The JAX-compatible subproblem is an ordinary
-Bilt model:
+unit-aware cruise model above. The JAX-compatible subproblem is an ordinary Bilt model. The following definitions are part of the same source module as the cruise model:
+
+<!-- model-source: hybrid -->
 
 ```python exec="off"
 @system
@@ -822,11 +420,14 @@ jax_subproblem = Implementation(
     JaxSubproblem,
     [result],
 )
-```
 
-A Python transform can delegate to it:
 
-```python exec="off"
+@system
+class HybridModel(metaclass=Interface):
+    input_value: float = field()
+    output_value: float = field()
+
+
 @transform
 def output_value(input_value: float) -> float:
     from bilt import JAX_BACKEND
@@ -836,7 +437,15 @@ def output_value(input_value: float) -> float:
 
     with JAX_BACKEND, jax_subproblem:
         return JaxSubproblem(value=value).result
+
+
+hybrid_model = Implementation(
+    HybridModel,
+    [output_value],
+)
 ```
+
+The outer transform delegates to the JAX subproblem, while the outer model still uses Python.
 
 The caller still evaluates only the outer model:
 
@@ -877,3 +486,324 @@ Where possible, select one backend around the complete Bilt model so that the
 full calculation remains visible and explainable. Nested backend evaluation can
 bridge an unavoidable compatibility boundary, but should currently be treated
 as a workaround.
+
+## Model source
+
+The remaining definitions for the cruise model follow. The two aerodynamic transforms shown in [The model](#the-model) are included when these definitions are assembled into the executable module.
+
+<!-- model-source: cruise-definitions -->
+
+```python exec="off"
+"""Models for the Bilt JAX worked example."""
+
+from __future__ import annotations
+
+from typing import Annotated
+
+from bilt import Implementation, Interface, Quantity, QuantityTensor, field, system, transform
+
+from bilt.units import UNITLESS, absolute_kelvin, joule, kelvin, kilogram, meter, pascal, second
+from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, FORCE, LENGTH, MASS, TEMPERATURE, TIME
+
+
+Length = Annotated[Quantity | QuantityTensor, LENGTH]
+Mass = Annotated[Quantity | QuantityTensor, MASS]
+Area = Annotated[Quantity | QuantityTensor, LENGTH**2]
+TemperatureChange = Annotated[Quantity | QuantityTensor, TEMPERATURE]
+AbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
+ScalarAbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]
+Pressure = Annotated[Quantity | QuantityTensor, FORCE / LENGTH**2]
+Density = Annotated[Quantity | QuantityTensor, MASS / LENGTH**3]
+Speed = Annotated[Quantity | QuantityTensor, LENGTH / TIME]
+Force = Annotated[Quantity | QuantityTensor, FORCE]
+Power = Annotated[Quantity | QuantityTensor, ENERGY / TIME]
+MassRate = Annotated[Quantity | QuantityTensor, MASS / TIME]
+Ratio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
+MassRate = Annotated[Quantity | QuantityTensor, MASS / TIME]
+
+
+@system
+class CruiseImpact(metaclass=Interface):
+    # Inputs
+    altitude: Length = field()
+    mach: Ratio = field()
+    mass: Mass = field()
+    temperature_offset: TemperatureChange = field()
+    wing_area: Area = field()
+    zero_lift_drag_coefficient: Ratio = field()
+    induced_drag_factor: Ratio = field()
+    propulsive_efficiency: Ratio = field()
+    nox_emission_index: Ratio = field()
+    soot_emission_index: Ratio = field()
+
+    # Atmosphere
+    temperature: AbsoluteTemperature = field()
+    pressure: Pressure = field()
+    density: Density = field()
+    speed_of_sound: Speed = field()
+    true_airspeed: Speed = field()
+
+    # Aerodynamics
+    weight: Force = field()
+    dynamic_pressure: Pressure = field()
+    lift_coefficient: Ratio = field()
+    parasite_drag: Force = field()
+    induced_drag: Force = field()
+    compressibility_drag: Force = field()
+    trim_drag: Force = field()
+    total_drag: Force = field()
+
+    # Propulsion
+    propulsive_power: Power = field()
+    fuel_power: Power = field()
+    fuel_flow: MassRate = field()
+
+    # Emissions
+    co2_rate: MassRate = field()
+    water_rate: MassRate = field()
+    nox_rate: MassRate = field()
+    soot_rate: MassRate = field()
+
+    # Illustrative climate-effect outputs
+    co2_effect: MassRate = field()
+    water_effect: MassRate = field()
+    nox_effect: MassRate = field()
+    soot_effect: MassRate = field()
+    contrail_effect: MassRate = field()
+    total_climate_effect: MassRate = field()
+
+
+# Atmosphere -----------------------------------------------------------------
+
+
+@transform
+def temperature(altitude: Length, temperature_offset: TemperatureChange) -> AbsoluteTemperature:
+    return Quantity(288.15, absolute_kelvin) - (0.0065 * kelvin / meter) * altitude + temperature_offset
+
+
+@transform
+def pressure(temperature: ScalarAbsoluteTemperature) -> Pressure:
+    # The empirical reference temperature is 288.15 kelvin.
+    return (101325.0 * pascal) * (temperature.convert_to(absolute_kelvin).value / 288.15) ** 5.2561
+
+
+@transform
+def density(pressure: Pressure, temperature: ScalarAbsoluteTemperature) -> Density:
+    temperature_scale = temperature.convert_to(absolute_kelvin).value * kelvin
+    return pressure / ((287.05 * joule / (kilogram * kelvin)) * temperature_scale)
+
+
+@transform
+def speed_of_sound(temperature: ScalarAbsoluteTemperature) -> Speed:
+    temperature_scale = temperature.convert_to(absolute_kelvin).value * kelvin
+    speed_squared = 1.4 * (287.05 * joule / (kilogram * kelvin)) * temperature_scale
+    return speed_squared.convert_to(meter**2 / second**2).value ** 0.5 * meter / second
+
+
+@transform
+def true_airspeed(mach: Ratio, speed_of_sound: Speed) -> Speed:
+    return mach * speed_of_sound
+
+
+# Aerodynamics ---------------------------------------------------------------
+
+
+@transform
+def weight(mass: Mass) -> Force:
+    return mass * (9.80665 * meter / second**2)
+
+
+@transform
+def lift_coefficient(
+    weight: Force,
+    dynamic_pressure: Pressure,
+    wing_area: Area,
+) -> Ratio:
+    return weight / (dynamic_pressure * wing_area)
+
+
+@transform
+def parasite_drag(
+    dynamic_pressure: Pressure,
+    wing_area: Area,
+    zero_lift_drag_coefficient: Ratio,
+) -> Force:
+    return dynamic_pressure * wing_area * zero_lift_drag_coefficient
+
+
+@transform
+def compressibility_drag(
+    dynamic_pressure: Pressure,
+    wing_area: Area,
+    mach: Ratio,
+) -> Force:
+    correction = 0.002 * mach**2 + 0.004 * mach**4
+    return dynamic_pressure * wing_area * correction
+
+
+@transform
+def trim_drag(
+    dynamic_pressure: Pressure,
+    wing_area: Area,
+    lift_coefficient: Ratio,
+) -> Force:
+    return dynamic_pressure * wing_area * 0.0015 * lift_coefficient**2
+
+
+@transform
+def total_drag(
+    parasite_drag: Force,
+    induced_drag: Force,
+    compressibility_drag: Force,
+    trim_drag: Force,
+) -> Force:
+    return parasite_drag + induced_drag + compressibility_drag + trim_drag
+
+
+# Propulsion -----------------------------------------------------------------
+
+
+@transform
+def propulsive_power(total_drag: Force, true_airspeed: Speed) -> Power:
+    return total_drag * true_airspeed
+
+
+@transform
+def fuel_power(
+    propulsive_power: Power,
+    propulsive_efficiency: Ratio,
+) -> Power:
+    return propulsive_power / propulsive_efficiency
+
+
+@transform
+def fuel_flow(fuel_power: Power) -> MassRate:
+    # Approximate kerosene lower heating value, J/kg.
+    return fuel_power / (43_000_000.0 * joule / kilogram)
+
+
+# Emissions ------------------------------------------------------------------
+#
+# These four transforms form independent branches from fuel_flow.
+
+
+@transform
+def co2_rate(fuel_flow: MassRate) -> MassRate:
+    return 3.16 * fuel_flow
+
+
+@transform
+def water_rate(fuel_flow: MassRate) -> MassRate:
+    return 1.23 * fuel_flow
+
+
+@transform
+def nox_rate(fuel_flow: MassRate, nox_emission_index: Ratio) -> MassRate:
+    return fuel_flow * nox_emission_index
+
+
+@transform
+def soot_rate(fuel_flow: MassRate, soot_emission_index: Ratio) -> MassRate:
+    return fuel_flow * soot_emission_index
+
+
+# Illustrative climate effects -----------------------------------------------
+#
+# These are deliberately simple surrogate relationships. They are not intended
+# to be scientifically defensible climate metrics.
+
+
+@transform
+def co2_effect(co2_rate: MassRate) -> MassRate:
+    return co2_rate
+
+
+@transform
+def water_effect(water_rate: MassRate, altitude: Length) -> MassRate:
+    altitude_factor = Quantity(0.8, UNITLESS) + altitude / (50_000.0 * meter)
+    return 0.15 * water_rate * altitude_factor
+
+
+@transform
+def nox_effect(
+    nox_rate: MassRate,
+    altitude: Length,
+    temperature: ScalarAbsoluteTemperature,
+) -> MassRate:
+    altitude_factor = Quantity(0.5, UNITLESS) + altitude / (20_000.0 * meter)
+    temperature_factor = 288.15 / temperature.convert_to(absolute_kelvin).value
+    return 40.0 * nox_rate * altitude_factor * temperature_factor
+
+
+@transform
+def soot_effect(soot_rate: MassRate, altitude: Length) -> MassRate:
+    altitude_factor = Quantity(0.5, UNITLESS) + altitude / (15_000.0 * meter)
+    return 1000.0 * soot_rate * altitude_factor
+
+
+@transform
+def contrail_effect(
+    water_rate: MassRate,
+    soot_rate: MassRate,
+    altitude: Length,
+    temperature: ScalarAbsoluteTemperature,
+) -> MassRate:
+    altitude_factor = (altitude / (12_000.0 * meter)) ** 2
+    temperature_factor = (288.15 / temperature.convert_to(absolute_kelvin).value) ** 2
+    return (
+        0.08
+        * water_rate
+        * (Quantity(1.0, UNITLESS) + (100.0 * second / kilogram) * soot_rate)
+        * altitude_factor
+        * temperature_factor
+    )
+
+
+@transform
+def total_climate_effect(
+    co2_effect: MassRate,
+    water_effect: MassRate,
+    nox_effect: MassRate,
+    soot_effect: MassRate,
+    contrail_effect: MassRate,
+) -> MassRate:
+    return co2_effect + water_effect + nox_effect + soot_effect + contrail_effect
+```
+
+The implementation collects the transforms, including the aerodynamic excerpt above:
+
+<!-- model-source: cruise-implementation -->
+
+```python exec="off"
+cruise_impact = Implementation(
+    CruiseImpact,
+    [
+        temperature,
+        pressure,
+        density,
+        speed_of_sound,
+        true_airspeed,
+        weight,
+        dynamic_pressure,
+        lift_coefficient,
+        parasite_drag,
+        induced_drag,
+        compressibility_drag,
+        trim_drag,
+        total_drag,
+        propulsive_power,
+        fuel_power,
+        fuel_flow,
+        co2_rate,
+        water_rate,
+        nox_rate,
+        soot_rate,
+        co2_effect,
+        water_effect,
+        nox_effect,
+        soot_effect,
+        contrail_effect,
+        total_climate_effect,
+    ],
+)
+```
