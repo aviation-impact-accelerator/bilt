@@ -58,7 +58,7 @@ def price(scenario: Scenario | Tensor, price: float) -> bool:
             selected = 0.70
         case Scenario.MAXIMUM:
             selected = 0.75
-    return price == selected  # pyrefly: ignore[unbound-name]  # ty: ignore[possibly-unbound]
+    return price == selected  # pyrefly: ignore[unbound-name]
 
 
 @pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND), ids=("python", "jax"))
