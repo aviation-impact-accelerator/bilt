@@ -9,6 +9,7 @@ from markdown import Markdown
 
 DOCS = Path("docs")
 SITE = Path("site")
+MINIMUM_EXPRESSIONS = 9
 MATH = re.compile(r'<(?:div|span) class="arithmatex">(.*?)</(?:div|span)>', re.DOTALL)
 
 
@@ -40,7 +41,7 @@ def main() -> int:
             return 1
         total += len(expected)
 
-    if total < 9:
+    if total < MINIMUM_EXPRESSIONS:
         sys.stderr.write(f"Expected at least nine math expressions, found {total}\n")
         return 1
     sys.stdout.write(f"Verified {total} math expressions in the built documentation\n")
