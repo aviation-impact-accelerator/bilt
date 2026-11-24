@@ -1,4 +1,4 @@
-## From models to computation
+# Models to computation
 
 So far, we have given Bilt two kinds of relationship.
 
@@ -26,7 +26,7 @@ When we ask a system for a value, Bilt uses the values already known to work out
 
 We will start with transforms because their direction is already fixed. This makes the structural analysis easier to see.
 
-### Start with what is known
+## Start with what is known
 
 Consider this abstract system. We use simple arithmetic transforms here to make the dependencies easy to follow; in a real model these relationships would usually be equations.
 
@@ -122,7 +122,7 @@ that Bilt has a question to answer:
 
 > Given `alpha` and `beta`, can this implementation produce `epsilon`?
 
-### Finding a route
+## Finding a route
 
 For this directed model, we can understand the required calculations by working backwards from the requested value. This illustrates the dependencies, rather than describing the exact search algorithm.
 
@@ -173,7 +173,7 @@ with basic:
 
 This process of working out which relationships can satisfy a request is **structural analysis**.
 
-### Structural analysis is about relationships
+## Structural analysis is about relationships
 
 At this stage, Bilt does not need to know that:
 
@@ -234,7 +234,7 @@ First decide **what needs to be done**.
 
 Then do it.
 
-### Bilt only needs the relevant part of the model
+## Bilt only needs the relevant part of the model
 
 Suppose we add another value and relationship:
 
@@ -279,7 +279,7 @@ with extended:
 
 The second lookup is a different request. Bilt can restrict each computation to the relationships it needs. That does not mean it can ignore simultaneous constraints that affect the requested result.
 
-### Sometimes there is no route
+## Sometimes there is no route
 
 Suppose we supply only `alpha` to our original directed model. Bilt needs `beta` to calculate `gamma`, and no relationship provides `beta`.
 
@@ -304,7 +304,7 @@ with basic:
 
 A different request may still be possible; a model does not need to determine every value in its interface for every set of inputs.
 
-### Equations add possible routes
+## Equations add possible routes
 
 Transforms are the simplest case because they already have a direction.
 
@@ -383,7 +383,7 @@ The model contains relationships.
 
 The computation plan contains particular directed uses of those relationships.
 
-### Transforms and equations can work together
+## Transforms and equations can work together
 
 A computation plan does not need to use only one kind of relationship. In the [aircraft drag model](transforms-and-implementations.md), a lookup transform provides a drag coefficient and an equation relates it to drag, reference area and dynamic pressure.
 
@@ -397,7 +397,7 @@ drag, dynamic pressure, drag coefficient ──► reference area
 
 The transform retains its direction. The equation can be used in another direction when the known values change.
 
-### Alternative directions are not alternative constraints
+## Alternative directions are not alternative constraints
 
 One equation may support several computational directions. That does not mean Bilt can freely choose between different equations that independently determine the same unknown.
 
@@ -426,7 +426,7 @@ with overconstrained:
 
 Even two equations giving the same numerical answer can be structurally overconstraining. If they represent alternative modelling assumptions, put them in separate implementations, as in the preceding chapter.
 
-### Some equations must be solved together
+## Some equations must be solved together
 
 Consider two equations:
 
@@ -473,7 +473,7 @@ with pair_model:
 
 The relationships stay the same. The request changes the plan. See [Coupled systems](coupled-systems.md) for linear blocks, tensor domains and subsystem coupling.
 
-### The plan is the program Bilt actually runs
+## The plan is the program Bilt actually runs
 
 There is a useful way to think about the layers we have built so far.
 
@@ -542,7 +542,7 @@ The public model stays concerned with relationships.
 
 Bilt takes responsibility for turning those relationships into a computation.
 
-### Supplied and calculated values
+## Supplied and calculated values
 
 When we asked for `pair.x`, the coupled solve also calculated `pair.y`. Bilt can retain both values on that instance, so a later lookup can reuse the result.
 
@@ -552,7 +552,7 @@ This distinction matters: a cached result is a consequence of the model, not an 
 
 Bilt can also plan several requested outputs together, sharing intermediate calculations rather than compiling and running separate plans. Joint planning is currently internal, opt-in infrastructure; normal property access does not automatically group requests. If no compatible joint route exists, Bilt uses the ordinary individual evaluation routes. The supplied-input boundary and structural validation rules are unchanged.
 
-### Structural and numerical solvability
+## Structural and numerical solvability
 
 Structural analysis works with the available relationships, known values and requested result. A request may be underconstrained, overconstrained, or require a calculation Bilt does not support.
 
@@ -560,7 +560,7 @@ A structurally valid plan can still fail numerically. For example, the coefficie
 
 See [Coupled systems](coupled-systems.md#what-if-the-solve-fails) for more on these distinctions.
 
-### Why separate the model from the plan?
+## Why separate the model from the plan?
 
 For our five-value example, writing the calculation directly would certainly be easier.
 

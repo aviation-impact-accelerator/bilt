@@ -624,4 +624,6 @@ force + stiffness → extension
 
 No transforms or manually inverted equations are needed.
 
-This is a small example of the same pattern used by the larger two-shaft turbomachinery model.
+This is a small example of the same pattern used by the [two-shaft gas turbine model](two-shaft-gas-turbine.md).
+
+[Systems of systems](../guide/systems-of-systems.md) · [Coupled systems](../guide/coupled-systems.md) · [Worked examples](../index.md#worked-examples)

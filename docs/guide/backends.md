@@ -1,4 +1,4 @@
-# Using different backends
+# Backends
 
 For backend selection and supported operations, see the [Backends API](../api/backends.md).
 
@@ -238,7 +238,7 @@ Both backends support `if/elif/else`, nested conditionals and numeric-literal
 predicate selects elementwise and broadcasts over named dimensions. The same
 equation syntax works on Python and JAX, but elementwise selection evaluates
 both branches, even where the mask excludes one. See
-[Using `if/else` in an equation](equations-and-acausal-modelling.md#using-ifelse-in-an-equation)
+[Using `if/else` in an equation](equations-and-acausal-modelling.md#using-ifelse-in-an-equation),
 [Using `match/case` in an equation](equations-and-acausal-modelling.md#using-matchcase-in-an-equation)
 and [Conditional selection](../api/tensors.md#conditional-selection-in-equations).
 

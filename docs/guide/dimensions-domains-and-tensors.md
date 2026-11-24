@@ -1,4 +1,4 @@
-## Domains and tensors
+# Dimensions, domains and tensors
 
 For constructors, reductions, indexing and their current limitations, see the [Tensor API reference](../api/tensors.md). For quantity-related type annotations, see [Quantity annotations and typing](../api/quantity-annotations.md).
 
@@ -16,7 +16,7 @@ demand[location, time]
 
 Bilt represents these values using **tensors** over named **dimensions**. We will use a simple aircraft energy model to see how a scalar equation can be used across a range of routes and technologies.
 
-### Dimensions give axes names
+## Dimensions give axes names
 
 In NumPy, an array has a shape, such as `(3, 2)`. That tells us how many elements lie along each axis, but not what those axes mean.
 
@@ -40,7 +40,7 @@ assert route_technology.dims == (route, technology)
 
 The distinction becomes important when different values vary over different sets of dimensions.
 
-### Tensors carry values over a domain
+## Tensors carry values over a domain
 
 A Bilt **tensor** combines concrete values with the dimensions they vary over. Suppose we want to consider three route distances and two aircraft technologies.
 
@@ -58,7 +58,7 @@ The route distances are in kilometres, and the energy intensities in kWh per kil
 
 The numbers still live in ordinary arrays. The domain tells Bilt what each axis represents.
 
-### Scalars have a domain too
+## Scalars have a domain too
 
 A scalar is simply a value that does not vary over any dimensions. Its domain is empty: `()`.
 
@@ -108,7 +108,7 @@ assert route_energy.values.tolist() == [250.0, 500.0, 1000.0]
 
 The scalar intensity is applied to each route. The result varies over the route dimension.
 
-### Named dimensions make broadcasting explicit
+## Named dimensions make broadcasting explicit
 
 Now supply both tensors:
 
@@ -139,7 +139,7 @@ energy           (route, technology)
 
 Bilt evaluates every combination of route and technology. We did not need to write nested loops or reshape either input.
 
-### Scalar or tensor values at system boundaries
+## Scalar or tensor values at system boundaries
 
 For plain values, use `float | Tensor` when a system field accepts either a scalar or a unitless tensor. For quantities with physical units, use the corresponding dimensioned `Quantity | QuantityTensor` annotation.
 
@@ -147,7 +147,7 @@ Sometimes a relationship needs a particular axis, for example when reducing over
 
 See [Quantity annotations and typing](../api/quantity-annotations.md#minimum-domain-requirements) and [Tensor API](../api/tensors.md) for the declaration rules and static typing limitations.
 
-### Broadcasting rules
+## Broadcasting rules
 
 Bilt broadcasting follows dimension names rather than axis positions.
 
@@ -189,7 +189,7 @@ For most model code, this means thinking about **which dimensions a value varies
 
 The result axes follow the evaluation's dimension binding order. Inspect the result's `domain` rather than assuming an axis position. See the [Tensor API](../api/tensors.md#construction-and-inspection).
 
-### The relationship can stay simple
+## The relationship can stay simple
 
 The same energy equation has now answered three questions: one flight, three routes for one technology, and every combination of routes and technologies.
 
@@ -197,7 +197,7 @@ The dimensions belong to the values. The equation describes how those values are
 
 This is useful when the same engineering model is used for a single design point, a parameter sweep or an uncertainty analysis. Additional named dimensions do not require changes to a pointwise equation.
 
-### Reduce over a named dimension
+## Reduce over a named dimension
 
 Sometimes we want a summary rather than every combination. For example, we can calculate the mean energy across the three routes, retaining one value for each technology.
 
@@ -230,7 +230,7 @@ A reduction removes the named dimension. Here the input domain is `(route, techn
 
 This is an unweighted mean over the three example routes, not a fleet-weighted energy estimate. Use the appropriate aggregation for the engineering question.
 
-### Select by position
+## Select by position
 
 We can also select the second route (1,000 km) while keeping both technologies:
 
@@ -253,7 +253,7 @@ The index is zero-based. Like a reduction, selection removes one dimension. We u
 
 These methods are symbolic operations in Bilt equations. Outside a model, use the returned tensor's `values` array for ordinary numerical operations.
 
-### Dimensions also have extents
+## Dimensions also have extents
 
 Knowing that a tensor varies over `time` is not enough to store concrete data.
 
@@ -296,7 +296,7 @@ they cannot silently represent the same `time` dimension in that evaluation.
 
 Catching that mismatch early is preferable to letting incompatible arrays make their way further into the model.
 
-### Coordinates give dimensions concrete meaning
+## Coordinates give dimensions concrete meaning
 
 Sometimes an extent is all we need. Often we also care which coordinate each position represents.
 
@@ -342,7 +342,7 @@ assert medium.values.tolist() == [500.0, 800.0]
 
 The result is the same as positional selection, but the equation refers to the route label rather than its position. Coordinate labels can also be numbers or dates. See [Coordinate axes](../api/tensors.md#coordinate-axes) for the supported types and binding rules.
 
-### Shared dimensions need to agree
+## Shared dimensions need to agree
 
 Suppose two values both vary over `time`:
 
@@ -371,7 +371,7 @@ Bilt tracks the extents and any explicitly bound coordinate axes during evaluati
 
 This is one of the main reasons Bilt uses named domains rather than treating tensors as bare arrays.
 
-### Domains describe variation, not meaning
+## Domains describe variation, not meaning
 
 There is a useful boundary to keep in mind.
 
@@ -404,7 +404,7 @@ The domain describes their structure.
 
 The system and its relationships describe their role in the model.
 
-### Domains become part of planning
+## Domains become part of planning
 
 In the previous chapter, structural analysis asked whether the known values and relationships admit a supported plan for the requested result.
 
@@ -450,7 +450,7 @@ The important point for model authors is simpler:
 
 > Missing dimensions can broadcast. Shared dimensions align by name and must be compatible.
 
-### From tensors to larger systems
+## From tensors to larger systems
 
 We now have most of the basic pieces needed to describe individual Bilt models:
 
@@ -468,6 +468,6 @@ The next step is to make models larger without turning them into one enormous sy
 
 Bilt does that by allowing **systems to be composed from other systems**, while preserving the same boundaries and relationships we have been using throughout the guide.
 
-That is the subject of the next chapter.
+That is the subject of the next chapter. For a larger example of named domains and broadcasting, see the [battery-electric mission model](../worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md).
 
 [← Models to computation](models-to-computation.md) · [Index](../index.md) · [Systems of systems →](systems-of-systems.md)

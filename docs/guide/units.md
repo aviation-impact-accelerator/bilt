@@ -1,4 +1,4 @@
-## Units in models
+# Units in models
 
 For a catalogue of built-in units, helpers and errors, see the [Units API reference](../api/units.md).
 For flexible unit-bearing scalar/tensor fields and equation annotations, see
@@ -14,7 +14,7 @@ We can agree on a convention and remember it everywhere. That works until a data
 
 Bilt lets us put that information into the model. We will start with the motion model from [Equations and acausal modelling](equations-and-acausal-modelling.md), give its values units, and then see how to exchange plain numbers with other software.
 
-### A number, a unit, and a dimension
+## A number, a unit, and a dimension
 
 First, let's make a quantity:
 
@@ -52,7 +52,7 @@ These three pieces have different jobs:
 
 This distinction matters when we declare a model. We want a distance to accept any unit of length, rather than requiring every caller to supply kilometres.
 
-### Give the system dimensions
+## Give the system dimensions
 
 Let's declare our motion system again:
 
@@ -93,7 +93,7 @@ These are the three useful quantity declarations:
 
 For specialised domain requirements and typing rules, see [Quantity annotations and typing](../api/quantity-annotations.md).
 
-### Give the equation the same dimensions
+## Give the equation the same dimensions
 
 The mathematical relationship is unchanged. We can use the same pointwise annotations on the equation and system:
 
@@ -124,7 +124,7 @@ If we accidentally wrote `distance == speed + duration`, the equation would rais
 
 This check happens when the model is defined. We do not need to wait for a particular set of inputs to discover the mistake.
 
-### Supply quantities and ask for an answer
+## Supply quantities and ask for an answer
 
 Now we can use whichever compatible units are convenient:
 
@@ -164,7 +164,7 @@ assert required_speed.convert_to(kilometer / hour).value == 36.0
 
 We still have one equation. Bilt rearranges it as needed, and the requested value keeps its own declared dimension.
 
-### The boundary checks what we supply
+## The boundary checks what we supply
 
 A declared field requires a quantity of the right dimension:
 
@@ -182,7 +182,7 @@ Calling `Implementation.evaluate()` directly applies the same input checks, incl
 
 This gives callers a clear contract: choose any compatible unit, but say which unit the value uses.
 
-### Choose a unit before extracting a number
+## Choose a unit before extracting a number
 
 Sometimes another library wants a plain number in a particular unit. This is a useful case for a transform: it makes the boundary between the unit-aware model and the numerical interface explicit.
 
@@ -251,7 +251,7 @@ Outside a model, reading a returned quantity's `.value` is ordinary Python. Conv
 
 Quantity constants can also be used in transforms, for example `distance + 500.0 * meter` or `distance + Quantity(0.5, kilometer)`. See [Units API](../api/units.md#quantities) for the supported operations and restrictions.
 
-### Declarations must agree throughout an implementation
+## Declarations must agree throughout an implementation
 
 A field and every relationship that names it must agree about its physical dimension, tags and absolute or relative kind.
 
@@ -261,7 +261,7 @@ This also applies to intermediate values and subsystem connections. Bilt checks 
 
 Test the calculation itself, especially where it bridges to plain numbers or external software.
 
-### Plain values and dimensionless quantities
+## Plain values and dimensionless quantities
 
 A model can still contain plain numbers, flags and other values, such as `enabled: bool = field()`. These stand outside the unit system.
 
@@ -286,7 +286,7 @@ In equations, plain ports cannot participate in the same quantity arithmetic as 
 
 Transforms can bridge between plain values and quantities explicitly, as we did with `distance_km`.
 
-### Constants in equations carry units too
+## Constants in equations carry units too
 
 Units are useful for fixed physical constants as well as inputs:
 
@@ -322,7 +322,7 @@ Writing only `9.81` would lose that information: a bare number scales the mass b
 
 A constant can also be defined outside the equation and referred to by name. Its unit and dimension remain part of the relationship.
 
-### Temperature readings and temperature changes
+## Temperature readings and temperature changes
 
 Temperature introduces another distinction.
 
@@ -383,7 +383,7 @@ An equation for a midpoint can use `midpoint == cold + (hot - cold) / 2.0`: the 
 
 `celsius` denotes a change; `absolute_celsius` denotes a reading. They cannot be substituted for each other at a declared port.
 
-### Quantities can vary over a domain
+## Quantities can vary over a domain
 
 Units also work with the tensors introduced in [Domains and tensors](dimensions-domains-and-tensors.md). Our original motion system already accepts them, and its equation does not need to change.
 
@@ -409,7 +409,7 @@ These are independent: `dim("sample")` names an array axis, while `LENGTH` descr
 
 The same pointwise annotations work for both scalar and tensor quantities. Use a tensor-only annotation when the field requires a tensor or the equation uses named methods such as `sum` or `isel`. See [Quantity annotations and typing](../api/quantity-annotations.md#named-tensor-operations-in-equations) for more detail.
 
-### Tags preserve what a quantity measures
+## Tags preserve what a quantity measures
 
 Sometimes physical dimensions alone are insufficient. A kilogram of fuel and a kilogram of carbon dioxide are both masses, but confusing them would change the meaning of a model.
 
@@ -452,7 +452,7 @@ Put a tag into the dimension with `MASS * fuel`; writing `Annotated[Quantity, MA
 
 See [Dimensions and metadata](../api/units.md#dimensions-and-metadata) for tag conversions and supported operations.
 
-### When something disagrees
+## When something disagrees
 
 The errors identify the stage at which Bilt finds a disagreement:
 
@@ -468,6 +468,8 @@ The errors identify the stage at which Bilt finds a disagreement:
 Bilt reads annotations at runtime, so their imports must remain available at runtime too. If Ruff asks to move them into a type-checking block, see [Configuration](../config.md#ruff).
 
 We can now write the same engineering relationships as before, while stating what their values measure. Callers choose convenient units. The declarations keep those choices compatible with the model.
+
+Continue with the [worked examples](../index.md#worked-examples), which combine units with equations, transforms, named tensors and subsystems.
 
 ---
 

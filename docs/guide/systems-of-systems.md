@@ -1,4 +1,4 @@
-## Systems of systems
+# Systems of systems
 
 So far, every system in the guide has stood on its own.
 
@@ -10,7 +10,7 @@ Bilt lets an implementation use other implementations internally.
 
 We will start with a resistor.
 
-### Start with an ordinary system
+## Start with an ordinary system
 
 ```python exec="on" source="above" session="systems-of-systems"
 from bilt import Implementation, Interface, equation, field, system
@@ -57,7 +57,7 @@ It is a complete Bilt model in its own right.
 
 Now we will use it inside something larger.
 
-### Build a parent system
+## Build a parent system
 
 Suppose a board contains a resistive load.
 
@@ -82,7 +82,7 @@ Board
 
 The resistor is not part of this public interface. It is part of one implementation of the board.
 
-### Add an internal implementation
+## Add an internal implementation
 
 The board implementation will contain a named resistor implementation:
 
@@ -94,7 +94,7 @@ Board implementation
 
 Containment alone does not connect the two boundaries. Bilt requires each named child to be referenced by a parent equation.
 
-### Connect parent and child values
+## Connect parent and child values
 
 Parent equations can refer to the child interface:
 
@@ -167,7 +167,7 @@ The board owns the connection equations.
 
 The resistor owns Ohm's law.
 
-### Use the parent through its normal interface
+## Use the parent through its normal interface
 
 Create the values we know:
 
@@ -212,7 +212,7 @@ supply_current
 
 The internal system participates in the computation without becoming part of the public API of `Board`.
 
-### The relationships remain acausal
+## The relationships remain acausal
 
 The resistor still contains the same equation:
 
@@ -238,7 +238,7 @@ As before:
 
 > The model describes relationships. The request determines the computation.
 
-### Reuse implementations
+## Reuse implementations
 
 The same child implementation can be used in many larger models:
 
@@ -253,7 +253,7 @@ It does not know which parent will contain it or what name it will have there.
 
 This is what makes small systems useful as reusable modelling components.
 
-### Use more than one internal system
+## Use more than one internal system
 
 A circuit containing two resistors in series can reuse the same implementation twice. Each child has its own voltage, resistance and current.
 
@@ -370,7 +370,7 @@ In the second request, the unknown currents and voltages are coupled. Bilt can s
 
 Alternatively, expose each voltage drop on the parent and relate those parent values. This is useful when callers need to inspect the intermediate values. It is not required for connecting children.
 
-### Put it together
+## Put it together
 
 The complete board example is:
 
@@ -456,7 +456,7 @@ with board_model:
     assert board.supply_current == 2.0
 ```
 
-### What to remember
+## What to remember
 
 A larger implementation can contain smaller implementations:
 
@@ -504,10 +504,10 @@ The hierarchy organises the model.
 
 The relationships determine what can be computed.
 
-### When the parent and child must be solved together
+## When the parent and child must be solved together
 
 A subsystem boundary does not always define an independent calculation. A parent's balance may depend on a child output while that output depends on a value determined by the same balance.
 
-The SCC analyser can retain those primitive equations in one supported linear block, preserving each child instance's identity. See [Coupled systems](coupled-systems.md) and the [recuperated gas turbine](../worked_examples/two-shaft-gas-turbine.md#14-close-the-loop-with-recuperation).
+Bilt's structural analyser can retain those component equations in one supported linear block, preserving each child instance's identity. See [Coupled systems](coupled-systems.md) and the [recuperated gas turbine](../worked_examples/two-shaft-gas-turbine.md#14-close-the-loop-with-recuperation).
 
 [← Dimensions, domains and tensors](dimensions-domains-and-tensors.md) · [Index](../index.md) · [Coupled systems →](coupled-systems.md)

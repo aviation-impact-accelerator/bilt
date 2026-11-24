@@ -1,4 +1,4 @@
-# Battery electric mission model with quasi-Monte Carlo broadcasting
+# Battery-electric mission model with quasi-Monte Carlo broadcasting
 
 This worked example uses independently scrambled Sobol designs to evaluate a small battery-electric mission model over uncertain inputs, routes, and payload cases.
 
@@ -647,14 +647,6 @@ Change one thing at a time:
 
 None of those changes requires adding a model loop over the new cases.
 
-A useful next extension would be a Bilt reduction API that could replace positional NumPy operations such as:
+Bilt supports named reductions inside model relationships, for example `values.mean(sample)` in an equation. Here the feasibility mask and scramble-level uncertainty estimates are calculated outside the model using NumPy. The concrete tensors do not provide general eager named reductions. See the [Tensor API](../api/tensors.md#reductions) for supported operations.
 
-```python exec="off"
-feasible.mean(axis=1)
-```
-
-with named operations such as:
-
-```python exec="off"
-feasible.mean(over=sample)
-```
+[Dimensions, domains and tensors](../guide/dimensions-domains-and-tensors.md) · [Worked examples](../index.md#worked-examples)

@@ -102,4 +102,4 @@ Bilt's explicit model structure provides a basis for that inspection. The aim is
 
 The guides that follow introduce systems, equations, transforms, units and domains in practice.
 
-[Index](../index.md) · [Systems-and-values →](systems-and-values.md)
+[← Your first Bilt model](../getting-started/first-model.md) · [Index](../index.md) · [Systems and values →](systems-and-values.md)
