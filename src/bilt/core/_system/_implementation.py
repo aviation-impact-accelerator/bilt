@@ -41,7 +41,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._port_declaration import PortDeclaration
     from bilt.core._structural_analysis import StructuralAnalyser
-    from bilt.symbolic._dimensions import Coordinate, Dim
+    from bilt.symbolic._dimensions import Dim
 
 
 @dataclasses.dataclass(frozen=True)
@@ -57,7 +57,7 @@ class _CompilationRequest:
 class _CompilationContext:
     canonical_order: Domain
     coordinate_signature: tuple[
-        tuple[Dim, tuple[Coordinate, ...]],
+        tuple[Dim, tuple[object, ...]],
         ...,
     ]
 
