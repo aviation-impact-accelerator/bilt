@@ -9,7 +9,7 @@ see the [backend guide](../guide/backends.md) for a walkthrough.
 | `JAX_BACKEND` | JAX operations with `jax.jit` compilation of transforms and the calculation chain. | Optional `jax` extra. |
 
 ```console
-uv add "bilt[jax]"
+uv add "bilt[jax] @ git+https://github.com/aviation-impact-accelerator/bilt.git"
 ```
 
 For an existing `model` implementation and an instance `sample`:
@@ -28,7 +28,8 @@ with JAX_BACKEND, model:
 
 Use a fresh instance for each backend comparison: values already calculated on an
 instance are cached and are returned without recalculation. The first JAX call
-may include compilation; later calls can reuse compiled work.
+may include analysis, preparation and JIT compilation; later compatible calls
+can reuse prepared work. See [Cold and warm evaluations](../guide/backends.md#cold-and-warm-evaluations).
 
 ## Supported operations
 
