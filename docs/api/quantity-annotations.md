@@ -15,7 +15,7 @@ over compatible domains.
 
 | Value | System field (when either shape is allowed) | Equation parameter |
 | --- | --- | --- |
-| Plain scalar or unitless tensor | `float | Tensor` | `float` for scalar-local arithmetic; `Tensor` for named tensor methods |
+| Plain scalar or unitless tensor | `float \| Tensor` | `float` for scalar-local arithmetic; `Tensor` for named tensor methods |
 | Pointwise quantity with a physical unit | `Quantity \| QuantityTensor` | `Quantity` for scalar-local arithmetic (or the union for pointwise operators) |
 | Tensor quantity with a physical unit | `QuantityTensor` | `QuantityTensor` for named tensor methods |
 | Strictly scalar quantity with a physical unit | `Quantity` | `Quantity` for scalar arithmetic |
@@ -64,7 +64,7 @@ either shape; Bilt builds symbolic expressions when constructing the equation.
 | `Quantity` | Concrete scalar `Quantity`, with its arithmetic methods | Scalar quantity arithmetic; lifted inside equations |
 | `QuantityTensor` | Concrete unit-bearing tensor, including tensor methods | Tensor quantity with a non-optional unit |
 | `Tensor` | Tensor with or without a unit | Plain `Tensor` system fields are unitless; use `QuantityTensor` for dimensioned tensors |
-| `float | Tensor` | Plain scalar or tensor | Unitless system boundary |
+| `float \| Tensor` | Plain scalar or tensor | Unitless system boundary |
 
 Use `Quantity | QuantityTensor` for pointwise quantities that may be scalar or tensor. Use `Quantity` for scalar-only inputs and operations, and `QuantityTensor` when named tensor methods are required. In longer models, use paired aliases such as `Mass = Annotated[Quantity, MASS]` and `PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]` instead of repeating the full annotations.
 
@@ -137,6 +137,8 @@ domain hints for structural/linear-block analysis. It is not a system-field
 annotation, and is not reinterpreted as a minimum-domain requirement.
 Dimensioned `Annotated[Tensor, DIM]` declarations are no longer supported;
 use `QuantityTensor` for tensor-only fields and equations.
+Unitless `Annotated[Tensor, Domain(...)]` annotations also remain available as exact domain hints for structural analysis. Scalar equation parameters can use `Domain.scalar()` as an exact scalar layout. A pointwise union that accepts scalar values cannot impose a minimum tensor domain. A failed minimum-domain requirement rejects the selected route with the equation, port and missing dimensions in the explanation.
+
 Domain constraints in `Annotated` are validated by Bilt, not statically
 interpreted by ty or Pyrefly.
 
