@@ -399,7 +399,7 @@ def _validate_match_arms(
         _reject(statement, "an enum match must have at least one case", BiltCategoricalEquationError)
 
     names: set[str] = set()
-    members: set[str] = set()
+    members: set[enum.Enum] = set()
     for index, case in enumerate(statement.cases):
         if case.guard is not None:
             _reject(case.guard, "match guards are not supported")
@@ -408,10 +408,10 @@ def _validate_match_arms(
             if subject_type is not None:
                 # _match_literal verified both enum class and member identity.
                 value = typing.cast("ast.MatchValue", case.pattern).value
-                members.add(typing.cast("ast.Attribute", value).attr)
+                members.add(subject_type[typing.cast("ast.Attribute", value).attr])
         names.add(_validate_branch_arm(case.body, statement, params, assigned, enum_context))
     if subject_type is not None:
-        missing = set(subject_type.__members__) - members
+        missing = {member.name for member in subject_type if member not in members}
         if missing and (not wildcard or checking_model_definitions()):
             msg = f"non-exhaustive {subject_type.__name__} match: explicitly handle {', '.join(sorted(missing))}"
             _reject(statement, msg, BiltCategoricalEquationError)
