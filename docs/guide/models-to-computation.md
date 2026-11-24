@@ -28,9 +28,12 @@ We will start with transforms because their direction is already fixed. This mak
 
 ### Start with what is known
 
-Consider this abstract system:
+Consider this abstract system. We use simple arithmetic transforms here to make the dependencies easy to follow; in a real model these relationships would usually be equations.
 
-```python exec="off"
+```python exec="on" source="above" session="computation"
+from bilt import Implementation, Interface, equation, field, system, transform
+
+
 @system
 class Demo(metaclass=Interface):
     alpha: float = field()
@@ -58,15 +61,36 @@ def epsilon(gamma: float, delta: float) -> float:
     return gamma + delta
 ```
 
+<!-- markdown-exec: hidden setup -->
+
+```python exec="on" session="computation"
+from pathlib import Path
+from runpy import run_path
+from tempfile import TemporaryDirectory
+
+# Execute the displayed transform definitions from a real Python source file.
+guide = Path("docs/guide/models-to-computation.md").read_text(encoding="utf-8")
+source = next(
+    block.split("```", 1)[0] for block in guide.split('```python exec="off"\n')[1:] if block.startswith("@transform\n")
+)
+with TemporaryDirectory() as directory:
+    module = Path(directory) / "computation_transforms.py"
+    module.write_text("from bilt import transform\n\n" + source, encoding="utf-8")
+    definitions = run_path(str(module))
+gamma = definitions["gamma"]
+delta = definitions["delta"]
+epsilon = definitions["epsilon"]
+```
+
 and an implementation:
 
-```python exec="off"
+```python exec="on" source="above" session="computation"
 basic = Implementation(Demo, [gamma, delta, epsilon])
 ```
 
 Now create an instance:
 
-```python exec="off"
+```python exec="on" source="above" session="computation"
 demo = Demo(alpha=1.0, beta=2.0)
 ```
 
@@ -85,11 +109,11 @@ delta
 epsilon
 ```
 
-Nothing happens just because we created the system.
+Creating the instance records the supplied values. It does not calculate the missing values.
 
 It is only when we request a value:
 
-```python exec="off"
+```python exec="on" source="above" session="computation"
 with basic:
     result = demo.epsilon
 ```
@@ -100,7 +124,7 @@ that Bilt has a question to answer:
 
 ### Finding a route
 
-Bilt can look at the available relationships and work backwards from the requested value.
+For this directed model, we can understand the required calculations by working backwards from the requested value. This illustrates the dependencies, rather than describing the exact search algorithm.
 
 To obtain `epsilon`, it needs:
 
@@ -122,14 +146,14 @@ alpha, gamma ──► delta
 
 Since `alpha` and `beta` are already available, Bilt can assemble a complete route:
 
-```text
-alpha ──┐
-        ├──► gamma ──┐
-beta  ──┘            │
-                     ├──► epsilon
-alpha ───────────────┤
-                     │
-gamma ─────► delta ──┘
+```mermaid
+flowchart LR
+    A["alpha"] --> G["gamma"]
+    B["beta"] --> G
+    A --> D["delta"]
+    G --> D
+    G --> E["epsilon"]
+    D --> E
 ```
 
 That gives a computation plan:
@@ -142,7 +166,7 @@ That gives a computation plan:
 
 Bilt can then execute that plan and return:
 
-```python exec="off"
+```python exec="on" source="above" session="computation"
 with basic:
     assert demo.epsilon == 7.0
 ```
@@ -153,7 +177,7 @@ This process of working out which relationships can satisfy a request is **struc
 
 At this stage, Bilt does not need to know that:
 
-```python exec="off"
+```text
 return alpha + beta
 ```
 
@@ -178,9 +202,9 @@ This lets Bilt reason about the structure of a model before carrying out the cal
 
 For transforms, the direction is already fixed.
 
-For equations, Bilt may first need to decide which value the relationship can provide from the values available.
+For equations, Bilt must also consider which participating values are unknown. It matches relationships to unknowns in the relevant part of the model, then determines how the resulting dependencies can be evaluated. A transform can only be matched to its declared output.
 
-Once a particular direction has been chosen, it contributes the same kind of dependency information to the computation plan.
+Some dependencies can be ordered into individual calculations. Others form coupled blocks that need to be solved together. Structural analysis must also check that the selected formulation is supported; the existence of a matching alone is not enough.
 
 The overall process is:
 
@@ -202,7 +226,7 @@ execution
 
 Bilt uses the **causalization analyser**, also called the SCC analyser, by default.
 
-It can order independent calculations and group equations that must be solved together. Supported coupled linear groups are evaluated as simultaneous systems, including groups that cross subsystem boundaries. This does not provide a general nonlinear solver.
+SCC stands for strongly connected components: groups of mutually dependent calculations. The analyser orders the groups and Bilt realises supported groups as executable steps. Supported coupled linear groups can cross subsystem boundaries. This does not provide a general nonlinear solver.
 
 The Python and JAX backends determine how the resulting plan executes. Choosing a backend does not change the structural analyser.
 
@@ -210,13 +234,13 @@ First decide **what needs to be done**.
 
 Then do it.
 
-### Bilt only needs a route to the requested value
+### Bilt only needs the relevant part of the model
 
-Suppose we add another value and transform:
+Suppose we add another value and relationship:
 
-```python exec="off"
+```python exec="on" source="above" session="computation"
 @system
-class Demo(metaclass=Interface):
+class ExtendedDemo(metaclass=Interface):
     alpha: float = field()
     beta: float = field()
     gamma: float = field()
@@ -225,105 +249,60 @@ class Demo(metaclass=Interface):
     zeta: float = field()
 
 
-@transform
-def zeta(alpha: float) -> float:
-    return alpha * 10
+@equation
+def extra_relation(alpha: float, zeta: float) -> bool:
+    return zeta == alpha * 10.0
+
+
+extended = Implementation(ExtendedDemo, [gamma, delta, epsilon, extra_relation])
 ```
 
-and include it in the implementation:
+If we supply `alpha` and `beta` and ask for `epsilon`, there is no reason to calculate `zeta`.
 
-```python exec="off"
-basic = Implementation(Demo, [gamma, delta, epsilon, zeta])
+```mermaid
+flowchart LR
+    A["alpha"] --> G["gamma"]
+    B["beta"] --> G
+    A --> D["delta"]
+    G --> D
+    G --> E["epsilon"]
+    D --> E
+    A -.-> Z["zeta"]
 ```
 
-If we ask for `epsilon`, there is no reason to calculate `zeta`.
-
-```text
-alpha ─────────────────────► zeta
-
-alpha ──┐
-        ├──► gamma ──┐
-beta  ──┘            │
-                     ├──► epsilon
-alpha ───────────────┤
-                     │
-gamma ─────► delta ──┘
+```python exec="on" source="above" session="computation"
+with extended:
+    example = ExtendedDemo(alpha=1.0, beta=2.0)
+    assert example.epsilon == 7.0
+    assert example.zeta == 10.0
 ```
 
-The route to `zeta` exists, but it is irrelevant to the request.
-
-Bilt can restrict the computation to the part of the model needed to produce `epsilon`.
-
-This is one reason the requested value matters.
-
-An implementation describes everything that *could* be calculated.
-
-A particular evaluation only needs the relationships that lead to what was requested.
+The second lookup is a different request. Bilt can restrict each computation to the relationships it needs. That does not mean it can ignore simultaneous constraints that affect the requested result.
 
 ### Sometimes there is no route
 
-Now consider a smaller system:
-
-```python exec="off"
-@system
-class Demo(metaclass=Interface):
-    alpha: float = field()
-    beta: float = field()
-    gamma: float = field()
-    delta: float = field()
-```
-
-with only this transform:
-
-```python exec="off"
-@transform
-def delta(alpha: float, beta: float) -> float:
-    return alpha + beta
-```
-
-and an implementation:
-
-```python exec="off"
-basic = Implementation(Demo, [delta])
-```
-
-We can construct:
-
-```python exec="off"
-demo = Demo(alpha=1.0, beta=2.0)
-```
-
-but if we ask for `gamma`:
-
-```python exec="off"
-with basic:
-    _ = demo.gamma
-```
-
-Bilt has no relationship that can produce it.
-
-The implementation knows how to calculate `delta`, but that does not help us reach `gamma`.
-
-Conceptually:
+Suppose we supply only `alpha` to our original directed model. Bilt needs `beta` to calculate `gamma`, and no relationship provides `beta`.
 
 ```text
-alpha, beta ──► delta
-
-gamma ?
+alpha, beta ──► gamma
+       ?
 ```
 
-There is no route.
+The request for `epsilon` is underconstrained. Bilt reports a `BiltAnalysisError` rather than executing a plan with missing inputs. We can check the expected failure in ordinary Python:
 
-In that case Bilt raises a `BiltAnalysisError` rather than beginning an evaluation that cannot satisfy the request.
+```python exec="on" source="above" session="computation"
+from bilt.errors import BiltAnalysisError
 
-```python exec="off"
-with basic, pytest.raises(BiltAnalysisError):
-    _ = demo.gamma
+with basic:
+    try:
+        Demo(alpha=1.0).epsilon
+    except BiltAnalysisError:
+        pass
+    else:
+        raise AssertionError("Expected an underconstrained request")
 ```
 
-This is useful because the failure happens at the level of the model structure.
-
-Bilt can tell that the requested result is unavailable without first stumbling through a partially completed calculation.
+A different request may still be possible; a model does not need to determine every value in its interface for every set of inputs.
 
 ### Equations add possible routes
 
@@ -333,10 +312,20 @@ Equations make structural analysis more interesting.
 
 Recall our motion equation:
 
-```python exec="off"
+```python exec="on" source="above" session="computation"
+@system
+class Motion(metaclass=Interface):
+    distance: float = field()
+    speed: float = field()
+    time: float = field()
+
+
 @equation
-def motion(distance: float, speed: float, time: float):
+def motion(distance: float, speed: float, time: float) -> bool:
     return distance == speed * time
+
+
+motion_model = Implementation(Motion, [motion])
 ```
 
 The equation itself is not directional.
@@ -359,15 +348,15 @@ distance, speed ─► time
 
 Suppose we create:
 
-```python exec="off"
+```python exec="on" source="above" session="computation"
 journey = Motion(distance=100.0, time=5.0)
 ```
 
 and request:
 
-```python exec="off"
+```python exec="on" source="above" session="computation"
 with motion_model:
-    speed = journey.speed
+    assert journey.speed == 20.0
 ```
 
 Bilt can see that `distance` and `time` are already available.
@@ -396,81 +385,93 @@ The computation plan contains particular directed uses of those relationships.
 
 ### Transforms and equations can work together
 
-A computation plan does not need to use only one kind of relationship.
+A computation plan does not need to use only one kind of relationship. In the [aircraft drag model](transforms-and-implementations.md), a lookup transform provides a drag coefficient and an equation relates it to drag, reference area and dynamic pressure.
 
-Suppose an implementation contains a transform:
-
-```text
-alpha, beta ──► gamma
-```
-
-and an equation:
+If drag is supplied and area is requested, Bilt first obtains the coefficient from the transform, then rearranges the drag equation.
 
 ```text
-gamma = delta × epsilon
+lift coefficient ──► drag coefficient
+
+drag, dynamic pressure, drag coefficient ──► reference area
 ```
 
-Now suppose `alpha`, `beta`, and `epsilon` are known, and we ask for `delta`.
+The transform retains its direction. The equation can be used in another direction when the known values change.
 
-Bilt can first use the transform:
+### Alternative directions are not alternative constraints
+
+One equation may support several computational directions. That does not mean Bilt can freely choose between different equations that independently determine the same unknown.
+
+For example, suppose we add another equation to our motion model:
+
+```python exec="on" source="above" session="computation"
+@equation
+def alternative_motion(distance: float, speed: float, time: float) -> bool:
+    return distance == 2.0 * speed * time
+
+
+overconstrained = Implementation(Motion, [motion, alternative_motion])
+```
+
+With speed and time supplied, both equations determine distance. They are competing constraints, not alternative algorithms to choose between.
+
+```python exec="on" source="above" session="computation"
+with overconstrained:
+    try:
+        Motion(speed=20.0, time=5.0).distance
+    except BiltAnalysisError:
+        pass
+    else:
+        raise AssertionError("Expected an overconstrained request")
+```
+
+Even two equations giving the same numerical answer can be structurally overconstraining. If they represent alternative modelling assumptions, put them in separate implementations, as in the preceding chapter.
+
+### Some equations must be solved together
+
+Consider two equations:
 
 ```text
-alpha, beta ──► gamma
+x + y = p
+x - y = q
 ```
 
-Once `gamma` is available, it can use the equation in the direction:
+When `p` and `q` are supplied, neither equation can be evaluated independently. The two unknowns form a coupled block.
 
-```text
-gamma, epsilon ──► delta
+```python exec="on" source="above" session="computation"
+@system
+class Pair(metaclass=Interface):
+    x: float = field()
+    y: float = field()
+    p: float = field()
+    q: float = field()
+
+
+@equation
+def total(x: float, y: float, p: float) -> bool:
+    return x + y == p
+
+
+@equation
+def difference(x: float, y: float, q: float) -> bool:
+    return x - y == q
+
+
+pair_model = Implementation(Pair, [total, difference])
+
+with pair_model:
+    pair = Pair(p=10.0, q=2.0)
+    assert abs(pair.x - 6.0) < 1e-10
+    assert abs(pair.y - 4.0) < 1e-10
 ```
 
-Together, those relationships give a computation plan:
+If we instead supply `x` and `q`, Bilt can calculate `y` and then `p` without a simultaneous solve:
 
-```text
-1. gamma from alpha and beta
-2. delta from gamma and epsilon
+```python exec="on" source="above" session="computation"
+with pair_model:
+    assert Pair(x=6.0, q=2.0).p == 10.0
 ```
 
-or, written more like a conventional program:
-
-```text
-gamma = gamma(alpha, beta)
-delta = gamma / epsilon
-```
-
-One step came from a transform.
-
-The other came from an equation.
-
-From the point of view of structural analysis, they are simply relationships that can contribute steps towards the requested value.
-
-The resulting computation plan can freely combine both.
-
-### A model can contain more than one route
-
-As models grow, there may be several possible ways to obtain the same value.
-
-For example, imagine an implementation that contains:
-
-```text
-alpha, beta ─────────► gamma
-
-alpha ──► delta ──┐
-                  ├──► gamma
-beta ─────────────┘
-```
-
-Both routes eventually provide `gamma`.
-
-That means finding *a* valid route and deciding which route to use are separate questions.
-
-The same can happen when equations introduce alternative directions, or when several parts of a composed model can provide the same value.
-
-For now, the important point is simply that an implementation is not necessarily one predetermined chain of calculations.
-
-It can contain alternatives.
-
-Structural analysis turns those possibilities into a concrete plan for a particular request.
+The relationships stay the same. The request changes the plan. See [Coupled systems](coupled-systems.md) for linear blocks, tensor domains and subsystem coupling.
 
 ### The plan is the program Bilt actually runs
 
@@ -504,21 +505,21 @@ delta = delta(alpha, gamma)
 epsilon = epsilon(gamma, delta)
 ```
 
-That plan is directional, ordered, and executable.
+That plan is directional, ordered, and executable. A step can be an ordinary calculation or a supported simultaneous solve.
 
 An equation can participate in exactly the same kind of plan once Bilt has chosen how to use it.
 
 For example:
 
 ```text
-speed = motion(distance, time)
+speed = distance / time
 ```
 
 is not the equation itself.
 
 It is one directed use of the equation selected for this particular analysis.
 
-A plan may also combine transform calls and directed uses of equations, as we saw above.
+A plan may combine transform calls, directed uses of equations and coupled blocks.
 
 So although the model does not prescribe a single execution order, the result of analysing it does.
 
@@ -541,11 +542,27 @@ The public model stays concerned with relationships.
 
 Bilt takes responsibility for turning those relationships into a computation.
 
+### Supplied and calculated values
+
+When we asked for `pair.x`, the coupled solve also calculated `pair.y`. Bilt can retain both values on that instance, so a later lookup can reuse the result.
+
+For a new output request, Bilt still plans using the original constructor-supplied inputs, not every cached value as a new constraint. It can then reuse calculated values needed by the validated plan.
+
+This distinction matters: a cached result is a consequence of the model, not an independently imposed boundary condition. Use a fresh instance when changing the supplied values, implementation or backend.
+
+### Structural and numerical solvability
+
+Structural analysis works with the available relationships, known values and requested result. A request may be underconstrained, overconstrained, or require a calculation Bilt does not support.
+
+A structurally valid plan can still fail numerically. For example, the coefficients of a linear block may make its matrix singular for a particular set of inputs. And a successful calculation does not establish physical validity.
+
+See [Coupled systems](coupled-systems.md#what-if-the-solve-fails) for more on these distinctions.
+
 ### Why separate the model from the plan?
 
 For our five-value example, writing the calculation directly would certainly be easier.
 
-```python exec="off"
+```text
 gamma = alpha + beta
 delta = alpha + gamma
 epsilon = gamma + delta
@@ -561,15 +578,13 @@ Transforms and equations may contribute to the same analysis.
 
 Large implementations may contain many relationships of which only a few are relevant.
 
-There may be several possible routes to the same result.
+The directions of equations and the coupled blocks may change with the request.
 
-And composed models may offer routes through several constituent systems.
+And composed models may require calculations across several constituent systems.
 
 Separating the **model** from the **computation plan** lets the same model support those different analyses.
 
 > You describe the relationships once. Bilt works out how to use them for the problem at hand.
-
-Not every valid plan is a chain of single-output calculations. Some equations depend on one another and must be grouped into a coupled block. The SCC analyser can solve supported linear blocks together, including blocks spanning child systems. See [Coupled systems](coupled-systems.md) for examples and current availability.
 
 So far, all of our values have been simple scalars.
 
