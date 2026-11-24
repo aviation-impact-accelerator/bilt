@@ -48,6 +48,8 @@ jobs:
       - name: Configure PyO3 Python
         run: |
           echo "PYO3_PYTHON=$(uv run python -c 'import sys; print(sys.executable)')" >> "$GITHUB_ENV"
+          python_libdir="$(uv run python -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))')"
+          echo "LD_LIBRARY_PATH=$python_libdir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
 
       - name: Verify generated README illustrations
         run: uv run python scripts/generate_readme_svgs.py --check
@@ -66,6 +68,16 @@ jobs:
 
       - name: Test with pytest
         run: uv run pytest --durations=100 --durations-min=0.01
+
+      - name: Native strict parity smoke tests
+        env:
+          BILT_EXPERIMENTAL_STRUCTURAL_ENGINE: rust
+        run: uv run pytest tests/test_native_engine_parity.py
+
+      - name: Full regression with hybrid structural engine
+        env:
+          BILT_EXPERIMENTAL_STRUCTURAL_ENGINE: hybrid
+        run: uv run pytest --durations=20
 
       - name: Verify bounded nested coupled planning benchmark
         run: uv run --with pytest-benchmark==5.3.1 pytest benchmarks/test_nested_coupled_plan_search.py --benchmark-disable --search-rounds=1 --timeout=30
