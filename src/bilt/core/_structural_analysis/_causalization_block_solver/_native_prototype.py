@@ -210,5 +210,9 @@ def attempt_required_inputs(
     produced = {step.output for block in blocks for step in block.steps}
     STATS["route_success"] += 1
     return frozenset(
-        attribute for block in blocks for step in block.steps for attribute in step.consumed if attribute not in produced
+        attribute
+        for block in blocks
+        for step in block.steps
+        for attribute in step.consumed
+        if attribute not in produced
     )
