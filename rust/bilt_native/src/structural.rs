@@ -1,6 +1,6 @@
 //! Experimental native structural planner. No Python objects in the search state.
 use pyo3::prelude::*;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 
 type Id = usize;
 type Set = BTreeSet<Id>;
@@ -18,6 +18,7 @@ struct Row {
 struct Context {
     rows: Vec<Row>,
     adjacent: BTreeMap<Id, Vec<Id>>,
+    parent: Option<(Id, Id)>,
 }
 
 /// Immutable, qualified integer-ID model, shared across requests.
@@ -44,6 +45,69 @@ fn matching(edges: &[Vec<Id>]) -> BTreeMap<Id, Id> {
     let mut mates = BTreeMap::new();
     for row in 0..edges.len() {
         augment(row, edges, &mut Set::new(), &mut mates);
+    }
+    mates
+}
+
+// Successive shortest alternating paths. Each augmentation preserves
+// minimum cost at its cardinality, so weights never trade away cardinality.
+fn weighted_matching(edges: &[Vec<Id>], weights: &[BTreeMap<Id, i32>]) -> BTreeMap<Id, Id> {
+    let mut mates: BTreeMap<Id, Id> = BTreeMap::new();
+    let mut row_mates: Vec<Option<Id>> = vec![None; edges.len()];
+    loop {
+        let mut row_dist = vec![i32::MAX; edges.len()];
+        let mut port_dist: BTreeMap<Id, i32> = BTreeMap::new();
+        let mut previous: BTreeMap<Id, Id> = BTreeMap::new();
+        let mut pending = VecDeque::new();
+        let mut queued = vec![false; edges.len()];
+        for (row, mate) in row_mates.iter().enumerate() {
+            if mate.is_none() && !edges[row].is_empty() {
+                row_dist[row] = 0;
+                pending.push_back(row);
+                queued[row] = true;
+            }
+        }
+        while let Some(row) = pending.pop_front() {
+            queued[row] = false;
+            for &port in &edges[row] {
+                if row_mates[row] == Some(port) {
+                    continue;
+                }
+                let distance = row_dist[row] - weights[row][&port];
+                if distance >= port_dist.get(&port).copied().unwrap_or(i32::MAX) {
+                    continue;
+                }
+                port_dist.insert(port, distance);
+                previous.insert(port, row);
+                if let Some(&other) = mates.get(&port) {
+                    let distance = distance + weights[other][&port];
+                    if distance < row_dist[other] {
+                        row_dist[other] = distance;
+                        if !queued[other] {
+                            pending.push_back(other);
+                            queued[other] = true;
+                        }
+                    }
+                }
+            }
+        }
+        let Some(mut port) = port_dist
+            .iter()
+            .filter(|(p, _)| !mates.contains_key(*p))
+            .min_by_key(|(p, d)| (**d, **p))
+            .map(|(&p, _)| p)
+        else {
+            break;
+        };
+        loop {
+            let row = previous[&port];
+            mates.insert(port, row);
+            let old = row_mates[row].replace(port);
+            let Some(old_port) = old else {
+                break;
+            };
+            port = old_port;
+        }
     }
     mates
 }
@@ -137,8 +201,8 @@ impl NativeStructuralModel {
     }
 
     // Forward producers are a preference only; every other candidate edge is
-    // retained for retries. The prototype uses a deterministic bipartite
-    // augmenting-path matcher rather than rustworkx's weighted blossom.
+    // retained for retries. The prototype uses a weighted bipartite matcher
+    // rather than rustworkx's general weighted blossom.
     fn preferred(&self, scope: &[(Id, Id)], available: &Set) -> BTreeMap<Id, (Id, Id)> {
         let mut reached = available.clone();
         let mut producers = BTreeMap::new();
@@ -158,6 +222,16 @@ impl NativeStructuralModel {
                 return producers;
             }
         }
+    }
+
+    // Lift a descendant producer to the immediate child candidate that
+    // exposes its port at the current planning boundary.
+    fn preferred_owner(&self, context: Id, source: (Id, Id)) -> Option<Id> {
+        let (mut owner, mut index) = source;
+        while owner != context {
+            (owner, index) = self.contexts[owner].parent?;
+        }
+        Some(index)
     }
 
     fn plan_inner(
@@ -181,6 +255,7 @@ impl NativeStructuralModel {
         let rows = &self.contexts[context].rows;
         let mut edges = Vec::new();
         let mut owners = Vec::new();
+        let mut weights = Vec::new();
         for (index, row) in rows.iter().enumerate() {
             let mut ports: Vec<_> = row
                 .ports
@@ -200,9 +275,32 @@ impl NativeStructuralModel {
             if row.child.is_some() {
                 for port in ports {
                     edges.push(vec![port]);
+                    let weight = if preferred
+                        .get(&port)
+                        .and_then(|&source| self.preferred_owner(context, source))
+                        == Some(index)
+                    {
+                        2
+                    } else {
+                        0
+                    };
+                    weights.push(BTreeMap::from([(port, weight)]));
                     owners.push(index);
                 }
             } else {
+                weights.push(
+                    ports
+                        .iter()
+                        .map(|&p| {
+                            let weight = if preferred.get(&p) == Some(&(context, index)) {
+                                2
+                            } else {
+                                i32::from(row.ports.iter().all(|q| *q == p || available.contains(q)))
+                            };
+                            (p, weight)
+                        })
+                        .collect(),
+                );
                 edges.push(ports);
                 owners.push(index);
             }
@@ -221,7 +319,7 @@ impl NativeStructuralModel {
                 break;
             }
             *budget -= 1;
-            let matched = matching(&candidate);
+            let matched = weighted_matching(&candidate, &weights);
             let assignments: BTreeMap<_, _> =
                 matched.iter().map(|(&p, &r)| (p, owners[r])).collect();
             let mut settlement = Settlement {
@@ -396,6 +494,7 @@ impl NativeStructuralModel {
             ));
         }
         let mut result = Vec::new();
+        let mut parents = vec![None; count];
         for (context, raw) in contexts.into_iter().enumerate() {
             let mut rows = Vec::new();
             let mut adjacent: BTreeMap<Id, Vec<Id>> = BTreeMap::new();
@@ -406,6 +505,9 @@ impl NativeStructuralModel {
                     ));
                 }
                 let index = rows.len();
+                if let Some(child) = child {
+                    parents[child] = Some((context, index));
+                }
                 for &p in &ports {
                     adjacent.entry(p).or_default().push(index);
                 }
@@ -416,7 +518,11 @@ impl NativeStructuralModel {
                     child,
                 });
             }
-            result.push(Context { rows, adjacent });
+            result.push(Context {
+                rows,
+                adjacent,
+                parent: parents[context],
+            });
         }
         Ok(Self { contexts: result })
     }
@@ -443,6 +549,24 @@ impl NativeStructuralModel {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn weighted_matching_preserves_global_preference_and_cardinality() {
+        let edges = vec![vec![0, 1], vec![0, 1]];
+        let weights = vec![
+            BTreeMap::from([(0, 2), (1, 0)]),
+            BTreeMap::from([(0, 1), (1, 0)]),
+        ];
+        assert_eq!(
+            weighted_matching(&edges, &weights),
+            BTreeMap::from([(0, 0), (1, 1)])
+        );
+        let edges = vec![vec![0, 1], vec![0]];
+        assert_eq!(
+            weighted_matching(&edges, &weights),
+            BTreeMap::from([(0, 1), (1, 0)])
+        );
+    }
 
     #[test]
     fn chain_and_joint_targets() {
