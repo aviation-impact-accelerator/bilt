@@ -9,10 +9,9 @@ type RawRow = (Id, Vec<Id>, Option<Id>, Option<Id>); // local index, ports, tran
 
 // A child route is a dependency query, not a new request with all candidate
 // ports fixed. Validate its actual consumed boundary before accepting it.
-#[derive(Clone, Copy)]
 enum PlanTargets<'a> {
     Strict(&'a [Id]),
-    Discovery(Id),
+    Validated(Id, Vec<(Id, Id)>),
 }
 
 #[derive(Clone, Copy)]
@@ -179,8 +178,33 @@ impl NativeStructuralModel {
         }
     }
 
-    /// Discover a candidate using all established inputs, then check only
-    /// the boundary it consumes. Root requests always use strict validation.
+    // An overdetermined candidate boundary may still contain a valid
+    // smaller boundary. Probe only forward-reachable primitive directions:
+    // no recursive settlement or alternative matching search in this probe.
+    fn discover_boundary(&self, context: Id, available: &Set, target: Id) -> Option<Vec<Id>> {
+        let (_, scope) = self.scope(context, available, target);
+        let producers = self.preferred(&scope, available);
+        let mut pending = vec![target];
+        let mut seen = Set::new();
+        let mut required = Set::new();
+        while let Some(port) = pending.pop() {
+            if !seen.insert(port) {
+                continue;
+            }
+            if available.contains(&port) {
+                required.insert(port);
+                continue;
+            }
+            let &(owner, index) = producers.get(&port)?;
+            let row = &self.contexts[owner].rows[index];
+            pending.extend(row.ports.iter().copied().filter(|&p| p != port));
+        }
+        self.validated_scope(context, &required, target).ok()?;
+        Some(required.into_iter().collect())
+    }
+
+    /// Preserve the baseline search for valid boundaries. Only probe a
+    /// smaller boundary when supplied candidates overdetermine the target.
     fn route_inputs(
         &self,
         context: Id,
@@ -189,30 +213,24 @@ impl NativeStructuralModel {
         budget: &mut usize,
         depth: usize,
     ) -> Option<Vec<Id>> {
-        let exploratory = match self.validated_scope(context, available, target) {
-            Ok(_) => false,
+        if depth > 64 || *budget == 0 {
+            return None;
+        }
+        let scope = match self.validated_scope(context, available, target) {
+            Ok(scope) => scope,
             Err(ScopeFailure::Underdetermined) => return None,
-            Err(ScopeFailure::Overdetermined) => true,
+            Err(ScopeFailure::Overdetermined) => {
+                return self.discover_boundary(context, available, target);
+            }
         };
-        // Only overdetermined candidate boundaries need the experiment.
-        // A small independent allowance prevents speculative search from
-        // consuming the entire parent's search budget.
-        let allowance = if exploratory {
-            (*budget).min(128)
-        } else {
-            *budget
-        };
-        let mut remaining = allowance;
         let plan = self.plan_inner(
             context,
             available,
-            PlanTargets::Discovery(target),
+            PlanTargets::Validated(target, scope),
             &BTreeSet::new(),
-            &mut remaining,
+            budget,
             depth,
-        );
-        *budget -= allowance - remaining;
-        let plan = plan?;
+        )?;
         let mut required = Set::new();
         for (operation, output, inputs) in plan {
             let source = self.contexts[context]
@@ -230,11 +248,6 @@ impl NativeStructuralModel {
                         .filter(|&p| p != output && available.contains(&p)),
                 );
             }
-        }
-        // Do not accept an invalid formulation merely because an exploratory
-        // matching succeeded. The chosen subset must pass the same DM check.
-        if exploratory {
-            self.validated_scope(context, &required, target).ok()?;
         }
         Some(required.into_iter().collect())
     }
@@ -254,18 +267,16 @@ impl NativeStructuralModel {
         *budget -= 1;
         let targets = match &request {
             PlanTargets::Strict(targets) => *targets,
-            PlanTargets::Discovery(target) => std::slice::from_ref(target),
+            PlanTargets::Validated(target, _) => std::slice::from_ref(target),
         };
         let mut scope = BTreeSet::new();
-        for &target in targets {
-            match request {
-                PlanTargets::Strict(_) => {
+        match &request {
+            PlanTargets::Strict(_) => {
+                for &target in targets {
                     scope.extend(self.validated_scope(context, available, target).ok()?);
                 }
-                PlanTargets::Discovery(_) => {
-                    scope.extend(self.scope(context, available, target).1);
-                }
             }
+            PlanTargets::Validated(_, rows) => scope.extend(rows.iter().copied()),
         }
         let preferred = self.preferred(&scope.into_iter().collect::<Vec<_>>(), available);
         let rows = &self.contexts[context].rows;
@@ -375,10 +386,9 @@ impl Settlement<'_> {
         if self.established.contains(&port) {
             return true;
         }
-        if *self.budget == 0 || self.active.len() > 512 || !self.active.insert(port) {
+        if self.active.len() > 512 || !self.active.insert(port) {
             return false;
         }
-        *self.budget -= 1;
         let result = self.resolve_inner(port);
         self.active.remove(&port);
         result
@@ -405,15 +415,8 @@ impl Settlement<'_> {
             let mut route = self.child_route(&row, child, port, false);
             if route.is_none() {
                 for &p in &row.ports {
-                    if *self.budget == 0 {
-                        return false;
-                    }
                     if p != port && !self.established.contains(&p) {
-                        let before = self.established.len();
                         self.resolve(p);
-                        if self.established.len() == before {
-                            continue;
-                        }
                         route = self.child_route(&row, child, port, false);
                         if route.is_some() {
                             break;
