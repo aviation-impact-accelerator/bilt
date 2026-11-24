@@ -88,6 +88,9 @@ jobs:
       - name: Build docs with Zensical
         run: uv run zensical build --clean --strict
 
+      - name: Verify rendered documentation math
+        run: uv run python scripts/check_docs_math.py
+
       - name: Check with prek
         run: uv run prek run --all-files
 
