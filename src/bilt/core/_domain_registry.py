@@ -136,6 +136,12 @@ class DomainRegistry:
         message = f"Coordinate {coordinate!r} is not present on dimension {dim!r}."
         raise BiltDomainBindingError(message)
 
+    def axes_for(self, domain: Domain) -> tuple[CoordinateAxis, ...]:
+        """Return bound coordinate metadata for dimensions retained by an output."""
+        return tuple(
+            axis for dim in domain.dims if isinstance(axis := self._bindings.get(dim), CoordinateAxis)
+        )
+
     def coordinate_signature(
         self,
     ) -> tuple[tuple[Dim, tuple[object, ...]], ...]:
