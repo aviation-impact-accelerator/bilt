@@ -87,9 +87,11 @@ Units are declared through dimensions, so callers can choose compatible units. M
 
 Efficiencies, the usable fraction, and the energy multiplier are dimensionless quantities. They use `DIMENSIONLESS` in declarations and `UNITLESS` when values are supplied. The energy intensity has units of energy per distance per mass, such as kWh/(km·t).
 
-The system and transforms use scalar quantity declarations. These accept scalar quantities or unit-carrying tensors with compatible dimensions. We supply tensors to evaluate this example over named domains; the same model can also accept scalar inputs.
+The system fields accept scalar or tensor quantities with compatible physical dimensions. The transforms describe scalar calculations that Bilt lifts over named domains. We supply tensors to evaluate this example over named domains; the same model can also accept scalar inputs.
 
 Each transform describes one scalar engineering relationship. Nothing in these functions refers to `scramble`, `sample`, `route`, NumPy axes, or broadcasting.
+
+<!-- model-source: start -->
 
 ```python exec="off"
 from typing import Annotated
@@ -182,99 +184,16 @@ mission_model = Implementation(
 
 The named `Pointwise...` aliases allow the system fields to accept scalar or tensor quantities, while the shorter scalar aliases remain appropriate for the transforms.
 
-The model above is ordinary displayed Python. For this documentation build, the same definitions are loaded from a temporary Python module. This is only needed because Bilt currently obtains transform source using `inspect.getsource()`, while `markdown-exec` normally defines functions dynamically.
+The documentation build loads the displayed definitions directly into a temporary Python module, so the example runs the code shown here.
+
+<!-- model-source: end -->
 
 <!-- markdown-exec: hidden setup -->
 
 ```python exec="on" session="qmc"
-model_source = """
-from typing import Annotated
-
-from bilt import Implementation, Interface, Quantity, QuantityTensor, field, system, transform
-from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
-
-
-Mass = Annotated[Quantity, MASS]
-Length = Annotated[Quantity, LENGTH]
-Energy = Annotated[Quantity, ENERGY]
-SpecificEnergy = Annotated[Quantity, ENERGY / MASS]
-EnergyIntensity = Annotated[Quantity, ENERGY / (LENGTH * MASS)]
-Ratio = Annotated[Quantity, DIMENSIONLESS]
-
-PointwiseSpecificEnergy = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
-PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
-PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]
-PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]
-PointwiseEnergyIntensity = Annotated[Quantity | QuantityTensor, ENERGY / (LENGTH * MASS)]
-PointwiseEnergy = Annotated[Quantity | QuantityTensor, ENERGY]
-
-
-@system
-class Mission(metaclass=Interface):
-    specific_energy: PointwiseSpecificEnergy = field()
-    propulsive_efficiency: PointwiseRatio = field()
-    energy_multiplier: PointwiseRatio = field()
-
-    distance: PointwiseLength = field()
-    payload: PointwiseMass = field()
-
-    empty_mass: PointwiseMass = field()
-    energy_intensity: PointwiseEnergyIntensity = field()
-    usable_fraction: PointwiseRatio = field()
-    max_battery_mass: PointwiseMass = field()
-
-    gross_mass: PointwiseMass = field()
-    shaft_energy: PointwiseEnergy = field()
-    electrical_energy: PointwiseEnergy = field()
-    battery_mass: PointwiseMass = field()
-    battery_margin: PointwiseMass = field()
-
-
-@transform
-def gross_mass(payload: Mass, empty_mass: Mass) -> Mass:
-    return empty_mass + payload
-
-
-@transform
-def shaft_energy(
-    energy_multiplier: Ratio,
-    distance: Length,
-    gross_mass: Mass,
-    energy_intensity: EnergyIntensity,
-) -> Energy:
-    return energy_multiplier * distance * gross_mass * energy_intensity
-
-
-@transform
-def electrical_energy(
-    shaft_energy: Energy,
-    propulsive_efficiency: Ratio,
-) -> Energy:
-    return shaft_energy / propulsive_efficiency
-
-
-@transform
-def battery_mass(
-    electrical_energy: Energy,
-    specific_energy: SpecificEnergy,
-    usable_fraction: Ratio,
-) -> Mass:
-    return electrical_energy / (specific_energy * usable_fraction)
-
-
-@transform
-def battery_margin(
-    battery_mass: Mass,
-    max_battery_mass: Mass,
-) -> Mass:
-    return max_battery_mass - battery_mass
-
-
-mission_model = Implementation(
-    Mission,
-    [gross_mass, shaft_energy, electrical_energy, battery_mass, battery_margin],
-)
-"""
+guide = Path("docs/worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md").read_text(encoding="utf-8")
+model_section = guide.split("<!-- model-source: start -->", 1)[1].split("<!-- model-source: end -->", 1)[0]
+model_source = "\n\n".join(block.split("```", 1)[0] for block in model_section.split('```python exec="off"\n')[1:])
 
 model_path = Path(tempfile.gettempdir()) / "bilt_qmc_docs_model.py"
 model_path.write_text(model_source)
