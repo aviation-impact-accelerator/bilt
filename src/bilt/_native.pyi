@@ -5,3 +5,6 @@ class NativeStructuralModel:
     def plan(
         self, available: list[int], targets: list[int], blocked: list[tuple[int, int]]
     ) -> list[tuple[int, int, list[int]]] | None: ...
+    def plan_with_stats(
+        self, available: list[int], targets: list[int], blocked: list[tuple[int, int]], cache_enabled: bool
+    ) -> tuple[list[tuple[int, int, list[int]]] | None, dict[str, int]]: ...
