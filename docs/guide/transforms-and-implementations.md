@@ -24,7 +24,7 @@ For that, Bilt provides **transforms**.
 
 Consider a small system:
 
-```python exec="on"
+```python exec="on" source="above"
 from bilt import Interface, field, system
 
 

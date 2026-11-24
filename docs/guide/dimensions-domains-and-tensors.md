@@ -4,7 +4,7 @@ For constructors, reductions, indexing and their current limitations, see the [T
 
 So far, every value in our examples has been a scalar:
 
-```python exec="on"
+```python exec="on" source="above"
 speed: float
 temperature: float
 pressure: float
@@ -54,7 +54,7 @@ Those are very different things.
 
 In Bilt, we can give dimensions explicit names:
 
-```python exec="on" session="domains-tensors"
+```python exec="on" source="above" session="domains-tensors"
 from bilt import dim
 
 
@@ -84,7 +84,7 @@ A Bilt **tensor** combines concrete values with the dimensions they vary over.
 
 For example:
 
-```python exec="on" session="domains-tensors"
+```python exec="on" source="above" session="domains-tensors"
 from bilt import tensor
 
 
@@ -410,7 +410,7 @@ Bilt represents this with a **coordinate axis** associated with the dimension.
 
 For example:
 
-```python exec="on" session="domains-tensors"
+```python exec="on" source="above" session="domains-tensors"
 from datetime import datetime
 
 from bilt import coordinate_axis

@@ -50,6 +50,8 @@ Bilt combines these domains when values meet in a transform. The final battery r
 
 The word **independent** is reserved here for the separate scrambled Sobol replicates. The Sobol points within one design are not independent random samples.
 
+<!-- markdown-exec: hidden setup -->
+
 ```python exec="on" session="qmc"
 from dataclasses import dataclass
 from io import StringIO
@@ -181,6 +183,8 @@ mission_model = Implementation(
 The named `Pointwise...` aliases allow the system fields to accept scalar or tensor quantities, while the shorter scalar aliases remain appropriate for the transforms.
 
 The model above is ordinary displayed Python. For this documentation build, the same definitions are loaded from a temporary Python module. This is only needed because Bilt currently obtains transform source using `inspect.getsource()`, while `markdown-exec` normally defines functions dynamically.
+
+<!-- markdown-exec: hidden setup -->
 
 ```python exec="on" session="qmc"
 model_source = """
@@ -478,7 +482,7 @@ corresponding to:
 
 There is no loop over those 196,608 cases in the model code.
 
-```python exec="on" session="qmc"
+```python exec="on" source="above" session="qmc"
 assert battery_mass.values.shape == (8, 1024, 6, 4)
 assert battery_margin.values.shape == (8, 1024, 6, 4)
 ```

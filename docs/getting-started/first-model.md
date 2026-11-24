@@ -20,7 +20,7 @@ Open the generated `main.py`. Replace its contents with the Python blocks below,
 
 A system names the quantities that belong to a model. For a simple journey, those are distance, speed and time:
 
-```python exec="on" session="first-model"
+```python exec="on" source="above" session="first-model"
 from bilt import Implementation, Interface, equation, field, system
 
 
@@ -37,7 +37,7 @@ class Motion(metaclass=Interface):
 
 We know that distance equals speed multiplied by time. Add an equation to describe that relationship:
 
-```python exec="on" session="first-model"
+```python exec="on" source="above" session="first-model"
 @equation
 def motion_relation(distance: float, speed: float, time: float) -> bool:
     return distance == speed * time
@@ -51,7 +51,7 @@ Bilt reads the equation's source code when it is defined, so put it in a Python 
 
 An implementation connects the system interface to the relationships it can use:
 
-```python exec="on" session="first-model"
+```python exec="on" source="above" session="first-model"
 model = Implementation(Motion, [motion_relation])
 
 with model:
@@ -68,7 +68,7 @@ The instance supplies two known values. Reading `journey.distance` asks Bilt to 
 
 Now suppose we know distance and time but need speed:
 
-```python exec="on" session="first-model"
+```python exec="on" source="above" session="first-model"
 with model:
     another_journey = Motion(distance=100.0, time=5.0)
     speed = another_journey.speed

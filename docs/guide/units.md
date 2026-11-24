@@ -22,7 +22,7 @@ Bilt lets us put that information into the model. We will start with the motion 
 
 First, let's make a quantity:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 from bilt import Quantity
 from bilt.units import kilometer, meter
 
@@ -32,7 +32,7 @@ distance = 5.0 * kilometer
 
 A **quantity** combines a numerical value with a unit. We can also construct one explicitly:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 distance = Quantity(5.0, kilometer)
 ```
 
@@ -40,7 +40,7 @@ Both expressions describe the same distance.
 
 To express it in another unit, use `convert_to()`:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 in_metres = distance.convert_to(meter)
 
 assert in_metres.value == 5000.0
@@ -65,7 +65,7 @@ This distinction matters when we declare a model. We want a distance to accept a
 
 Let's declare our motion system again:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 from typing import Annotated
 
 from bilt import Implementation, Interface, Quantity, QuantityTensor, equation, field, system, transform
@@ -89,7 +89,7 @@ class Motion(metaclass=Interface):
 
 There is one new piece of Python here:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 Annotated[Quantity | QuantityTensor, LENGTH]
 ```
 
@@ -107,7 +107,7 @@ Dimensions can be combined using multiplication, division and powers. Speed is l
 
 Use a dimension in the annotation, rather than a unit:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 Length = Annotated[Quantity, LENGTH]  # Scalar equation or transform.
 PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]  # Scalar or tensor field.
 ```
@@ -118,7 +118,7 @@ PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]  # Scalar or tens
 
 The mathematical relationship is unchanged:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 @equation
 def kinematic_relation(
     distance: Length,
@@ -149,7 +149,7 @@ This check happens when the model is defined. We do not need to wait for a parti
 
 Now we can use whichever compatible units are convenient:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 from bilt.units import hour, second
 
 
@@ -169,13 +169,13 @@ Bilt converts supplied quantities to **coherent SI units** for computation. In t
 
 For display, we can choose another unit:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 assert travelled.convert_to(kilometer).value == 0.05
 ```
 
 Units also work when the equation is used in another direction:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 with motion_model:
     journey = Motion(
         distance=1.0 * kilometer,
@@ -193,7 +193,7 @@ We still have one equation. Bilt rearranges it as needed, and the requested valu
 
 A declared field requires a quantity of the right dimension:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 Motion(distance=5.0 * kilometer)  # A length: accepted.
 ```
 
@@ -321,7 +321,7 @@ These values stand outside the unit system. Adding declared quantities elsewhere
 
 A dimensionless quantity is a different thing:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 from bilt.units import UNITLESS, percent
 from bilt.units.dimensions import DIMENSIONLESS
 
@@ -345,7 +345,7 @@ Transforms can bridge between plain values and quantities explicitly, as we did 
 
 Units are useful for fixed physical constants as well as inputs:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 from bilt.units.dimensions import FORCE, MASS
 
 
@@ -372,7 +372,7 @@ A reading of twenty degrees Celsius is a position on a temperature scale. A rise
 
 Bilt represents these as **absolute** and **relative** quantities:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 from bilt import Quantity, QuantityTensor
 from bilt.units import absolute_celsius, absolute_kelvin, celsius, kelvin
 from bilt.units.dimensions import ABSOLUTE, TEMPERATURE
@@ -440,7 +440,7 @@ In a transform that receives a plain Celsius number, construct the reading expli
 
 Units also work with the tensors introduced in [Domains and tensors](dimensions-domains-and-tensors.md):
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 from bilt import QuantityTensor, dim, tensor
 
 
@@ -483,7 +483,7 @@ Sometimes physical dimensions alone are insufficient. A kilogram of fuel and a k
 
 Bilt's metadata tags can make that distinction part of the declaration:
 
-```python exec="on" session="units-models"
+```python exec="on" source="above" session="units-models"
 from bilt import Quantity, QuantityTensor
 from bilt.units import Metadata, kilogram
 

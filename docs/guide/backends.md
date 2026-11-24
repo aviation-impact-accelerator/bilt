@@ -70,7 +70,7 @@ A Bilt model does not need to be rewritten for JAX.
 
 For example:
 
-```python exec="on" session="motion"
+```python exec="on" source="above" session="motion"
 from bilt import Implementation, Interface, equation, field, system
 
 
@@ -101,7 +101,7 @@ The model is backend-independent.
 By default, Bilt uses the Python backend. To use JAX instead, select the JAX
 backend around the evaluation:
 
-```python exec="on" session="motion"
+```python exec="on" source="above" session="motion"
 from bilt import JAX_BACKEND
 
 motion = Motion(
@@ -153,7 +153,7 @@ backend.
 
 Simple numerical expressions work naturally:
 
-```python exec="on" session="motion"
+```python exec="on" source="above" session="motion"
 @equation
 def kinetic_energy_relation(
     kinetic_energy: float,
