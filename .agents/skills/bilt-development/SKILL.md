@@ -39,7 +39,7 @@ From a checkout of Bilt, use the bundled script for a repeatable full check:
 bash .agents/skills/bilt-development/scripts/check.sh
 ```
 
-The script installs the locked environment, then verifies generated README illustrations, runs Ruff lint and format checks, Pyrefly, ty, pytest, the three structural-planning regression checks, Cargo format/lint/tests, the strict Zensical documentation build, rendered math verification and prek. It stops at the first failure. This mirrors the checks in `.github/workflows/check.yml`; keep the script in sync if CI changes. CI validates the script's shell syntax but runs its constituent checks separately, so it does not duplicate the full suite. A regression test compares the local uv/Cargo command sequence with CI.
+The script installs the locked environment, then verifies generated README illustrations, runs Ruff lint and format checks, Pyrefly, ty, pytest, the three structural-planning regression checks, Cargo format/lint/tests, the strict Zensical documentation build, rendered math and diagram verification and prek. It stops at the first failure. This mirrors the checks in `.github/workflows/check.yml`; keep the script in sync if CI changes. CI validates the script's shell syntax but runs its constituent checks separately, so it does not duplicate the full suite. A regression test compares the local uv/Cargo command sequence with CI.
 
 For quicker iteration, run the relevant checks individually, for example:
 
@@ -60,7 +60,7 @@ When touching model behaviour, add focused regression tests for successful calcu
 
 - Keep the getting-started tutorial and guides focused on modelling concepts and the API reference on precise contracts. Use concise engineering examples and cross-links rather than repeating complete reference material.
 - Give every Python documentation fence an explicit execution policy. Use `exec="on" source="above"` for visible executable examples; mark intentionally hidden setup with `<!-- markdown-exec: hidden setup -->`. Execute displayed transform definitions from a real source module where source inspection requires it. Do not duplicate displayed model code in hidden setup.
-- Use `\\[ ... \\]` and `\\( ... \\)` for display and inline LaTeX, respectively. Preserve the Arithmatex/MathJax setup. Run `uv run pytest tests/docs/`, `uv run zensical build --clean --strict` and `uv run python scripts/check_docs_math.py` after documentation changes. A successful build does not guarantee visual layout; inspect rendered code, plots, diagrams and equations when possible.
+- Use `\\[ ... \\]` and `\\( ... \\)` for display and inline LaTeX, respectively. Preserve the Arithmatex/MathJax setup and Mermaid custom fence configuration. Run `uv run pytest tests/docs/`, `uv run zensical build --clean --strict` and `uv run python scripts/check_docs_rendering.py` after documentation changes. A successful build does not guarantee visual layout; inspect rendered code, plots, diagrams and equations when possible.
 - Keep the two skills concise, version-aware and consistent with the docs and code. The modelling skill's complete Python example is executed in tests from a real source file. The development skill's script must mirror the CI checks, not silently omit new ones.
 
 ## Pull request review

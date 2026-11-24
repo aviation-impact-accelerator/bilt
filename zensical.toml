@@ -75,5 +75,8 @@ features = [
 
 [project.markdown_extensions]
 pymdownx.arithmatex.generic = true
+pymdownx.superfences.custom_fences = [
+    { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
 
 [project.plugins.markdown-exec]
