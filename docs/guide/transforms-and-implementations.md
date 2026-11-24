@@ -45,9 +45,7 @@ from tempfile import TemporaryDirectory
 # Execute the displayed transform from a real source file so inspect.getsource works.
 guide = Path("docs/guide/transforms-and-implementations.md").read_text(encoding="utf-8")
 source = next(
-    block.split("```", 1)[0]
-    for block in guide.split('```python exec="off"\n')[1:]
-    if block.startswith("@transform\n")
+    block.split("```", 1)[0] for block in guide.split('```python exec="off"\n')[1:] if block.startswith("@transform\n")
 )
 with TemporaryDirectory() as directory:
     module = Path(directory) / "drag_lookup.py"
