@@ -26,12 +26,7 @@ pub struct NativeStructuralModel {
     contexts: Vec<Context>,
 }
 
-fn augment(
-    row: Id,
-    edges: &[Vec<Id>],
-    seen: &mut Set,
-    mates: &mut BTreeMap<Id, Id>,
-) -> bool {
+fn augment(row: Id, edges: &[Vec<Id>], seen: &mut Set, mates: &mut BTreeMap<Id, Id>) -> bool {
     for &port in &edges[row] {
         if !seen.insert(port) {
             continue;
@@ -144,11 +139,7 @@ impl NativeStructuralModel {
     // Forward producers are a preference only; every other candidate edge is
     // retained for retries. The prototype uses a deterministic bipartite
     // augmenting-path matcher rather than rustworkx's weighted blossom.
-    fn preferred(
-        &self,
-        scope: &[(Id, Id)],
-        available: &Set,
-    ) -> BTreeMap<Id, (Id, Id)> {
+    fn preferred(&self, scope: &[(Id, Id)], available: &Set) -> BTreeMap<Id, (Id, Id)> {
         let mut reached = available.clone();
         let mut producers = BTreeMap::new();
         loop {
@@ -157,9 +148,7 @@ impl NativeStructuralModel {
                 let row = &self.contexts[context].rows[index];
                 let mut unknown = row.ports.iter().filter(|p| !reached.contains(*p));
                 if let Some(&port) = unknown.next() {
-                    if unknown.next().is_none()
-                        && row.output.is_none_or(|output| output == port)
-                    {
+                    if unknown.next().is_none() && row.output.is_none_or(|output| output == port) {
                         reached.insert(port);
                         producers.insert(port, (context, index));
                     }
@@ -222,7 +211,9 @@ impl NativeStructuralModel {
         let mut visited = HashSet::new();
         // Bound search so unsupported or difficult models return to Python.
         for _ in 0..24 {
-            let Some(candidate) = pending.pop() else { break };
+            let Some(candidate) = pending.pop() else {
+                break;
+            };
             if !visited.insert(candidate.clone()) {
                 continue;
             }
@@ -231,10 +222,8 @@ impl NativeStructuralModel {
             }
             *budget -= 1;
             let matched = matching(&candidate);
-            let assignments: BTreeMap<_, _> = matched
-                .iter()
-                .map(|(&p, &r)| (p, owners[r]))
-                .collect();
+            let assignments: BTreeMap<_, _> =
+                matched.iter().map(|(&p, &r)| (p, owners[r])).collect();
             let mut settlement = Settlement {
                 model: self,
                 context,
@@ -383,7 +372,11 @@ impl Settlement<'_> {
                 required.extend(inputs.into_iter().filter(|p| available.contains(p)));
             } else {
                 required.extend(
-                    source.ports.iter().copied().filter(|&p| p != output && available.contains(&p)),
+                    source
+                        .ports
+                        .iter()
+                        .copied()
+                        .filter(|&p| p != output && available.contains(&p)),
                 );
             }
         }
@@ -397,7 +390,9 @@ impl NativeStructuralModel {
     fn new(contexts: Vec<Vec<RawRow>>) -> PyResult<Self> {
         let count = contexts.len();
         if count == 0 {
-            return Err(pyo3::exceptions::PyValueError::new_err("missing root context"));
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "missing root context",
+            ));
         }
         let mut result = Vec::new();
         for (context, raw) in contexts.into_iter().enumerate() {
@@ -405,13 +400,20 @@ impl NativeStructuralModel {
             let mut adjacent: BTreeMap<Id, Vec<Id>> = BTreeMap::new();
             for (operation, ports, output, child) in raw {
                 if child.is_some_and(|c| c <= context || c >= count) {
-                    return Err(pyo3::exceptions::PyValueError::new_err("invalid child context"));
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "invalid child context",
+                    ));
                 }
                 let index = rows.len();
                 for &p in &ports {
                     adjacent.entry(p).or_default().push(index);
                 }
-                rows.push(Row { operation, ports, output, child });
+                rows.push(Row {
+                    operation,
+                    ports,
+                    output,
+                    child,
+                });
             }
             result.push(Context { rows, adjacent });
         }
@@ -446,9 +448,12 @@ mod tests {
         let model = NativeStructuralModel::new(vec![vec![
             (0, vec![0, 1], None, None),
             (1, vec![1, 2], None, None),
-        ]]).unwrap();
-        assert_eq!(model.plan(vec![0], vec![1, 2], vec![]),
-                   Some(vec![(0, 1, vec![]), (1, 2, vec![])]));
+        ]])
+        .unwrap();
+        assert_eq!(
+            model.plan(vec![0], vec![1, 2], vec![]),
+            Some(vec![(0, 1, vec![]), (1, 2, vec![])])
+        );
         assert!(model.plan(vec![], vec![2], vec![]).is_none());
         assert!(model.plan(vec![0, 1], vec![2], vec![]).is_some());
     }
@@ -458,20 +463,23 @@ mod tests {
         let model = NativeStructuralModel::new(vec![
             vec![(0, vec![0, 1], None, Some(1)), (1, vec![1, 2], None, None)],
             vec![(0, vec![0, 1], None, None)],
-        ]).unwrap();
-        assert_eq!(model.plan(vec![0], vec![2], vec![]),
-                   Some(vec![(0, 1, vec![0]), (1, 2, vec![])]));
+        ])
+        .unwrap();
+        assert_eq!(
+            model.plan(vec![0], vec![2], vec![]),
+            Some(vec![(0, 1, vec![0]), (1, 2, vec![])])
+        );
     }
 
     #[test]
     fn duplicate_constraints_and_transform_direction() {
         let model = NativeStructuralModel::new(vec![vec![
             (0, vec![0, 1], None, None), (1, vec![0, 1], None, None),
-        ]]).unwrap();
+        ]])
+        .unwrap();
         assert!(model.plan(vec![0], vec![1], vec![]).is_none());
-        let transform = NativeStructuralModel::new(vec![vec![
-            (0, vec![0, 1], Some(1), None),
-        ]]).unwrap();
+        let transform =
+            NativeStructuralModel::new(vec![vec![(0, vec![0, 1], Some(1), None)]]).unwrap();
         assert!(transform.plan(vec![1], vec![0], vec![]).is_none());
     }
 }
