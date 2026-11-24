@@ -2,13 +2,7 @@
 
 For constructors, reductions, indexing and their current limitations, see the [Tensor API reference](../api/tensors.md). For quantity-related type annotations, see [Quantity annotations and typing](../api/quantity-annotations.md).
 
-So far, every value in our examples has been a scalar:
-
-```python exec="on" source="above"
-speed: float
-temperature: float
-pressure: float
-```
+So far, most of the values in our examples have been scalars: a speed, a temperature or a pressure.
 
 Real engineering models quickly need something more.
 
@@ -20,265 +14,138 @@ temperature[time]
 demand[location, time]
 ```
 
-Bilt represents these values using **tensors** over named **dimensions**.
+Bilt represents these values using **tensors** over named **dimensions**. We will use a simple aircraft energy model to see how a scalar equation can be used across a range of routes and technologies.
 
 ### Dimensions give axes names
 
-In NumPy, an array has a shape:
+In NumPy, an array has a shape, such as `(3, 2)`. That tells us how many elements lie along each axis, but not what those axes mean.
 
-```python exec="off"
-values.shape
-```
-
-which might give:
-
-```text
-(2, 3)
-```
-
-That tells us how many elements lie along each axis, but not what those axes mean.
-
-Perhaps `(2, 3)` means:
-
-```text
-(location, time)
-```
-
-or:
-
-```text
-(engine, operating_point)
-```
-
-Those are very different things.
+Perhaps the shape describes three routes and two technologies. Or it could describe three engines and two operating points. Those are very different things.
 
 In Bilt, we can give dimensions explicit names:
 
 ```python exec="on" source="above" session="domains-tensors"
-from bilt import dim
+from bilt import dim, domain, tensor
 
-
-location = dim("location")
-time = dim("time")
+route = dim("route")
+technology = dim("technology")
 ```
 
-A dimension identifies one direction in which a value may vary.
+A dimension identifies one direction in which a value may vary. A domain is an ordered collection of dimensions:
 
-We can then describe a domain containing those dimensions:
-
-```text
-(location, time)
-```
-
-rather than relying only on positional axes:
-
-```text
-(2, 3)
+```python exec="on" source="above" session="domains-tensors"
+route_technology = domain(route, technology)
+assert route_technology.dims == (route, technology)
 ```
 
 The distinction becomes important when different values vary over different sets of dimensions.
 
 ### Tensors carry values over a domain
 
-A Bilt **tensor** combines concrete values with the dimensions they vary over.
-
-For example:
+A Bilt **tensor** combines concrete values with the dimensions they vary over. Suppose we want to consider three route distances and two aircraft technologies.
 
 ```python exec="on" source="above" session="domains-tensors"
-from bilt import tensor
+distances = tensor([500.0, 1000.0, 2000.0], over=route)
+intensities = tensor([0.5, 0.8], over=technology)
 
-
-demand = tensor(
-    [
-        [10.0, 12.0, 14.0],
-        [8.0, 9.0, 11.0],
-    ],
-    over=(location, time),
-)
+assert distances.domain == domain(route)
+assert distances.shape == (3,)
+assert intensities.domain == domain(technology)
+assert intensities.shape == (2,)
 ```
 
-The underlying values have shape:
+The route distances are in kilometres, and the energy intensities in kWh per kilometre. These are illustrative numbers, not aircraft performance data. For now we use plain numbers with an agreed unit convention; [Units in models](units.md) explains how to declare physical dimensions and let Bilt check them.
 
-```text
-(2, 3)
-```
-
-and the domain is:
-
-```text
-(location, time)
-```
-
-So we can think of the tensor as:
-
-```text
-                 time
-             ───────────►
-
-location      10  12  14
-   │           8   9  11
-   ▼
-```
-
-The numbers still live in an ordinary array. The domain tells Bilt what each axis represents.
+The numbers still live in ordinary arrays. The domain tells Bilt what each axis represents.
 
 ### Scalars have a domain too
 
-A scalar is simply a value that does not vary over any dimensions.
+A scalar is simply a value that does not vary over any dimensions. Its domain is empty: `()`.
 
-Its domain is empty:
-
-```text
-()
-```
-
-So these values can be viewed consistently:
+We can start with an ordinary relationship:
 
 ```text
-efficiency                ()
-price[time]               (time)
-demand[location, time]    (location, time)
+energy = distance × energy intensity
 ```
 
-This gives Bilt one vocabulary for scalar and non-scalar values rather than treating arrays as a completely separate modelling system.
+```python exec="on" source="above" session="domains-tensors"
+import numpy as np
+
+from bilt import Implementation, Interface, Tensor, equation, field, system
+
+
+@system
+class FlightEnergy(metaclass=Interface):
+    distance: float | Tensor = field()
+    intensity: float | Tensor = field()
+    energy: float | Tensor = field()
+
+
+@equation
+def energy_relation(distance: float, intensity: float, energy: float) -> bool:
+    return energy == distance * intensity
+
+
+energy_model = Implementation(FlightEnergy, [energy_relation])
+
+with energy_model:
+    scalar_energy = FlightEnergy(distance=500.0, intensity=0.5).energy
+
+assert scalar_energy == 250.0
+```
+
+The system fields accept a plain scalar or a unitless tensor. The equation uses scalar annotations because the relationship is pointwise: it does not need to know which axes the values vary over.
+
+The same equation works with a tensor of route distances and a scalar intensity:
+
+```python exec="on" source="above" session="domains-tensors"
+with energy_model:
+    route_energy = FlightEnergy(distance=distances, intensity=0.5).energy
+
+assert route_energy.domain == domain(route)
+assert route_energy.values.tolist() == [250.0, 500.0, 1000.0]
+```
+
+The scalar intensity is applied to each route. The result varies over the route dimension.
 
 ### Named dimensions make broadcasting explicit
 
-Suppose demand varies by location and time:
+Now supply both tensors:
 
-```text
-demand : (location, time)
+```python exec="on" source="above" session="domains-tensors"
+with energy_model:
+    all_energy = FlightEnergy(distance=distances, intensity=intensities).energy
+
+assert all_energy.domain == domain(route, technology)
+assert all_energy.shape == (3, 2)
+np.testing.assert_allclose(all_energy.values, [[250.0, 400.0], [500.0, 800.0], [1000.0, 1600.0]])
 ```
-
-but electricity price varies only with time:
-
-```text
-price : (time)
-```
-
-If we calculate:
-
-```text
-cost = demand × price
-```
-
-the price for each time can be applied across every location.
 
 Conceptually:
 
 ```text
-demand    (location, time)
-price               (time)
-                     │
-                     ▼
-cost      (location, time)
+distance         (route)
+intensity               (technology)
+                    │
+                    ▼
+energy           (route, technology)
 ```
 
-Bilt can align the values using the **names of their dimensions**, rather than requiring the user to arrange axes purely by position.
+| Distance | Technology 1 (0.5 kWh/km) | Technology 2 (0.8 kWh/km) |
+| --- | ---: | ---: |
+| 500 km | 250 kWh | 400 kWh |
+| 1,000 km | 500 kWh | 800 kWh |
+| 2,000 km | 1,000 kWh | 1,600 kWh |
+
+Bilt evaluates every combination of route and technology. We did not need to write nested loops or reshape either input.
 
 ### Scalar or tensor values at system boundaries
 
-When a system can accept either a plain scalar or a **unitless** tensor,
-a union is sufficient. There is no need for an additional Bilt protocol:
+For plain values, use `float | Tensor` when a system field accepts either a scalar or a unitless tensor. For quantities with physical units, use the corresponding dimensioned `Quantity | QuantityTensor` annotation.
 
-```python exec="off"
-from bilt import Interface, Tensor, field, system
+Sometimes a relationship needs a particular axis, for example when reducing over time. Bilt supports minimum domain requirements on dimensioned tensor fields and equation parameters. Exact domain hints can also help disambiguate coupled solves.
 
-type Value = float | Tensor
-
-
-@system
-class Scale(metaclass=Interface):
-    x: Value = field()
-    doubled: Value = field()
-```
-
-Both `Scale(x=2.0)` and `Scale(x=tensor([1.0, 2.0], over=time))`
-are accepted. An equation can still use `float` annotations and Bilt will
-lift it over the input's named domain. This keeps the system's accepted
-value types separate from the local operations of the equation.
-
-**Limit of static typing:** The concrete `QuantityTensor` class currently
-inherits `Tensor`. Python type checkers therefore also consider a
-unit-bearing tensor valid wherever a `Tensor` is annotated. Bilt rejects
-it **at runtime** at a plain, unitless port. A static guarantee that the
-tensor has no unit would require a separate tensor typing design; a
-`float | Tensor` union cannot provide that guarantee.
-
-### Requiring a minimum domain
-
-A system input can require a particular named dimension without fixing the
-complete shape of the input. For a unit-bearing tensor quantity:
-
-```python exec="off"
-import typing
-
-from bilt import Interface, Quantity, QuantityTensor, Tensor, dim, field, system
-from bilt.symbolic._domains import Domain
-from bilt.units.dimensions import MASS
-
-time = dim("time")
-scenario = dim("scenario")
-type TimeMass = typing.Annotated[QuantityTensor, MASS, Domain((time,))]
-
-
-@system
-class Demand(metaclass=Interface):
-    mass: TimeMass = field()
-```
-
-A tensor over `(time,)` satisfies that requirement, as does one over
-`(scenario, time)`. A tensor over only `(scenario,)` does not: it lacks
-the required `time` dimension. The order of axes does not matter.
-
-This is a **minimum** domain requirement, not an exact-domain restriction.
-Bilt checks it when values enter a system and when a computed system output
-has a declared minimum domain. Domain metadata is checked by Bilt at runtime;
-Python type checkers do not interpret the dimensions in `Annotated`.
-
-This form applies to the unit-bearing `QuantityTensor` annotation. The
-pointwise `Quantity | QuantityTensor` union permits scalars and therefore cannot declare a
-required tensor dimension. Existing unitless `Annotated[Tensor, Domain(...)]`
-annotations remain available as exact hints for unitless structural domain
-inference. Scalar equation annotations may also use `Quantity` with
-`Domain.scalar()` as an exact linear-solver hint. Dimensioned `Tensor`
-annotations are no longer supported.
-Equation-local minimum requirements are checked on the route Bilt selects,
-as described below.
-
-### Minimum domains on equation parameters
-
-An equation can also require a dimension that is not mentioned on its
-enclosing system field. This is useful when the system itself accepts many
-possible shapes but one equation needs a specific axis:
-
-```python exec="off"
-import typing
-
-from bilt import Quantity, QuantityTensor, equation
-from bilt.symbolic._domains import Domain
-from bilt.units.dimensions import MASS
-
-type Mass = typing.Annotated[Quantity | QuantityTensor, MASS]
-type TimeMass = typing.Annotated[QuantityTensor, MASS, Domain((time,))]
-
-
-@equation
-def copy_over_time(x: TimeMass, result: Mass) -> bool:
-    return result == x
-```
-
-When Bilt chooses this equation to compute an output, it checks the
-**inferred domains** of the values the equation reads and produces.
-The `time` dimension must be present, but additional axes such as
-`scenario` are allowed. If the equation is not selected for a particular
-evaluation, its domain requirement does not constrain that evaluation.
-
-These are minimum-domain **requirements**, unlike exact `Domain` **hints**
-on pointwise `Quantity | QuantityTensor` equation parameters or unitless `Tensor` parameters. In
-particular, they are not passed to the linear-block inference algorithm as
-exact layouts. A mismatch rejects the selected evaluation route with an
-explanation naming the equation, port and missing dimensions.
+See [Quantity annotations and typing](../api/quantity-annotations.md#minimum-domain-requirements) and [Tensor API](../api/tensors.md) for the declaration rules and static typing limitations.
 
 ### Broadcasting rules
 
@@ -320,33 +187,71 @@ There is one important restriction: if two values share a dimension, they must a
 
 For most model code, this means thinking about **which dimensions a value varies over**, rather than manually arranging array axes to make broadcasting work.
 
-<!-- TODO: Link to the detailed domain and broadcasting reference. -->
+The result axes follow the evaluation's dimension binding order. Inspect the result's `domain` rather than assuming an axis position. See the [Tensor API](../api/tensors.md#construction-and-inspection).
 
 ### The relationship can stay simple
 
-One useful consequence is that the mathematical relationship does not necessarily need to know about every surrounding dimension.
+The same energy equation has now answered three questions: one flight, three routes for one technology, and every combination of routes and technologies.
 
-Imagine a calculation:
+The dimensions belong to the values. The equation describes how those values are related.
 
-```python exec="off"
-@transform
-def cost(demand: float, price: float) -> float:
-    return demand * price
+This is useful when the same engineering model is used for a single design point, a parameter sweep or an uncertainty analysis. Additional named dimensions do not require changes to a pointwise equation.
+
+### Reduce over a named dimension
+
+Sometimes we want a summary rather than every combination. For example, we can calculate the mean energy across the three routes, retaining one value for each technology.
+
+We will use the calculated energy tensor as an input to a small reporting system:
+
+```python exec="on" source="above" session="domains-tensors"
+@system
+class EnergyReport(metaclass=Interface):
+    energy: Tensor = field()
+    mean_energy: Tensor = field()
+    second_route_energy: Tensor = field()
+    selected_route_energy: Tensor = field()
+
+
+@equation
+def mean_over_routes(energy: Tensor, mean_energy: Tensor) -> bool:
+    return mean_energy == energy.mean(route)
+
+
+mean_model = Implementation(EnergyReport, [mean_over_routes])
+
+with mean_model:
+    average = EnergyReport(energy=all_energy).mean_energy
+
+assert average.domain == domain(technology)
+np.testing.assert_allclose(average.values, [1750.0 / 3.0, 2800.0 / 3.0])
 ```
 
-The relationship itself is simple:
+A reduction removes the named dimension. Here the input domain is `(route, technology)` and the result domain is `(technology,)`.
 
-```text
-cost = demand × price
+This is an unweighted mean over the three example routes, not a fleet-weighted energy estimate. Use the appropriate aggregation for the engineering question.
+
+### Select by position
+
+We can also select the second route (1,000 km) while keeping both technologies:
+
+```python exec="on" source="above" session="domains-tensors"
+@equation
+def second_route(energy: Tensor, second_route_energy: Tensor) -> bool:
+    return second_route_energy == energy.isel(route, 1)
+
+
+position_model = Implementation(EnergyReport, [second_route])
+
+with position_model:
+    selected = EnergyReport(energy=all_energy).second_route_energy
+
+assert selected.domain == domain(technology)
+assert selected.values.tolist() == [500.0, 800.0]
 ```
 
-If `demand` and `price` are evaluated over compatible domains, Bilt can handle the domain alignment around that calculation.
+The index is zero-based. Like a reduction, selection removes one dimension. We use `Tensor` parameters in these equations because they call named tensor methods, rather than just pointwise arithmetic.
 
-This lets the model express the engineering relationship without filling every transform with array-axis bookkeeping.
-
-The dimensions belong to the values.
-
-The transform describes what to do with them.
+These methods are symbolic operations in Bilt equations. Outside a model, use the returned tensor's `values` array for ordinary numerical operations.
 
 ### Dimensions also have extents
 
@@ -393,48 +298,49 @@ Catching that mismatch early is preferable to letting incompatible arrays make t
 
 ### Coordinates give dimensions concrete meaning
 
-Sometimes an extent is all we need.
+Sometimes an extent is all we need. Often we also care which coordinate each position represents.
 
-Often we also care which coordinate each position represents.
-
-For a time dimension, for example, we might have:
-
-```text
-time
-├── 2026-01-01
-├── 2026-02-01
-└── 2026-03-01
-```
-
-Bilt represents this with a **coordinate axis** associated with the dimension.
-
-For example:
+For our routes, we can use labels:
 
 ```python exec="on" source="above" session="domains-tensors"
-from datetime import datetime
-
 from bilt import coordinate_axis
 
-
-time_axis = coordinate_axis(
-    time,
-    (
-        datetime(2026, 1, 1),
-        datetime(2026, 2, 1),
-        datetime(2026, 3, 1),
-    ),
-)
+route_axis = coordinate_axis(route, ("short", "medium", "long"))
+assert route_axis.coordinates == ("short", "medium", "long")
 ```
 
-The dimension still identifies the axis:
+The dimension still identifies the axis, while the coordinate axis tells us what the individual positions along it mean.
 
-```text
-time
+We can then select by label rather than by position:
+
+```python exec="on" source="above" session="domains-tensors"
+@equation
+def select_route(energy: Tensor, selected_route_energy: Tensor) -> bool:
+    return selected_route_energy == energy.sel(route, "medium")
+
+
+coordinate_model = Implementation(EnergyReport, [select_route])
 ```
 
-while the coordinate axis tells us what the individual positions along it mean.
+Creating the coordinate axis does not bind it to an evaluation. At present, binding requires the internal evaluation context. This is the current mechanism, not a stable public coordinate-binding API:
 
-This separation is useful because many values can share the same dimension and coordinate system.
+```python exec="on" source="above" session="domains-tensors"
+from bilt import PYTHON_BACKEND
+from bilt.core._evaluation_context import EvaluationContext
+
+with EvaluationContext() as evaluation:
+    evaluation.domains.bind(route_axis)
+    medium = coordinate_model.evaluate(
+        {"energy": all_energy},
+        "selected_route_energy",
+        PYTHON_BACKEND,
+    )
+
+assert medium.domain == domain(technology)
+assert medium.values.tolist() == [500.0, 800.0]
+```
+
+The result is the same as positional selection, but the equation refers to the route label rather than its position. Coordinate labels can also be numbers or dates. See [Coordinate axes](../api/tensors.md#coordinate-axes) for the supported types and binding rules.
 
 ### Shared dimensions need to agree
 
@@ -461,7 +367,7 @@ while the other represented:
 
 simply because both arrays happened to contain three elements.
 
-Bilt therefore tracks dimension information during evaluation so that values sharing a named dimension also share a compatible concrete definition of that dimension.
+Bilt tracks the extents and any explicitly bound coordinate axes during evaluation. It cannot infer the labels of an unlabelled array: the caller must ensure that the values use the same coordinate order when sharing a dimension.
 
 This is one of the main reasons Bilt uses named domains rather than treating tensors as bare arrays.
 
@@ -500,7 +406,7 @@ The system and its relationships describe their role in the model.
 
 ### Domains become part of planning
 
-In the previous chapter, structural analysis asked whether a requested value could be reached from the values already known.
+In the previous chapter, structural analysis asked whether the known values and relationships admit a supported plan for the requested result.
 
 With tensors, there is another question:
 
