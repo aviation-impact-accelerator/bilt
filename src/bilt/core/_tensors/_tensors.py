@@ -44,7 +44,10 @@ class Tensor:
             msg = "A tensor cannot have multiple coordinate axes for one dimension."
             raise BiltTensorDomainError(msg)
         for axis in self.axes:
-            if axis.dimension not in self.domain.dims or len(axis) != values.shape[self.domain.dims.index(axis.dimension)]:
+            if (
+                axis.dimension not in self.domain.dims
+                or len(axis) != values.shape[self.domain.dims.index(axis.dimension)]
+            ):
                 msg = f"Coordinate axis {axis.dimension!s} does not match the tensor domain and shape."
                 raise BiltTensorDomainError(msg)
 
