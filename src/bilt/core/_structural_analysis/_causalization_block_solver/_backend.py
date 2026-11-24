@@ -269,10 +269,13 @@ class CausalizationStructuralAnalyzer:
         output: str,
     ) -> frozenset[str] | None:
         """Reuse an execution-route query within the current nested analysis."""
+        from ._native_prototype import attempt_required_inputs  # noqa: PLC0415
+
         with structural_cache_scope(), route_cache_scope() as cache:
             key = self, frozenset(available), output
             if key not in cache:
-                cache[key] = self._required_inputs_for_target(available, output)
+                native = attempt_required_inputs(self, available, output)
+                cache[key] = native if native is not None else self._required_inputs_for_target(available, output)
             return cache[key]
 
     def _required_inputs_for_target(self, available: set[str], output: str) -> frozenset[str] | None:
