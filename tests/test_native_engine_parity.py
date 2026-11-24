@@ -47,7 +47,7 @@ def test_single_and_joint_native_parity(backend: Backend, monkeypatch: pytest.Mo
             joint = Demo(a=4.0)
             assert single.left == pytest.approx(10.0)
             _prefetch_outputs(typing.cast("SystemInstance", joint), ("left", "right"))
-            results.append((single.left, joint.left, joint.right, joint.base))
+            results.append(tuple(float(value) for value in (single.left, joint.left, joint.right, joint.base)))
     assert results[0] == pytest.approx(results[1])
     expected_native_requests = 2
     assert native.STATS["native_success"] - before == expected_native_requests
