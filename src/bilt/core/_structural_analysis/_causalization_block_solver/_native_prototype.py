@@ -147,7 +147,7 @@ def attempt(
         analyser._experimental_native_initialized = True  # noqa: SLF001
         try:
             analyser._experimental_native = NativePlanner(analyser.full_incidence_graph)  # noqa: SLF001
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             analyser._experimental_native = None  # noqa: SLF001
     native = analyser._experimental_native  # noqa: SLF001
     if native is None:
