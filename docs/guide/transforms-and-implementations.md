@@ -1,361 +1,197 @@
 ## Transforms and implementations
 
-See the [Equations and transforms API](../api/relationships.md) and [Systems and implementations API](../api/systems.md) for concise references.
+An equation describes a mathematical relationship. A **transform** describes a calculation with a fixed direction: given these values, calculate this result.
 
-In the previous chapter, we used an equation to describe a mathematical relationship:
+Both can be used in the same implementation. We will build a small aircraft drag model to see how they work together, and then compare two implementations of that model.
+
+For simplicity, the examples use plain numbers in consistent SI units. See [Units in models](units.md) for how to declare physical dimensions.
+
+### Start with a system
+
+```python exec="on" source="above" session="drag-model"
+from bilt import Implementation, Interface, equation, field, system, transform
+
+
+@system
+class Drag(metaclass=Interface):
+    dynamic_pressure: float = field()
+    reference_area: float = field()
+    lift_coefficient: float = field()
+    drag_coefficient: float = field()
+    drag: float = field()
+```
+
+The system describes the values available at its boundary. It does not yet say how to calculate any of them.
+
+### A transform describes a directed calculation
+
+Suppose we have a simple lookup rule for the drag coefficient based on the lift coefficient. The values below are illustrative, not aircraft performance data.
 
 ```python exec="off"
+@transform
+def drag_coefficient(lift_coefficient: float) -> float:
+    if lift_coefficient < 0.5:
+        return 0.025
+    return 0.04
+```
+
+<!-- markdown-exec: hidden setup -->
+
+```python exec="on" session="drag-model"
+from pathlib import Path
+from runpy import run_path
+from tempfile import TemporaryDirectory
+
+# Execute the displayed transform from a real source file so inspect.getsource works.
+guide = Path("docs/guide/transforms-and-implementations.md").read_text(encoding="utf-8")
+source = next(
+    block.split("```", 1)[0] for block in guide.split('```python exec="off"\n')[1:] if block.startswith("@transform\n")
+)
+with TemporaryDirectory() as directory:
+    module = Path(directory) / "drag_lookup.py"
+    module.write_text("from bilt import transform\n\n" + source, encoding="utf-8")
+    drag_coefficient = run_path(str(module))["drag_coefficient"]
+```
+
+The parameter name identifies the required value. The function name identifies the result it provides, and its return annotation declares the result's type.
+
+```text
+lift_coefficient ──► drag_coefficient
+```
+
+Many lift coefficients produce the same drag coefficient, so there is no unique inverse. Bilt does not attempt to rearrange the transform.
+
+Transforms are useful for empirical lookups, data processing and calls to external numerical routines. They can contain ordinary Python code when using the Python backend, subject to Bilt's declaration and domain rules. The JAX backend supports a more restricted subset of Python; see [Backends](backends.md).
+
+Define transforms in Python source files so Bilt can read their source. Imports needed by a Python-only routine can go inside the transform body; ordinary globals and closure state are not automatically carried into the compiled calculation.
+
+### Combine a transform with an equation
+
+The drag force itself has an ordinary mathematical relationship:
+
+```python exec="on" source="above" session="drag-model"
 @equation
-def kinematic_relation(distance: float, speed: float, time: float) -> bool:
-    return distance == speed * time
+def drag_relation(
+    drag: float,
+    dynamic_pressure: float,
+    reference_area: float,
+    drag_coefficient: float,
+) -> bool:
+    return drag == dynamic_pressure * reference_area * drag_coefficient
 ```
 
-Equations are useful when the relationship itself is important and Bilt may need to use it in different directions.
+Unlike the lookup, this relationship can be rearranged to calculate other values when enough information is available.
 
-Not every part of a model works like that.
+Collect the two relationships in an implementation:
 
-Sometimes we simply want to say:
-
-> Given these values, here is how to calculate another one.
-
-For that, Bilt provides **transforms**.
-
-### Transforms describe calculations
-
-Consider a small system:
-
-```python exec="on" source="above"
-from bilt import Interface, field, system
-
-
-@system
-class Demo(metaclass=Interface):
-    base: float = field()
-    increment: float = field()
-    total: float = field()
+```python exec="on" source="above" session="drag-model"
+lookup_model = Implementation(Drag, [drag_relation, drag_coefficient])
 ```
 
-We can define a transform that calculates `total` from `base` and `increment`:
+The system defines the boundary. The implementation supplies the relationships and assumptions for that boundary.
 
-```python exec="off"
-from bilt import transform
+### Ask for a result
 
+Supply the known values and select the implementation:
 
-@transform
-def total(base: float, increment: float) -> float:
-    return base + increment
+```python exec="on" source="above" session="drag-model"
+with lookup_model:
+    aircraft = Drag(
+        dynamic_pressure=1000.0,
+        reference_area=20.0,
+        lift_coefficient=0.6,
+    )
+    assert abs(aircraft.drag - 800.0) < 1e-10
 ```
 
-This tells Bilt that `total` can be calculated from `base` and `increment`:
+Bilt first obtains the drag coefficient from the transform, then uses the equation to calculate drag.
 
-```text
-base ──────┐
-           ├──► total
-increment ─┘
+```mermaid
+flowchart TD
+    CL["Lift coefficient"] --> T["Lookup transform"]
+    T --> CD["Drag coefficient"]
+    CD --> E["Drag equation"]
+    Q["Dynamic pressure"] --> E
+    S["Reference area"] --> E
+    E --> D["Drag"]
 ```
 
-Unlike an equation, a transform has a fixed computational direction.
+The equation is listed first in the implementation, but the transform runs first for this request. The order of the relationships in an implementation is not the order of execution.
 
-The parameter names identify the values it requires, while the function name identifies the value it provides.
+If we request only the drag coefficient, Bilt does not need the drag equation or its other inputs:
 
-So:
-
-```python exec="off"
-@transform
-def total(base: float, increment: float) -> float:
-    return base + increment
+```python exec="on" source="above" session="drag-model"
+with lookup_model:
+    assert Drag(lift_coefficient=0.6).drag_coefficient == 0.04
 ```
 
-means:
+### Ask a different question
 
-```text
-requires: base, increment
-provides: total
+The transform still runs in its original direction, but the equation can be used differently. Suppose we know the drag and want to calculate the reference area consistent with those assumptions:
+
+```python exec="on" source="above" session="drag-model"
+with lookup_model:
+    aircraft = Drag(
+        dynamic_pressure=1000.0,
+        lift_coefficient=0.6,
+        drag=800.0,
+    )
+    assert abs(aircraft.reference_area - 20.0) < 1e-10
 ```
 
-Bilt can use this transform to calculate `total` from `base` and `increment`. It cannot use the same transform to calculate `base` from `increment` and `total`.
+Bilt obtains the coefficient in the same way, then rearranges the drag equation. We did not need to define an inverse transform or another drag equation.
 
-### Transforms are ordinary calculations
+### Compare implementations
 
-A transform contains ordinary Python code.
+We could use a continuous drag polar instead of the lookup rule:
 
-For example:
+```python exec="on" source="above" session="drag-model"
+@equation
+def drag_polar(
+    drag_coefficient: float,
+    lift_coefficient: float,
+) -> bool:
+    return drag_coefficient == 0.02 + 0.05 * lift_coefficient**2
 
-```python exec="off"
-@transform
-def magnitude(value: float) -> float:
-    return abs(value)
+
+polar_model = Implementation(Drag, [drag_relation, drag_polar])
 ```
 
-Given `value`, we can calculate its magnitude. But knowing the magnitude does not tell us whether the original value was positive or negative.
+Both implementations use the same system and the same drag equation. They differ only in how they represent the drag coefficient. The polar coefficients are also illustrative.
 
-There is no unique way to run the calculation backwards.
+We can compare them under the same conditions:
 
-Transforms can also contain conditionals, lookups, calls to other software, or other computations that cannot sensibly be represented as an algebraic relationship.
+```python exec="on" source="above" session="drag-model"
+conditions = {
+    "dynamic_pressure": 1000.0,
+    "reference_area": 20.0,
+    "lift_coefficient": 0.6,
+}
 
-This is the main distinction between the two relationship types we have seen:
+with lookup_model:
+    lookup_drag = Drag(**conditions).drag
 
-> An equation describes a relationship between values.
+with polar_model:
+    polar_drag = Drag(**conditions).drag
 
-> A transform describes how to calculate one value from others.
-
-Use an equation when the mathematical relationship is the important thing. Use a transform when the computation is the important thing.
-
-### Implementations collect relationships for a system
-
-We used an implementation in the previous chapter to connect an equation to a system.
-
-Now we can look at its role more closely.
-
-```python exec="off"
-from bilt import Implementation
-
-
-basic = Implementation(Demo, [total])
+assert abs(lookup_drag - 800.0) < 1e-10
+assert abs(polar_drag - 760.0) < 1e-10
 ```
 
-A system and its implementation have different jobs.
+The caller uses the same interface in both cases. Changing the implementation changes the relationships, not the interface.
 
-`Demo` describes the boundary:
+Use a fresh system instance for each comparison. An instance retains the implementation selected on its first calculated lookup and caches calculated values. Entering a different implementation context does not replace that instance's implementation or invalidate its results.
 
-```text
-Demo
-├── base
-├── increment
-└── total
-```
+The two coefficient models are separate implementations, not competing constraints in one implementation.
 
-while `basic` supplies relationships that can be used to obtain those values:
+### Choosing equations and transforms
 
-```text
-base, increment ──► total
-```
+Use an equation when you want to describe a mathematical relationship. Use a transform when you want to describe a particular calculation, such as a lookup or a call to an external routine. An equation need not be invertible in every direction to be useful.
 
-An implementation can contain equations, transforms, or a mixture of both.
+An implementation can combine either kind of relationship, and can later include other systems. The known values and requested result determine which relationships Bilt needs to use.
 
-Keeping the system boundary separate from its implementation also allows the same system to be realised in different ways.
+The next chapter explains how Bilt turns those relationships into a computation plan.
 
-### Evaluating with an implementation
-
-Create an instance with the values we already know:
-
-```python exec="off"
-demo = Demo(
-    base=1.0,
-    increment=2.0,
-)
-```
-
-Then make the implementation active while requesting `total`:
-
-```python exec="off"
-with basic:
-    assert demo.total == 3.0
-```
-
-Bilt knows:
-
-```text
-base = 1.0
-increment = 2.0
-```
-
-and has been asked for:
-
-```text
-total
-```
-
-The active implementation contains a transform that can produce `total` from the available values, so the request can be satisfied.
-
-Conceptually:
-
-```text
-known
-
-base, increment
-      │
-      ▼
-total(base, increment)
-      │
-      ▼
-    total
-```
-
-The important point is that we did not call the transform ourselves:
-
-```python exec="off"
-total(1.0, 2.0)
-```
-
-Instead, we asked the system for:
-
-```python exec="off"
-demo.total
-```
-
-Bilt found a relationship that could provide it.
-
-### Implementations can contain many relationships
-
-A real implementation will usually contain more than one relationship.
-
-Let's extend our system:
-
-```python exec="off"
-@system
-class Demo(metaclass=Interface):
-    base: float = field()
-    increment: float = field()
-    total: float = field()
-    adjusted: float = field()
-    result: float = field()
-```
-
-and define three transforms:
-
-```python exec="off"
-@transform
-def total(base: float, increment: float) -> float:
-    return base + increment
-
-
-@transform
-def adjusted(base: float, total: float) -> float:
-    return base + total
-
-
-@transform
-def result(total: float, adjusted: float) -> float:
-    return total + adjusted
-```
-
-We can collect them into one implementation:
-
-```python exec="off"
-basic = Implementation(Demo, [total, adjusted, result])
-```
-
-This gives Bilt three available relationships:
-
-```text
-base, increment ──► total
-base, total ──► adjusted
-total, adjusted ──► result
-```
-
-Now create an instance with just `base` and `increment` known:
-
-```python exec="off"
-demo = Demo(
-    base=1.0,
-    increment=2.0,
-)
-```
-
-and ask for `result`:
-
-```python exec="off"
-with basic:
-    assert demo.result == 7.0
-```
-
-To satisfy that request, Bilt needs to obtain:
-
-```text
-total = 3
-adjusted = 4
-result = 7
-```
-
-or, as a graph:
-
-```text
-base ──────┐
-           ├──► total ─────┐
-increment ─┘               ├──► result
-base ─────────► adjusted ──┘
-                 ▲
-                 │
-               total
-```
-
-We never wrote:
-
-```python exec="off"
-total_value = total(base, increment)
-adjusted_value = adjusted(base, total_value)
-result_value = result(total_value, adjusted_value)
-```
-
-The implementation describes which relationships are available. It does not prescribe the order in which they must be evaluated.
-
-### The model is not the execution order
-
-Nor does the order in:
-
-```python exec="off"
-Implementation(Demo, [total, adjusted, result])
-```
-
-mean:
-
-```text
-first total
-then adjusted
-then result
-```
-
-Those relationships describe the model.
-
-The required execution order depends on which values are already known and which value we request.
-
-If we request `total`, Bilt only needs:
-
-```text
-base, increment ──► total
-```
-
-If we request `result`, it needs a longer route:
-
-```text
-base, increment ──► total
-base, total ──► adjusted
-total, adjusted ──► result
-```
-
-So:
-
-> The model describes the available relationships. The request determines the computation.
-
-This applies equally when an implementation contains equations, transforms, or a mixture of both.
-
-### Equations and transforms can work together
-
-An implementation does not have to choose between equations and transforms.
-
-For example, part of a model might be described by an equation:
-
-```text
-distance = speed × time
-```
-
-while another part is naturally a directed calculation:
-
-```text
-distance ──► journey_category
-```
-
-Bilt can use both kinds of relationship when working out how to obtain a requested value.
-
-Equations give it relationships that may be usable in different directions.
-
-Transforms give it relationships with a fixed direction.
-
-Together, they form the set of possible routes through the model.
-
-The next question is how Bilt chooses a route from the values that are known to the value that has been requested.
-
-That is the subject of the next chapter: **from models to computation**.
+See the [Equations and transforms API](../api/relationships.md) and [Systems and implementations API](../api/systems.md) for details and restrictions.
 
 [← Equations and acausal modelling](equations-and-acausal-modelling.md) · [Index](../index.md) · [Models to computation →](models-to-computation.md)

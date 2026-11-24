@@ -10,6 +10,11 @@ from markdown_exec import formatter, validator
 DOCS = Path("docs")
 VISIBLE_EXAMPLES = {
     "docs/getting-started/first-model.md": ("class Motion(metaclass=Interface):", "def motion_relation("),
+    "docs/guide/transforms-and-implementations.md": (
+        "class Drag(metaclass=Interface):",
+        "def drag_coefficient(",
+        "def drag_polar(",
+    ),
     "docs/guide/systems-of-systems.md": ("class Resistor(metaclass=Interface):", "class Board(metaclass=Interface):"),
 }
 
