@@ -39,7 +39,7 @@ STATS: Counter[str] = Counter()
 
 def report() -> None:
     if MODE != "python":
-        print("BILT_NATIVE_STATS " + json.dumps(dict(STATS), sort_keys=True))  # noqa: T201
+        print("BILT_NATIVE_STATS " + json.dumps({"engine": MODE, **STATS}, sort_keys=True))  # noqa: T201
 
 
 if MODE != "python":
