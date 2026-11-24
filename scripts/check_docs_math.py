@@ -10,6 +10,9 @@ from markdown import Markdown
 DOCS = Path("docs")
 SITE = Path("site")
 MINIMUM_EXPRESSIONS = 9
+# Strip executable and ordinary fenced blocks before parsing prose. A standalone
+# Markdown renderer does not recognise all of Zensical's executable fence options.
+FENCED_CODE = re.compile(r"^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?^ {0,3}\1[ \t]*$", re.MULTILINE | re.DOTALL)
 MATH = re.compile(r'<(?:div|span) class="arithmatex">(.*?)</(?:div|span)>', re.DOTALL)
 
 
@@ -22,11 +25,12 @@ def main() -> int:
     """Compare the rendered site against the math in its Markdown sources."""
     total = 0
     for source in sorted(DOCS.rglob("*.md")):
+        prose = FENCED_CODE.sub("\n", source.read_text(encoding="utf-8"))
         expected = expressions(
             Markdown(
-                extensions=["pymdownx.superfences", "pymdownx.arithmatex"],
+                extensions=["pymdownx.arithmatex"],
                 extension_configs={"pymdownx.arithmatex": {"generic": True}},
-            ).convert(source.read_text(encoding="utf-8"))
+            ).convert(prose)
         )
         if not expected:
             continue
