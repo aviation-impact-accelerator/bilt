@@ -73,4 +73,7 @@ features = [
 ]
 
 
+[project.markdown_extensions]
+pymdownx.arithmatex.generic = true
+
 [project.plugins.markdown-exec]

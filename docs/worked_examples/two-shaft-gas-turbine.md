@@ -1820,19 +1820,15 @@ The supplied compressor assumptions determine the compressor temperature rises f
 
 Let `drop` be the total turbine temperature drop required by the two shaft balances. The remaining equations can then be reduced by hand to:
 
-[
-
+\[
 T_{turbine}=T_{compressor}+\frac{q_{in}/c_p-\varepsilon\,drop}{1-\varepsilon}
-
-]
+\]
 
 and:
 
-[
-
+\[
 T_{exhaust}=T_{turbine}-drop
-
-]
+\]
 
 We can use that as a numerical check without calling a linear solver:
 
