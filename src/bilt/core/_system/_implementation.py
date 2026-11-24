@@ -3,6 +3,7 @@ from bilt.core._tensors._tensor_alignment import generate_alignment_plan
 
 __all__ = ["Implementation"]
 
+import contextlib
 import dataclasses
 import types
 import typing
@@ -12,6 +13,7 @@ from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._port import mangle_inputs, mangle_name
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
+from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralAnalysis
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._system._dimensional_unification import check_dimensional_consistency
@@ -88,6 +90,13 @@ class Implementation:
         ] = {}
         self._plan_cache: dict[
             tuple[str, frozenset[tuple[str, Domain]], Backend, _CompilationContext], BackendCase
+        ] = {}
+        self._multi_plan_cache: dict[
+            tuple[tuple[str, ...], frozenset[tuple[str, Domain]], Backend, _CompilationContext], BackendCase
+        ] = {}
+        self._multi_callable_cache: dict[
+            tuple[tuple[str, ...], frozenset[tuple[str, Domain]], Backend, _CompilationContext, tuple[str, ...]],
+            BackendCallable,
         ] = {}
         self._structural_analysis: StructuralAnalysis | None = None
         self._analysers: dict[Backend, StructuralAnalyser] = {}
@@ -178,6 +187,97 @@ class Implementation:
             validate_inputs(self._system.__bilt_name__, self._port_declarations, outputs)
             evaluation.domains.bind_all(outputs.values())
         return outputs
+
+    def _evaluate_many_with_intermediates(
+        self,
+        inputs: dict[str, object],
+        outputs: tuple[str, ...],
+        backend: Backend,
+        *,
+        cached: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        """Jointly plan and evaluate outputs with a shared intermediate cache."""
+        targets = tuple(dict.fromkeys(outputs))
+        if not targets:
+            return {}
+        if len(targets) == 1:
+            return self._evaluate_with_intermediates(inputs, targets[0], backend, cached=cached)
+
+        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+        with EvaluationContext() as evaluation:
+            evaluation.domains.bind_all(inputs.values())
+            known = inputs | (cached or {})
+            missing = tuple(target for target in targets if target not in known)
+            if not missing:
+                return {}
+            if len(missing) == 1:
+                return self._evaluate_with_intermediates(inputs, missing[0], backend, cached=cached)
+
+            request = EvaluationRequest(
+                output=missing[0],
+                input_domains={
+                    name: value.domain if isinstance(value, Tensor) else Domain.scalar()
+                    for name, value in inputs.items()
+                },
+            )
+            context = _CompilationContext(
+                canonical_order=evaluation.canonical_order,
+                coordinate_signature=evaluation.domains.coordinate_signature(),
+            )
+            key = (missing, frozenset(request.input_domains.items()), backend, context)
+            plan = self._multi_plan_cache.get(key)
+            if plan is None:
+                analyser = self.analyser_for(backend)
+                if isinstance(analyser, CausalizationStructuralAnalyzer) and hasattr(analyser, "analyse_many"):
+                    # An incompatible joint matching can still have valid
+                    # independent routes; the existing cache provides fallback.
+                    with contextlib.suppress(BiltExecutionPlanError):
+                        plan = analyser.analyse_many(request, missing)
+                if plan is None:
+                    return self._fallback_multi_targets(inputs, missing, backend, cached=cached)
+                self._multi_plan_cache[key] = plan
+
+            case = reuse_plan_outputs(plan, frozenset(cached or {}), required_ports=missing)
+            compile_key = (*key, tuple(item.name for item in case.intermediates))
+            callable_ = self._multi_callable_cache.get(compile_key)
+            if callable_ is None:
+                callable_ = backend.chain_case(dataclasses.replace(case, expose_intermediates=True))
+                self._multi_callable_cache[compile_key] = callable_
+
+            parameters = set(callable_.parameters)
+            required_inputs = {name: value for name, value in inputs.items() if mangle_name(name) in parameters} | {
+                name: value for name, value in (cached or {}).items() if mangle_name(name) in parameters
+            }
+            lowered = lower_inputs(required_inputs)
+            aligned = backend.apply_alignment(lowered, generate_alignment_plan(required_inputs))
+            raw_outputs = callable_.evaluate_outputs(mangle_inputs(aligned))
+            domains = {item.port: item.domain for item in callable_.outputs or ()}
+            computed = {
+                name: lift_output(value, generate_lifting_plan(domains[name], self._port_declarations.get(name)))
+                for name, value in raw_outputs.items()
+            }
+            validate_inputs(self._system.__bilt_name__, self._port_declarations, computed)
+            evaluation.domains.bind_all(computed.values())
+            return computed
+
+    def _fallback_multi_targets(
+        self,
+        inputs: dict[str, object],
+        targets: tuple[str, ...],
+        backend: Backend,
+        *,
+        cached: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        """Retain intermediate results but use independent, validated routes."""
+        discovered = dict(cached or {})
+        computed: dict[str, object] = {}
+        for target in targets:
+            if target in discovered:
+                continue
+            step = self._evaluate_with_intermediates(inputs, target, backend, cached=discovered)
+            computed.update({name: value for name, value in step.items() if name not in discovered})
+            discovered.update(step)
+        return computed
 
     def get_evaluation(
         self,

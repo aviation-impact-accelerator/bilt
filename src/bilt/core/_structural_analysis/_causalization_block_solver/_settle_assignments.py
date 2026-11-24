@@ -1,4 +1,4 @@
-__all__ = ["settle_assignments"]
+__all__ = ["settle_assignments", "settle_assignments_many"]
 
 import typing
 
@@ -31,6 +31,27 @@ def settle_assignments(
     Follow the target's dependencies and potential inputs of selected children.
     """
     return _TargetSettlement(assignments, available, backend).settle(target)
+
+
+def settle_assignments_many(
+    assignments: collections.abc.Mapping[str, BiltModelConstituent],
+    available: collections.abc.Set[str],
+    backend: Backend,
+    *,
+    targets: tuple[str, ...],
+) -> tuple[tuple[PlanStep, ...], frozenset[str]]:
+    """Settle several targets against a single candidate matching.
+
+    Keep established intermediate values and child routes within one settlement
+    rather than starting a fresh dependency search for each target.
+    """
+    settlement = _TargetSettlement(assignments, available, backend)
+    for target in targets:
+        settlement.settle(target)
+    return (
+        tuple(settlement.steps[name] for name in sorted(settlement.steps)),
+        frozenset((settlement.requested & assignments.keys()) - settlement.steps.keys()),
+    )
 
 
 def _assignment_step(

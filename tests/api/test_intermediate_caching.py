@@ -9,9 +9,13 @@ from bilt import Implementation, Interface, Quantity, QuantityTensor, Tensor, eq
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
-from bilt.core._structural_analysis._causalization_block_solver._errors import BiltOverconstrainedError
+from bilt.core._structural_analysis._causalization_block_solver._errors import (
+    BiltExecutionPlanError,
+    BiltOverconstrainedError,
+)
 from bilt.core._structural_analysis._exhaustive import ExhaustiveStructuralAnalyser
 from bilt.core._system import _implementation as implementation_module
+from bilt.core._system._dispatch import _prefetch_outputs
 from bilt.core._system._sentinel import MISSING
 from bilt.symbolic._dimensions import Dim, coordinate_axis
 from bilt.symbolic._domains import domain
@@ -498,3 +502,141 @@ def test_linear_block_intermediates_are_exposed(backend: Backend) -> None:
         assert instance.x == pytest.approx(5.0)
         assert instance.y == pytest.approx(3.0)
         assert {"x", "y"} <= _variables(instance).keys()
+
+
+def test_joint_multi_output_prefetch_preserves_cached_intermediates(backend: Backend) -> None:
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        base: float = field()
+        left: float = field()
+        right: float = field()
+
+    @transform
+    def base(a: float) -> float:
+        return a + 1
+
+    @transform
+    def left(base: float) -> float:
+        return base * 2
+
+    @transform
+    def right(base: float) -> float:
+        return base * 3
+
+    implementation = Implementation(Demo, [base, left, right])
+    with backend, implementation:
+        example = Demo(a=4.0)
+        _prefetch_outputs(typing.cast("SystemInstance", example), ("left", "right"))
+        assert example.left == pytest.approx(10.0)
+        assert example.right == pytest.approx(15.0)
+        assert example.base == pytest.approx(5.0)
+        if implementation_module.CausalizationStructuralAnalyzer is not ExhaustiveStructuralAnalyser:
+            assert len(implementation._multi_plan_cache) == 1  # noqa: SLF001
+            cached_plan = next(iter(implementation._multi_plan_cache.values()))  # noqa: SLF001
+            assert {"base", "left", "right"} <= {item.port for item in cached_plan.outputs}
+
+
+def test_multi_output_prefetch_uses_previous_intermediates(backend: Backend) -> None:
+    @system
+    class Demo(metaclass=Interface):
+        x: float = field()
+        shared: float = field()
+        one: float = field()
+        two: float = field()
+        three: float = field()
+
+    @transform
+    def shared(x: float) -> float:
+        return x + 2
+
+    @transform
+    def one(shared: float) -> float:
+        return shared * 2
+
+    @transform
+    def two(shared: float) -> float:
+        return shared * 3
+
+    @transform
+    def three(shared: float) -> float:
+        return shared * 4
+
+    with backend, Implementation(Demo, [shared, one, two, three]):
+        example = Demo(x=3.0)
+        assert example.one == pytest.approx(10.0)
+        _prefetch_outputs(typing.cast("SystemInstance", example), ("two", "three"))
+        assert example.two == pytest.approx(15.0)
+        assert example.three == pytest.approx(20.0)
+        assert example.shared == pytest.approx(5.0)
+
+
+def test_joint_prefetch_falls_back_to_independent_plans(backend: Backend, monkeypatch: pytest.MonkeyPatch) -> None:
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        left: float = field()
+        right: float = field()
+
+    @transform
+    def left(a: float) -> float:
+        return a + 1
+
+    @transform
+    def right(a: float) -> float:
+        return a * 2
+
+    implementation = Implementation(Demo, [left, right])
+    analyser = implementation.analyser_for(backend)
+    if hasattr(analyser, "analyse_many"):
+
+        def reject(request: EvaluationRequest, outputs: tuple[str, ...]) -> BackendCase:
+            msg = f"No joint route for {request.output!r} in {outputs!r}."
+            raise BiltExecutionPlanError(msg)
+
+        monkeypatch.setattr(analyser, "analyse_many", reject)
+
+    with backend, implementation:
+        example = Demo(a=3.0)
+        _prefetch_outputs(typing.cast("SystemInstance", example), ("a", "left", "left", "right"))
+        assert example.a == pytest.approx(3.0)
+        assert example.left == pytest.approx(4.0)
+        assert example.right == pytest.approx(6.0)
+        _prefetch_outputs(typing.cast("SystemInstance", example), ("left", "right"))
+        assert not implementation._multi_plan_cache  # noqa: SLF001
+
+
+def test_joint_prefetch_preserves_overconstraint_errors(backend: Backend) -> None:
+    if implementation_module.CausalizationStructuralAnalyzer is ExhaustiveStructuralAnalyser:
+        pytest.skip("The exhaustive analyser does not enforce SCC overconstraint semantics.")
+
+    @system
+    class Demo(metaclass=Interface):
+        a: float = field()
+        z: float = field()
+        x: float = field()
+        y: float = field()
+
+    @transform
+    def z(a: float) -> float:
+        return a + 1
+
+    @transform
+    def x(a: float) -> float:
+        return a * 2
+
+    @equation
+    def conflicting(x: float, y: float) -> bool:
+        return y == x + 1
+
+    @equation
+    def redundant(x: float, y: float) -> bool:
+        return y == x * 2
+
+    with backend, Implementation(Demo, [z, x, conflicting, redundant]):
+        example = Demo(a=2.0)
+        with pytest.raises(BiltOverconstrainedError):
+            _prefetch_outputs(typing.cast("SystemInstance", example), ("z", "y"))
+        assert example.z == pytest.approx(3.0)
+        with pytest.raises(BiltOverconstrainedError):
+            _ = example.y

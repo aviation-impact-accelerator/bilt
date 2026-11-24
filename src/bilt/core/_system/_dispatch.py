@@ -47,3 +47,51 @@ def _dispatch_evaluation[T](instance: SystemInstance, attribute: Attribute[T]) -
         raise RuntimeError(msg)
     instance.__bilt_system_instance_variables__.update(outputs)
     return typing.cast("T", outputs[attribute.name])
+
+
+def _prefetch_outputs(instance: SystemInstance, outputs: tuple[str, ...]) -> None:
+    """Evaluate multiple instance ports together, retaining their intermediates.
+
+    This internal opt-in path leaves ordinary property access unchanged.
+    """
+    cls = typing.cast("Interface", instance.__class__)
+    requested = tuple(dict.fromkeys(outputs))
+    for target in requested:
+        if target not in cls.__bilt_system_attributes__:
+            raise BiltUnknownSystemAttributeError(target, instance)
+    missing = tuple(
+        target
+        for target in requested
+        if isinstance(instance.__bilt_system_instance_variables__.get(target, MISSING), _Missing)
+    )
+    if not missing:
+        return
+    if len(missing) == 1:
+        _dispatch_evaluation(instance, cls.__bilt_system_attributes__[missing[0]])
+        return
+
+    implementation = instance.__bilt_system_implementation__
+    if isinstance(implementation, _Missing):
+        if not cls.__bilt_system_implementation_default__:
+            raise BiltUnknownSystemAttributeError(missing[0], instance)
+        implementation = cls.__bilt_system_implementation_default__[-1]
+        instance.__bilt_system_implementation__ = implementation
+
+    fixed_inputs = {
+        name: value for name, value in instance.__bilt_system_instance_inputs__.items() if value is not MISSING
+    }
+    known = {name: value for name, value in instance.__bilt_system_instance_variables__.items() if value is not MISSING}
+    backend = _backend_stack[-1] if _backend_stack else PYTHON_BACKEND
+    computed = implementation._evaluate_many_with_intermediates(  # noqa: SLF001
+        fixed_inputs,
+        missing,
+        backend,
+        cached={name: value for name, value in known.items() if name not in fixed_inputs},
+    )
+    if missing_outputs := set(missing) - (computed.keys() | known.keys()):
+        msg = f"Multi-output evaluation omitted: {sorted(missing_outputs)}."
+        raise RuntimeError(msg)
+    if collisions := computed.keys() & known.keys():
+        msg = f"Multi-output evaluation recomputed cached ports: {sorted(collisions)}."
+        raise RuntimeError(msg)
+    instance.__bilt_system_instance_variables__.update(computed)
