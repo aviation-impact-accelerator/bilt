@@ -91,8 +91,8 @@ def test_choose_independent_variable_at_evaluation_time(backend: Backend) -> Non
     assert isinstance(accelerations, Tensor)
     assert forces.axes == (acceleration,)
     assert accelerations.axes == (force,)
-    np.testing.assert_allclose(forces.values, force.coordinates)
-    np.testing.assert_allclose(accelerations.values, acceleration.coordinates)
+    np.testing.assert_allclose(forces.values, [10.0, 20.0, 30.0])
+    np.testing.assert_allclose(accelerations.values, [1.0, 2.0, 3.0])
 
 
 def test_enum_coordinate_lookup_and_signature_are_nominal() -> None:
