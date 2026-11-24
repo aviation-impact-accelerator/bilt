@@ -76,8 +76,9 @@ def induced_drag(
     return dynamic_pressure * wing_area * induced_drag_factor * lift_coefficient**2
 ```
 
-The system uses named pointwise aliases such as `PointwiseRatio` for fields accepting
-scalar or tensor quantities, and scalar aliases such as `Ratio` for transforms.
+The system and transforms share quantity aliases such as `Ratio`, which accepts
+scalar or tensor quantities. The temperature transforms that extract a scalar
+number use a separate `ScalarAbsoluteTemperature` annotation.
 The transforms lift over compatible tensor domains, so the model does not
 prescribe the shape of the ensemble. Efficiencies, Mach number, aerodynamic
 coefficients, and emission indices are dimensionless quantities supplied with `UNITLESS`.
@@ -505,81 +506,71 @@ from bilt.units import UNITLESS, absolute_kelvin, joule, kelvin, kilogram, meter
 from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, ENERGY, FORCE, LENGTH, MASS, TEMPERATURE, TIME
 
 
-Length = Annotated[Quantity, LENGTH]
-Mass = Annotated[Quantity, MASS]
-Area = Annotated[Quantity, LENGTH**2]
-TemperatureChange = Annotated[Quantity, TEMPERATURE]
-AbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]
-Pressure = Annotated[Quantity, FORCE / LENGTH**2]
-Density = Annotated[Quantity, MASS / LENGTH**3]
-Speed = Annotated[Quantity, LENGTH / TIME]
-Force = Annotated[Quantity, FORCE]
-Power = Annotated[Quantity, ENERGY / TIME]
-MassRate = Annotated[Quantity, MASS / TIME]
-Ratio = Annotated[Quantity, DIMENSIONLESS]
-PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]
-PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
-PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]
-PointwiseTemperatureChange = Annotated[Quantity | QuantityTensor, TEMPERATURE]
-PointwiseArea = Annotated[Quantity | QuantityTensor, LENGTH**2]
-PointwiseAbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
-PointwisePressure = Annotated[Quantity | QuantityTensor, FORCE / LENGTH**2]
-PointwiseDensity = Annotated[Quantity | QuantityTensor, MASS / LENGTH**3]
-PointwiseSpeed = Annotated[Quantity | QuantityTensor, LENGTH / TIME]
-PointwiseForce = Annotated[Quantity | QuantityTensor, FORCE]
-PointwisePower = Annotated[Quantity | QuantityTensor, ENERGY / TIME]
-PointwiseMassRate = Annotated[Quantity | QuantityTensor, MASS / TIME]
+Length = Annotated[Quantity | QuantityTensor, LENGTH]
+Mass = Annotated[Quantity | QuantityTensor, MASS]
+Area = Annotated[Quantity | QuantityTensor, LENGTH**2]
+TemperatureChange = Annotated[Quantity | QuantityTensor, TEMPERATURE]
+AbsoluteTemperature = Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
+ScalarAbsoluteTemperature = Annotated[Quantity, TEMPERATURE, ABSOLUTE]
+Pressure = Annotated[Quantity | QuantityTensor, FORCE / LENGTH**2]
+Density = Annotated[Quantity | QuantityTensor, MASS / LENGTH**3]
+Speed = Annotated[Quantity | QuantityTensor, LENGTH / TIME]
+Force = Annotated[Quantity | QuantityTensor, FORCE]
+Power = Annotated[Quantity | QuantityTensor, ENERGY / TIME]
+MassRate = Annotated[Quantity | QuantityTensor, MASS / TIME]
+Ratio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
+MassRate = Annotated[Quantity | QuantityTensor, MASS / TIME]
 
 
 @system
 class CruiseImpact(metaclass=Interface):
     # Inputs
-    altitude: PointwiseLength = field()
-    mach: PointwiseRatio = field()
-    mass: PointwiseMass = field()
-    temperature_offset: PointwiseTemperatureChange = field()
-    wing_area: PointwiseArea = field()
-    zero_lift_drag_coefficient: PointwiseRatio = field()
-    induced_drag_factor: PointwiseRatio = field()
-    propulsive_efficiency: PointwiseRatio = field()
-    nox_emission_index: PointwiseRatio = field()
-    soot_emission_index: PointwiseRatio = field()
+    altitude: Length = field()
+    mach: Ratio = field()
+    mass: Mass = field()
+    temperature_offset: TemperatureChange = field()
+    wing_area: Area = field()
+    zero_lift_drag_coefficient: Ratio = field()
+    induced_drag_factor: Ratio = field()
+    propulsive_efficiency: Ratio = field()
+    nox_emission_index: Ratio = field()
+    soot_emission_index: Ratio = field()
 
     # Atmosphere
-    temperature: PointwiseAbsoluteTemperature = field()
-    pressure: PointwisePressure = field()
-    density: PointwiseDensity = field()
-    speed_of_sound: PointwiseSpeed = field()
-    true_airspeed: PointwiseSpeed = field()
+    temperature: AbsoluteTemperature = field()
+    pressure: Pressure = field()
+    density: Density = field()
+    speed_of_sound: Speed = field()
+    true_airspeed: Speed = field()
 
     # Aerodynamics
-    weight: PointwiseForce = field()
-    dynamic_pressure: PointwisePressure = field()
-    lift_coefficient: PointwiseRatio = field()
-    parasite_drag: PointwiseForce = field()
-    induced_drag: PointwiseForce = field()
-    compressibility_drag: PointwiseForce = field()
-    trim_drag: PointwiseForce = field()
-    total_drag: PointwiseForce = field()
+    weight: Force = field()
+    dynamic_pressure: Pressure = field()
+    lift_coefficient: Ratio = field()
+    parasite_drag: Force = field()
+    induced_drag: Force = field()
+    compressibility_drag: Force = field()
+    trim_drag: Force = field()
+    total_drag: Force = field()
 
     # Propulsion
-    propulsive_power: PointwisePower = field()
-    fuel_power: PointwisePower = field()
-    fuel_flow: PointwiseMassRate = field()
+    propulsive_power: Power = field()
+    fuel_power: Power = field()
+    fuel_flow: MassRate = field()
 
     # Emissions
-    co2_rate: PointwiseMassRate = field()
-    water_rate: PointwiseMassRate = field()
-    nox_rate: PointwiseMassRate = field()
-    soot_rate: PointwiseMassRate = field()
+    co2_rate: MassRate = field()
+    water_rate: MassRate = field()
+    nox_rate: MassRate = field()
+    soot_rate: MassRate = field()
 
     # Illustrative climate-effect outputs
-    co2_effect: PointwiseMassRate = field()
-    water_effect: PointwiseMassRate = field()
-    nox_effect: PointwiseMassRate = field()
-    soot_effect: PointwiseMassRate = field()
-    contrail_effect: PointwiseMassRate = field()
-    total_climate_effect: PointwiseMassRate = field()
+    co2_effect: MassRate = field()
+    water_effect: MassRate = field()
+    nox_effect: MassRate = field()
+    soot_effect: MassRate = field()
+    contrail_effect: MassRate = field()
+    total_climate_effect: MassRate = field()
 
 
 # Atmosphere -----------------------------------------------------------------
@@ -591,19 +582,19 @@ def temperature(altitude: Length, temperature_offset: TemperatureChange) -> Abso
 
 
 @transform
-def pressure(temperature: AbsoluteTemperature) -> Pressure:
+def pressure(temperature: ScalarAbsoluteTemperature) -> Pressure:
     # The empirical reference temperature is 288.15 kelvin.
     return (101325.0 * pascal) * (temperature.convert_to(absolute_kelvin).value / 288.15) ** 5.2561
 
 
 @transform
-def density(pressure: Pressure, temperature: AbsoluteTemperature) -> Density:
+def density(pressure: Pressure, temperature: ScalarAbsoluteTemperature) -> Density:
     temperature_scale = temperature.convert_to(absolute_kelvin).value * kelvin
     return pressure / ((287.05 * joule / (kilogram * kelvin)) * temperature_scale)
 
 
 @transform
-def speed_of_sound(temperature: AbsoluteTemperature) -> Speed:
+def speed_of_sound(temperature: ScalarAbsoluteTemperature) -> Speed:
     temperature_scale = temperature.convert_to(absolute_kelvin).value * kelvin
     speed_squared = 1.4 * (287.05 * joule / (kilogram * kelvin)) * temperature_scale
     return speed_squared.convert_to(meter**2 / second**2).value ** 0.5 * meter / second
@@ -737,7 +728,7 @@ def water_effect(water_rate: MassRate, altitude: Length) -> MassRate:
 def nox_effect(
     nox_rate: MassRate,
     altitude: Length,
-    temperature: AbsoluteTemperature,
+    temperature: ScalarAbsoluteTemperature,
 ) -> MassRate:
     altitude_factor = Quantity(0.5, UNITLESS) + altitude / (20_000.0 * meter)
     temperature_factor = 288.15 / temperature.convert_to(absolute_kelvin).value
@@ -755,7 +746,7 @@ def contrail_effect(
     water_rate: MassRate,
     soot_rate: MassRate,
     altitude: Length,
-    temperature: AbsoluteTemperature,
+    temperature: ScalarAbsoluteTemperature,
 ) -> MassRate:
     altitude_factor = (altitude / (12_000.0 * meter)) ** 2
     temperature_factor = (288.15 / temperature.convert_to(absolute_kelvin).value) ** 2

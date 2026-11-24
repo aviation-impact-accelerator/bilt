@@ -100,40 +100,33 @@ from bilt import Implementation, Interface, Quantity, QuantityTensor, field, sys
 from bilt.units.dimensions import DIMENSIONLESS, ENERGY, LENGTH, MASS
 
 
-Mass = Annotated[Quantity, MASS]
-Length = Annotated[Quantity, LENGTH]
-Energy = Annotated[Quantity, ENERGY]
-SpecificEnergy = Annotated[Quantity, ENERGY / MASS]
-EnergyIntensity = Annotated[Quantity, ENERGY / (LENGTH * MASS)]
-Ratio = Annotated[Quantity, DIMENSIONLESS]
-
-PointwiseSpecificEnergy = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
-PointwiseRatio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
-PointwiseLength = Annotated[Quantity | QuantityTensor, LENGTH]
-PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]
-PointwiseEnergyIntensity = Annotated[Quantity | QuantityTensor, ENERGY / (LENGTH * MASS)]
-PointwiseEnergy = Annotated[Quantity | QuantityTensor, ENERGY]
+Mass = Annotated[Quantity | QuantityTensor, MASS]
+Length = Annotated[Quantity | QuantityTensor, LENGTH]
+Energy = Annotated[Quantity | QuantityTensor, ENERGY]
+SpecificEnergy = Annotated[Quantity | QuantityTensor, ENERGY / MASS]
+EnergyIntensity = Annotated[Quantity | QuantityTensor, ENERGY / (LENGTH * MASS)]
+Ratio = Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
 
 
 @system
 class Mission(metaclass=Interface):
-    specific_energy: PointwiseSpecificEnergy = field()
-    propulsive_efficiency: PointwiseRatio = field()
-    energy_multiplier: PointwiseRatio = field()
+    specific_energy: SpecificEnergy = field()
+    propulsive_efficiency: Ratio = field()
+    energy_multiplier: Ratio = field()
 
-    distance: PointwiseLength = field()
-    payload: PointwiseMass = field()
+    distance: Length = field()
+    payload: Mass = field()
 
-    empty_mass: PointwiseMass = field()
-    energy_intensity: PointwiseEnergyIntensity = field()
-    usable_fraction: PointwiseRatio = field()
-    max_battery_mass: PointwiseMass = field()
+    empty_mass: Mass = field()
+    energy_intensity: EnergyIntensity = field()
+    usable_fraction: Ratio = field()
+    max_battery_mass: Mass = field()
 
-    gross_mass: PointwiseMass = field()
-    shaft_energy: PointwiseEnergy = field()
-    electrical_energy: PointwiseEnergy = field()
-    battery_mass: PointwiseMass = field()
-    battery_margin: PointwiseMass = field()
+    gross_mass: Mass = field()
+    shaft_energy: Energy = field()
+    electrical_energy: Energy = field()
+    battery_mass: Mass = field()
+    battery_margin: Mass = field()
 
 
 @transform
@@ -182,7 +175,7 @@ mission_model = Implementation(
 )
 ```
 
-The named `Pointwise...` aliases allow the system fields to accept scalar or tensor quantities, while the shorter scalar aliases remain appropriate for the transforms.
+The same quantity aliases are used in the system and its transforms.
 
 The documentation build loads the displayed definitions directly into a temporary Python module, so the example runs the code shown here.
 
