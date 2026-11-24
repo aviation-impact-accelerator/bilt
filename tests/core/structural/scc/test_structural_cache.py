@@ -32,6 +32,7 @@ def _reference_engine(monkeypatch: pytest.MonkeyPatch) -> None:
     """Exercise the Python-specific graph and cache implementation."""
     monkeypatch.setattr(native, "MODE", "python")
 
+
 type Query = tuple[FullIncidenceGraph, frozenset[str], frozenset[str]]
 
 
