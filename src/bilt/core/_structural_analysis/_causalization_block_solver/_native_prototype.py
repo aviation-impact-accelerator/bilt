@@ -35,6 +35,7 @@ if MODE not in {"python", "rust", "hybrid"}:
     msg = f"Unknown experimental structural engine: {MODE!r}."
     raise ValueError(msg)
 STATS: Counter[str] = Counter()
+ROUTE_CACHE = os.environ.get("BILT_EXPERIMENTAL_ROUTE_CACHE", "on") != "off"
 
 
 def report() -> None:
@@ -117,12 +118,14 @@ class NativePlanner:
             if step.operation is operation and step.output in self.names
         ]
         start = time.perf_counter_ns()
-        schedule = self.model.plan(
+        schedule, route_stats = self.model.plan_with_stats(
             [self.names[p] for p in available if p in self.names],
             [self.names[p] for p in targets],
             blocked,
+            ROUTE_CACHE,
         )
         STATS["native_plan_ns"] += time.perf_counter_ns() - start
+        STATS.update(route_stats)
         if schedule is None:
             return None
         blocks = []
