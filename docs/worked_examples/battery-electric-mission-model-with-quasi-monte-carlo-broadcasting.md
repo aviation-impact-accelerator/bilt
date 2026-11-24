@@ -191,7 +191,9 @@ The documentation build loads the displayed definitions directly into a temporar
 <!-- markdown-exec: hidden setup -->
 
 ```python exec="on" session="qmc"
-guide = Path("docs/worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md").read_text(encoding="utf-8")
+guide = Path("docs/worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting.md").read_text(
+    encoding="utf-8"
+)
 model_section = guide.split("<!-- model-source: start -->", 1)[1].split("<!-- model-source: end -->", 1)[0]
 model_source = "\n\n".join(block.split("```", 1)[0] for block in model_section.split('```python exec="off"\n')[1:])
 

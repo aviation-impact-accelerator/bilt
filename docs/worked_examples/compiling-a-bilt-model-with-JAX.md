@@ -606,7 +606,7 @@ def density(pressure: Pressure, temperature: AbsoluteTemperature) -> Density:
 def speed_of_sound(temperature: AbsoluteTemperature) -> Speed:
     temperature_scale = temperature.convert_to(absolute_kelvin).value * kelvin
     speed_squared = 1.4 * (287.05 * joule / (kilogram * kelvin)) * temperature_scale
-    return speed_squared.convert_to(meter**2 / second**2).value**0.5 * meter / second
+    return speed_squared.convert_to(meter**2 / second**2).value ** 0.5 * meter / second
 
 
 @transform
