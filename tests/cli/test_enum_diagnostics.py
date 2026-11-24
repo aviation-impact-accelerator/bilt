@@ -108,9 +108,9 @@ def test_check_collects_unsupported_categorical_port_declarations(tmp_path: Path
         (
             """
             @equation
-            def output(mode: Mode, result: float) -> bool:
+            def output(mode: float, result: float) -> bool:
                 match mode:
-                    case Mode.ON:
+                    case 1:
                         selected = 1.0
                 return result == selected
             """,

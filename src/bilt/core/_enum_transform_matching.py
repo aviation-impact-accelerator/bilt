@@ -12,6 +12,7 @@ import typing
 
 from bilt.core._enum_encoding import enum_code
 from bilt.core._errors import BiltCategoricalPortError
+from bilt.core._validation import checking_model_definitions
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -156,6 +157,9 @@ class _EnumMatchLowerer(ast.NodeTransformer):
         if not cases:
             self._reject(port, "enum match requires at least one named member case.")
         exhaustive = seen == set(enum_type)
+        if not exhaustive and checking_model_definitions():
+            missing = sorted(member.name for member in enum_type if member not in seen)
+            self._reject(port, f"non-exhaustive {enum_type.__name__} match: explicitly handle {', '.join(missing)}.")
         if never and not exhaustive:
             self._reject(port, "assert_never requires cases covering every enum member.")
         if default is None and not exhaustive:
