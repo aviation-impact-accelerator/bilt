@@ -11,7 +11,7 @@ See [Equations](../guide/equations-and-acausal-modelling.md) and
 
 ## Equations
 
-```python exec="on" id="wkyq36"
+```python exec="on" source="above" id="wkyq36"
 from bilt import equation
 
 

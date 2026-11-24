@@ -14,7 +14,7 @@ distance = speed × time
 
 We can declare the values with a system:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 from bilt import Interface, equation, field, system
 
 
@@ -27,7 +27,7 @@ class Motion(metaclass=Interface):
 
 Then define the relationship:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 @equation
 def kinematic_relation(distance: float, speed: float, time: float) -> bool:
     return distance == speed * time
@@ -69,7 +69,7 @@ in a form that Bilt can inspect and reason about.
 
 Equations become part of a system through an **implementation**:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 from bilt import Implementation
 
 
@@ -80,7 +80,7 @@ An implementation supplies the relationships Bilt can use for a particular syste
 
 Suppose we know the speed and time:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 journey = Motion(
     speed=20.0,
     time=5.0,
@@ -89,7 +89,7 @@ journey = Motion(
 
 We can ask for the distance:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 with basic:
     assert journey.distance == 100.0
 ```
@@ -106,7 +106,7 @@ But it is not restricted to this single form of the mathematical relationship.
 
 Suppose instead that we know the distance and time:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 journey = Motion(
     distance=100.0,
     time=5.0,
@@ -115,7 +115,7 @@ journey = Motion(
 
 Now ask for the speed:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 with basic:
     assert journey.speed == 20.0
 ```
@@ -130,7 +130,7 @@ Bilt can rearrange the equation to obtain it.
 
 Likewise, if we know distance and speed:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 journey = Motion(
     distance=100.0,
     speed=20.0,
@@ -139,7 +139,7 @@ journey = Motion(
 
 we can request time:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 with basic:
     assert journey.time == 5.0
 ```
@@ -263,7 +263,7 @@ Bilt also needs to read your function's original Python code. For this reason, d
 
 Sometimes a relationship depends on a condition. For example, we might want to square positive values but change the sign of negative ones:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 @system
 class Piecewise(metaclass=Interface):
     x: float = field()
@@ -284,7 +284,7 @@ piecewise_model = Implementation(Piecewise, [piecewise_relation])
 
 Both branches use the name `selected`. Bilt understands both possibilities, so it can choose the right one when a value is requested:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 with piecewise_model:
     assert Piecewise(x=3.0).result == 9.0
     assert Piecewise(x=-3.0).result == 3.0
@@ -292,7 +292,7 @@ with piecewise_model:
 
 The same equation works with the JAX backend:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 from bilt import JAX_BACKEND
 
 with JAX_BACKEND, piecewise_model:
@@ -301,7 +301,7 @@ with JAX_BACKEND, piecewise_model:
 
 You can also use `elif` and nested `if/else` blocks:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 @equation
 def multiple_ranges(x: float, result: float) -> bool:
     if x > 10:
@@ -338,7 +338,7 @@ Conditions may also vary across a named tensor dimension. Bilt then selects
 elementwise and broadcasts the branches by dimension name. The equation itself
 can still use ordinary scalar annotations:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 from bilt import Tensor, dim, tensor
 
 
@@ -378,7 +378,7 @@ work backwards through a conditional to find `x` from `result`.
 For several fixed numeric choices, you can use `match/case` instead of a
 chain of comparisons:
 
-```python exec="on" session="motion-equations"
+```python exec="on" source="above" session="motion-equations"
 @equation
 def selected_result(x: float, result: float) -> bool:
     match x:

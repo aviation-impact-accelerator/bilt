@@ -52,6 +52,8 @@ We will:
 
 The first requests can be decomposed into independent child-system evaluations and ordinary parent equations. In section 9 we supply the total extension instead, requiring a simultaneous linear solve across both children. The same model supports both kinds of request.
 
+<!-- markdown-exec: hidden setup -->
+
 ```python exec="on" session="springs"
 from io import StringIO
 import importlib.util
@@ -316,6 +318,8 @@ DoubleSpring
 ```
 
 For the executable documentation below, the same model is loaded from a temporary Python module. This gives Bilt a real source file for `inspect.getsource()` during the `markdown-exec` build.
+
+<!-- markdown-exec: hidden setup -->
 
 ```python exec="on" session="springs"
 model_source = """

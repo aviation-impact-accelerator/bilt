@@ -93,6 +93,8 @@ The forward and inverse requests in sections 1–13 can be decomposed into ordin
 
 The gas path still runs physically from compressor to turbine, but those physical arrows do **not** prescribe the direction in which Bilt must use the equations.
 
+<!-- markdown-exec: hidden setup -->
+
 ```python exec="on" session="turbomachinery"
 from io import StringIO
 import importlib.util
@@ -659,6 +661,8 @@ A child system can also have more than one valid internal route to the same port
 For the forward and inverse requests below, Bilt can evaluate each child from values already established by the surrounding model. We will keep this implementation unchanged when we add recuperation later.
 
 For the executable documentation below, the same model is loaded from a temporary Python module. This gives Bilt a real source file for `inspect.getsource()` during the `markdown-exec` build.
+
+<!-- markdown-exec: hidden setup -->
 
 ```python exec="on" session="turbomachinery"
 model_source = """

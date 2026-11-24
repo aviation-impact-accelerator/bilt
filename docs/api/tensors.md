@@ -20,7 +20,7 @@ for an introduction, [Units API](units.md) for physical units, and
 | `t.unit` | Physical unit, or `None`. |
 | `dimension.name` | Dimension name. |
 
-```python exec="on" session="tensor-api"
+```python exec="on" source="above" session="tensor-api"
 from bilt import dim, domain, tensor
 
 time = dim("time")
@@ -104,7 +104,7 @@ Both select one element along a dimension and remove that dimension from the res
 Creating an axis does not bind it. Currently, bind coordinates through the
 internal evaluation context **before requesting calculated outputs**:
 
-```python exec="on" session="tensor-api"
+```python exec="on" source="above" session="tensor-api"
 from bilt import coordinate_axis
 from bilt.core._evaluation_context import EvaluationContext
 
