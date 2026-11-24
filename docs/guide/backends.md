@@ -27,24 +27,7 @@ Or with `pip` in a Python 3.15 environment:
 python -m pip install "bilt @ git+https://github.com/aviation-impact-accelerator/bilt.git"
 ```
 
-The Python backend is used by default, so for normal use you do not need to
-select a backend explicitly:
-
-```python exec="off"
-with motion_model:
-    assert motion.distance == 100.0
-```
-
-You can also select it explicitly when required:
-
-```python exec="off"
-from bilt import PYTHON_BACKEND
-
-with PYTHON_BACKEND, motion_model:
-    assert motion.distance == 100.0
-```
-
-No additional dependencies are required.
+The Python backend is used by default. No additional dependencies are required.
 
 ## Install the JAX backend
 
@@ -64,9 +47,9 @@ python -m pip install "bilt[jax] @ git+https://github.com/aviation-impact-accele
 
 This installs Bilt together with its supported JAX dependency.
 
-## Use the JAX backend
+## Run the same model on Python and JAX
 
-A Bilt model does not need to be rewritten for JAX.
+A JAX-compatible Bilt model does not need to be rewritten to change backend.
 
 For example:
 
@@ -96,64 +79,137 @@ motion_model = Implementation(
 )
 ```
 
-The model is backend-independent.
-
-By default, Bilt uses the Python backend. To use JAX instead, select the JAX
-backend around the evaluation:
+First evaluate with the default Python backend:
 
 ```python exec="on" source="above" session="motion"
-from bilt import JAX_BACKEND
-
-motion = Motion(
-    speed=20.0,
-    time=5.0,
-)
-
-with JAX_BACKEND, motion_model:
-    assert motion.distance == 100.0
+with motion_model:
+    python_motion = Motion(speed=20.0, time=5.0)
+    assert python_motion.distance == 100.0
 ```
 
-Changing the backend does not change the system, equations, transforms, or
-implementation.
+To select a backend explicitly, use its context alongside the implementation:
+
+```python exec="on" source="above" session="motion"
+from bilt import JAX_BACKEND, PYTHON_BACKEND
+
+with PYTHON_BACKEND, motion_model:
+    python_distance = Motion(speed=20.0, time=5.0).distance
+
+with JAX_BACKEND, motion_model:
+    jax_distance = Motion(speed=20.0, time=5.0).distance
+
+assert python_distance == jax_distance == 100.0
+```
+
+Changing the backend does not change the system or the available relationships.
+Use a fresh instance for each comparison: reading a value that was already
+calculated on an instance returns the cached value, even in a different backend
+context.
 
 ## Python and JAX
 
-For many models, the Python backend is the simplest choice. It has no
-compilation step and works naturally with ordinary Python and NumPy.
+For many models, the Python backend is the simplest choice. It executes
+prepared Python callables and uses NumPy for tensor operations. JAX adds
+just-in-time (JIT) compilation of numerical operations, which has an initial
+cost but can make repeated calculations faster.
 
-The JAX backend is useful when a substantial numerical calculation is evaluated
-repeatedly. JAX compiles the calculation, which has an initial cost but can make
-later evaluations faster. Compilation can also combine numerical operations and
-reduce some intermediate array work.
+Both backends use Bilt's structural analyser. There are several activities
+between defining a model and obtaining a result:
 
-A useful distinction is:
-
-```text
-Python      run the calculation directly
-
-JAX cold    compile and run the calculation
-
-JAX warm    reuse the compiled calculation
+```mermaid
+flowchart TD
+    M["Model and request"] --> S["Structural analysis"]
+    S --> L["Realisation and lowering"]
+    L --> P["Prepared backend callables"]
+    P --> PY["Python / NumPy execution"]
+    P --> J["JAX tracing and JIT compilation"]
+    J --> X["JAX execution"]
 ```
 
-JAX is therefore most attractive for workloads such as large parameter sweeps,
-uncertainty propagation, optimisation, calibration, or other repeated numerical
-evaluations.
+- **Structural analysis** determines which relationships and coupled blocks
+  are needed, given the supplied values and requested result.
+- **Realisation and lowering** turn the selected relationships into backend
+  operations, including rearranging equations and resolving named tensor
+  operations. Bilt prepares executable Python functions for both backends.
+- **JAX compilation** specialises numerical functions for compatible input
+  signatures. Python does not have this additional JIT step.
+- **Execution** supplies the numerical inputs, runs the calculation and
+  returns the requested values with their domains and units.
 
-It is not automatically faster. For small or one-off calculations, compilation
-may cost more than it saves.
+These are distinct responsibilities, not necessarily separate passes.
+For example, a structural candidate may be rejected during realisation
+if the required calculation is unsupported.
 
-The JAX worked example compares Python, cold JAX, and warm JAX on a large array
-calculation.
+### What Bilt can reuse
+
+Bilt caches more than just numerical results.
+
+| Reused information | What it saves |
+| --- | --- |
+| Plans on an implementation | Repeating analysis and realisation for compatible requests. |
+| Prepared backend callables | Rebuilding executable calculations. |
+| JAX-compiled functions | Repeating JIT compilation for compatible input signatures. |
+| Calculated values on a system instance | Recalculating outputs and intermediates already obtained. |
+
+The first two can be reused across fresh instances of the same implementation.
+The cache keys account for the request, supplied input domains, backend and
+relevant coordinate bindings. Executable variants also depend on which
+intermediates can be reused. JAX can compile a new numerical variant when
+array shapes or data types change, even if Bilt can reuse its plan.
+
+For example, after the first JAX request above, we can ask the same
+implementation to calculate a new journey:
+
+```python exec="on" source="above" session="motion"
+with JAX_BACKEND, motion_model:
+    next_distance = Motion(speed=30.0, time=5.0).distance
+
+assert next_distance == 150.0
+```
+
+The inputs have changed, so the numerical calculation must run again. The
+prepared work can be reused. This is different from reading
+`python_motion.distance` a second time, which returns the previously
+calculated result.
+
+Calculated instance values are not treated as additional supplied constraints
+during structural planning. See [Models to computation](models-to-computation.md)
+and the [Systems API](../api/systems.md) for details.
+
+### Cold and warm evaluations
+
+A cold evaluation may include structural analysis, preparation of backend
+callables and, for JAX, numerical compilation. A warm evaluation on a fresh
+instance can reuse compatible prepared work but still executes the calculation.
+
+When comparing performance, reuse the implementation but create a fresh
+instance for each numerical request. State which requests and input shapes
+were warmed up, and ensure the numerical results are materialised before
+stopping the timer. JAX can dispatch work asynchronously.
+
+JAX can be useful for large parameter sweeps, uncertainty propagation,
+optimisation and other repeated numerical evaluations. It is not automatically
+faster: for small or one-off calculations, preparation and JIT compilation
+may cost more than they save.
+
+The [JAX worked example](../worked_examples/compiling-a-bilt-model-with-JAX.md)
+compares Python, cold JAX and warm JAX on a larger array calculation.
 
 ## Writing JAX-compatible relationships
 
 Code evaluated with the JAX backend must use operations supported by Bilt's JAX
 backend.
 
-Simple numerical expressions work naturally:
+Simple numerical expressions work naturally. For example, the same kinetic energy equation works with both backends:
 
 ```python exec="on" source="above" session="motion"
+@system
+class KineticEnergy(metaclass=Interface):
+    kinetic_energy: float = field()
+    mass: float = field()
+    velocity: float = field()
+
+
 @equation
 def kinetic_energy_relation(
     kinetic_energy: float,
@@ -161,20 +217,18 @@ def kinetic_energy_relation(
     velocity: float,
 ) -> bool:
     return kinetic_energy == 0.5 * mass * velocity**2
+
+
+kinetic_model = Implementation(KineticEnergy, [kinetic_energy_relation])
+
+for backend in (PYTHON_BACKEND, JAX_BACKEND):
+    with backend, kinetic_model:
+        assert KineticEnergy(mass=2.0, velocity=3.0).kinetic_energy == 9.0
 ```
 
-Supported JAX operations can also be used where required:
-
-```python exec="off"
-import jax.numpy as jnp
-
-from bilt import transform
-
-
-@transform
-def root(value: float) -> float:
-    return jnp.sqrt(value)
-```
+Supported JAX operations can also be used where required, for example
+`jnp.sqrt(value)` in a JAX-compatible transform. See the
+[Backends API](../api/backends.md#supported-operations) for transform syntax.
 
 The JAX backend is well suited to array-based numerical calculations built from
 supported arithmetic and JAX operations.
@@ -195,6 +249,8 @@ do not provide JAX-compatible operations.
 Not all Python code can be used in transforms with JAX. In particular,
 ordinary `if` statements inside a `@transform` are not currently supported:
 
+The following is a Python-only syntax example, not a JAX-compatible calculation:
+
 ```python exec="off"
 @transform
 def absolute(value: float) -> float:
@@ -209,84 +265,9 @@ syntax supported by the current backend.
 
 ## Lists and arrays
 
-With the JAX backend, list literals are converted to JAX arrays.
-
-For example:
-
-```python exec="off"
-@transform
-def values() -> list[float]:
-    return [1.0, 2.0, 3.0]
-```
-
-produces a JAX array when evaluated with the JAX backend.
-
-Nested lists similarly become multidimensional JAX arrays.
-
-## Nested backend evaluation
-
-The preferred approach is to evaluate a Bilt model with a single backend.
-
-This keeps the complete chain of relationships used to produce an output
-visible to Bilt. If the model is JAX-compatible, selecting the JAX backend
-around the whole implementation preserves that transparency while allowing JAX
-to compile the calculation.
-
-There is currently an escape hatch for cases where this is not possible. A
-transform running with the Python backend can explicitly evaluate another Bilt
-implementation using JAX.
-
-For example, a JAX-compatible subproblem can be defined normally:
-
-```python exec="off"
-from bilt import Implementation, Interface, field, system, transform
-
-
-@system
-class JaxSubproblem(metaclass=Interface):
-    value: float = field()
-    result: float = field()
-
-
-@transform
-def result(value: float) -> float:
-    return value**2 + 2.0 * value + 1.0
-
-
-jax_subproblem = Implementation(
-    JaxSubproblem,
-    [result],
-)
-```
-
-A Python-backed transform can then delegate to it:
-
-```python exec="off"
-@transform
-def output_value(input_value: float) -> float:
-    from bilt import JAX_BACKEND
-    from my_model import JaxSubproblem, jax_subproblem
-
-    value = abs(input_value)
-
-    with JAX_BACKEND, jax_subproblem:
-        return JaxSubproblem(value=value).result
-```
-
-This can be useful when an unavoidable Python-only operation must happen before
-a substantial JAX-compatible numerical calculation.
-
-However, the nested evaluation creates a boundary in the model. The outer Bilt
-evaluation sees the transform as one operation; it cannot inspect the chain of
-relationships used inside the nested JAX evaluation. This means the complete
-calculation is no longer represented as one transparent Bilt analysis.
-
-For that reason, nested backend evaluation should be used **judiciously** and
-treated as a workaround rather than the preferred way to compose a model.
-
-Future Bilt support may make it possible to represent backend boundaries while
-preserving transparency across the complete calculation. Until then, prefer a
-single backend over the whole model whenever practical.
+With the JAX backend, list literals in transforms are converted to JAX arrays.
+Nested lists similarly become multidimensional JAX arrays. See the
+[Backends API](../api/backends.md#supported-operations) for supported operations.
 
 ## Choosing a backend
 
@@ -299,25 +280,29 @@ For most use, start with the Python backend.
 | Python-only libraries or dynamic behaviour are required | the same calculation is evaluated repeatedly |
 | compilation would not pay off | the whole relevant calculation can remain visible to Bilt under JAX |
 
-Select Python explicitly when required:
-
-```python exec="off"
-from bilt import PYTHON_BACKEND
-
-with PYTHON_BACKEND, implementation:
-    result = model.value
-```
-
-or select JAX:
-
-```python exec="off"
-from bilt import JAX_BACKEND
-
-with JAX_BACKEND, implementation:
-    result = model.value
-```
-
 The model describes **what** to compute. The backend determines **how** that
 calculation runs.
+
+## Advanced: nested backend evaluation
+
+The preferred approach is to evaluate a Bilt model with a single backend.
+
+This keeps the complete chain of relationships used to produce an output
+visible to Bilt. If the model is JAX-compatible, selecting the JAX backend
+around the whole implementation preserves that transparency while allowing JAX
+to compile the calculation.
+
+There is currently an escape hatch for cases where this is not possible.
+A transform running with the Python backend can explicitly evaluate another
+Bilt implementation using JAX. See the
+[executable nested-backend example](../worked_examples/compiling-a-bilt-model-with-JAX.md#current-workaround-a-nested-jax-subproblem).
+
+This can be useful when an unavoidable Python-only operation must happen before
+a substantial JAX-compatible numerical calculation.
+
+However, the nested evaluation creates a boundary in the model. The outer Bilt
+evaluation sees the transform as one operation; it cannot inspect the chain of
+relationships used inside the nested JAX evaluation. Treat this as a workaround,
+not the preferred way to compose a model.
 
 [← Coupled systems](coupled-systems.md) · [Index](../index.md) · [Units →](units.md)
