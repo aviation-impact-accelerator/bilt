@@ -2,11 +2,13 @@ __all__ = [
     "DomainRegistry",
 ]
 
+import enum
 import typing
 
 import numpy as np
 
 from bilt.core._errors import BiltDomainBindingError, BiltDomainRegistryLockedError
+from bilt.core._tensors._tensors import Tensor
 from bilt.symbolic._dimensions import CoordinateAxis
 
 if typing.TYPE_CHECKING:
@@ -40,7 +42,11 @@ class DomainRegistry:
 
     def bind(self, value: object) -> None:
         """Bind any domain information exposed by a value."""
-        if isinstance(value, CoordinateAxis):
+        if isinstance(value, Tensor):
+            self.bind_value(value)
+            for axis in value.axes:
+                self.bind_axis(axis)
+        elif isinstance(value, CoordinateAxis):
             self.bind_axis(value)
         elif isinstance(value, _DomainValue):
             self.bind_value(value)
@@ -88,7 +94,7 @@ class DomainRegistry:
             self._bindings[axis.dimension] = axis
             return
 
-        if existing.coordinates != axis.coordinates:
+        if not _same_coordinates(existing.coordinates, axis.coordinates):
             message = f"Dimension {axis.dimension!s} has conflicting coordinate definitions."
             raise BiltDomainBindingError(message)
 
@@ -115,6 +121,10 @@ class DomainRegistry:
         axis = self.axis(dim)
 
         for position, candidate in enumerate(axis.coordinates):
+            if isinstance(candidate, enum.Enum) or isinstance(coordinate, enum.Enum):
+                if candidate is coordinate:
+                    return position
+                continue
             if candidate == coordinate:
                 return position
 
@@ -128,10 +138,10 @@ class DomainRegistry:
 
     def coordinate_signature(
         self,
-    ) -> tuple[tuple[Dim, tuple[Coordinate, ...]], ...]:
+    ) -> tuple[tuple[Dim, tuple[object, ...]], ...]:
         """Return the coordinate bindings that affect compiled evaluation."""
         return tuple(
-            (dimension, binding.coordinates)
+            (dimension, tuple(_coordinate_key(coordinate) for coordinate in binding.coordinates))
             for dimension, binding in self._bindings.items()
             if isinstance(binding, CoordinateAxis)
         )
@@ -165,3 +175,12 @@ class DomainRegistry:
         except KeyError:
             message = f"Dimension {dimension!s} is not bound."
             raise BiltDomainBindingError(message) from None
+
+
+def _coordinate_key(value: Coordinate) -> object:
+    # IntEnum and StrEnum compare equal to their underlying primitive values.
+    return (type(value), value.name) if isinstance(value, enum.Enum) else value
+
+
+def _same_coordinates(left: tuple[Coordinate, ...], right: tuple[Coordinate, ...]) -> bool:
+    return tuple(map(_coordinate_key, left)) == tuple(map(_coordinate_key, right))
