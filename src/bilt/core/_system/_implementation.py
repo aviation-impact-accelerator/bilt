@@ -28,7 +28,8 @@ from bilt.core._system._errors import (
 )
 from bilt.core._system._input_validation import validate_inputs
 from bilt.core._system._intermediate_reuse import reuse_plan_outputs
-from bilt.core._tensors._tensors import Tensor
+from bilt.core._tensors._tensors import Tensor, tensor
+from bilt.symbolic._dimensions import CoordinateAxis
 from bilt.core._transform import BasicTransform
 from bilt.core._validation import validate_independently
 from bilt.symbolic._domains import Domain
@@ -158,6 +159,14 @@ class Implementation:
             raise BiltEvaluationError(msg)
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
+            # A categorical independent axis supplies both coordinates and
+            # selector values. The compiler reuses ordinary tensor lowering.
+            inputs = {
+                name: tensor(value.coordinates, over=value.dimension)
+                if isinstance(value, CoordinateAxis) and name in self._enum_types
+                else value
+                for name, value in inputs.items()
+            }
             if output in inputs:
                 outputs = {output: inputs[output]}
             else:

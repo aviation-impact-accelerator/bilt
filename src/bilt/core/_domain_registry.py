@@ -2,6 +2,7 @@ __all__ = [
     "DomainRegistry",
 ]
 
+import enum
 import typing
 
 import numpy as np
@@ -88,7 +89,7 @@ class DomainRegistry:
             self._bindings[axis.dimension] = axis
             return
 
-        if existing.coordinates != axis.coordinates:
+        if not _same_coordinates(existing.coordinates, axis.coordinates):
             message = f"Dimension {axis.dimension!s} has conflicting coordinate definitions."
             raise BiltDomainBindingError(message)
 
@@ -115,6 +116,10 @@ class DomainRegistry:
         axis = self.axis(dim)
 
         for position, candidate in enumerate(axis.coordinates):
+            if isinstance(candidate, enum.Enum) or isinstance(coordinate, enum.Enum):
+                if candidate is coordinate:
+                    return position
+                continue
             if candidate == coordinate:
                 return position
 
@@ -165,3 +170,12 @@ class DomainRegistry:
         except KeyError:
             message = f"Dimension {dimension!s} is not bound."
             raise BiltDomainBindingError(message) from None
+
+
+def _same_coordinates(left: tuple[Coordinate, ...], right: tuple[Coordinate, ...]) -> bool:
+    if len(left) != len(right):
+        return False
+    return all(
+        a is b if isinstance(a, enum.Enum) or isinstance(b, enum.Enum) else a == b
+        for a, b in zip(left, right, strict=True)
+    )
