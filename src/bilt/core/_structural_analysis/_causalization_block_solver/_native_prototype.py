@@ -19,7 +19,8 @@ from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._transform import BasicTransform
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Mapping, Set
+    from collections.abc import Mapping
+    from collections.abc import Set as AbstractSet
 
     from bilt._backend import BackendCase
     from bilt.core._evaluation_request import EvaluationRequest
@@ -94,13 +95,13 @@ class NativePlanner:
                 )
             elif not isinstance(operation, BasicEquation):
                 msg = "unsupported constituent"
-                raise ValueError(msg)
+                raise TypeError(msg)
             rows.append((index, [self._port(prefix + p) for p in sorted(names)], output, child))
         return context
 
     def plan(
         self,
-        available: Set[str],
+        available: AbstractSet[str],
         targets: tuple[str, ...],
         failures: Mapping[PlanStep, RealizationFailure],
     ) -> tuple[PlanBlock, ...] | None:
@@ -146,7 +147,7 @@ def attempt(
         analyser._experimental_native_initialized = True  # noqa: SLF001
         try:
             analyser._experimental_native = NativePlanner(analyser.full_incidence_graph)  # noqa: SLF001
-        except ValueError:
+        except (TypeError, ValueError):
             analyser._experimental_native = None  # noqa: SLF001
     native = analyser._experimental_native  # noqa: SLF001
     if native is None:
