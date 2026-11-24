@@ -84,36 +84,15 @@ The resistor is not part of this public interface. It is part of one implementat
 
 ### Add an internal implementation
 
-Make the resistor available inside the board implementation:
-
-```python exec="off"
-board_model = Implementation(
-    Board,
-    [],
-    internal_implementations={
-        "resistor": resistor_model,
-    },
-)
-```
-
-Conceptually:
+The board implementation will contain a named resistor implementation:
 
 ```text
-Board
-│
-├── supply_voltage
-├── load_resistance
-├── supply_current
-│
-└── internal: resistor
-    ├── voltage
-    ├── current
-    └── resistance
+Board implementation
+├── public: Board
+└── internal: resistor (Resistor)
 ```
 
-At this point, the resistor is contained by the board implementation, but nothing connects their boundaries.
-
-Containment alone does not imply a relationship.
+Containment alone does not connect the two boundaries. Bilt requires each named child to be referenced by a parent equation.
 
 ### Connect parent and child values
 
@@ -134,7 +113,7 @@ Here:
 resistor: Resistor
 ```
 
-gives the equation access to values on the child boundary.
+gives the equation access to values on the child boundary. The parameter name `resistor` must match the key in `internal_implementations`, and its annotation must match the child's system interface.
 
 We can connect the remaining values in the same way:
 
@@ -276,12 +255,76 @@ This is what makes small systems useful as reusable modelling components.
 
 ### Use more than one internal system
 
-A parent can contain several internal implementations:
+A circuit containing two resistors in series can reuse the same implementation twice. Each child has its own voltage, resistance and current.
 
-```python exec="off"
+```python exec="on" source="above" session="systems-of-systems"
+@system
+class Circuit(metaclass=Interface):
+    supply_voltage: float = field()
+    supply_current: float = field()
+    first_resistance: float = field()
+    second_resistance: float = field()
+```
+
+Connect each resistance to the corresponding child:
+
+```python exec="on" source="above" session="systems-of-systems"
+@equation
+def first_resistance_connection(
+    first_resistance: float,
+    first_resistor: Resistor,
+) -> bool:
+    return first_resistance == first_resistor.resistance
+
+
+@equation
+def second_resistance_connection(
+    second_resistance: float,
+    second_resistor: Resistor,
+) -> bool:
+    return second_resistance == second_resistor.resistance
+```
+
+The current is the same through both resistors. The voltage drops add up to the supply voltage. Equations on the parent can refer directly to more than one child:
+
+```python exec="on" source="above" session="systems-of-systems"
+@equation
+def series_current(
+    first_resistor: Resistor,
+    second_resistor: Resistor,
+) -> bool:
+    return first_resistor.current == second_resistor.current
+
+
+@equation
+def supply_current_connection(
+    supply_current: float,
+    first_resistor: Resistor,
+) -> bool:
+    return supply_current == first_resistor.current
+
+
+@equation
+def series_voltage(
+    supply_voltage: float,
+    first_resistor: Resistor,
+    second_resistor: Resistor,
+) -> bool:
+    return supply_voltage == first_resistor.voltage + second_resistor.voltage
+```
+
+Collect the connections and bind the two named children:
+
+```python exec="on" source="above" session="systems-of-systems"
 circuit_model = Implementation(
     Circuit,
-    [...],
+    [
+        first_resistance_connection,
+        second_resistance_connection,
+        series_current,
+        supply_current_connection,
+        series_voltage,
+    ],
     internal_implementations={
         "first_resistor": resistor_model,
         "second_resistor": resistor_model,
@@ -289,69 +332,43 @@ circuit_model = Implementation(
 )
 ```
 
-The two occurrences are distinct even though they share the same implementation:
+The two children are distinct even though they use the same implementation.
 
 ```text
 Circuit
 ├── first_resistor
 │   └── Resistor
-│
 └── second_resistor
     └── Resistor
 ```
 
-One useful modelling pattern is to connect each child to values on the parent and relate those values there. This makes intermediate boundary quantities easy to inspect.
-
-This is not a restriction on which child interfaces an equation may mention. The default causalization analyser can solve supported coupled linear equations across parent and child boundaries.
-
-For example:
+Supply the current and both resistances to calculate the voltage:
 
 ```python exec="on" source="above" session="systems-of-systems"
-@equation
-def first_voltage_connection(
-    first_voltage: float,
-    first_resistor: Resistor,
-) -> bool:
-    return first_voltage == first_resistor.voltage
-
-
-@equation
-def second_voltage_connection(
-    second_voltage: float,
-    second_resistor: Resistor,
-) -> bool:
-    return second_voltage == second_resistor.voltage
+with circuit_model:
+    circuit = Circuit(
+        supply_current=2.0,
+        first_resistance=2.0,
+        second_resistance=4.0,
+    )
+    assert circuit.supply_voltage == 12.0
 ```
 
-Then relate the parent values:
+Or supply the voltage and both resistances to calculate the current:
 
 ```python exec="on" source="above" session="systems-of-systems"
-@equation
-def total_voltage_relation(
-    total_voltage: float,
-    first_voltage: float,
-    second_voltage: float,
-) -> bool:
-    return total_voltage == first_voltage + second_voltage
+with circuit_model:
+    circuit = Circuit(
+        supply_voltage=12.0,
+        first_resistance=2.0,
+        second_resistance=4.0,
+    )
+    assert abs(circuit.supply_current - 2.0) < 1e-10
 ```
 
-The coupling therefore passes through the parent:
+In the second request, the unknown currents and voltages are coupled. Bilt can solve the supported linear equations together without changing the model.
 
-```text
-first_resistor.voltage
-          ↕
-     first_voltage
-          │
-          │
-     total_voltage
-          │
-          │
-    second_voltage
-          ↕
-second_resistor.voltage
-```
-
-When the boundary inputs can be established independently, each child can be evaluated on its own. Parent aliases do not remove mathematical coupling; a linear feedback loop may require the equations to be solved together.
+Alternatively, expose each voltage drop on the parent and relate those parent values. This is useful when callers need to inspect the intermediate values. It is not required for connecting children.
 
 ### Put it together
 
@@ -462,7 +479,7 @@ def voltage_connection(
     return supply_voltage == resistor.voltage
 ```
 
-Parent values can provide a convenient coupling layer when several children interact:
+Parent equations can connect children directly. Parent values can also provide a convenient coupling layer when callers need those intermediate values:
 
 ```text
 child
