@@ -9,6 +9,7 @@ from collections import Counter
 
 from bilt._native import NativeStructuralModel
 from bilt.core._equation import BasicEquation
+from bilt.core._structural_analysis._causalization_block_solver._route_cache import invalidate_route_cache
 from bilt.core._structural_analysis._plan import AnalysisPlan, PlanBlock, PlanStep
 from bilt.core._structural_analysis._realize import (
     BlockRealizationFailure,
@@ -22,11 +23,12 @@ if typing.TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
-    from bilt._backend import BackendCase
+    from bilt._backend import Backend, BackendCase
     from bilt.core._evaluation_request import EvaluationRequest
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
+    from bilt.core._system._implementation import Implementation
 
 type RawRow = tuple[int, list[int], int | None, int | None]
 
@@ -35,6 +37,7 @@ if MODE not in {"python", "rust", "hybrid"}:
     msg = f"Unknown experimental structural engine: {MODE!r}."
     raise ValueError(msg)
 STATS: Counter[str] = Counter()
+ROUTE_CACHE = os.environ.get("BILT_EXPERIMENTAL_ROUTE_CACHE", "on") != "off"
 
 
 def report() -> None:
@@ -52,6 +55,7 @@ class NativePlanner:
         self.names: dict[str, int] = {}
         self.reverse: list[str] = []
         self.operations: list[BiltModelConstituent] = []
+        self.children: list[Implementation] = []
         contexts: list[list[RawRow]] = []
         self._visit(incidence, "", frozenset(), contexts)
         self.model = NativeStructuralModel(contexts)
@@ -87,6 +91,7 @@ class NativePlanner:
                 output = self._port(prefix + operation.__bilt_name__)
             elif isinstance(operation, SubSystemConstituent):
                 implementation = operation.implementation
+                self.children.append(implementation)
                 if id(implementation) in ancestors:
                     msg = "recursive containment"
                     raise ValueError(msg)
@@ -101,6 +106,16 @@ class NativePlanner:
                 raise TypeError(msg)
             rows.append((index, [self._port(prefix + p) for p in sorted(names)], output, child))
         return context
+
+    def has_child_failures(self, backend: Backend) -> bool:
+        """Native structural routes cannot yet represent descendant realization failures."""
+        from ._backend import CausalizationStructuralAnalyzer  # noqa: PLC0415
+
+        for implementation in self.children:
+            analyser = implementation._analysers.get(backend)  # noqa: SLF001
+            if isinstance(analyser, CausalizationStructuralAnalyzer) and analyser._failures:  # noqa: SLF001
+                return True
+        return False
 
     def plan(
         self,
@@ -117,12 +132,14 @@ class NativePlanner:
             if step.operation is operation and step.output in self.names
         ]
         start = time.perf_counter_ns()
-        schedule = self.model.plan(
+        schedule, route_stats = self.model.plan_with_stats(
             [self.names[p] for p in available if p in self.names],
             [self.names[p] for p in targets],
             blocked,
+            ROUTE_CACHE,
         )
         STATS["native_plan_ns"] += time.perf_counter_ns() - start
+        STATS.update(route_stats)
         if schedule is None:
             return None
         blocks = []
@@ -158,18 +175,21 @@ def _unsupported(reason: str, targets: tuple[str, ...]) -> None:
         raise NativeStructuralUnsupportedError(msg)
 
 
-def attempt(
+def attempt(  # noqa: PLR0911 - explicit fallback reasons are part of the experiment
     analyser: CausalizationStructuralAnalyzer,
     request: EvaluationRequest,
     targets: tuple[str, ...],
-) -> BackendCase | None:
-    """Return a realised native candidate or None; never persist experimental failures."""
+) -> BackendCase | RealizationFailure | BlockRealizationFailure | None:
+    """Return a realized candidate, a realization failure for fallback, or None."""
     if MODE == "python":
         return None
     STATS["requests"] += 1
     native = _native_planner(analyser)
     if native is None:
         _unsupported("unsupported_model", targets)
+        return None
+    if native.has_child_failures(analyser.backend):
+        _unsupported("descendant_failure_fallback", targets)
         return None
     available = set(request.input_domains)
     blocks = native.plan(available, targets, analyser._failures)  # noqa: SLF001
@@ -180,8 +200,9 @@ def attempt(
     result = realize_plan(AnalysisPlan(request=request, blocks=blocks), analyser.backend, block_failures={})
     STATS["realization_ns"] += time.perf_counter_ns() - start
     if isinstance(result, (RealizationFailure, BlockRealizationFailure)):
+        invalidate_route_cache()
         _unsupported("realization_fallback", targets)
-        return None
+        return result
     if not set(targets) <= ({item.port for item in result.outputs} | available):
         _unsupported("missing_output_fallback", targets)
         return None
@@ -200,12 +221,20 @@ def attempt_required_inputs(
         STATS["route_success"] += 1
         return frozenset({output})
     native = _native_planner(analyser)
-    blocks = None if native is None else native.plan(available, (output,), analyser._failures)  # noqa: SLF001
+    blocks = (
+        None
+        if native is None or native.has_child_failures(analyser.backend)
+        else native.plan(available, (output,), analyser._failures)  # noqa: SLF001
+    )
     if blocks is None:
         _unsupported("route_fallback", (output,))
         return None
     produced = {step.output for block in blocks for step in block.steps}
     STATS["route_success"] += 1
     return frozenset(
-        attribute for block in blocks for step in block.steps for attribute in step.consumed if attribute not in produced
+        attribute
+        for block in blocks
+        for step in block.steps
+        for attribute in step.consumed
+        if attribute not in produced
     )

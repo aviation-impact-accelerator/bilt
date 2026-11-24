@@ -1,11 +1,86 @@
 //! Experimental native structural planner. No Python objects in the search state.
 use pyo3::prelude::*;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 type Id = usize;
 type Set = BTreeSet<Id>;
 type Step = (Id, Id, Vec<Id>); // operation index, output, qualified child inputs
 type RawRow = (Id, Vec<Id>, Option<Id>, Option<Id>); // local index, ports, transform output, child context
+
+type RouteKey = (Id, Id, usize, Vec<Id>); // context, target, depth, available
+type PlanReport = (Option<Vec<Step>>, BTreeMap<String, usize>);
+
+struct CachedRoute {
+    inputs: Option<Vec<Id>>,
+    cost: usize,
+}
+
+// A cache belongs to one top-level plan, never to a model or a numerical
+// evaluation. Retain the logical search budget even when replaying a result.
+struct Search {
+    budget: usize,
+    cache_enabled: bool,
+    routes: HashMap<RouteKey, CachedRoute>,
+    observed: HashMap<RouteKey, u8>,
+    queries: usize,
+    successes: usize,
+    success_hits: usize,
+    failure_hits: usize,
+    budget_skips: usize,
+}
+
+impl Search {
+    fn new(cache_enabled: bool) -> Self {
+        Self {
+            budget: 4096,
+            cache_enabled,
+            routes: HashMap::new(),
+            observed: HashMap::new(),
+            queries: 0,
+            successes: 0,
+            success_hits: 0,
+            failure_hits: 0,
+            budget_skips: 0,
+        }
+    }
+
+    fn record(&mut self, key: RouteKey, success: bool) {
+        let flag = if success { 1 } else { 2 };
+        *self.observed.entry(key).or_default() |= flag;
+        self.successes += usize::from(success);
+    }
+
+    fn stats(&self) -> BTreeMap<String, usize> {
+        [
+            ("child_route_queries", self.queries),
+            ("child_route_successes", self.successes),
+            ("child_route_failures", self.queries - self.successes),
+            ("child_route_unique", self.observed.len()),
+            (
+                "child_route_unique_success",
+                self.observed
+                    .values()
+                    .filter(|&&flag| flag & 1 != 0)
+                    .count(),
+            ),
+            (
+                "child_route_unique_failure",
+                self.observed
+                    .values()
+                    .filter(|&&flag| flag & 2 != 0)
+                    .count(),
+            ),
+            ("child_route_success_hits", self.success_hits),
+            ("child_route_failure_hits", self.failure_hits),
+            ("child_route_budget_skips", self.budget_skips),
+            ("child_route_cache_entries", self.routes.len()),
+            ("logical_search_budget_used", 4096 - self.budget),
+        ]
+        .into_iter()
+        .map(|(name, count)| (name.to_owned(), count))
+        .collect()
+    }
+}
 
 #[derive(Clone)]
 struct Row {
@@ -160,19 +235,94 @@ impl NativeStructuralModel {
         }
     }
 
+    fn route_inputs(
+        &self,
+        child: Id,
+        available: &Set,
+        port: Id,
+        search: &mut Search,
+        depth: usize,
+    ) -> Option<Vec<Id>> {
+        search.queries += 1;
+        let key = (child, port, depth, available.iter().copied().collect());
+        if search.cache_enabled {
+            if let Some(cached) = search.routes.get(&key) {
+                // A result computed with spare budget can be replayed only
+                // when the caller has enough budget to reproduce that search.
+                if search.budget > cached.cost {
+                    let result = cached.inputs.clone();
+                    search.budget -= cached.cost;
+                    if result.is_some() {
+                        search.success_hits += 1;
+                    } else {
+                        search.failure_hits += 1;
+                    }
+                    search.record(key, result.is_some());
+                    return result;
+                }
+            }
+        }
+        let before = search.budget;
+        let result = self.uncached_route(child, available, port, search, depth);
+        search.record(key.clone(), result.is_some());
+        // Budget-exhausted searches are not evidence of an impossible route.
+        if search.budget == 0 {
+            search.budget_skips += 1;
+        } else if search.cache_enabled {
+            search.routes.insert(
+                key,
+                CachedRoute {
+                    inputs: result.clone(),
+                    cost: before - search.budget,
+                },
+            );
+        }
+        result
+    }
+
+    fn uncached_route(
+        &self,
+        child: Id,
+        available: &Set,
+        port: Id,
+        search: &mut Search,
+        depth: usize,
+    ) -> Option<Vec<Id>> {
+        let plan = self.plan_inner(child, available, &[port], &BTreeSet::new(), search, depth)?;
+        let mut required = Set::new();
+        for (operation, output, inputs) in plan {
+            let source = self.contexts[child]
+                .rows
+                .iter()
+                .find(|r| r.operation == operation)?;
+            if source.child.is_some() {
+                required.extend(inputs.into_iter().filter(|p| available.contains(p)));
+            } else {
+                required.extend(
+                    source
+                        .ports
+                        .iter()
+                        .copied()
+                        .filter(|&p| p != output && available.contains(&p)),
+                );
+            }
+        }
+        Some(required.into_iter().collect())
+    }
+
     fn plan_inner(
         &self,
         context: Id,
         available: &Set,
         targets: &[Id],
         blocked: &BTreeSet<(Id, Id)>,
-        budget: &mut usize,
+        search: &mut Search,
         depth: usize,
     ) -> Option<Vec<Step>> {
-        if depth > 64 || *budget == 0 {
+        if depth > 64 || search.budget == 0 {
             return None;
         }
-        *budget -= 1;
+        search.budget -= 1;
         let mut scope = BTreeSet::new();
         for &target in targets {
             scope.extend(self.validated_scope(context, available, target)?);
@@ -217,10 +367,10 @@ impl NativeStructuralModel {
             if !visited.insert(candidate.clone()) {
                 continue;
             }
-            if *budget == 0 {
+            if search.budget == 0 {
                 break;
             }
-            *budget -= 1;
+            search.budget -= 1;
             let matched = matching(&candidate);
             let assignments: BTreeMap<_, _> =
                 matched.iter().map(|(&p, &r)| (p, owners[r])).collect();
@@ -232,7 +382,7 @@ impl NativeStructuralModel {
                 established: available.clone(),
                 active: Set::new(),
                 steps: Vec::new(),
-                budget,
+                search,
                 depth,
             };
             if targets.iter().all(|&port| settlement.resolve(port)) {
@@ -276,7 +426,7 @@ struct Settlement<'a> {
     established: Set,
     active: Set,
     steps: Vec<Step>,
-    budget: &'a mut usize,
+    search: &'a mut Search,
     depth: usize,
 }
 
@@ -355,33 +505,8 @@ impl Settlement<'_> {
                         }))
             })
             .collect();
-        let plan = self.model.plan_inner(
-            child,
-            &available,
-            &[port],
-            &BTreeSet::new(),
-            self.budget,
-            self.depth + 1,
-        )?;
-        let mut required = Set::new();
-        for (operation, output, inputs) in plan {
-            let source = self.model.contexts[child]
-                .rows
-                .iter()
-                .find(|r| r.operation == operation)?;
-            if source.child.is_some() {
-                required.extend(inputs.into_iter().filter(|p| available.contains(p)));
-            } else {
-                required.extend(
-                    source
-                        .ports
-                        .iter()
-                        .copied()
-                        .filter(|&p| p != output && available.contains(&p)),
-                );
-            }
-        }
-        Some(required.into_iter().collect())
+        self.model
+            .route_inputs(child, &available, port, self.search, self.depth + 1)
     }
 }
 
@@ -428,15 +553,27 @@ impl NativeStructuralModel {
         targets: Vec<Id>,
         blocked: Vec<(Id, Id)>,
     ) -> Option<Vec<Step>> {
-        let mut budget = 4096;
-        self.plan_inner(
+        self.plan_with_stats(available, targets, blocked, true).0
+    }
+
+    /// Compare cache-on and cache-off without changing the search budget.
+    fn plan_with_stats(
+        &self,
+        available: Vec<Id>,
+        targets: Vec<Id>,
+        blocked: Vec<(Id, Id)>,
+        cache_enabled: bool,
+    ) -> PlanReport {
+        let mut search = Search::new(cache_enabled);
+        let result = self.plan_inner(
             0,
             &available.into_iter().collect(),
             &targets,
             &blocked.into_iter().collect(),
-            &mut budget,
+            &mut search,
             0,
-        )
+        );
+        (result, search.stats())
     }
 }
 
@@ -469,6 +606,60 @@ mod tests {
         assert_eq!(
             model.plan(vec![0], vec![2], vec![]),
             Some(vec![(0, 1, vec![0]), (1, 2, vec![])])
+        );
+    }
+
+    #[test]
+    fn cache_replays_success_and_failure_with_same_logical_budget() {
+        let model = NativeStructuralModel::new(vec![vec![(0, vec![0, 1], None, None)]]).unwrap();
+        let mut cached = Search::new(true);
+        let mut control = Search::new(false);
+        for available in [Set::from([0]), Set::new(), Set::from([0]), Set::new()] {
+            assert_eq!(
+                model.route_inputs(0, &available, 1, &mut cached, 1),
+                model.route_inputs(0, &available, 1, &mut control, 1)
+            );
+            assert_eq!(cached.budget, control.budget);
+        }
+        assert_eq!(cached.success_hits, 1);
+        assert_eq!(cached.failure_hits, 1);
+        assert_eq!(cached.observed.len(), 2);
+    }
+
+    #[test]
+    fn exhausted_budget_does_not_poison_cache() {
+        let model = NativeStructuralModel::new(vec![vec![(0, vec![0, 1], None, None)]]).unwrap();
+        let mut search = Search::new(true);
+        search.budget = 1;
+        assert!(model
+            .route_inputs(0, &Set::from([0]), 1, &mut search, 1)
+            .is_none());
+        assert!(search.routes.is_empty());
+        search.budget = 4096;
+        assert_eq!(
+            model.route_inputs(0, &Set::from([0]), 1, &mut search, 1),
+            Some(vec![0])
+        );
+        search.budget = 1;
+        assert!(model
+            .route_inputs(0, &Set::from([0]), 1, &mut search, 1)
+            .is_none());
+        assert_eq!(search.success_hits, 0);
+    }
+
+    #[test]
+    fn nested_plan_and_logical_budget_are_identical_with_cache() {
+        let model = NativeStructuralModel::new(vec![
+            vec![(0, vec![0, 1], None, Some(1)), (1, vec![1, 2], None, None)],
+            vec![(0, vec![0, 1], None, None)],
+        ])
+        .unwrap();
+        let (control, control_stats) = model.plan_with_stats(vec![0], vec![2], vec![], false);
+        let (cached, cached_stats) = model.plan_with_stats(vec![0], vec![2], vec![], true);
+        assert_eq!(control, cached);
+        assert_eq!(
+            control_stats["logical_search_budget_used"],
+            cached_stats["logical_search_budget_used"]
         );
     }
 

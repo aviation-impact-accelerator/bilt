@@ -73,11 +73,15 @@ class CausalizationStructuralAnalyzer:
         from ._native_prototype import attempt  # noqa: PLC0415
 
         with structural_cache_scope(), route_cache_scope():
-            if (native := attempt(self, request, (request.output,))) is not None:
+            native = attempt(self, request, (request.output,))
+            if isinstance(native, (RealizationFailure, BlockRealizationFailure)):
+                self._retry_child(native)
+                return self._analyse(request, initial_error=native.cause)
+            if native is not None:
                 return native
             return self._analyse(request)
 
-    def _analyse(self, request: EvaluationRequest) -> BackendCase:
+    def _analyse(self, request: EvaluationRequest, *, initial_error: Exception | None = None) -> BackendCase:
         """Search within the current request's cache scopes."""
         available = set(request.input_domains)
         structure = validate_request_structure(
@@ -90,7 +94,7 @@ class CausalizationStructuralAnalyzer:
             return expanded
 
         signature = frozenset(request.input_domains.items())
-        last_error: Exception | None = None
+        last_error = initial_error
         block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
 
         for assignments in self._matching_candidates(request, available, structure, signature):
@@ -180,7 +184,8 @@ class CausalizationStructuralAnalyzer:
         from ._native_prototype import attempt  # noqa: PLC0415
 
         with structural_cache_scope(), route_cache_scope():
-            if (native := attempt(self, request, targets)) is not None:
+            native = attempt(self, request, targets)
+            if native is not None and not isinstance(native, (RealizationFailure, BlockRealizationFailure)):
                 return native
             return self._analyse_many(request, targets)
 

@@ -5,9 +5,9 @@ import typing
 import pytest
 
 from bilt import field, system, transform
-from bilt.core._interface import Interface
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
+from bilt.core._interface import Interface
 from bilt.core._structural_analysis._causalization_block_solver import _native_prototype as native
 from bilt.core._system._dispatch import _prefetch_outputs
 from bilt.core._system._implementation import Implementation
@@ -17,7 +17,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._system._instance import SystemInstance
 
 
-@pytest.mark.parametrize("backend", [PYTHON_BACKEND, JAX_BACKEND])
+@pytest.mark.parametrize("backend", (PYTHON_BACKEND, JAX_BACKEND))
 def test_single_and_joint_native_parity(backend: Backend, monkeypatch: pytest.MonkeyPatch) -> None:
     @system
     class Demo(metaclass=Interface):
@@ -47,6 +47,7 @@ def test_single_and_joint_native_parity(backend: Backend, monkeypatch: pytest.Mo
             joint = Demo(a=4.0)
             assert single.left == pytest.approx(10.0)
             _prefetch_outputs(typing.cast("SystemInstance", joint), ("left", "right"))
-            results.append((single.left, joint.left, joint.right, joint.base))
+            results.append(tuple(float(value) for value in (single.left, joint.left, joint.right, joint.base)))
     assert results[0] == pytest.approx(results[1])
-    assert native.STATS["native_success"] - before == 2
+    expected_native_requests = 2
+    assert native.STATS["native_success"] - before == expected_native_requests
