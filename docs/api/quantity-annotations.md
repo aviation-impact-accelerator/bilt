@@ -20,24 +20,22 @@ over compatible domains.
 | Tensor quantity with a physical unit | `QuantityTensor` | `QuantityTensor` for named tensor methods |
 | Strictly scalar quantity with a physical unit | `Quantity` | `Quantity` for scalar arithmetic |
 
-For example, a system may accept either a scalar or a tensor of mass. Named
-aliases keep the system and equation declarations readable:
+For example, a system may accept either a scalar or a tensor of mass. A shared alias keeps pointwise system and equation declarations readable:
 
-```python exec="off"
+```python exec="on" source="above" session="quantity-annotations"
 from typing import Annotated
 
 from bilt import Implementation, Interface, Quantity, QuantityTensor, dim, equation, field, system, tensor
 from bilt.units import kilogram
 from bilt.units.dimensions import MASS
 
-type Mass = Annotated[Quantity, MASS]
-type PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]
+Mass = Annotated[Quantity | QuantityTensor, MASS]
 
 
 @system
 class DoubleMass(metaclass=Interface):
-    mass: PointwiseMass = field()
-    doubled: PointwiseMass = field()
+    mass: Mass = field()
+    doubled: Mass = field()
 
 
 @equation
@@ -50,11 +48,14 @@ time = dim("time")
 with Implementation(DoubleMass, [doubling]):
     scalar_result = DoubleMass(mass=2.0 * kilogram).doubled
     tensor_result = DoubleMass(mass=tensor([2.0, 3.0], over=time, unit=kilogram)).doubled
+
+assert scalar_result == 4.0 * kilogram
+assert tensor_result.unit == kilogram
+assert tensor_result.values.tolist() == [4.0, 6.0]
 ```
 
-The equation is pointwise, so Bilt automatically lifts its scalar `Mass` annotation
-when an input varies over `time`. The system's `PointwiseMass` annotation accepts
-either shape; Bilt builds symbolic expressions when constructing the equation.
+The shared annotation accepts either shape at the system boundary. The equation
+builds a symbolic expression and Bilt lifts it when an input varies over `time`.
 
 ## Available types
 
@@ -66,7 +67,7 @@ either shape; Bilt builds symbolic expressions when constructing the equation.
 | `Tensor` | Tensor with or without a unit | Plain `Tensor` system fields are unitless; use `QuantityTensor` for dimensioned tensors |
 | `float \| Tensor` | Plain scalar or tensor | Unitless system boundary |
 
-Use `Quantity | QuantityTensor` for pointwise quantities that may be scalar or tensor. Use `Quantity` for scalar-only inputs and operations, and `QuantityTensor` when named tensor methods are required. In longer models, use paired aliases such as `Mass = Annotated[Quantity, MASS]` and `PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]` instead of repeating the full annotations.
+Use `Quantity | QuantityTensor` for pointwise quantities that may be scalar or tensor. Use `Quantity` for scalar-only inputs and operations, and `QuantityTensor` when named tensor methods are required. Use one alias for a pointwise quantity in fields and equations. Introduce a separate scalar or tensor annotation only when that distinction matters.
 
 A unit-bearing tensor can be constructed with `tensor(..., unit=kilogram)`.
 The factory returns `QuantityTensor` when a non-optional `Unit` is supplied
@@ -86,8 +87,8 @@ from bilt import Quantity, QuantityTensor, dim, equation
 from bilt.units.dimensions import MASS
 
 time = dim("time")
-type ScalarMass = Annotated[Quantity, MASS]
-type TensorMass = Annotated[QuantityTensor, MASS]
+ScalarMass = Annotated[Quantity, MASS]
+TensorMass = Annotated[QuantityTensor, MASS]
 
 
 @equation
@@ -107,12 +108,11 @@ A dimensioned tensor quantity port may require one or more named axes:
 ```python exec="off"
 from typing import Annotated
 
-from bilt import QuantityTensor, dim
-from bilt.symbolic._domains import Domain
+from bilt import Domain, QuantityTensor, dim
 from bilt.units.dimensions import MASS
 
 time = dim("time")
-type TimeMass = Annotated[QuantityTensor, MASS, Domain((time,))]
+TimeMass = Annotated[QuantityTensor, MASS, Domain((time,))]
 ```
 
 This declares a **minimum** domain, not an exact shape:
@@ -138,6 +138,8 @@ annotation, and is not reinterpreted as a minimum-domain requirement.
 Dimensioned `Annotated[Tensor, DIM]` declarations are no longer supported;
 use `QuantityTensor` for tensor-only fields and equations.
 Unitless `Annotated[Tensor, Domain(...)]` annotations also remain available as exact domain hints for structural analysis. Scalar equation parameters can use `Domain.scalar()` as an exact scalar layout. A pointwise union that accepts scalar values cannot impose a minimum tensor domain. A failed minimum-domain requirement rejects the selected route with the equation, port and missing dimensions in the explanation.
+
+A rank-zero quantity tensor remains a tensor and satisfies a tensor-only annotation without a minimum domain. A computed tensor-only output remains a tensor even when its inferred domain is scalar.
 
 Domain constraints in `Annotated` are validated by Bilt, not statically
 interpreted by ty or Pyrefly.
