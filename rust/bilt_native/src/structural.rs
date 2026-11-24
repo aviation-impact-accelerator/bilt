@@ -7,6 +7,14 @@ type Set = BTreeSet<Id>;
 type Step = (Id, Id, Vec<Id>); // operation index, output, qualified child inputs
 type RawRow = (Id, Vec<Id>, Option<Id>, Option<Id>); // local index, ports, transform output, child context
 
+// A child route is a dependency query, not a new request with all candidate
+// ports fixed. Validate its actual consumed boundary before accepting it.
+#[derive(Clone, Copy)]
+enum PlanTargets<'a> {
+    Strict(&'a [Id]),
+    Discovery(Id),
+}
+
 #[derive(Clone)]
 struct Row {
     operation: Id,
@@ -160,11 +168,53 @@ impl NativeStructuralModel {
         }
     }
 
+    /// Discover a candidate using all established inputs, then check only
+    /// the boundary it consumes. Root requests always use strict validation.
+    fn route_inputs(
+        &self,
+        context: Id,
+        available: &Set,
+        target: Id,
+        budget: &mut usize,
+        depth: usize,
+    ) -> Option<Vec<Id>> {
+        let plan = self.plan_inner(
+            context,
+            available,
+            PlanTargets::Discovery(target),
+            &BTreeSet::new(),
+            budget,
+            depth,
+        )?;
+        let mut required = Set::new();
+        for (operation, output, inputs) in plan {
+            let source = self.contexts[context]
+                .rows
+                .iter()
+                .find(|r| r.operation == operation)?;
+            if source.child.is_some() {
+                required.extend(inputs.into_iter().filter(|p| available.contains(p)));
+            } else {
+                required.extend(
+                    source
+                        .ports
+                        .iter()
+                        .copied()
+                        .filter(|&p| p != output && available.contains(&p)),
+                );
+            }
+        }
+        // Do not accept an invalid formulation merely because an exploratory
+        // matching succeeded. The chosen subset must pass the same DM check.
+        self.validated_scope(context, &required, target)?;
+        Some(required.into_iter().collect())
+    }
+
     fn plan_inner(
         &self,
         context: Id,
         available: &Set,
-        targets: &[Id],
+        request: PlanTargets<'_>,
         blocked: &BTreeSet<(Id, Id)>,
         budget: &mut usize,
         depth: usize,
@@ -173,9 +223,20 @@ impl NativeStructuralModel {
             return None;
         }
         *budget -= 1;
+        let targets = match &request {
+            PlanTargets::Strict(targets) => *targets,
+            PlanTargets::Discovery(target) => std::slice::from_ref(target),
+        };
         let mut scope = BTreeSet::new();
         for &target in targets {
-            scope.extend(self.validated_scope(context, available, target)?);
+            match request {
+                PlanTargets::Strict(_) => {
+                    scope.extend(self.validated_scope(context, available, target)?);
+                }
+                PlanTargets::Discovery(_) => {
+                    scope.extend(self.scope(context, available, target).1);
+                }
+            }
         }
         let preferred = self.preferred(&scope.into_iter().collect::<Vec<_>>(), available);
         let rows = &self.contexts[context].rows;
@@ -355,33 +416,8 @@ impl Settlement<'_> {
                         }))
             })
             .collect();
-        let plan = self.model.plan_inner(
-            child,
-            &available,
-            &[port],
-            &BTreeSet::new(),
-            self.budget,
-            self.depth + 1,
-        )?;
-        let mut required = Set::new();
-        for (operation, output, inputs) in plan {
-            let source = self.model.contexts[child]
-                .rows
-                .iter()
-                .find(|r| r.operation == operation)?;
-            if source.child.is_some() {
-                required.extend(inputs.into_iter().filter(|p| available.contains(p)));
-            } else {
-                required.extend(
-                    source
-                        .ports
-                        .iter()
-                        .copied()
-                        .filter(|&p| p != output && available.contains(&p)),
-                );
-            }
-        }
-        Some(required.into_iter().collect())
+        self.model
+            .route_inputs(child, &available, port, self.budget, self.depth + 1)
     }
 }
 
@@ -432,7 +468,7 @@ impl NativeStructuralModel {
         self.plan_inner(
             0,
             &available.into_iter().collect(),
-            &targets,
+            PlanTargets::Strict(&targets),
             &blocked.into_iter().collect(),
             &mut budget,
             0,
@@ -470,6 +506,35 @@ mod tests {
             model.plan(vec![0], vec![2], vec![]),
             Some(vec![(0, 1, vec![0]), (1, 2, vec![])])
         );
+    }
+
+    #[test]
+    fn discovery_validates_consumed_boundary_not_all_candidate_ports() {
+        let model = NativeStructuralModel::new(vec![vec![
+            (0, vec![0, 2], None, None),
+            (1, vec![1, 2], None, None),
+        ]])
+        .unwrap();
+        let available = Set::from([0, 1]);
+        // Both candidates fixed makes the original request overdetermined.
+        assert!(model.plan(vec![0, 1], vec![2], vec![]).is_none());
+        let inputs = model
+            .route_inputs(0, &available, 2, &mut 4096, 0)
+            .unwrap();
+        assert_eq!(inputs.len(), 1);
+        assert!(model.plan(inputs, vec![2], vec![]).is_some());
+    }
+
+    #[test]
+    fn discovery_cannot_accept_overdetermined_consumed_boundary() {
+        let model = NativeStructuralModel::new(vec![vec![
+            (0, vec![0, 1], None, None),
+            (1, vec![0, 1], None, None),
+        ]])
+        .unwrap();
+        assert!(model
+            .route_inputs(0, &Set::from([0]), 1, &mut 4096, 0)
+            .is_none());
     }
 
     #[test]
