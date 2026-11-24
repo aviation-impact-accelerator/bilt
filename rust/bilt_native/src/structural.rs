@@ -155,7 +155,7 @@ impl NativeStructuralModel {
             let before = reached.len();
             for &(context, index) in scope {
                 let row = &self.contexts[context].rows[index];
-                let mut unknown = row.ports.iter().filter(|p| !reached.contains(p));
+                let mut unknown = row.ports.iter().filter(|p| !reached.contains(*p));
                 if let Some(&port) = unknown.next() {
                     if unknown.next().is_none()
                         && row.output.is_none_or(|output| output == port)
@@ -425,12 +425,13 @@ impl NativeStructuralModel {
         targets: Vec<Id>,
         blocked: Vec<(Id, Id)>,
     ) -> Option<Vec<Step>> {
+        let mut budget = 4096;
         self.plan_inner(
             0,
             &available.into_iter().collect(),
             &targets,
             &blocked.into_iter().collect(),
-            &mut 4096,
+            &mut budget,
             0,
         )
     }
