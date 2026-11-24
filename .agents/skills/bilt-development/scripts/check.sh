@@ -39,7 +39,7 @@ run cargo fmt --all -- --check
 run cargo clippy --all-targets --all-features -- -D warnings
 run cargo test --all-targets --all-features
 run uv run zensical build --clean --strict
-run uv run python scripts/check_docs_math.py
+run uv run python scripts/check_docs_rendering.py
 run uv run prek run --all-files
 
 printf '\nAll Bilt development checks passed.\n'

@@ -88,8 +88,8 @@ jobs:
       - name: Build docs with Zensical
         run: uv run zensical build --clean --strict
 
-      - name: Verify rendered documentation math
-        run: uv run python scripts/check_docs_math.py
+      - name: Verify rendered documentation math and diagrams
+        run: uv run python scripts/check_docs_rendering.py
 
       - name: Upload documentation preview
         if: github.event_name == 'pull_request'
