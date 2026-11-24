@@ -26,9 +26,9 @@ if typing.TYPE_CHECKING:
     from bilt._backend import Backend, BackendCase
     from bilt.core._evaluation_request import EvaluationRequest
     from bilt.core._model_constituent import BiltModelConstituent
-    from bilt.core._system._implementation import Implementation
     from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
+    from bilt.core._system._implementation import Implementation
 
 type RawRow = tuple[int, list[int], int | None, int | None]
 
@@ -175,7 +175,7 @@ def _unsupported(reason: str, targets: tuple[str, ...]) -> None:
         raise NativeStructuralUnsupportedError(msg)
 
 
-def attempt(
+def attempt(  # noqa: PLR0911 - explicit fallback reasons are part of the experiment
     analyser: CausalizationStructuralAnalyzer,
     request: EvaluationRequest,
     targets: tuple[str, ...],
