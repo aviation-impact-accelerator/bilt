@@ -31,15 +31,18 @@ if typing.TYPE_CHECKING:
 type RawRow = tuple[int, list[int], int | None, int | None]
 
 MODE = os.environ.get("BILT_EXPERIMENTAL_STRUCTURAL_ENGINE", "python")
+if MODE not in {"python", "rust", "hybrid"}:
+    msg = f"Unknown experimental structural engine: {MODE!r}."
+    raise ValueError(msg)
 STATS: Counter[str] = Counter()
 
 
 def report() -> None:
-    if MODE == "rust":
+    if MODE != "python":
         print("BILT_NATIVE_STATS " + json.dumps(dict(STATS), sort_keys=True))  # noqa: T201
 
 
-if MODE == "rust":
+if MODE != "python":
     atexit.register(report)
 
 
@@ -134,38 +137,75 @@ class NativePlanner:
         return tuple(blocks)
 
 
-def attempt(
-    analyser: CausalizationStructuralAnalyzer,
-    request: EvaluationRequest,
-    targets: tuple[str, ...],
-) -> BackendCase | None:
-    """Return a realised native candidate or None; never persist experimental failures."""
-    if MODE != "rust":
-        return None
-    STATS["requests"] += 1
+def _native_planner(analyser: CausalizationStructuralAnalyzer) -> NativePlanner | None:
     if not analyser._experimental_native_initialized:  # noqa: SLF001
         analyser._experimental_native_initialized = True  # noqa: SLF001
         try:
             analyser._experimental_native = NativePlanner(analyser.full_incidence_graph)  # noqa: SLF001
         except TypeError, ValueError:
             analyser._experimental_native = None  # noqa: SLF001
-    native = analyser._experimental_native  # noqa: SLF001
+    return analyser._experimental_native  # noqa: SLF001
+
+
+class NativeStructuralUnsupportedError(RuntimeError):
+    """Strict mode cannot yet handle this request; never silently use Python."""
+
+
+def _unsupported(reason: str, targets: tuple[str, ...]) -> None:
+    STATS[reason] += 1
+    if MODE == "rust":
+        msg = f"Native structural engine: {reason} for {targets!r}."
+        raise NativeStructuralUnsupportedError(msg)
+
+
+def attempt(
+    analyser: CausalizationStructuralAnalyzer,
+    request: EvaluationRequest,
+    targets: tuple[str, ...],
+) -> BackendCase | None:
+    """Return a realised native candidate or None; never persist experimental failures."""
+    if MODE == "python":
+        return None
+    STATS["requests"] += 1
+    native = _native_planner(analyser)
     if native is None:
-        STATS["unsupported_model"] += 1
+        _unsupported("unsupported_model", targets)
         return None
     available = set(request.input_domains)
     blocks = native.plan(available, targets, analyser._failures)  # noqa: SLF001
     if blocks is None:
-        STATS["structural_fallback"] += 1
+        _unsupported("structural_fallback", targets)
         return None
     start = time.perf_counter_ns()
     result = realize_plan(AnalysisPlan(request=request, blocks=blocks), analyser.backend, block_failures={})
     STATS["realization_ns"] += time.perf_counter_ns() - start
     if isinstance(result, (RealizationFailure, BlockRealizationFailure)):
-        STATS["realization_fallback"] += 1
+        _unsupported("realization_fallback", targets)
         return None
     if not set(targets) <= ({item.port for item in result.outputs} | available):
-        STATS["missing_output_fallback"] += 1
+        _unsupported("missing_output_fallback", targets)
         return None
     STATS["native_success"] += 1
     return result
+
+
+def attempt_required_inputs(
+    analyser: CausalizationStructuralAnalyzer, available: set[str], output: str
+) -> frozenset[str] | None:
+    """Use the native route planner for explicit child-route queries as well."""
+    if MODE == "python":
+        return None
+    STATS["route_requests"] += 1
+    if output in available:
+        STATS["route_success"] += 1
+        return frozenset({output})
+    native = _native_planner(analyser)
+    blocks = None if native is None else native.plan(available, (output,), analyser._failures)  # noqa: SLF001
+    if blocks is None:
+        _unsupported("route_fallback", (output,))
+        return None
+    produced = {step.output for block in blocks for step in block.steps}
+    STATS["route_success"] += 1
+    return frozenset(
+        attribute for block in blocks for step in block.steps for attribute in step.consumed if attribute not in produced
+    )
