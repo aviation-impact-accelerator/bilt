@@ -58,11 +58,17 @@ impl Search {
             ("child_route_unique", self.observed.len()),
             (
                 "child_route_unique_success",
-                self.observed.values().filter(|&&flag| flag & 1 != 0).count(),
+                self.observed
+                    .values()
+                    .filter(|&&flag| flag & 1 != 0)
+                    .count(),
             ),
             (
                 "child_route_unique_failure",
-                self.observed.values().filter(|&&flag| flag & 2 != 0).count(),
+                self.observed
+                    .values()
+                    .filter(|&&flag| flag & 2 != 0)
+                    .count(),
             ),
             ("child_route_success_hits", self.success_hits),
             ("child_route_failure_hits", self.failure_hits),
@@ -282,14 +288,7 @@ impl NativeStructuralModel {
         search: &mut Search,
         depth: usize,
     ) -> Option<Vec<Id>> {
-        let plan = self.plan_inner(
-            child,
-            available,
-            &[port],
-            &BTreeSet::new(),
-            search,
-            depth,
-        )?;
+        let plan = self.plan_inner(child, available, &[port], &BTreeSet::new(), search, depth)?;
         let mut required = Set::new();
         for (operation, output, inputs) in plan {
             let source = self.contexts[child]
@@ -632,7 +631,9 @@ mod tests {
         let model = NativeStructuralModel::new(vec![vec![(0, vec![0, 1], None, None)]]).unwrap();
         let mut search = Search::new(true);
         search.budget = 1;
-        assert!(model.route_inputs(0, &Set::from([0]), 1, &mut search, 1).is_none());
+        assert!(model
+            .route_inputs(0, &Set::from([0]), 1, &mut search, 1)
+            .is_none());
         assert!(search.routes.is_empty());
         search.budget = 4096;
         assert_eq!(
@@ -640,7 +641,9 @@ mod tests {
             Some(vec![0])
         );
         search.budget = 1;
-        assert!(model.route_inputs(0, &Set::from([0]), 1, &mut search, 1).is_none());
+        assert!(model
+            .route_inputs(0, &Set::from([0]), 1, &mut search, 1)
+            .is_none());
         assert_eq!(search.success_hits, 0);
     }
 
