@@ -18,6 +18,7 @@ struct Row {
 struct Context {
     rows: Vec<Row>,
     adjacent: BTreeMap<Id, Vec<Id>>,
+    parent: Option<(Id, Id)>,
 }
 
 /// Immutable, qualified integer-ID model, shared across requests.
@@ -223,6 +224,16 @@ impl NativeStructuralModel {
         }
     }
 
+    // Lift a descendant producer to the immediate child candidate that
+    // exposes its port at the current planning boundary.
+    fn preferred_owner(&self, context: Id, source: (Id, Id)) -> Option<Id> {
+        let (mut owner, mut index) = source;
+        while owner != context {
+            (owner, index) = self.contexts[owner].parent?;
+        }
+        Some(index)
+    }
+
     fn plan_inner(
         &self,
         context: Id,
@@ -264,7 +275,16 @@ impl NativeStructuralModel {
             if row.child.is_some() {
                 for port in ports {
                     edges.push(vec![port]);
-                    weights.push(BTreeMap::from([(port, 0)]));
+                    let weight = if preferred
+                        .get(&port)
+                        .and_then(|&source| self.preferred_owner(context, source))
+                        == Some(index)
+                    {
+                        2
+                    } else {
+                        0
+                    };
+                    weights.push(BTreeMap::from([(port, weight)]));
                     owners.push(index);
                 }
             } else {
@@ -474,6 +494,7 @@ impl NativeStructuralModel {
             ));
         }
         let mut result = Vec::new();
+        let mut parents = vec![None; count];
         for (context, raw) in contexts.into_iter().enumerate() {
             let mut rows = Vec::new();
             let mut adjacent: BTreeMap<Id, Vec<Id>> = BTreeMap::new();
@@ -484,6 +505,9 @@ impl NativeStructuralModel {
                     ));
                 }
                 let index = rows.len();
+                if let Some(child) = child {
+                    parents[child] = Some((context, index));
+                }
                 for &p in &ports {
                     adjacent.entry(p).or_default().push(index);
                 }
@@ -494,7 +518,11 @@ impl NativeStructuralModel {
                     child,
                 });
             }
-            result.push(Context { rows, adjacent });
+            result.push(Context {
+                rows,
+                adjacent,
+                parent: parents[context],
+            });
         }
         Ok(Self { contexts: result })
     }
