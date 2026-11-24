@@ -27,12 +27,32 @@ The system describes the values available at its boundary. It does not yet say h
 
 Suppose we have a simple lookup rule for the drag coefficient based on the lift coefficient. The values below are illustrative, not aircraft performance data.
 
-```python exec="on" source="above" session="drag-model"
+```python exec="off"
 @transform
 def drag_coefficient(lift_coefficient: float) -> float:
     if lift_coefficient < 0.5:
         return 0.025
     return 0.04
+```
+
+<!-- markdown-exec: hidden setup -->
+
+```python exec="on" session="drag-model"
+from pathlib import Path
+from runpy import run_path
+from tempfile import TemporaryDirectory
+
+# Execute the displayed transform from a real source file so inspect.getsource works.
+guide = Path("docs/guide/transforms-and-implementations.md").read_text(encoding="utf-8")
+source = next(
+    block.split("```", 1)[0]
+    for block in guide.split('```python exec="off"\n')[1:]
+    if block.startswith("@transform\n")
+)
+with TemporaryDirectory() as directory:
+    module = Path(directory) / "drag_lookup.py"
+    module.write_text("from bilt import transform\n\n" + source, encoding="utf-8")
+    drag_coefficient = run_path(str(module))["drag_coefficient"]
 ```
 
 The parameter name identifies the required value. The function name identifies the result it provides, and its return annotation declares the result's type.
