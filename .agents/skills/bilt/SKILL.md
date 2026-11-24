@@ -8,11 +8,11 @@ license: MIT
 
 Use this skill when writing or reviewing models that **use** Bilt. For changes to Bilt itself, use the `bilt-development` skill instead.
 
-Bilt is equation-oriented: define relationships, provide known inputs, and request outputs. The framework plans the calculation. Start from the user's scientific assumptions, not from a procedural calculation order.
+Bilt is equation-oriented: define relationships, provide known inputs, and request outputs. The framework plans the calculation. Start from the user's scientific assumptions, not from a procedural calculation order. Check the Bilt version pinned by the project before using an API: the published documentation follows `main`, which may be newer than the installed version.
 
 ## Typical workflow
 
-1. Identify system boundaries, named values, units and relationships.
+1. Identify system boundaries, named values, physical dimensions and relationships. Prefer unit-bearing quantities for physical values; keep categorical values and genuinely unitless interfaces plain.
 2. Declare an interface using `@system`, `Interface` and `field()`.
 3. Prefer `@equation` for mathematical relationships; use `@transform` for genuinely directed operations.
 4. Create an `Implementation` from the relationships, supplying child implementations when required.
@@ -21,48 +21,89 @@ Bilt is equation-oriented: define relationships, provide known inputs, and reque
 
 ## Minimal example
 
+Use the same quantity alias for a system field and a pointwise equation. The model works for scalar quantities and named tensors without changing the equation.
+
 ```python
-from bilt import Implementation, Interface, equation, field, system
+from typing import Annotated
+
+from bilt import Implementation, Interface, Quantity, QuantityTensor, dim, equation, field, system, tensor
+from bilt.units import meter, second
+from bilt.units.dimensions import LENGTH, TIME
+
+Length = Annotated[Quantity | QuantityTensor, LENGTH]
+Speed = Annotated[Quantity | QuantityTensor, LENGTH / TIME]
+Duration = Annotated[Quantity | QuantityTensor, TIME]
 
 
 @system
 class Motion(metaclass=Interface):
-    distance: float = field()
-    speed: float = field()
-    time: float = field()
+    distance: Length = field()
+    speed: Speed = field()
+    duration: Duration = field()
 
 
 @equation
-def motion_relation(distance: float, speed: float, time: float) -> bool:
-    return distance == speed * time
+def motion_relation(distance: Length, speed: Speed, duration: Duration) -> bool:
+    return distance == speed * duration
 
 
 motion = Implementation(Motion, [motion_relation])
+scenario = dim("scenario")
+
 with motion:
-    assert Motion(speed=20.0, time=5.0).distance == 100.0
-    assert Motion(distance=100.0, time=5.0).speed == 20.0
+    assert Motion(speed=20.0 * meter / second, duration=5.0 * second).distance == 100.0 * meter
+    assert Motion(distance=100.0 * meter, duration=5.0 * second).speed == 20.0 * meter / second
+
+    distances = Motion(
+        speed=tensor([10.0, 20.0], over=scenario, unit=meter / second),
+        duration=5.0 * second,
+    ).distance
+
+assert distances.unit == meter
+assert distances.domain.dims == (scenario,)
+assert distances.values.tolist() == [50.0, 100.0]
 ```
 
 ## Modelling rules
 
-- Equations specify relationships, not arbitrary Python programs. Keep them within Bilt's supported symbolic syntax: single-assignment locals, a final relationship return, and supported `if/elif/else` conditionals. Tensor predicates and compound masks using `&`, `|` and `~` are supported; elementwise selection evaluates both branches. Do not invent loop or mutation support in equations.
-- Avoid manually rearranging relationships or hard-coding their direction. Bilt can solve supported coupled **linear** blocks, including blocks crossing subsystem boundaries; do not assume arbitrary nonlinear coupled blocks work.
-- Use `Annotated[Quantity | QuantityTensor, DIMENSION]` for unit-aware system ports that may take scalar or named-tensor values. For scalar equations use `Annotated[Quantity, DIMENSION]` where appropriate. Prefer Bilt's named tensor operations to manual positional broadcasting.
-- Remember that `Implementation` selects equations and transforms; registering one alone does not activate it. Results are cached on a system instance. Use fresh instances when changing inputs or implementations.
-- Use the optional JAX backend only with supported operations and compatible transforms; test behaviour on the intended backend.
-- Do not invent or rely on internal Bilt APIs. Check the installed version against the current documentation and examples.
+### Relationships and implementations
+
+- Prefer equations for mathematical relationships, even if Bilt cannot invert them in every direction. Use transforms for empirical lookups, external routines or other genuinely directed calculations. A transform's name identifies its output; its parameters name its inputs. Define both decorators in real Python source files so Bilt can inspect them. Transform globals and closures are not automatically available to generated code; consult the backend rules.
+- Equations use single-assignment locals and one final relationship return. Supported conditionals include one top-level `if/elif/else` or numeric-literal `match/case` (with final `case _`), including nested branches. Every branch assigns the same result name. All branch inputs are required; tensor masks use `&`, `|` and `~` and evaluate both branches. Do not assume loops, mutation, enum-member patterns or inversion through a conditional are supported.
+- Do not manually rearrange relationships just to fix a calculation order. Bilt can isolate supported equations and solve coupled linear blocks across subsystem boundaries; it does not provide a general nonlinear coupled solver on this version.
+- Equations in one implementation express simultaneous constraints, not competing recipes for the same unknown. Use separate implementations for alternative modelling assumptions. Bind child implementations with `internal_implementations={"child": child_model}` and connect them through equation parameters annotated with the child interface, referencing `child.port`.
+- Activate an implementation with `with model:` and request a field on an instance. The first calculated lookup selects the implementation; outputs and intermediates are cached on that instance. Structural planning uses the original supplied inputs. Use fresh instances when changing inputs, implementation or backend.
+
+### Quantities and domains
+
+- Declare physical dimensions, not units, in annotations. Use a shared alias such as `Mass = Annotated[Quantity | QuantityTensor, MASS]` on fields and pointwise relationships. Use concrete `Quantity` or `QuantityTensor` when scalar-only or named tensor operations require it; do not create paired aliases solely for system fields. Annotations must be available at runtime.
+- Supply quantities with explicit compatible units. Calculated outputs use coherent units; convert to the desired display unit. Dimensionless quantities still need a unit, e.g. `UNITLESS`; plain floats are outside the unit system. Distinguish absolute readings from relative changes and preserve metadata tags when relevant.
+- In transforms, extract scalar numbers with `q.convert_to(unit).value`, not bare `q.value`, and construct quantities with `Quantity(value, unit)` or a float times a unit. Transforms do not prove arbitrary Python dimensionally correct.
+- Use `dim` and `tensor(..., over=axis, unit=...)` to name axes. Shared axes align by name and must have matching lengths; independent axes broadcast. Do not add loops or positional reshaping for pointwise model calculations.
+- Use named reductions and selections in supported equations; use `QuantityTensor` (or unitless `Tensor`) for tensor-method parameters. Transforms support a restricted reduction form. Concrete tensors outside model execution do not implement general eager arithmetic or reductions; use their numerical arrays with explicit units/domains when post-processing. Coordinate selection currently requires an internal binding context; do not invent a public binding API.
+
+### Backends and performance
+
+- Python is the default; use `with JAX_BACKEND, model:` with the optional JAX extra for compatible calculations. Equation conditionals and ordinary Python control flow in transforms have different restrictions. Check the backend reference and test the target backend rather than assuming all Python runs under JAX.
+- Distinguish structural planning, lowering, JIT compilation, numerical execution and instance-value caching. Benchmark cold and warm calls on fresh instances using the same implementation; synchronise JAX results before stopping the timer.
+- Use public APIs. Treat experimental planners, internal multi-output evaluation and proposed APIs as internal unless the installed version documents a public contract.
 
 ## Checking models
 
-- Run `uv run bilt check .` from a model project where Bilt is installed. It validates discoverable model definitions, not numerical solvability or every possible runtime path.
+- Run `uv run bilt check .` from a model project where Bilt is installed. It discovers and imports candidate modules (so module-level code runs). It checks constructed definitions, not numerical solvability or every possible runtime path. Add explicit modules when discovery cannot find them.
 - Run an example with known outputs and add numerical and dimensional tests; model checking is not a substitute for evaluation.
 - When stuck, reduce to a minimal system and inspect the specific error before adding constraints, changing units or reordering equations.
 
 ## Current reference
 
+Use the documentation for details rather than duplicating the entire API in this skill.
+
 - [User guide](https://aviation-impact-accelerator.github.io/bilt/guide/modelling-philosophy/)
 - [Systems and implementations](https://aviation-impact-accelerator.github.io/bilt/api/systems/)
 - [Equations and acausal modelling](https://aviation-impact-accelerator.github.io/bilt/guide/equations-and-acausal-modelling/)
 - [Coupled systems](https://aviation-impact-accelerator.github.io/bilt/guide/coupled-systems/)
-- [Units and tensors](https://aviation-impact-accelerator.github.io/bilt/guide/units/)
+- [Units](https://aviation-impact-accelerator.github.io/bilt/guide/units/), [quantity annotations](https://aviation-impact-accelerator.github.io/bilt/api/quantity-annotations/)
+- [Dimensions, domains and tensors](https://aviation-impact-accelerator.github.io/bilt/guide/dimensions-domains-and-tensors/), [tensor API](https://aviation-impact-accelerator.github.io/bilt/api/tensors/)
+- [Equations and transforms API](https://aviation-impact-accelerator.github.io/bilt/api/relationships/), [backends](https://aviation-impact-accelerator.github.io/bilt/api/backends/)
+- [Worked examples](https://aviation-impact-accelerator.github.io/bilt/#worked-examples)
 - [Model checker](https://aviation-impact-accelerator.github.io/bilt/check/)
