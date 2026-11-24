@@ -425,11 +425,13 @@ def test_failure_leaves_instance_values_untouched(
 
     instance = Demo(a=3.0)
     before = _variables(instance).copy()
-    with backend, implementation, pytest.raises(RuntimeError, match="failed"):
+    with backend, implementation:
         if joint:
-            _prefetch_outputs(typing.cast("SystemInstance", instance), ("b", "c"))
+            with pytest.raises(RuntimeError, match="failed"):
+                _prefetch_outputs(typing.cast("SystemInstance", instance), ("b", "c"))
         else:
-            _ = instance.c
+            with pytest.raises(RuntimeError, match="failed"):
+                _ = instance.c
     assert _variables(instance) == before
     assert _variables(instance)["b"] is MISSING
 
@@ -588,7 +590,8 @@ def test_multi_output_prefetch_uses_previous_intermediates(backend: Backend) -> 
                 assert _variables(example)["shared"] is cached
         if implementation_module.CausalizationStructuralAnalyzer is not ExhaustiveStructuralAnalyser:
             assert len(implementation._multi_plan_cache) == 1  # noqa: SLF001
-            assert len(implementation._multi_callable_cache) == 2  # noqa: SLF001
+            expected_callable_count = 2  # Fresh and pruned execution plans.
+            assert len(implementation._multi_callable_cache) == expected_callable_count  # noqa: SLF001
 
 
 def test_joint_prefetch_falls_back_to_independent_plans(backend: Backend, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -200,12 +200,6 @@ class Implementation:
         targets = tuple(dict.fromkeys(outputs))
         if not targets:
             return {}
-        if len(targets) == 1:
-            target = targets[0]
-            if target in inputs or target in (cached or {}):
-                return {}
-            return self._evaluate_with_intermediates(inputs, target, backend, cached=cached)
-
         validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
