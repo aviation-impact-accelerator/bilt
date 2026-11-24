@@ -138,9 +138,7 @@ class DomainRegistry:
 
     def axes_for(self, domain: Domain) -> tuple[CoordinateAxis, ...]:
         """Return bound coordinate metadata for dimensions retained by an output."""
-        return tuple(
-            axis for dim in domain.dims if isinstance(axis := self._bindings.get(dim), CoordinateAxis)
-        )
+        return tuple(axis for dim in domain.dims if isinstance(axis := self._bindings.get(dim), CoordinateAxis))
 
     def coordinate_signature(
         self,
