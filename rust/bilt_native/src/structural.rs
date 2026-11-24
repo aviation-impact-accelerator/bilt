@@ -303,9 +303,10 @@ impl Settlement<'_> {
             // available boundary. Same-child derived outputs are not fixed.
             for &p in &row.ports {
                 if p != port
-                    && self.assignments.get(&p).is_some_and(|&r| {
-                        self.model.contexts[self.context].rows[r].child.is_none()
-                    })
+                    && self
+                        .assignments
+                        .get(&p)
+                        .is_some_and(|&r| self.model.contexts[self.context].rows[r].child.is_none())
                 {
                     self.resolve(p);
                 }
@@ -474,7 +475,8 @@ mod tests {
     #[test]
     fn duplicate_constraints_and_transform_direction() {
         let model = NativeStructuralModel::new(vec![vec![
-            (0, vec![0, 1], None, None), (1, vec![0, 1], None, None),
+            (0, vec![0, 1], None, None),
+            (1, vec![0, 1], None, None),
         ]])
         .unwrap();
         assert!(model.plan(vec![0], vec![1], vec![]).is_none());
