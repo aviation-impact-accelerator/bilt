@@ -1,0 +1,120 @@
+name: Compare native structural benchmark regressions
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/benchmark-native-regressions.yml"
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      PYTHONHASHSEED: "0"
+      UV_LOCKED: "1"
+      JAX_PLATFORMS: cpu
+      BILT_EXPERIMENTAL_ROUTE_CACHE: "on"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          python-version: "3.15"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install Rust
+        run: rustup toolchain install
+      - name: Prepare matching baseline and candidate environments
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add --detach "$RUNNER_TEMP/bilt-baseline" ddcf8a80269ea4d128f3f50d7391aa27c6bf5946
+          cmp uv.lock "$RUNNER_TEMP/bilt-baseline/uv.lock"
+          uv sync --all-extras --all-groups
+          (cd "$RUNNER_TEMP/bilt-baseline" && uv sync --all-extras --all-groups)
+          mkdir -p "$RUNNER_TEMP/benchmark-results"
+      - name: Run the routine suite with alternating engine order
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="$GITHUB_WORKSPACE"
+          baseline="$RUNNER_TEMP/bilt-baseline"
+          results="$RUNNER_TEMP/benchmark-results"
+          for pass in 1 2; do
+            if [ "$pass" = 1 ]; then
+              variants="baseline python hybrid"
+            else
+              variants="hybrid python baseline"
+            fi
+            for variant in $variants; do
+              case "$variant" in
+                baseline) directory="$baseline"; engine=python ;;
+                *) directory="$candidate"; engine="$variant" ;;
+              esac
+              echo "::group::$variant pass $pass"
+              status=0
+              (
+                cd "$directory"
+                BILT_EXPERIMENTAL_STRUCTURAL_ENGINE="$engine" \
+                  uv run --no-sync pytest benchmarks --benchmark-only --search-rounds=5 \
+                  --timeout=100 --benchmark-json="$results/$variant-$pass.json"
+              ) 2>&1 | tee "$results/$variant-$pass.log" || status=$?
+              echo "$status" > "$results/$variant-$pass.status"
+              echo "::endgroup::"
+            done
+          done
+      - name: Summarize matched cases and flag regressions
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import statistics
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "benchmark-results"
+          variants = ("baseline", "python", "hybrid")
+          runs = {}
+          failed = False
+          for variant in variants:
+              runs[variant] = {}
+              for trial in (1, 2):
+                  stem = root / f"{variant}-{trial}"
+                  status = int(stem.with_suffix(".status").read_text())
+                  failed |= status != 0
+                  print(f"{variant} pass {trial}: pytest exit {status}")
+                  report = stem.with_suffix(".json")
+                  if not report.exists():
+                      failed = True
+                      continue
+                  for entry in json.loads(report.read_text())["benchmarks"]:
+                      runs[variant].setdefault(entry["fullname"], []).append(entry["stats"]["median"])
+          names = set().union(*(set(run) for run in runs.values()))
+          rows = []
+          for name in sorted(names):
+              if any(len(runs[v].get(name, [])) != 2 for v in variants):
+                  print(f"INCOMPLETE {name}")
+                  failed = True
+                  continue
+              a, b, c = (statistics.median(runs[v][name]) * 1000 for v in variants)
+              rows.append((name, a, b, c))
+          print("case | baseline ms | candidate Python ms | hybrid ms | Python/base | hybrid/Python")
+          for name, a, b, c in rows:
+              print(f"{name} | {a:.4f} | {b:.4f} | {c:.4f} | {b/a:.3f} | {c/b:.3f}")
+          for label, first, second in (("disabled vs baseline", 1, 2), ("hybrid vs disabled", 2, 3)):
+              print(f"Potential regressions: {label} (>10% and >0.05 ms)")
+              for row in sorted(rows, key=lambda r: r[second] / r[first], reverse=True):
+                  if row[second] > 1.10 * row[first] and row[second] - row[first] > 0.05:
+                      print(f"{row[0]}: {row[first]:.4f} -> {row[second]:.4f} ms")
+          print(f"Complete matched cases: {len(rows)}")
+          if not rows or failed:
+              raise SystemExit("Incomplete or failed benchmark comparisons; inspect artifacts.")
+          PY
+      - name: Save benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-regression-benchmarks
+          path: ${{ runner.temp }}/benchmark-results
