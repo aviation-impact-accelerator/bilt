@@ -8,6 +8,7 @@ from bilt.core._errors import BiltCategoricalPortError
 from bilt.core._port_declaration import annotated_parts
 from bilt.core._tensors._tensors import Tensor
 from bilt.core._validation import validate_independently
+from bilt.symbolic._dimensions import CoordinateAxis
 from bilt.symbolic._domains import Domain
 from bilt.units import Dimension, Metadata, Unit
 from bilt.units.dimensions import ABSOLUTE
@@ -36,7 +37,7 @@ def enum_port_types(owner: str, annotations: typing.Mapping[str, object]) -> dic
         enum_type, _ = _enum_shape(base)
         if enum_type is None:
             if _contains_enum(base):
-                msg = "must use a concrete enum class directly or a union of that class with Tensor."
+                msg = "must use a concrete enum class directly or a union of that class with Tensor or CoordinateAxis."
                 raise BiltCategoricalPortError(owner, name, msg)
             return
         base = enum_type
@@ -59,13 +60,13 @@ def enum_port_types(owner: str, annotations: typing.Mapping[str, object]) -> dic
 
 
 def _enum_shape(annotation: object) -> tuple[type[enum.Enum] | None, bool]:
-    """Recognise a scalar enum or the same enum paired with ordinary Tensor."""
+    """Recognise scalar enums or enums paired with a tensor/coordinate axis."""
     if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
         return annotation, False
     if typing.get_origin(annotation) in (typing.Union, types.UnionType):
         options = typing.get_args(annotation)
-        if len(options) == 2 and Tensor in options:  # noqa: PLR2004
-            other = next(option for option in options if option is not Tensor)
+        if len(options) == 2 and (Tensor in options or CoordinateAxis in options):  # noqa: PLR2004
+            other = next(option for option in options if option not in (Tensor, CoordinateAxis))
             if isinstance(other, type) and issubclass(other, enum.Enum):
                 return other, True
     return None, False

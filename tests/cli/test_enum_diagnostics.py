@@ -108,9 +108,9 @@ def test_check_collects_unsupported_categorical_port_declarations(tmp_path: Path
         (
             """
             @equation
-            def output(mode: Mode, result: float) -> bool:
+            def output(mode: float, result: float) -> bool:
                 match mode:
-                    case Mode.ON:
+                    case 1:
                         selected = 1.0
                 return result == selected
             """,
@@ -198,7 +198,8 @@ def test_check_reports_invalid_enum_matching(tmp_path: Path, definition: str, me
     result = _check_model(tmp_path, common + textwrap.dedent(definition))
     assert result.returncode == 1
     assert "model.py:" in result.stderr
-    assert "error: BILT004 " in result.stderr
+    expected_code = "BILT999" if message == "match requires literal cases and a final case _" else "BILT004"
+    assert f"error: {expected_code} " in result.stderr
     assert message in result.stderr
 
 
@@ -309,7 +310,7 @@ def test_check_accepts_nested_enum_matching_without_backend_compilation(tmp_path
             match child.mode:
                 case Mode.OFF:
                     selected = 0
-                case _:
+                case Mode.ON:
                     selected = 1.5
             return result == selected
 

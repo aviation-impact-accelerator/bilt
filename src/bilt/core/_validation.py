@@ -2,6 +2,7 @@
 
 __all__ = [
     "Diagnostic",
+    "checking_model_definitions",
     "code_for",
     "collecting_validation_errors",
     "validate_independently",
@@ -79,3 +80,12 @@ def validate_independently(checks: collections.abc.Iterable[collections.abc.Call
             errors.append(error)
     if errors:
         raise BiltCollectedValidationError(errors)
+
+
+def checking_model_definitions() -> bool:
+    """Whether Bilt is checking source definitions rather than executing a model.
+
+    Used for additional lint-like categorical checks without changing the
+    runtime meaning of existing wildcard match statements.
+    """
+    return _collecting.get()

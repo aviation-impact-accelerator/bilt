@@ -9,6 +9,7 @@ lazy import enum
 
 from bilt.core._errors import BiltCategoricalError, BiltDefinitionError
 from bilt.core._port import QualifiedPort
+from bilt.core._validation import checking_model_definitions
 
 if typing.TYPE_CHECKING:
     import collections.abc
@@ -391,16 +392,29 @@ def _validate_match_arms(
     subject_type: type[enum.Enum] | None,
 ) -> str:
     _validate_expression(statement.subject)
-    if not statement.cases[:-1] or not _is_wildcard(statement.cases[-1].pattern):
+    wildcard = _is_wildcard(statement.cases[-1].pattern) if statement.cases else False
+    if subject_type is None and (not statement.cases[:-1] or not wildcard):
         _reject(statement, "match requires literal cases and a final case _")
+    if subject_type is not None and not statement.cases:
+        _reject(statement, "an enum match must have at least one case", BiltCategoricalEquationError)
 
     names: set[str] = set()
+    members: set[enum.Enum] = set()
     for index, case in enumerate(statement.cases):
         if case.guard is not None:
             _reject(case.guard, "match guards are not supported")
-        if index < len(statement.cases) - 1:
+        if not (index == len(statement.cases) - 1 and wildcard):
             _match_literal(case.pattern, subject_type, enum_context.namespace)
+            if subject_type is not None:
+                # _match_literal verified both enum class and member identity.
+                value = typing.cast("ast.MatchValue", case.pattern).value
+                members.add(subject_type[typing.cast("ast.Attribute", value).attr])
         names.add(_validate_branch_arm(case.body, statement, params, assigned, enum_context))
+    if subject_type is not None:
+        missing = {member.name for member in subject_type if member not in members}
+        if missing and (not wildcard or checking_model_definitions()):
+            msg = f"non-exhaustive {subject_type.__name__} match: explicitly handle {', '.join(sorted(missing))}"
+            _reject(statement, msg, BiltCategoricalEquationError)
     if len(names) != 1:
         _reject(statement, "all branches must assign the same local variable")
     name = next(iter(names))

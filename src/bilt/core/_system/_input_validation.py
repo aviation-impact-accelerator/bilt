@@ -9,6 +9,7 @@ from bilt.core._errors import BiltEvaluationError
 from bilt.core._system._errors import BiltInputDimensionalityError
 from bilt.core._system._sentinel import MISSING
 from bilt.core._tensors._tensors import Tensor
+from bilt.symbolic._dimensions import CoordinateAxis
 from bilt.units import Quantity
 from bilt.units._category import UnitCategory
 
@@ -33,6 +34,13 @@ def validate_inputs(  # noqa: C901
             continue
         enum_type = enum_types.get(port)
         if enum_type is not None:
+            if isinstance(value, CoordinateAxis) and port in enum_tensor_ports:
+                if not value.coordinates or any(type(member) is not enum_type for member in value.coordinates):
+                    msg = (
+                        f"Input {port!r} of {system_name!r} requires a CoordinateAxis of {enum_type.__name__} members."
+                    )
+                    raise BiltEvaluationError(msg)
+                continue
             if isinstance(value, Tensor) and port in enum_tensor_ports:
                 if (
                     value.unit is not None
