@@ -24,7 +24,6 @@ with JAX_BACKEND, model:
 | API | Meaning |
 | --- | --- |
 | `with backend:` | Select a backend for instance evaluation in the block; the innermost backend context wins. |
-| `implementation.evaluate(inputs, output, backend)` | Evaluate directly with an explicit backend. |
 
 Use a fresh instance for each backend comparison: values already calculated on an
 instance are cached and are returned without recalculation. The first JAX call
