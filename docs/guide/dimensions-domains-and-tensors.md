@@ -209,7 +209,6 @@ class EnergyReport(metaclass=Interface):
     energy: Tensor = field()
     mean_energy: Tensor = field()
     second_route_energy: Tensor = field()
-    selected_route_energy: Tensor = field()
 
 
 @equation
@@ -311,31 +310,13 @@ assert route_axis.coordinates == ("short", "medium", "long")
 
 The dimension still identifies the axis, while the coordinate axis tells us what the individual positions along it mean.
 
-We can then select by label rather than by position:
+Creating a coordinate axis does not bind it to a model evaluation. Public coordinate binding is not yet available, so for now resolve a label to its integer position before using positional selection:
 
 ```python exec="on" source="above" session="domains-tensors"
-@equation
-def select_route(energy: Tensor, selected_route_energy: Tensor) -> bool:
-    return selected_route_energy == energy.sel(route, "medium")
-
-
-coordinate_model = Implementation(EnergyReport, [select_route])
+assert route_axis.coordinates.index("medium") == 1
 ```
 
-Creating the coordinate axis does not bind it to an evaluation. At present, binding requires the internal evaluation context. This is the current mechanism, not a stable public coordinate-binding API:
-
-```python exec="on" source="above" session="domains-tensors"
-from bilt.core._evaluation_context import EvaluationContext
-
-with EvaluationContext() as evaluation, coordinate_model:
-    evaluation.domains.bind(route_axis)
-    medium = EnergyReport(energy=all_energy).selected_route_energy
-
-assert medium.domain == domain(technology)
-assert medium.values.tolist() == [500.0, 800.0]
-```
-
-The result is the same as positional selection, but the equation refers to the route label rather than its position. Coordinate labels can also be numbers or dates. See [Coordinate axes](../api/tensors.md#coordinate-axes) for the supported types and binding rules.
+This is the position used in the `isel(route, 1)` equation above. Coordinate labels can also be numbers or dates. See [Coordinate axes](../api/tensors.md#coordinate-axes) for the supported types.
 
 ## Shared dimensions need to agree
 
