@@ -1275,10 +1275,10 @@ The recuperator equation describes the cold-side temperature rise. Equal stream 
 
 The following code continues the executable session above. `model_module` supplies the component types and unchanged `core_model` already defined in this article.
 
-No solver-selection setup is needed. The default analyser discovers the coupled block; the selected computational backend executes it.
+No solver-selection setup is needed. The default analyser discovers the coupled block; the selected computational backend executes it. The parent interface exposes the known core inputs and the requested temperatures, and equations connect these fields to the child systems.
 
 ```python exec="on" source="above" session="turbomachinery"
-from bilt import Implementation, Interface, PYTHON_BACKEND, equation, field, system
+from bilt import Implementation, Interface, equation, field, system
 
 TwoShaftCore = model_module.TwoShaftCore
 
@@ -1287,6 +1287,10 @@ AbsoluteTemperature = model_module.AbsoluteTemperature
 Ratio = model_module.Ratio
 
 SpecificWork = model_module.SpecificWork
+
+SpecificHeat = model_module.SpecificHeat
+
+MassFlow = model_module.MassFlow
 
 Power = model_module.Power
 
@@ -1312,6 +1316,19 @@ def recovery(
 
 @system
 class RecuperatedCore(metaclass=Interface):
+    inlet_temperature: AbsoluteTemperature = field()
+    low_pressure_compressor_pressure_ratio: Ratio = field()
+    high_pressure_compressor_pressure_ratio: Ratio = field()
+    low_pressure_compressor_efficiency: Ratio = field()
+    high_pressure_compressor_efficiency: Ratio = field()
+    low_pressure_shaft_efficiency: Ratio = field()
+    high_pressure_shaft_efficiency: Ratio = field()
+    gamma: Ratio = field()
+    specific_heat: SpecificHeat = field()
+    mass_flow: MassFlow = field()
+
+    preheated_temperature: AbsoluteTemperature = field()
+
     heat_input: SpecificWork = field()
 
     effectiveness: Ratio = field()
@@ -1321,6 +1338,61 @@ class RecuperatedCore(metaclass=Interface):
     turbine_inlet_temperature: AbsoluteTemperature = field()
 
     exit_temperature: AbsoluteTemperature = field()
+
+
+@equation
+def core_inlet_temperature(inlet_temperature: AbsoluteTemperature, core: TwoShaftCore) -> bool:
+    return inlet_temperature == core.inlet_temperature
+
+
+@equation
+def core_low_pressure_compressor_pressure_ratio(low_pressure_compressor_pressure_ratio: Ratio, core: TwoShaftCore) -> bool:
+    return low_pressure_compressor_pressure_ratio == core.low_pressure_compressor_pressure_ratio
+
+
+@equation
+def core_high_pressure_compressor_pressure_ratio(high_pressure_compressor_pressure_ratio: Ratio, core: TwoShaftCore) -> bool:
+    return high_pressure_compressor_pressure_ratio == core.high_pressure_compressor_pressure_ratio
+
+
+@equation
+def core_low_pressure_compressor_efficiency(low_pressure_compressor_efficiency: Ratio, core: TwoShaftCore) -> bool:
+    return low_pressure_compressor_efficiency == core.low_pressure_compressor_efficiency
+
+
+@equation
+def core_high_pressure_compressor_efficiency(high_pressure_compressor_efficiency: Ratio, core: TwoShaftCore) -> bool:
+    return high_pressure_compressor_efficiency == core.high_pressure_compressor_efficiency
+
+
+@equation
+def core_low_pressure_shaft_efficiency(low_pressure_shaft_efficiency: Ratio, core: TwoShaftCore) -> bool:
+    return low_pressure_shaft_efficiency == core.low_pressure_shaft_efficiency
+
+
+@equation
+def core_high_pressure_shaft_efficiency(high_pressure_shaft_efficiency: Ratio, core: TwoShaftCore) -> bool:
+    return high_pressure_shaft_efficiency == core.high_pressure_shaft_efficiency
+
+
+@equation
+def core_gamma(gamma: Ratio, core: TwoShaftCore) -> bool:
+    return gamma == core.gamma
+
+
+@equation
+def core_specific_heat(specific_heat: SpecificHeat, core: TwoShaftCore) -> bool:
+    return specific_heat == core.specific_heat
+
+
+@equation
+def core_mass_flow(mass_flow: MassFlow, core: TwoShaftCore) -> bool:
+    return mass_flow == core.mass_flow
+
+
+@equation
+def preheat_output(preheated_temperature: AbsoluteTemperature, recuperator: Recuperator) -> bool:
+    return preheated_temperature == recuperator.cold_out
 
 
 @equation
@@ -1367,30 +1439,52 @@ def exit_output(exit_temperature: AbsoluteTemperature, core: TwoShaftCore) -> bo
 
 recuperated_model = Implementation(
     RecuperatedCore,
-    [cold_supply, hot_supply, effectiveness_supply, combustion, power_supply, inlet_output, exit_output],
+    [
+        core_inlet_temperature,
+        core_low_pressure_compressor_pressure_ratio,
+        core_high_pressure_compressor_pressure_ratio,
+        core_low_pressure_compressor_efficiency,
+        core_high_pressure_compressor_efficiency,
+        core_low_pressure_shaft_efficiency,
+        core_high_pressure_shaft_efficiency,
+        core_gamma,
+        core_specific_heat,
+        core_mass_flow,
+        preheat_output,
+        cold_supply,
+        hot_supply,
+        effectiveness_supply,
+        combustion,
+        power_supply,
+        inlet_output,
+        exit_output,
+    ],
     internal_implementations={"core": model_module.core_model, "recuperator": Implementation(Recuperator, [recovery])},
 )
 
 inputs = {
-    "core.inlet_temperature": Quantity(288, absolute_kelvin),
-    "core.low_pressure_compressor_pressure_ratio": Quantity(2, UNITLESS),
-    "core.high_pressure_compressor_pressure_ratio": Quantity(6, UNITLESS),
-    "core.low_pressure_compressor_efficiency": Quantity(0.88, UNITLESS),
-    "core.high_pressure_compressor_efficiency": Quantity(0.86, UNITLESS),
-    "core.low_pressure_shaft_efficiency": Quantity(0.99, UNITLESS),
-    "core.high_pressure_shaft_efficiency": Quantity(0.99, UNITLESS),
-    "core.gamma": Quantity(1.4, UNITLESS),
-    "core.specific_heat": 1.005 * kilojoule / (kilogram * kelvin),
-    "core.mass_flow": 20.0 * kilogram / second,
+    "inlet_temperature": Quantity(288, absolute_kelvin),
+    "low_pressure_compressor_pressure_ratio": Quantity(2, UNITLESS),
+    "high_pressure_compressor_pressure_ratio": Quantity(6, UNITLESS),
+    "low_pressure_compressor_efficiency": Quantity(0.88, UNITLESS),
+    "high_pressure_compressor_efficiency": Quantity(0.86, UNITLESS),
+    "low_pressure_shaft_efficiency": Quantity(0.99, UNITLESS),
+    "high_pressure_shaft_efficiency": Quantity(0.99, UNITLESS),
+    "gamma": Quantity(1.4, UNITLESS),
+    "specific_heat": 1.005 * kilojoule / (kilogram * kelvin),
+    "mass_flow": 20.0 * kilogram / second,
     "heat_input": 600.0 * kilojoule / kilogram,
     "effectiveness": Quantity(0.6, UNITLESS),
     "shaft_power": 2.0 * megawatt,
 }
 
-recuperated_results = {
-    name: recuperated_model.evaluate(inputs, name, PYTHON_BACKEND)
-    for name in ("turbine_inlet_temperature", "exit_temperature", "recuperator.cold_out")
-}
+with recuperated_model:
+    recuperated = RecuperatedCore(**inputs)
+    recuperated_results = {
+        "turbine_inlet_temperature": recuperated.turbine_inlet_temperature,
+        "exit_temperature": recuperated.exit_temperature,
+        "preheated_temperature": recuperated.preheated_temperature,
+    }
 
 for name, value in recuperated_results.items():
     print(f"{name}: {value.convert_to(absolute_kelvin).value:.1f} K")
@@ -1448,7 +1542,7 @@ expected_preheat = compressor_exit + 0.6 * (expected_exit - compressor_exit)
 np.testing.assert_allclose(
     [
         recuperated_results[name].convert_to(absolute_kelvin).value
-        for name in ("turbine_inlet_temperature", "exit_temperature", "recuperator.cold_out")
+        for name in ("turbine_inlet_temperature", "exit_temperature", "preheated_temperature")
     ],
     [expected_inlet, expected_exit, expected_preheat],
     rtol=2e-5,
