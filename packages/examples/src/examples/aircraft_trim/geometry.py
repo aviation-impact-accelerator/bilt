@@ -1,5 +1,6 @@
-"""Dimensional lifting-surface geometry and numerical horseshoe influences."""
+"""Dimensional lifting-surface geometry and horseshoe-vortex equations."""
 
+import math
 from dataclasses import dataclass
 from typing import Annotated, TypedDict
 
@@ -15,12 +16,21 @@ _SINGULARITY_TOLERANCE_M = 1e-12
 _SINGULARITY_CROSS_SQUARED = _SINGULARITY_TOLERANCE_M**4
 
 PANEL = dim("panel")
+CARTESIAN = dim("cartesian")
+SEGMENT = dim("segment")
+VORTEX_SOURCE = dim("vortex_source")
+VORTEX_TARGET = dim("vortex_target")
+
+_LENGTH_SCALE = 1.0 * meter
 
 type Length = Annotated[Quantity, LENGTH]
 type Area = Annotated[Quantity, LENGTH**2]
 type Ratio = Annotated[Quantity, DIMENSIONLESS]
 type PanelLength = Annotated[QuantityTensor, LENGTH]
 type PanelRatio = Annotated[QuantityTensor, DIMENSIONLESS]
+type SquaredLength = Annotated[QuantityTensor, LENGTH**2]
+type FourthPowerLength = Annotated[QuantityTensor, LENGTH**4]
+type Influence = Annotated[QuantityTensor, LENGTH**-1]
 
 
 @system
@@ -154,6 +164,9 @@ class PanelResolution:
             raise ValueError(msg)
 
 
+DEFAULT_RESOLUTION = PanelResolution()
+
+
 def example_geometry(*, wake_length: Quantity = 400.0 * meter) -> AircraftGeometry:
     """Return the physical aircraft independently of its discretisation."""
     return AircraftGeometry(
@@ -227,13 +240,22 @@ def moment_arm(arm: Length, cg_x: Length, bound_x: Length) -> bool:
 
 
 @equation
+def spanwise_twist_fraction(
+    twist_fraction: PanelRatio, left_fraction: PanelRatio, right_fraction: PanelRatio
+) -> bool:
+    """Absolute span fraction at the panel centre."""
+    return twist_fraction == ((left_fraction + right_fraction) ** 2) ** 0.5
+
+
+@equation
 def panel_twist(twist: PanelRatio, root_twist: Ratio, tip_twist: Ratio, twist_fraction: PanelRatio) -> bool:
     """Linearly interpolate twist using absolute normalized span."""
     return twist == root_twist + (tip_twist - root_twist) * twist_fraction
 
 
 PANEL_MODEL = Implementation(
-    SurfacePanels, [left_position, right_position, centre_position, panel_width, moment_arm, panel_twist]
+    SurfacePanels,
+    [left_position, right_position, centre_position, panel_width, moment_arm, spanwise_twist_fraction, panel_twist],
 )
 
 
@@ -269,7 +291,6 @@ def discretise(surface: RectangularSurface, *, cg_x: Quantity, panels: int) -> S
             tip_twist=surface.tip_twist,
             left_fraction=tensor(edges[:-1], over=PANEL, unit=fraction),
             right_fraction=tensor(edges[1:], over=PANEL, unit=fraction),
-            twist_fraction=tensor(np.abs(edges[:-1] + edges[1:]), over=PANEL, unit=fraction),
         )
 
 
@@ -280,56 +301,171 @@ def _points(x: Quantity, y: QuantityTensor, z: Quantity) -> np.ndarray:
     )
 
 
-def finite_vortex_velocity(point: np.ndarray, start: np.ndarray, end: np.ndarray) -> np.ndarray:
-    """Biot-Savart velocity in m^-1 for a straight unit-circulation filament.
+@system
+class VortexInfluence(metaclass=Interface):
+    """Finite vortex segments evaluated at collocation points.
 
-    Formula uses the finite-segment cross product and endpoint factors.
-    Near-singular configurations are rejected rather than regularised
-    silently; all generated collocation points avoid the vortex lines.
+    Position tensors carry the Cartesian axis and may have independent source,
+    target and segment axes. The result is vertical velocity per circulation.
     """
-    r1 = point - start
-    r2 = point - end
-    direction = end - start
-    cross = np.cross(r1, r2)
-    squared = float(np.dot(cross, cross))
-    norm1 = float(np.linalg.norm(r1))
-    norm2 = float(np.linalg.norm(r2))
-    if squared <= _SINGULARITY_CROSS_SQUARED or norm1 <= _SINGULARITY_TOLERANCE_M or norm2 <= _SINGULARITY_TOLERANCE_M:
-        msg = "Vortex evaluation point lies on or too near a filament."
-        raise ValueError(msg)
-    return cross * (np.dot(direction, r1 / norm1 - r2 / norm2) / (4.0 * np.pi * squared))
+
+    point: PanelLength = field()
+    start: PanelLength = field()
+    end: PanelLength = field()
+    r1: PanelLength = field()
+    r2: PanelLength = field()
+    direction: PanelLength = field()
+    cross_x: SquaredLength = field()
+    cross_y: SquaredLength = field()
+    cross_z: SquaredLength = field()
+    cross_squared: FourthPowerLength = field()
+    norm1: PanelLength = field()
+    norm2: PanelLength = field()
+    endpoint_factor: PanelLength = field()
+    segment_influence: Influence = field()
+    influence: Influence = field()
 
 
-def horseshoe_velocity(point: np.ndarray, left: np.ndarray, right: np.ndarray, *, wake_length_m: float) -> np.ndarray:
-    """Velocity due to a horseshoe: left trailing leg, bound span, right leg.
+@equation
+def first_displacement(r1: PanelLength, point: PanelLength, start: PanelLength) -> bool:
+    """Vector from the first endpoint to the collocation point."""
+    return r1 == point - start
 
-    Positive unit circulation runs from negative to positive span along the
-    bound vortex. Trailing legs extend in +x for a stationary straight wake.
-    """
-    wake = np.array([wake_length_m, 0.0, 0.0])
-    return (
-        finite_vortex_velocity(point, left + wake, left)
-        + finite_vortex_velocity(point, left, right)
-        + finite_vortex_velocity(point, right, right + wake)
-    )
+
+@equation
+def second_displacement(r2: PanelLength, point: PanelLength, end: PanelLength) -> bool:
+    """Vector from the second endpoint to the collocation point."""
+    return r2 == point - end
+
+
+@equation
+def segment_direction(direction: PanelLength, start: PanelLength, end: PanelLength) -> bool:
+    """Vector along the finite vortex."""
+    return direction == end - start
+
+
+@equation
+def cross_product_x(cross_x: SquaredLength, r1: PanelLength, r2: PanelLength) -> bool:
+    """First Cartesian component of the displacement cross product."""
+    return cross_x == r1.isel(CARTESIAN, 1) * r2.isel(CARTESIAN, 2) - r1.isel(CARTESIAN, 2) * r2.isel(CARTESIAN, 1)
+
+
+@equation
+def cross_product_y(cross_y: SquaredLength, r1: PanelLength, r2: PanelLength) -> bool:
+    """Second Cartesian component of the displacement cross product."""
+    return cross_y == r1.isel(CARTESIAN, 2) * r2.isel(CARTESIAN, 0) - r1.isel(CARTESIAN, 0) * r2.isel(CARTESIAN, 2)
+
+
+@equation
+def cross_product_z(cross_z: SquaredLength, r1: PanelLength, r2: PanelLength) -> bool:
+    """Vertical component of the displacement cross product."""
+    return cross_z == r1.isel(CARTESIAN, 0) * r2.isel(CARTESIAN, 1) - r1.isel(CARTESIAN, 1) * r2.isel(CARTESIAN, 0)
+
+
+@equation
+def cross_magnitude_squared(
+    cross_squared: FourthPowerLength, cross_x: SquaredLength, cross_y: SquaredLength, cross_z: SquaredLength
+) -> bool:
+    """Squared norm of the cross product."""
+    return cross_squared == cross_x**2 + cross_y**2 + cross_z**2
+
+
+@equation
+def first_distance(norm1: PanelLength, r1: PanelLength) -> bool:
+    """Euclidean distance, using a dimensionless argument for the square root."""
+    return norm1 == _LENGTH_SCALE * ((r1 / _LENGTH_SCALE) ** 2).sum(CARTESIAN) ** 0.5
+
+
+@equation
+def second_distance(norm2: PanelLength, r2: PanelLength) -> bool:
+    """Euclidean distance to the second endpoint."""
+    return norm2 == _LENGTH_SCALE * ((r2 / _LENGTH_SCALE) ** 2).sum(CARTESIAN) ** 0.5
+
+
+@equation
+def endpoint_projection(  # noqa: PLR0913, PLR0917 - physical equation ports.
+    endpoint_factor: PanelLength,
+    direction: PanelLength,
+    r1: PanelLength,
+    r2: PanelLength,
+    norm1: PanelLength,
+    norm2: PanelLength,
+) -> bool:
+    """Dot the segment direction with the difference of endpoint unit vectors."""
+    return endpoint_factor == (direction * (r1 / norm1 - r2 / norm2)).sum(CARTESIAN)
+
+
+@equation
+def biot_savart(
+    segment_influence: Influence,
+    cross_z: SquaredLength,
+    endpoint_factor: PanelLength,
+    cross_squared: FourthPowerLength,
+) -> bool:
+    """Vertical finite-segment velocity per unit circulation."""
+    return segment_influence == cross_z * endpoint_factor / (4.0 * math.pi * cross_squared)
+
+
+@equation
+def integrate_segments(influence: Influence, segment_influence: Influence) -> bool:
+    """Superpose the finite segments of the horseshoe."""
+    return influence == segment_influence.sum(SEGMENT)
+
+
+VORTEX_MODEL = Implementation(
+    VortexInfluence,
+    [
+        first_displacement,
+        second_displacement,
+        segment_direction,
+        cross_product_x,
+        cross_product_y,
+        cross_product_z,
+        cross_magnitude_squared,
+        first_distance,
+        second_distance,
+        endpoint_projection,
+        biot_savart,
+        integrate_segments,
+    ],
+)
+
+
+def evaluate_vortices(point: QuantityTensor, start: QuantityTensor, end: QuantityTensor) -> QuantityTensor:
+    """Evaluate the model, rejecting singular geometries before division."""
+    with VORTEX_MODEL:
+        vortex = VortexInfluence(point=point, start=start, end=end)
+        cross_squared = vortex.cross_squared.convert_to(meter**4).values
+        norm1 = vortex.norm1.convert_to(meter).values
+        norm2 = vortex.norm2.convert_to(meter).values
+        if (
+            np.any(cross_squared <= _SINGULARITY_CROSS_SQUARED)
+            or np.any(norm1 <= _SINGULARITY_TOLERANCE_M)
+            or np.any(norm2 <= _SINGULARITY_TOLERANCE_M)
+        ):
+            msg = "Vortex evaluation point lies on or too near a filament."
+            raise ValueError(msg)
+        return vortex.influence
 
 
 def influence_block(targets: SurfacePanels, sources: SurfacePanels, *, wake_length: Quantity) -> np.ndarray:
-    """Vertical induced velocity per unit circulation, target-by-source (m^-1)."""
+    """Evaluate every target/source interaction using named Bilt tensor axes."""
     with PANEL_MODEL:
         left = _points(sources.bound_x, sources.left_y, sources.height)
         right = _points(sources.bound_x, sources.right_y, sources.height)
         collocation = _points(targets.target_x, targets.centre_y, targets.height)
-    wake = wake_length.convert_to(meter).value
-    return np.array(
-        [
-            [
-                horseshoe_velocity(target, first, last, wake_length_m=wake)[2]
-                for first, last in zip(left, right, strict=True)
-            ]
-            for target in collocation
-        ]
+
+    # The three oriented segments are numerical topology, not aerodynamic laws.
+    wake = np.array([wake_length.convert_to(meter).value, 0.0, 0.0])
+    starts = np.stack((left + wake, left, right), axis=1)
+    ends = np.stack((left, right, right + wake), axis=1)
+    result = evaluate_vortices(
+        tensor(collocation, over=(VORTEX_TARGET, CARTESIAN), unit=meter),
+        tensor(starts, over=(VORTEX_SOURCE, SEGMENT, CARTESIAN), unit=meter),
+        tensor(ends, over=(VORTEX_SOURCE, SEGMENT, CARTESIAN), unit=meter),
     )
+    order = tuple(result.domain.dims.index(axis) for axis in (VORTEX_TARGET, VORTEX_SOURCE))
+    return result.convert_to(meter**-1).values.transpose(order)
 
 
 class InfluenceInputs(TypedDict):
@@ -348,7 +484,7 @@ class InfluenceInputs(TypedDict):
 
 
 def calculate_influences(
-    geometry: AircraftGeometry, *, resolution: PanelResolution = PanelResolution()
+    geometry: AircraftGeometry, *, resolution: PanelResolution = DEFAULT_RESOLUTION
 ) -> InfluenceInputs:
     """Evaluate the geometry and supply named influence and load tensors."""
     with GEOMETRY_MODEL:

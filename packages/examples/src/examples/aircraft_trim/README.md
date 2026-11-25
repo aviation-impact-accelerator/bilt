@@ -25,8 +25,12 @@ wake roll-up, induced drag, compressibility, stall and fuselage effects are
 outside scope. The rectangular surface and spanwise panel geometry are Bilt systems with
 dimensional equations. Aircraft geometry composes two rectangular-surface
 implementations. Panel resolution is numerical configuration. The finite-segment
-Biot-Savart kernel generates the four dimensional influence tensors at the trim
-model boundary.
+Biot-Savart law is also a Bilt system: displacement vectors, cross products,
+endpoint distances, projection and segment superposition are dimensional
+equations. Independent source, target, segment and Cartesian axes express all
+interactions without a Python loop over panels. NumPy only constructs discrete
+coordinates and oriented segment topology, validates singularity tolerances and
+packages results at the trim model boundary.
 
 ## Acausal Bilt equations
 
@@ -60,8 +64,8 @@ directly instead of mass. The same equations support all three cases.
 With N wing and M tail panels, the reduced inverse-trim problem has N+M+2
 unknowns. The Bilt model also exposes the intermediate panel loads and
 total lift, so its coupled system can include these additional unknowns.
-A separate NumPy assembly of the reduced system is used only as an
-independent test reference, not in the acausal model.
+An independent NumPy implementation of the geometry, vortex law and reduced
+linear system is used only in tests.
 
 ## Run
 

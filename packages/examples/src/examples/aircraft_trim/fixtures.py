@@ -6,7 +6,14 @@ from bilt import Quantity, QuantityTensor, tensor
 from bilt.units import degree, kilogram, meter, radian, second
 from bilt.units.units import newton
 
-from .geometry import AircraftGeometry, InfluenceInputs, PanelResolution, calculate_influences, example_geometry
+from .geometry import (
+    DEFAULT_RESOLUTION,
+    AircraftGeometry,
+    InfluenceInputs,
+    PanelResolution,
+    calculate_influences,
+    example_geometry,
+)
 from .model import TAIL_TARGET, WingTailTrim
 
 
@@ -27,7 +34,7 @@ class _AircraftInputs(InfluenceInputs):
 def example_aircraft(  # noqa: PLR0913 - independent boundary inputs and discretisation.
     *,
     geometry: AircraftGeometry | None = None,
-    resolution: PanelResolution = PanelResolution(),
+    resolution: PanelResolution = DEFAULT_RESOLUTION,
     mass: Quantity | None = None,
     lift: Quantity | None = None,
     alpha: Quantity | None = None,
@@ -36,8 +43,8 @@ def example_aircraft(  # noqa: PLR0913 - independent boundary inputs and discret
 ) -> WingTailTrim:
     """Construct a geometry-derived linear wing-and-tail aerodynamic model.
 
-    Horseshoe vortex influences are geometry input data. The aerodynamic and
-    trim equations themselves remain expressed entirely using Bilt relations.
+    Horseshoe vortex influences are evaluated by the geometry and vortex models.
+    Their dimensional results provide the aerodynamic trim boundary inputs.
     """
     geometry = geometry if geometry is not None else example_geometry()
     coefficients = calculate_influences(geometry, resolution=resolution)
@@ -65,7 +72,7 @@ def trim_case(
     mass_kg: float = 550.0,
     *,
     geometry: AircraftGeometry | None = None,
-    resolution: PanelResolution = PanelResolution(),
+    resolution: PanelResolution = DEFAULT_RESOLUTION,
 ) -> WingTailTrim:
     """Fix weight and zero pitching moment, solving both trim angles."""
     return example_aircraft(
@@ -81,7 +88,7 @@ def forward_case(
     elevator_deg: float = 0.0,
     *,
     geometry: AircraftGeometry | None = None,
-    resolution: PanelResolution = PanelResolution(),
+    resolution: PanelResolution = DEFAULT_RESOLUTION,
 ) -> WingTailTrim:
     """Fix the two angles and solve for the full circulation distribution."""
     return example_aircraft(
