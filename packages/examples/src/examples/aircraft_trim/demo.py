@@ -12,7 +12,7 @@ from .model import MODEL
 def main() -> None:
     """Solve the larger ten-panel discretisation and verify forwards."""
     geometry = example_geometry()
-    resolution = PanelResolution(6, 4)
+    resolution = PanelResolution(wing=6, tail=4)
     with MODEL:
         trimmed = trim_case(geometry=geometry, resolution=resolution)
         alpha = trimmed.alpha

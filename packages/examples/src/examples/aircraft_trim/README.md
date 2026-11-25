@@ -24,13 +24,13 @@ not a full vortex-lattice or viscous aerodynamic model: chordwise panels,
 wake roll-up, induced drag, compressibility, stall and fuselage effects are
 outside scope. The rectangular surface and spanwise panel geometry are Bilt systems with
 dimensional equations. Aircraft geometry composes two rectangular-surface
-implementations. Panel resolution is numerical configuration. The finite-segment
+implementations. Panel resolution is a Bilt system carrying integer panel counts. The finite-segment
 Biot-Savart law is also a Bilt system: displacement vectors, cross products,
 endpoint distances, projection and segment superposition are dimensional
 equations. Independent source, target, segment and Cartesian axes express all
 interactions without a Python loop over panels. Directed operations use Bilt
 transforms: Cartesian coordinate packing, oriented segment endpoint selection,
-moment-arm broadcasting and the singularity guard on the Biot-Savart denominator.
+the singularity guard on the Biot-Savart denominator.
 Wake displacements and normalised panel edges are equations. Only discrete axis
 creation, axis relabelling and external input validation remain at the Python
 boundary, because the current transform backend cannot introduce new named axes.

@@ -21,7 +21,6 @@ from examples.aircraft_trim.model import MODEL, TAIL_SOURCE, WING_SOURCE
 from bilt import QuantityTensor, tensor
 from bilt.units import degree, fraction, kilogram, meter, newton, radian, second
 
-
 _REFERENCE_LENGTH_TOLERANCE = 1e-12
 _REFERENCE_CROSS_TOLERANCE = _REFERENCE_LENGTH_TOLERANCE**4
 
@@ -143,7 +142,7 @@ def _combine(wing: QuantityTensor, tail: QuantityTensor) -> np.ndarray:
 def test_geometry_based_forward_matches_numpy(wing_panels: int, tail_panels: int) -> None:
     """Bilt solves each source-panel circulation from physical vortex influence."""
     geometry = example_geometry()
-    resolution = PanelResolution(wing_panels, tail_panels)
+    resolution = PanelResolution(wing=wing_panels, tail=tail_panels)
     with MODEL:
         aircraft = forward_case(3.0, -1.0, geometry=geometry, resolution=resolution)
         wing = aircraft.wing_circulation
@@ -168,7 +167,7 @@ def test_geometry_based_forward_matches_numpy(wing_panels: int, tail_panels: int
 def test_geometry_based_inverse_trim_matches_numpy(wing_panels: int, tail_panels: int) -> None:
     """N panel unknowns plus two global unknowns form an (N+2)-square problem."""
     geometry = example_geometry()
-    resolution = PanelResolution(wing_panels, tail_panels)
+    resolution = PanelResolution(wing=wing_panels, tail=tail_panels)
     with MODEL:
         aircraft = trim_case(550.0, geometry=geometry, resolution=resolution)
         wing = aircraft.wing_circulation
@@ -187,7 +186,7 @@ def test_geometry_based_inverse_trim_matches_numpy(wing_panels: int, tail_panels
 def test_trim_angles_reproduce_lift_and_zero_pitch() -> None:
     """Re-evaluate the same equations forwards using inverse-trim angles."""
     geometry = example_geometry()
-    resolution = PanelResolution(6, 4)
+    resolution = PanelResolution(wing=6, tail=4)
     with MODEL:
         trimmed = trim_case(550.0, geometry=geometry, resolution=resolution)
         forward = example_aircraft(
@@ -259,7 +258,7 @@ def test_singular_vortex_is_rejected() -> None:
 
 @pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4), (12, 6)))
 def test_influence_blocks_match_numpy(wing_panels: int, tail_panels: int) -> None:
-    data = calculate_influences(example_geometry(), resolution=PanelResolution(wing_panels, tail_panels))
+    data = calculate_influences(example_geometry(), resolution=PanelResolution(wing=wing_panels, tail=tail_panels))
     expected, _, _, _, _ = _reference_operator(wing_panels, tail_panels)
     for actual, reference in (
         (data["wing_from_wing"], expected[:wing_panels, :wing_panels]),
@@ -272,7 +271,7 @@ def test_influence_blocks_match_numpy(wing_panels: int, tail_panels: int) -> Non
 
 def test_symmetric_geometry_gives_symmetric_spanwise_influence() -> None:
     """Mirror symmetry provides a geometry-based influence regression."""
-    data = calculate_influences(example_geometry(), resolution=PanelResolution(6, 4))
+    data = calculate_influences(example_geometry(), resolution=PanelResolution(wing=6, tail=4))
     ww = data["wing_from_wing"].convert_to(meter**-1).values
     tt = data["tail_from_tail"].convert_to(meter**-1).values
     wt = data["wing_from_tail"].convert_to(meter**-1).values
@@ -286,7 +285,7 @@ def test_wake_length_convergence_and_cross_surface_coupling() -> None:
     """Farther wake truncation should not dramatically alter a near-field matrix."""
     near = example_geometry()
     far = example_geometry(wake_length=800.0 * meter)
-    resolution = PanelResolution(6, 4)
+    resolution = PanelResolution(wing=6, tail=4)
     first = calculate_influences(near, resolution=resolution)
     second = calculate_influences(far, resolution=resolution)
     np.testing.assert_allclose(first["wing_from_wing"].values, second["wing_from_wing"].values, rtol=2e-4, atol=2e-6)
@@ -346,6 +345,5 @@ def test_panel_geometry_matches_numpy(count: int) -> None:
         np.testing.assert_allclose(panels.width.convert_to(meter).values, np.diff(edges), atol=1e-12)
         np.testing.assert_allclose(panels.twist.convert_to(radian).values, 0.002 - 0.01 * abs(centres) / 6.0)
         assert panels.arm.convert_to(meter).value == pytest.approx(0.625)
-        np.testing.assert_allclose(panels.panel_arm.convert_to(meter).values, np.full(count, 0.625))
         assert panels.bound_x.convert_to(meter).value == pytest.approx(0.375)
         assert panels.target_x.convert_to(meter).value == pytest.approx(1.125)

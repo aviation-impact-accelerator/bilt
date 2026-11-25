@@ -2,25 +2,25 @@
 
 from typing import NotRequired
 
-from bilt import Quantity, QuantityTensor, tensor
-from bilt.units import degree, kilogram, meter, radian, second
+from bilt import Quantity
+from bilt.units import degree, fraction, kilogram, meter, second
 from bilt.units.units import newton
 
 from .geometry import (
-    DEFAULT_RESOLUTION,
     AircraftGeometry,
     InfluenceInputs,
     PanelResolution,
     calculate_influences,
+    default_resolution,
     example_geometry,
 )
-from .model import TAIL_TARGET, WingTailTrim
+from .model import WingTailTrim
 
 
 class _AircraftInputs(InfluenceInputs):
     """Known physical inputs; omitted fields are acausal unknowns."""
 
-    tail_control: QuantityTensor
+    tail_control: Quantity
     density: Quantity
     speed: Quantity
     gravity: Quantity
@@ -34,7 +34,7 @@ class _AircraftInputs(InfluenceInputs):
 def example_aircraft(  # noqa: PLR0913 - independent boundary inputs and discretisation.
     *,
     geometry: AircraftGeometry | None = None,
-    resolution: PanelResolution = DEFAULT_RESOLUTION,
+    resolution: PanelResolution | None = None,
     mass: Quantity | None = None,
     lift: Quantity | None = None,
     alpha: Quantity | None = None,
@@ -47,10 +47,11 @@ def example_aircraft(  # noqa: PLR0913 - independent boundary inputs and discret
     Their dimensional results provide the aerodynamic trim boundary inputs.
     """
     geometry = geometry if geometry is not None else example_geometry()
+    resolution = resolution if resolution is not None else default_resolution()
     coefficients = calculate_influences(geometry, resolution=resolution)
     known: _AircraftInputs = {
         **coefficients,
-        "tail_control": tensor([1.0] * resolution.tail, over=TAIL_TARGET, unit=radian / radian),
+        "tail_control": 1.0 * fraction,
         "density": 1.225 * kilogram / meter**3,
         "speed": 70.0 * meter / second,
         "gravity": 9.81 * meter / second**2,
@@ -72,7 +73,7 @@ def trim_case(
     mass_kg: float = 550.0,
     *,
     geometry: AircraftGeometry | None = None,
-    resolution: PanelResolution = DEFAULT_RESOLUTION,
+    resolution: PanelResolution | None = None,
 ) -> WingTailTrim:
     """Fix weight and zero pitching moment, solving both trim angles."""
     return example_aircraft(
@@ -88,7 +89,7 @@ def forward_case(
     elevator_deg: float = 0.0,
     *,
     geometry: AircraftGeometry | None = None,
-    resolution: PanelResolution = DEFAULT_RESOLUTION,
+    resolution: PanelResolution | None = None,
 ) -> WingTailTrim:
     """Fix the two angles and solve for the full circulation distribution."""
     return example_aircraft(

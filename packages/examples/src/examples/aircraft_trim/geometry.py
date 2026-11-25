@@ -1,7 +1,6 @@
 """Dimensional lifting-surface geometry and horseshoe-vortex equations."""
 
 import math
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, TypedDict
 
 import numpy as np
@@ -148,21 +147,24 @@ GEOMETRY_MODEL = Implementation(
 )
 
 
-@dataclass(frozen=True, slots=True)
-class PanelResolution:
-    """Numerical discretisation settings, not physical geometry."""
+@system
+class PanelResolution(metaclass=Interface):
+    """Discrete panel counts for the two lifting surfaces."""
 
-    wing: int = 2
-    tail: int = 2
-
-    def __post_init__(self) -> None:
-        """Require a positive number of panels on both surfaces."""
-        if any(isinstance(count, bool) or not isinstance(count, int) or count < 1 for count in (self.wing, self.tail)):
-            msg = "Panel count must be a positive integer."
-            raise ValueError(msg)
+    wing: int = field()
+    tail: int = field()
 
 
-DEFAULT_RESOLUTION = PanelResolution()
+def validate_panel_count(count: int) -> None:
+    """Require an integer before constructing the named panel axis."""
+    if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+        msg = "Panel count must be a positive integer."
+        raise ValueError(msg)
+
+
+def default_resolution() -> PanelResolution:
+    """Return the default discretisation without sharing a system instance."""
+    return PanelResolution(wing=2, tail=2)
 
 
 def example_geometry(*, wake_length: Quantity = 400.0 * meter) -> AircraftGeometry:
@@ -206,7 +208,6 @@ class SurfacePanels(metaclass=Interface):
     centre_y: PanelLength = field()
     width: PanelLength = field()
     arm: Length = field()
-    panel_arm: PanelLength = field()
     twist: PanelRatio = field()
 
 
@@ -252,17 +253,6 @@ def moment_arm(arm: Length, cg_x: Length, bound_x: Length) -> bool:
     return arm == cg_x - bound_x
 
 
-@transform
-def panel_arm(arm: Length, panel_index: PanelRatio) -> PanelLength:
-    """Broadcast the constant moment arm onto the supplied panel axis."""
-    from typing import cast  # noqa: PLC0415 - backend runtime dependency.
-
-    import numpy as np  # noqa: PLC0415 - backend runtime dependency.
-
-    # Transforms execute on coherent numerical magnitudes, not Quantity objects.
-    return cast("PanelLength", np.full_like(cast("np.ndarray", panel_index), cast("float", arm), dtype=float))
-
-
 @equation
 def spanwise_twist_fraction(twist_fraction: PanelRatio, left_fraction: PanelRatio, right_fraction: PanelRatio) -> bool:
     """Absolute span fraction at the panel centre."""
@@ -285,7 +275,6 @@ PANEL_MODEL = Implementation(
         centre_position,
         panel_width,
         moment_arm,
-        panel_arm,
         spanwise_twist_fraction,
         panel_twist,
     ],
@@ -631,16 +620,19 @@ class InfluenceInputs(TypedDict):
     tail_from_tail: QuantityTensor
     wing_width: QuantityTensor
     tail_width: QuantityTensor
-    wing_arm: QuantityTensor
-    tail_arm: QuantityTensor
+    wing_arm: Quantity
+    tail_arm: Quantity
     wing_twist: QuantityTensor
     tail_twist: QuantityTensor
 
 
 def calculate_influences(
-    geometry: AircraftGeometry, *, resolution: PanelResolution = DEFAULT_RESOLUTION
+    geometry: AircraftGeometry, *, resolution: PanelResolution | None = None
 ) -> InfluenceInputs:
     """Evaluate the geometry and supply named influence and load tensors."""
+    resolution = resolution if resolution is not None else default_resolution()
+    validate_panel_count(resolution.wing)
+    validate_panel_count(resolution.tail)
     with GEOMETRY_MODEL:
         wing_surface = RectangularSurface(
             span=geometry.wing_span,
@@ -685,8 +677,8 @@ def calculate_influences(
             ),
             "wing_width": tensor(wing.width.convert_to(meter).values, over=WING_SOURCE, unit=meter),
             "tail_width": tensor(tail.width.convert_to(meter).values, over=TAIL_SOURCE, unit=meter),
-            "wing_arm": tensor(wing.panel_arm.convert_to(meter).values, over=WING_SOURCE, unit=meter),
-            "tail_arm": tensor(tail.panel_arm.convert_to(meter).values, over=TAIL_SOURCE, unit=meter),
+            "wing_arm": wing.arm,
+            "tail_arm": tail.arm,
             "wing_twist": tensor(wing.twist.convert_to(radian).values, over=WING_TARGET, unit=radian),
             "tail_twist": tensor(tail.twist.convert_to(radian).values, over=TAIL_TARGET, unit=radian),
         }

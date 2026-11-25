@@ -23,11 +23,10 @@ type TailWingInfluence = Annotated[QuantityTensor, LENGTH**-1, Domain((TAIL_TARG
 type TailInfluence = Annotated[QuantityTensor, LENGTH**-1, Domain((TAIL_TARGET, TAIL_SOURCE))]
 type WingWidth = Annotated[QuantityTensor, LENGTH, Domain((WING_SOURCE,))]
 type TailWidth = Annotated[QuantityTensor, LENGTH, Domain((TAIL_SOURCE,))]
-type WingArm = Annotated[QuantityTensor, LENGTH, Domain((WING_SOURCE,))]
-type TailArm = Annotated[QuantityTensor, LENGTH, Domain((TAIL_SOURCE,))]
+type MomentArm = Annotated[Quantity, LENGTH]
 type WingTwist = Annotated[QuantityTensor, DIMENSIONLESS, Domain((WING_TARGET,))]
 type TailTwist = Annotated[QuantityTensor, DIMENSIONLESS, Domain((TAIL_TARGET,))]
-type TailControl = Annotated[QuantityTensor, DIMENSIONLESS, Domain((TAIL_TARGET,))]
+type TailControl = Annotated[Quantity, DIMENSIONLESS]
 type WingPanelLift = Annotated[Quantity | QuantityTensor, FORCE, Domain((WING_SOURCE,))]
 type TailPanelLift = Annotated[Quantity | QuantityTensor, FORCE, Domain((TAIL_SOURCE,))]
 type Density = Annotated[Quantity, MASS / LENGTH**3]
@@ -48,8 +47,8 @@ class WingTailTrim(metaclass=Interface):
 
     wing_width: WingWidth = field()
     tail_width: TailWidth = field()
-    wing_arm: WingArm = field()
-    tail_arm: TailArm = field()
+    wing_arm: MomentArm = field()
+    tail_arm: MomentArm = field()
     wing_twist: WingTwist = field()
     tail_twist: TailTwist = field()
     tail_control: TailControl = field()
@@ -117,8 +116,8 @@ def weight_balance(
 def pitch_balance(
     wing_panel_lift: WingPanelLift,
     tail_panel_lift: TailPanelLift,
-    wing_arm: WingArm,
-    tail_arm: TailArm,
+    wing_arm: MomentArm,
+    tail_arm: MomentArm,
     pitch_moment: Moment,
 ) -> bool:
     """Total pitching moment about CG, with tail arm negative."""
