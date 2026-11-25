@@ -20,6 +20,7 @@ _OBJECTS = frozenset(
         "bilt.JAX_BACKEND",
         "bilt.equation",
         "bilt.transform",
+        "bilt.tensor",
     }
 )
 _IMPLEMENTATION_METHODS = frozenset({"evaluate", "get_evaluation", "analyser_for", "structural_analysis"})
@@ -58,13 +59,17 @@ class ApiChecker(ast.NodeVisitor):
             left = self._annotation(node.left)
             right = self._annotation(node.right)
             if left in {"bilt.Quantity", "bilt.units.Quantity", "bilt.QuantityTensor"} and right in {
-                "bilt.Quantity", "bilt.units.Quantity", "bilt.QuantityTensor"
+                "bilt.Quantity",
+                "bilt.units.Quantity",
+                "bilt.QuantityTensor",
             }:
                 return "bilt.QuantityTensor"
         if isinstance(node, ast.Subscript) and self._resolve(node.value) == "typing.Annotated":
             return self._annotation(node)
         if isinstance(node, ast.Call):
             kind = self._resolve(node.func)
+            if kind == "bilt.tensor":
+                return "bilt.Tensor"
             if kind in _OBJECTS:
                 return kind
         return None
@@ -116,7 +121,12 @@ class ApiChecker(ast.NodeVisitor):
             self._report(node, "BILT105", f"Internal backend method {name!r}; select a backend with its context manager.")
         elif parent in _OBJECTS and name.startswith("_") and not name.startswith("__"):
             self._report(node, "BILT102", f"Private Bilt attribute {name!r}; use the documented public API.")
-        elif parent is not None and parent not in _OBJECTS and not _private_path(parent) and _private_path(f"{parent}.{name}"):  # noqa: E501
+        elif (
+            parent is not None
+            and parent not in _OBJECTS
+            and not _private_path(parent)
+            and _private_path(f"{parent}.{name}")
+        ):
             self._report(node, "BILT101", f"Private Bilt namespace or attribute {name!r}; use a public import instead.")
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
