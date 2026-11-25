@@ -26,6 +26,8 @@ _OBJECTS = frozenset(
 _IMPLEMENTATION_METHODS = frozenset({"evaluate", "get_evaluation", "analyser_for", "structural_analysis"})
 _BACKEND_METHODS = frozenset({"transpile", "chain_case", "apply_alignment", "transpile_linear_solve"})
 _BACKENDS = frozenset({"bilt.PYTHON_BACKEND", "bilt.JAX_BACKEND"})
+_ATTRIBUTE_ARGUMENTS = 2
+_QUANTITIES = frozenset({"bilt.Quantity", "bilt.units.Quantity", "bilt.QuantityTensor"})
 
 
 def _private_path(path: str) -> bool:
@@ -58,26 +60,22 @@ class ApiChecker(ast.NodeVisitor):
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
             left = self._annotation(node.left)
             right = self._annotation(node.right)
-            if left in {"bilt.Quantity", "bilt.units.Quantity", "bilt.QuantityTensor"} and right in {
-                "bilt.Quantity",
-                "bilt.units.Quantity",
-                "bilt.QuantityTensor",
-            }:
+            if left in _QUANTITIES and right in _QUANTITIES:
                 return "bilt.QuantityTensor"
-        if isinstance(node, ast.Subscript) and self._resolve(node.value) == "typing.Annotated":
-            return self._annotation(node)
+        if (
+            isinstance(node, ast.Subscript)
+            and self._resolve(node.value) == "typing.Annotated"
+            and isinstance(node.slice, ast.Tuple)
+            and node.slice.elts
+        ):
+            return self._annotation(node.slice.elts[0])
         if isinstance(node, ast.Call):
             kind = self._resolve(node.func)
-            if kind == "bilt.tensor":
-                return "bilt.Tensor"
             if kind in _OBJECTS:
-                return kind
+                return "bilt.Tensor" if kind == "bilt.tensor" else kind
         return None
 
     def _annotation(self, node: ast.expr | None) -> str | None:
-        if isinstance(node, ast.Subscript) and self._resolve(node.value) == "typing.Annotated":
-            if isinstance(node.slice, ast.Tuple) and node.slice.elts:
-                return self._annotation(node.slice.elts[0])
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             try:
                 return self._annotation(ast.parse(node.value, mode="eval").body)
@@ -138,7 +136,7 @@ class ApiChecker(ast.NodeVisitor):
             isinstance(node.func, ast.Name)
             and node.func.id in {"getattr", "setattr", "delattr", "hasattr"}
             and node.func.id not in self.bindings
-            and len(node.args) >= 2
+            and len(node.args) >= _ATTRIBUTE_ARGUMENTS
             and isinstance(node.args[1], ast.Constant)
             and isinstance(node.args[1].value, str)
         ):
