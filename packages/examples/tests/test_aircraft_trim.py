@@ -13,8 +13,8 @@ from examples.aircraft_trim.geometry import (
     RectangularSurface,
     calculate_influences,
     discretise,
-    example_geometry,
     evaluate_vortices,
+    example_geometry,
 )
 from examples.aircraft_trim.model import MODEL, TAIL_SOURCE, WING_SOURCE
 
@@ -346,5 +346,6 @@ def test_panel_geometry_matches_numpy(count: int) -> None:
         np.testing.assert_allclose(panels.width.convert_to(meter).values, np.diff(edges), atol=1e-12)
         np.testing.assert_allclose(panels.twist.convert_to(radian).values, 0.002 - 0.01 * abs(centres) / 6.0)
         assert panels.arm.convert_to(meter).value == pytest.approx(0.625)
+        np.testing.assert_allclose(panels.panel_arm.convert_to(meter).values, np.full(count, 0.625))
         assert panels.bound_x.convert_to(meter).value == pytest.approx(0.375)
         assert panels.target_x.convert_to(meter).value == pytest.approx(1.125)

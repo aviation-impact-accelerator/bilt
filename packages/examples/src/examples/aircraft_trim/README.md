@@ -28,9 +28,12 @@ implementations. Panel resolution is numerical configuration. The finite-segment
 Biot-Savart law is also a Bilt system: displacement vectors, cross products,
 endpoint distances, projection and segment superposition are dimensional
 equations. Independent source, target, segment and Cartesian axes express all
-interactions without a Python loop over panels. NumPy only constructs discrete
-coordinates and oriented segment topology, validates singularity tolerances and
-packages results at the trim model boundary.
+interactions without a Python loop over panels. Directed operations use Bilt
+transforms: Cartesian coordinate packing, oriented segment endpoint selection,
+moment-arm broadcasting and the singularity guard on the Biot-Savart denominator.
+Wake displacements and normalised panel edges are equations. Only discrete axis
+creation, axis relabelling and external input validation remain at the Python
+boundary, because the current transform backend cannot introduce new named axes.
 
 ## Acausal Bilt equations
 

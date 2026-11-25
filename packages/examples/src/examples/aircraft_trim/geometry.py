@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Annotated, TypedDict
 
 import numpy as np
 
-from bilt import Implementation, Interface, Quantity, QuantityTensor, dim, equation, field, system, tensor
+from bilt import Implementation, Interface, Quantity, QuantityTensor, dim, equation, field, system, tensor, transform
 from bilt.units import fraction, meter, radian
 from bilt.units.dimensions import DIMENSIONLESS, LENGTH
 
@@ -14,9 +14,6 @@ from .model import TAIL_SOURCE, TAIL_TARGET, WING_SOURCE, WING_TARGET
 
 if TYPE_CHECKING:
     from bilt import Dim
-
-_SINGULARITY_TOLERANCE_M = 1e-12
-_SINGULARITY_CROSS_SQUARED = _SINGULARITY_TOLERANCE_M**4
 
 PANEL = dim("panel")
 CARTESIAN = dim("cartesian")
@@ -74,7 +71,9 @@ def target_position(target_x: Length, leading_edge_x: Length, chord: Length) -> 
     return target_x == leading_edge_x + 0.75 * chord
 
 
-SURFACE_MODEL = Implementation(RectangularSurface, [surface_area, surface_aspect_ratio, bound_position, target_position])
+SURFACE_MODEL = Implementation(
+    RectangularSurface, [surface_area, surface_aspect_ratio, bound_position, target_position]
+)
 
 
 @system
@@ -197,6 +196,8 @@ class SurfacePanels(metaclass=Interface):
     cg_x: Length = field()
     root_twist: Ratio = field()
     tip_twist: Ratio = field()
+    panel_index: PanelRatio = field()
+    panel_count: Ratio = field()
     left_fraction: PanelRatio = field()
     right_fraction: PanelRatio = field()
     twist_fraction: PanelRatio = field()
@@ -205,7 +206,20 @@ class SurfacePanels(metaclass=Interface):
     centre_y: PanelLength = field()
     width: PanelLength = field()
     arm: Length = field()
+    panel_arm: PanelLength = field()
     twist: PanelRatio = field()
+
+
+@equation
+def left_edge_fraction(left_fraction: PanelRatio, panel_index: PanelRatio, panel_count: Ratio) -> bool:
+    """Normalised left edge of each uniformly spaced panel."""
+    return left_fraction == panel_index / panel_count - 0.5
+
+
+@equation
+def right_edge_fraction(right_fraction: PanelRatio, panel_index: PanelRatio, panel_count: Ratio) -> bool:
+    """Normalised right edge of each uniformly spaced panel."""
+    return right_fraction == (panel_index + 1.0) / panel_count - 0.5
 
 
 @equation
@@ -238,6 +252,14 @@ def moment_arm(arm: Length, cg_x: Length, bound_x: Length) -> bool:
     return arm == cg_x - bound_x
 
 
+@transform
+def panel_arm(arm: Length, panel_index: PanelRatio) -> PanelLength:
+    """Broadcast the constant moment arm onto the supplied panel axis."""
+    import numpy as np  # noqa: PLC0415 - backend runtime dependency.
+
+    return np.full_like(panel_index, arm, dtype=float)
+
+
 @equation
 def spanwise_twist_fraction(twist_fraction: PanelRatio, left_fraction: PanelRatio, right_fraction: PanelRatio) -> bool:
     """Absolute span fraction at the panel centre."""
@@ -252,7 +274,18 @@ def panel_twist(twist: PanelRatio, root_twist: Ratio, tip_twist: Ratio, twist_fr
 
 PANEL_MODEL = Implementation(
     SurfacePanels,
-    [left_position, right_position, centre_position, panel_width, moment_arm, spanwise_twist_fraction, panel_twist],
+    [
+        left_edge_fraction,
+        right_edge_fraction,
+        left_position,
+        right_position,
+        centre_position,
+        panel_width,
+        moment_arm,
+        panel_arm,
+        spanwise_twist_fraction,
+        panel_twist,
+    ],
 )
 
 
@@ -277,7 +310,6 @@ def discretise(surface: RectangularSurface, *, cg_x: Quantity, panels: int) -> S
     """Generate the numerical panel axis and evaluate dimensional geometry."""
     with SURFACE_MODEL:
         _validate_surface(surface, panels)
-        edges = np.linspace(-0.5, 0.5, panels + 1)
         return SurfacePanels(
             span=surface.span,
             bound_x=surface.bound_x,
@@ -286,16 +318,98 @@ def discretise(surface: RectangularSurface, *, cg_x: Quantity, panels: int) -> S
             cg_x=cg_x,
             root_twist=surface.root_twist,
             tip_twist=surface.tip_twist,
-            left_fraction=tensor(edges[:-1], over=PANEL, unit=fraction),
-            right_fraction=tensor(edges[1:], over=PANEL, unit=fraction),
+            panel_index=tensor(np.arange(panels), over=PANEL, unit=fraction),
+            panel_count=panels * fraction,
         )
 
 
-def _points(x: Quantity, y: QuantityTensor, z: Quantity) -> np.ndarray:
-    values = y.convert_to(meter).values
-    return np.column_stack(
-        (np.full(values.size, x.convert_to(meter).value), values, np.full(values.size, z.convert_to(meter).value))
-    )
+@system
+class CartesianPoints(metaclass=Interface):
+    """Pack dimensional coordinates on a supplied Cartesian axis."""
+
+    x: Length = field()
+    y: PanelLength = field()
+    z: Length = field()
+    cartesian_index: PanelRatio = field()
+    points: PanelLength = field()
+
+
+@transform
+def points(x: Length, y: PanelLength, z: Length, cartesian_index: PanelRatio) -> PanelLength:
+    """Select the coordinate for each Cartesian component."""
+    import numpy as np  # noqa: PLC0415 - backend runtime dependency.
+
+    return np.where(cartesian_index == 0, x, np.where(cartesian_index == 1, y, z))
+
+
+POINTS_MODEL = Implementation(CartesianPoints, [points])
+
+
+@system
+class HorseshoeEndpoints(metaclass=Interface):
+    """Three oriented finite segments on supplied panel and segment axes."""
+
+    left: PanelLength = field()
+    right: PanelLength = field()
+    wake_length: Length = field()
+    streamwise_axis: PanelRatio = field()
+    segment_index: PanelRatio = field()
+    wake_offset: PanelLength = field()
+    left_wake: PanelLength = field()
+    right_wake: PanelLength = field()
+    start: PanelLength = field()
+    end: PanelLength = field()
+
+
+@equation
+def wake_displacement(wake_offset: PanelLength, wake_length: Length, streamwise_axis: PanelRatio) -> bool:
+    """Straight downstream wake displacement."""
+    return wake_offset == wake_length * streamwise_axis
+
+
+@equation
+def left_wake_position(left_wake: PanelLength, left: PanelLength, wake_offset: PanelLength) -> bool:
+    """Downstream endpoint of the left trailing leg."""
+    return left_wake == left + wake_offset
+
+
+@equation
+def right_wake_position(right_wake: PanelLength, right: PanelLength, wake_offset: PanelLength) -> bool:
+    """Downstream endpoint of the right trailing leg."""
+    return right_wake == right + wake_offset
+
+
+@transform
+def start(left_wake: PanelLength, left: PanelLength, right: PanelLength, segment_index: PanelRatio) -> PanelLength:
+    """Select the start endpoint of the left, bound and right segments."""
+    import numpy as np  # noqa: PLC0415 - backend runtime dependency.
+
+    return np.where(segment_index == 0, left_wake, np.where(segment_index == 1, left, right))
+
+
+@transform
+def end(left: PanelLength, right: PanelLength, right_wake: PanelLength, segment_index: PanelRatio) -> PanelLength:
+    """Select the end endpoint of the left, bound and right segments."""
+    import numpy as np  # noqa: PLC0415 - backend runtime dependency.
+
+    return np.where(segment_index == 0, left, np.where(segment_index == 1, right, right_wake))
+
+
+ENDPOINTS_MODEL = Implementation(
+    HorseshoeEndpoints, [wake_displacement, left_wake_position, right_wake_position, start, end]
+)
+
+
+def _points(x: Quantity, y: QuantityTensor, z: Quantity, panel_dim: Dim) -> QuantityTensor:
+    """Bind the requested panel and Cartesian axes at the model boundary."""
+    with POINTS_MODEL:
+        geometry = CartesianPoints(
+            x=x,
+            y=tensor(y.convert_to(meter).values, over=panel_dim, unit=meter),
+            z=z,
+            cartesian_index=tensor([0, 1, 2], over=CARTESIAN, unit=fraction),
+        )
+        return geometry.points
 
 
 @system
@@ -316,6 +430,7 @@ class VortexInfluence(metaclass=Interface):
     cross_y: SquaredLength = field()
     cross_z: SquaredLength = field()
     cross_squared: FourthPowerLength = field()
+    checked_cross_squared: FourthPowerLength = field()
     norm1: PanelLength = field()
     norm2: PanelLength = field()
     endpoint_factor: PanelLength = field()
@@ -392,12 +507,30 @@ def endpoint_projection(  # noqa: PLR0913, PLR0917 - physical equation ports.
     return endpoint_factor == (direction * (r1 / norm1 - r2 / norm2)).sum(CARTESIAN)
 
 
+@transform
+def checked_cross_squared(
+    cross_squared: FourthPowerLength, norm1: PanelLength, norm2: PanelLength
+) -> FourthPowerLength:
+    """Reject singular vortex geometry before evaluating the Biot-Savart denominator."""
+    import numpy as np  # noqa: PLC0415 - backend runtime dependency.
+
+    # The backend supplies coherent SI magnitudes.
+    tolerance = 1e-12
+    if np.any(cross_squared <= tolerance**4) or np.any(norm1 <= tolerance) or np.any(norm2 <= tolerance):
+        msg = "Vortex evaluation point lies on or too near a filament."
+        raise ValueError(msg)
+    return cross_squared
+
+
 @equation
 def biot_savart(
-    segment_influence: Influence, cross_z: SquaredLength, endpoint_factor: PanelLength, cross_squared: FourthPowerLength
+    segment_influence: Influence,
+    cross_z: SquaredLength,
+    endpoint_factor: PanelLength,
+    checked_cross_squared: FourthPowerLength,
 ) -> bool:
     """Vertical finite-segment velocity per unit circulation."""
-    return segment_influence == cross_z * endpoint_factor / (4.0 * math.pi * cross_squared)
+    return segment_influence == cross_z * endpoint_factor / (4.0 * math.pi * checked_cross_squared)
 
 
 @equation
@@ -419,6 +552,7 @@ VORTEX_MODEL = Implementation(
         first_distance,
         second_distance,
         endpoint_projection,
+        checked_cross_squared,
         biot_savart,
         integrate_segments,
     ],
@@ -429,16 +563,6 @@ def evaluate_vortices(point: QuantityTensor, start: QuantityTensor, end: Quantit
     """Evaluate the model, rejecting singular geometries before division."""
     with VORTEX_MODEL:
         vortex = VortexInfluence(point=point, start=start, end=end)
-        cross_squared = vortex.cross_squared.convert_to(meter**4).values
-        norm1 = vortex.norm1.convert_to(meter).values
-        norm2 = vortex.norm2.convert_to(meter).values
-        if (
-            np.any(cross_squared <= _SINGULARITY_CROSS_SQUARED)
-            or np.any(norm1 <= _SINGULARITY_TOLERANCE_M)
-            or np.any(norm2 <= _SINGULARITY_TOLERANCE_M)
-        ):
-            msg = "Vortex evaluation point lies on or too near a filament."
-            raise ValueError(msg)
         return vortex.influence
 
 
@@ -452,19 +576,19 @@ def influence_block(
 ) -> QuantityTensor:
     """Evaluate every target/source interaction using named Bilt tensor axes."""
     with PANEL_MODEL:
-        left = _points(sources.bound_x, sources.left_y, sources.height)
-        right = _points(sources.bound_x, sources.right_y, sources.height)
-        collocation = _points(targets.target_x, targets.centre_y, targets.height)
+        left = _points(sources.bound_x, sources.left_y, sources.height, source_dim)
+        right = _points(sources.bound_x, sources.right_y, sources.height, source_dim)
+        collocation = _points(targets.target_x, targets.centre_y, targets.height, target_dim)
 
-    # The three oriented segments are numerical topology, not aerodynamic laws.
-    wake = np.array([wake_length.convert_to(meter).value, 0.0, 0.0])
-    starts = np.stack((left + wake, left, right), axis=1)
-    ends = np.stack((left, right, right + wake), axis=1)
-    result = evaluate_vortices(
-        tensor(collocation, over=(target_dim, CARTESIAN), unit=meter),
-        tensor(starts, over=(source_dim, SEGMENT, CARTESIAN), unit=meter),
-        tensor(ends, over=(source_dim, SEGMENT, CARTESIAN), unit=meter),
-    )
+    with ENDPOINTS_MODEL:
+        endpoints = HorseshoeEndpoints(
+            left=left,
+            right=right,
+            wake_length=wake_length,
+            streamwise_axis=tensor([1, 0, 0], over=CARTESIAN, unit=fraction),
+            segment_index=tensor([0, 1, 2], over=SEGMENT, unit=fraction),
+        )
+        result = evaluate_vortices(collocation, endpoints.start, endpoints.end)
     if result.domain.dims == (target_dim, source_dim):
         return result
     order = tuple(result.domain.dims.index(axis) for axis in (target_dim, source_dim))
@@ -534,12 +658,8 @@ def calculate_influences(
             ),
             "wing_width": tensor(wing.width.convert_to(meter).values, over=WING_SOURCE, unit=meter),
             "tail_width": tensor(tail.width.convert_to(meter).values, over=TAIL_SOURCE, unit=meter),
-            "wing_arm": tensor(
-                np.full(resolution.wing, wing.arm.convert_to(meter).value), over=WING_SOURCE, unit=meter
-            ),
-            "tail_arm": tensor(
-                np.full(resolution.tail, tail.arm.convert_to(meter).value), over=TAIL_SOURCE, unit=meter
-            ),
+            "wing_arm": tensor(wing.panel_arm.convert_to(meter).values, over=WING_SOURCE, unit=meter),
+            "tail_arm": tensor(tail.panel_arm.convert_to(meter).values, over=TAIL_SOURCE, unit=meter),
             "wing_twist": tensor(wing.twist.convert_to(radian).values, over=WING_TARGET, unit=radian),
             "tail_twist": tensor(tail.twist.convert_to(radian).values, over=TAIL_TARGET, unit=radian),
         }
