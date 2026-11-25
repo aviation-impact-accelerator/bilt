@@ -165,7 +165,7 @@ class ApiChecker(ast.NodeVisitor):
             self.bindings[node.id] = None
 
     @contextmanager
-    def _scope(self) -> collections.abc.Iterator[None]:
+    def _scope(self) -> collections.abc.Generator[None]:
         outer = self.bindings
         self.bindings = outer.copy()
         try:
