@@ -1346,12 +1346,16 @@ def core_inlet_temperature(inlet_temperature: AbsoluteTemperature, core: TwoShaf
 
 
 @equation
-def core_low_pressure_compressor_pressure_ratio(low_pressure_compressor_pressure_ratio: Ratio, core: TwoShaftCore) -> bool:
+def core_low_pressure_compressor_pressure_ratio(
+    low_pressure_compressor_pressure_ratio: Ratio, core: TwoShaftCore
+) -> bool:
     return low_pressure_compressor_pressure_ratio == core.low_pressure_compressor_pressure_ratio
 
 
 @equation
-def core_high_pressure_compressor_pressure_ratio(high_pressure_compressor_pressure_ratio: Ratio, core: TwoShaftCore) -> bool:
+def core_high_pressure_compressor_pressure_ratio(
+    high_pressure_compressor_pressure_ratio: Ratio, core: TwoShaftCore
+) -> bool:
     return high_pressure_compressor_pressure_ratio == core.high_pressure_compressor_pressure_ratio
 
 
