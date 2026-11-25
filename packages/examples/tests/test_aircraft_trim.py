@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import numpy as np
 import pytest
-from examples.aircraft_trim.fixtures import forward_case, trim_case
+from examples.aircraft_trim.fixtures import example_aircraft, forward_case, trim_case
 from examples.aircraft_trim.geometry import (
     RectangularSurface,
     calculate_influences,
@@ -14,7 +14,7 @@ from examples.aircraft_trim.geometry import (
 from examples.aircraft_trim.model import MODEL, TAIL_SOURCE, WING_SOURCE
 
 from bilt import QuantityTensor
-from bilt.units import degree, meter, newton, second
+from bilt.units import degree, kilogram, meter, newton, second
 
 
 def _reference_operator(
@@ -111,22 +111,41 @@ def test_trim_angles_reproduce_lift_and_zero_pitch() -> None:
     geometry = example_geometry(wing_panels=6, tail_panels=4)
     with MODEL:
         trimmed = trim_case(550.0, geometry=geometry)
-        forward = forward_case(
-            trimmed.alpha.convert_to(degree).value,
-            trimmed.elevator.convert_to(degree).value,
-            geometry=geometry,
-        )
+        forward = example_aircraft(alpha=trimmed.alpha, elevator=trimmed.elevator, geometry=geometry)
         lift = forward.lift
         moment = forward.pitch_moment
         wing_load = forward.wing_panel_lift
         tail_load = forward.tail_panel_lift
+        mass = forward.mass
 
     assert lift.convert_to(newton).value == pytest.approx(550.0 * 9.81, rel=1e-6)
     assert moment.convert_to(newton * meter).value == pytest.approx(0.0, abs=1e-6)
+    assert mass.convert_to(kilogram).value == pytest.approx(550.0, rel=1e-6)
     assert isinstance(wing_load, QuantityTensor)
     assert isinstance(tail_load, QuantityTensor)
     assert wing_load.domain.dims == (WING_SOURCE,)
     assert tail_load.domain.dims == (TAIL_SOURCE,)
+    gamma = _reference_trim(550.0, 6, 4)[:-2]
+    _, widths, arms, _, _ = _reference_operator(6, 4)
+    expected_loads = 1.225 * 70.0 * gamma * widths
+    loads = np.r_[wing_load.convert_to(newton).values, tail_load.convert_to(newton).values]
+    np.testing.assert_allclose(loads, expected_loads, rtol=1e-6, atol=1e-6)
+    assert loads.sum() == pytest.approx(lift.convert_to(newton).value, rel=1e-6)
+    assert np.dot(loads, arms) == pytest.approx(moment.convert_to(newton * meter).value, abs=1e-6)
+
+
+def test_prescribed_lift_instead_of_mass() -> None:
+    """The same equations can trim at a specified lift and recover mass."""
+    with MODEL:
+        aircraft = example_aircraft(lift=550.0 * 9.81 * newton, pitch_moment=0.0 * newton * meter)
+        alpha = aircraft.alpha
+        elevator = aircraft.elevator
+        mass = aircraft.mass
+
+    expected = _reference_trim(550.0, 2, 2)
+    assert alpha.convert_to(degree).value == pytest.approx(np.rad2deg(expected[-2]), rel=1e-6)
+    assert elevator.convert_to(degree).value == pytest.approx(np.rad2deg(expected[-1]), rel=1e-6)
+    assert mass.convert_to(kilogram).value == pytest.approx(550.0, rel=1e-6)
 
 
 @pytest.mark.parametrize("mass", (420.0, 550.0, 680.0))

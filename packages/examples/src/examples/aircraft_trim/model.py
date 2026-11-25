@@ -10,7 +10,6 @@ from typing import Annotated
 from bilt import Domain, Implementation, Interface, Quantity, QuantityTensor, dim, equation, field, system
 from bilt.units.dimensions import DIMENSIONLESS, FORCE, LENGTH, MASS, TIME
 
-CASE = dim("case")
 WING_SOURCE = dim("wing_source")
 TAIL_SOURCE = dim("tail_source")
 WING_TARGET = dim("wing_target")
@@ -29,6 +28,8 @@ type TailArm = Annotated[QuantityTensor, LENGTH, Domain((TAIL_SOURCE,))]
 type WingTwist = Annotated[QuantityTensor, DIMENSIONLESS, Domain((WING_TARGET,))]
 type TailTwist = Annotated[QuantityTensor, DIMENSIONLESS, Domain((TAIL_TARGET,))]
 type TailControl = Annotated[QuantityTensor, DIMENSIONLESS, Domain((TAIL_TARGET,))]
+type WingPanelLift = Annotated[Quantity | QuantityTensor, FORCE, Domain((WING_SOURCE,))]
+type TailPanelLift = Annotated[Quantity | QuantityTensor, FORCE, Domain((TAIL_SOURCE,))]
 type Density = Annotated[Quantity, MASS / LENGTH**3]
 type Speed = Annotated[Quantity, LENGTH / TIME]
 type Angle = Annotated[Quantity | QuantityTensor, DIMENSIONLESS, Domain.scalar()]
@@ -103,52 +104,30 @@ def tail_boundary(  # noqa: PLR0913, PLR0917 - Bilt names the physical equation 
 
 
 @equation
-def weight_balance(  # noqa: PLR0913, PLR0917 - Bilt names the physical equation ports.
-    wing_circulation: WingCirculation,
-    tail_circulation: TailCirculation,
-    wing_width: WingWidth,
-    tail_width: TailWidth,
-    density: Density,
-    speed: Speed,
+def weight_balance(
+    lift: Lift,
     mass: Annotated[Quantity, MASS],
     gravity: Annotated[Quantity, LENGTH / TIME**2],
 ) -> bool:
-    """Kutta-Joukowski wing + tail lift balances aircraft weight."""
-    return (
-        density
-        * speed
-        * ((wing_circulation * wing_width).sum(WING_SOURCE) + (tail_circulation * tail_width).sum(TAIL_SOURCE))
-        == mass * gravity
-    )
+    """Steady level flight requires lift to balance weight."""
+    return lift == mass * gravity
 
 
 @equation
-def pitch_balance(  # noqa: PLR0913, PLR0917 - Bilt names the physical equation ports.
-    wing_circulation: WingCirculation,
-    tail_circulation: TailCirculation,
-    wing_width: WingWidth,
-    tail_width: TailWidth,
+def pitch_balance(
+    wing_panel_lift: WingPanelLift,
+    tail_panel_lift: TailPanelLift,
     wing_arm: WingArm,
     tail_arm: TailArm,
-    density: Density,
-    speed: Speed,
     pitch_moment: Moment,
 ) -> bool:
     """Total pitching moment about CG, with tail arm negative."""
-    return (
-        density
-        * speed
-        * (
-            (wing_circulation * wing_width * wing_arm).sum(WING_SOURCE)
-            + (tail_circulation * tail_width * tail_arm).sum(TAIL_SOURCE)
-        )
-        == pitch_moment
-    )
+    return (wing_panel_lift * wing_arm).sum(WING_SOURCE) + (tail_panel_lift * tail_arm).sum(TAIL_SOURCE) == pitch_moment
 
 
 @equation
 def wing_sectional_lift(
-    wing_panel_lift: Annotated[Quantity | QuantityTensor, FORCE, Domain((WING_SOURCE,))],
+    wing_panel_lift: WingPanelLift,
     wing_circulation: WingCirculation,
     wing_width: WingWidth,
     density: Density,
@@ -160,7 +139,7 @@ def wing_sectional_lift(
 
 @equation
 def tail_sectional_lift(
-    tail_panel_lift: Annotated[Quantity | QuantityTensor, FORCE, Domain((TAIL_SOURCE,))],
+    tail_panel_lift: TailPanelLift,
     tail_circulation: TailCirculation,
     tail_width: TailWidth,
     density: Density,
@@ -171,19 +150,13 @@ def tail_sectional_lift(
 
 
 @equation
-def integrate_lift(  # noqa: PLR0913, PLR0917 - Bilt names the physical equation ports.
+def integrate_lift(
     lift: Lift,
-    wing_circulation: WingCirculation,
-    tail_circulation: TailCirculation,
-    wing_width: WingWidth,
-    tail_width: TailWidth,
-    density: Density,
-    speed: Speed,
+    wing_panel_lift: WingPanelLift,
+    tail_panel_lift: TailPanelLift,
 ) -> bool:
-    """Evaluate total lift after solving the coupled aerodynamic block."""
-    return lift == density * speed * (
-        (wing_circulation * wing_width).sum(WING_SOURCE) + (tail_circulation * tail_width).sum(TAIL_SOURCE)
-    )
+    """Total lift is the sum of the two sectional load distributions."""
+    return lift == wing_panel_lift.sum(WING_SOURCE) + tail_panel_lift.sum(TAIL_SOURCE)
 
 
 MODEL = Implementation(
@@ -191,10 +164,10 @@ MODEL = Implementation(
     [
         wing_boundary,
         tail_boundary,
-        weight_balance,
-        pitch_balance,
         wing_sectional_lift,
         tail_sectional_lift,
         integrate_lift,
+        weight_balance,
+        pitch_balance,
     ],
 )

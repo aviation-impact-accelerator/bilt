@@ -38,20 +38,27 @@ The wing boundary condition is:
         + (wing_from_tail * tail_circulation).sum(tail_source)
         == -speed * (alpha + wing_twist)
 
-The tail boundary condition also includes elevator and tail twist. Global
-longitudinal trim imposes:
+The tail boundary condition also includes elevator and tail twist. Each
+panel's lift is defined once using the Kutta-Joukowski equation. The total
+lift and moment reuse these named panel-load tensors; weight balance reuses
+total lift. Global longitudinal trim imposes:
 
-    total panel lift == mass * gravity
+    lift == sum(wing panel lift) + sum(tail panel lift)
+    lift == mass * gravity
     sum(panel lift * moment arm) == pitch_moment
 
 In inverse trim, Bilt determines all wing and tail circulations, the
 aircraft angle of attack and the elevator deflection from a prescribed
 weight and zero pitching moment. Forward evaluation instead specifies both
-angles and determines the panel circulations and forces.
+angles and determines the panel circulations and forces, as well as the
+mass consistent with steady level flight. Alternatively, prescribe lift
+directly instead of mass. The same equations support all three cases.
 
-With N wing and M tail panels, inverse trim is an (N+M+2)-unknown
-linear problem. A separate NumPy assembly is used only as an independent
-test reference, not in the acausal model.
+With N wing and M tail panels, the reduced inverse-trim problem has N+M+2
+unknowns. The Bilt model also exposes the intermediate panel loads and
+total lift, so its coupled system can include these additional unknowns.
+A separate NumPy assembly of the reduced system is used only as an
+independent test reference, not in the acausal model.
 
 ## Run
 
@@ -60,8 +67,9 @@ From the Bilt repository root:
     uv run python -m examples.aircraft_trim.demo
     uv run pytest packages/examples/tests/test_aircraft_trim.py
 
-The demo uses 6 wing and 4 tail panels, with a 12-by-12 inverse trim system. Tests cover the original 2+2
-configuration, 6+4, 12+6 and several geometric invariants. The panel counts are
+The demo uses 6 wing and 4 tail panels. Tests cover 2+2, 6+4, 12+6,
+forward and inverse trim, panel loads, prescribed lift and several geometric
+invariants. The panel counts are
 parameters in the geometry fixture, not hard-coded in the Bilt equations.
 
 ## Dependency and future work

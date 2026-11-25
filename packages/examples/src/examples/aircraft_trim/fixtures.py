@@ -28,6 +28,7 @@ class _AircraftInputs(TypedDict):
     speed: Quantity
     gravity: Quantity
     mass: NotRequired[Quantity]
+    lift: NotRequired[Quantity]
     alpha: NotRequired[Quantity]
     elevator: NotRequired[Quantity]
     pitch_moment: NotRequired[Quantity]
@@ -37,6 +38,7 @@ def example_aircraft(
     *,
     geometry: AircraftGeometry | None = None,
     mass: Quantity | None = None,
+    lift: Quantity | None = None,
     alpha: Quantity | None = None,
     elevator: Quantity | None = None,
     pitch_moment: Quantity | None = None,
@@ -66,6 +68,8 @@ def example_aircraft(
     }
     if mass is not None:
         known["mass"] = mass
+    if lift is not None:
+        known["lift"] = lift
     if alpha is not None:
         known["alpha"] = alpha
     if elevator is not None:
