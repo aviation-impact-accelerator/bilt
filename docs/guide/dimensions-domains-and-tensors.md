@@ -325,16 +325,11 @@ coordinate_model = Implementation(EnergyReport, [select_route])
 Creating the coordinate axis does not bind it to an evaluation. At present, binding requires the internal evaluation context. This is the current mechanism, not a stable public coordinate-binding API:
 
 ```python exec="on" source="above" session="domains-tensors"
-from bilt import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 
-with EvaluationContext() as evaluation:
+with EvaluationContext() as evaluation, coordinate_model:
     evaluation.domains.bind(route_axis)
-    medium = coordinate_model.evaluate(
-        {"energy": all_energy},
-        "selected_route_energy",
-        PYTHON_BACKEND,
-    )
+    medium = EnergyReport(energy=all_energy).selected_route_energy
 
 assert medium.domain == domain(technology)
 assert medium.values.tolist() == [500.0, 800.0]
