@@ -24,7 +24,6 @@ see [Units](units.md). Supply known values at construction.
 | `Implementation(system, components, *, internal_implementations=None)` | Associate a system interface with an iterable of equations/transforms and optional named child implementations. |
 | `implementation.system` | The system interface being implemented. |
 | `with implementation:` | Make this implementation the active choice for its system. The innermost context wins for instances without a selected implementation. |
-| `implementation.evaluate(inputs, output, backend)` | Calculate one named output from a dictionary of inputs using an explicit backend. Applies the same unit checks as instance evaluation. |
 
 ```python exec="off"
 from bilt import Implementation, Interface, field, system, transform
@@ -58,15 +57,14 @@ intermediates never adds structural constraints. Subsequent execution may use
 only the cached ports required by that already-validated plan; unneeded
 intermediates are not lowered or aligned again.
 No values are shared between instances. Large intermediate tensors remain in
-memory for the lifetime of the instance. Direct `Implementation.evaluate(...)`
-continues to return only the requested value.
+memory for the lifetime of the instance. Request outputs through declared system fields.
 Use a fresh instance when comparing implementations, inputs or backends. Registering an implementation alone does not activate it.
 Component order does not prescribe execution order.
 
 ## Evaluation and structural analysis
 
-`Implementation.evaluate` and instance evaluation use the causalization (SCC)
-structural analyser by default, with either the Python or JAX backend. It orders
+Instance evaluation uses the causalization (SCC) structural analyser by default,
+with either the Python or JAX backend. It orders
 ordinary calculations and solves supported coupled linear blocks, including
 blocks spanning parent and child equations. There is no separate public solver
 selection argument. Exhaustive analysis remains available internally for
