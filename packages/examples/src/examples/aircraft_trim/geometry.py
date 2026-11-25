@@ -255,9 +255,12 @@ def moment_arm(arm: Length, cg_x: Length, bound_x: Length) -> bool:
 @transform
 def panel_arm(arm: Length, panel_index: PanelRatio) -> PanelLength:
     """Broadcast the constant moment arm onto the supplied panel axis."""
+    from typing import cast  # noqa: PLC0415 - backend runtime dependency.
+
     import numpy as np  # noqa: PLC0415 - backend runtime dependency.
 
-    return np.full_like(panel_index, arm, dtype=float)
+    # Transforms execute on coherent numerical magnitudes, not Quantity objects.
+    return cast("PanelLength", np.full_like(cast("np.ndarray", panel_index), cast("float", arm), dtype=float))
 
 
 @equation
@@ -337,9 +340,15 @@ class CartesianPoints(metaclass=Interface):
 @transform
 def points(x: Length, y: PanelLength, z: Length, cartesian_index: PanelRatio) -> PanelLength:
     """Select the coordinate for each Cartesian component."""
+    from typing import cast  # noqa: PLC0415 - backend runtime dependency.
+
     import numpy as np  # noqa: PLC0415 - backend runtime dependency.
 
-    return np.where(cartesian_index == 0, x, np.where(cartesian_index == 1, y, z))
+    index = cast("np.ndarray", cartesian_index)
+    return cast(
+        "PanelLength",
+        np.where(index == 0, cast("float", x), np.where(index == 1, cast("np.ndarray", y), cast("float", z))),
+    )
 
 
 POINTS_MODEL = Implementation(CartesianPoints, [points])
@@ -382,17 +391,29 @@ def right_wake_position(right_wake: PanelLength, right: PanelLength, wake_offset
 @transform
 def start(left_wake: PanelLength, left: PanelLength, right: PanelLength, segment_index: PanelRatio) -> PanelLength:
     """Select the start endpoint of the left, bound and right segments."""
+    from typing import cast  # noqa: PLC0415 - backend runtime dependency.
+
     import numpy as np  # noqa: PLC0415 - backend runtime dependency.
 
-    return np.where(segment_index == 0, left_wake, np.where(segment_index == 1, left, right))
+    index = cast("np.ndarray", segment_index)
+    first = cast("np.ndarray", left_wake)
+    second = cast("np.ndarray", left)
+    third = cast("np.ndarray", right)
+    return cast("PanelLength", np.where(index == 0, first, np.where(index == 1, second, third)))
 
 
 @transform
 def end(left: PanelLength, right: PanelLength, right_wake: PanelLength, segment_index: PanelRatio) -> PanelLength:
     """Select the end endpoint of the left, bound and right segments."""
+    from typing import cast  # noqa: PLC0415 - backend runtime dependency.
+
     import numpy as np  # noqa: PLC0415 - backend runtime dependency.
 
-    return np.where(segment_index == 0, left, np.where(segment_index == 1, right, right_wake))
+    index = cast("np.ndarray", segment_index)
+    first = cast("np.ndarray", left)
+    second = cast("np.ndarray", right)
+    third = cast("np.ndarray", right_wake)
+    return cast("PanelLength", np.where(index == 0, first, np.where(index == 1, second, third)))
 
 
 ENDPOINTS_MODEL = Implementation(
@@ -512,11 +533,17 @@ def checked_cross_squared(
     cross_squared: FourthPowerLength, norm1: PanelLength, norm2: PanelLength
 ) -> FourthPowerLength:
     """Reject singular vortex geometry before evaluating the Biot-Savart denominator."""
+    from typing import cast  # noqa: PLC0415 - backend runtime dependency.
+
     import numpy as np  # noqa: PLC0415 - backend runtime dependency.
 
     # The backend supplies coherent SI magnitudes.
     tolerance = 1e-12
-    if np.any(cross_squared <= tolerance**4) or np.any(norm1 <= tolerance) or np.any(norm2 <= tolerance):
+    if (
+        np.any(cast("np.ndarray", cross_squared) <= tolerance**4)
+        or np.any(cast("np.ndarray", norm1) <= tolerance)
+        or np.any(cast("np.ndarray", norm2) <= tolerance)
+    ):
         msg = "Vortex evaluation point lies on or too near a filament."
         raise ValueError(msg)
     return cross_squared
