@@ -54,6 +54,15 @@ class ApiChecker(ast.NodeVisitor):
             if parent is not None:
                 path = f"{parent}.{node.attr}"
                 return self.exports.get(path, path)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            left = self._annotation(node.left)
+            right = self._annotation(node.right)
+            if left in {"bilt.Quantity", "bilt.units.Quantity", "bilt.QuantityTensor"} and right in {
+                "bilt.Quantity", "bilt.units.Quantity", "bilt.QuantityTensor"
+            }:
+                return "bilt.QuantityTensor"
+        if isinstance(node, ast.Subscript) and self._resolve(node.value) == "typing.Annotated":
+            return self._annotation(node)
         if isinstance(node, ast.Call):
             kind = self._resolve(node.func)
             if kind in _OBJECTS:
@@ -107,7 +116,7 @@ class ApiChecker(ast.NodeVisitor):
             self._report(node, "BILT105", f"Internal backend method {name!r}; select a backend with its context manager.")
         elif parent in _OBJECTS and name.startswith("_") and not name.startswith("__"):
             self._report(node, "BILT102", f"Private Bilt attribute {name!r}; use the documented public API.")
-        elif parent is not None and not _private_path(parent) and _private_path(f"{parent}.{name}"):
+        elif parent is not None and parent not in _OBJECTS and not _private_path(parent) and _private_path(f"{parent}.{name}"):  # noqa: E501
             self._report(node, "BILT101", f"Private Bilt namespace or attribute {name!r}; use a public import instead.")
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
