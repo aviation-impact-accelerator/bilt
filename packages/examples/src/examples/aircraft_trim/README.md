@@ -22,7 +22,11 @@ A normal-velocity approximation is used for small incidence angles.
 Panel lift uses the sectional Kutta-Joukowski relationship. The result is
 not a full vortex-lattice or viscous aerodynamic model: chordwise panels,
 wake roll-up, induced drag, compressibility, stall and fuselage effects are
-outside scope. The rectangular surface and spanwise panel geometry are Bilt systems with dimensional equations. Aircraft geometry composes two rectangular-surface implementations. A panel resolution is numerical configuration. The finite-segment Biot-Savart kernel generates the four dimensional influence tensors at the trim model boundary.
+outside scope. The rectangular surface and spanwise panel geometry are Bilt systems with
+dimensional equations. Aircraft geometry composes two rectangular-surface
+implementations. Panel resolution is numerical configuration. The finite-segment
+Biot-Savart kernel generates the four dimensional influence tensors at the trim
+model boundary.
 
 ## Acausal Bilt equations
 
@@ -68,7 +72,8 @@ From the Bilt repository root:
 
 The demo uses 6 wing and 4 tail panels. Tests cover 2+2, 6+4, 12+6,
 forward and inverse trim, panel loads, prescribed lift and several geometric
-invariants. The panel counts are independent numerical settings in `PanelResolution`, not physical geometry or hard-coded Bilt equations.
+invariants. Panel counts are independent numerical settings in
+`PanelResolution`, not physical geometry or hard-coded Bilt equations.
 
 ## Dependency and future work
 

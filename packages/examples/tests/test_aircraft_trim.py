@@ -5,6 +5,7 @@ import pytest
 from examples.aircraft_trim.fixtures import example_aircraft, forward_case, trim_case
 from examples.aircraft_trim.geometry import (
     GEOMETRY_MODEL,
+    PANEL_MODEL,
     SURFACE_MODEL,
     PanelResolution,
     RectangularSurface,
@@ -117,7 +118,9 @@ def test_trim_angles_reproduce_lift_and_zero_pitch() -> None:
     resolution = PanelResolution(6, 4)
     with MODEL:
         trimmed = trim_case(550.0, geometry=geometry, resolution=resolution)
-        forward = example_aircraft(alpha=trimmed.alpha, elevator=trimmed.elevator, geometry=geometry, resolution=resolution)
+        forward = example_aircraft(
+            alpha=trimmed.alpha, elevator=trimmed.elevator, geometry=geometry, resolution=resolution
+        )
         lift = forward.lift
         moment = forward.pitch_moment
         wing_load = forward.wing_panel_lift
@@ -177,10 +180,13 @@ def test_finite_segment_biot_savart_against_analytic_value() -> None:
 def test_symmetric_geometry_gives_symmetric_spanwise_influence() -> None:
     """Mirror symmetry provides a geometry-based influence regression."""
     data = calculate_influences(example_geometry(), resolution=PanelResolution(6, 4))
-    np.testing.assert_allclose(data["wing_from_wing"].convert_to(meter**-1).values, data["wing_from_wing"].convert_to(meter**-1).values[::-1, ::-1], atol=1e-12)
-    np.testing.assert_allclose(data["tail_from_tail"].convert_to(meter**-1).values, data["tail_from_tail"].convert_to(meter**-1).values[::-1, ::-1], atol=1e-12)
-    np.testing.assert_allclose(data["wing_from_tail"].convert_to(meter**-1).values, data["wing_from_tail"].convert_to(meter**-1).values[::-1, ::-1], atol=1e-12)
-    assert np.all(np.diag(data["wing_from_wing"].convert_to(meter**-1).values) < 0.0)
+    ww = data["wing_from_wing"].convert_to(meter**-1).values
+    tt = data["tail_from_tail"].convert_to(meter**-1).values
+    wt = data["wing_from_tail"].convert_to(meter**-1).values
+    np.testing.assert_allclose(ww, ww[::-1, ::-1], atol=1e-12)
+    np.testing.assert_allclose(tt, tt[::-1, ::-1], atol=1e-12)
+    np.testing.assert_allclose(wt, wt[::-1, ::-1], atol=1e-12)
+    assert np.all(np.diag(ww) < 0.0)
 
 
 def test_wake_length_convergence_and_cross_surface_coupling() -> None:
@@ -190,9 +196,7 @@ def test_wake_length_convergence_and_cross_surface_coupling() -> None:
     resolution = PanelResolution(6, 4)
     first = calculate_influences(near, resolution=resolution)
     second = calculate_influences(far, resolution=resolution)
-    np.testing.assert_allclose(
-        first["wing_from_wing"].values, second["wing_from_wing"].values, rtol=2e-4, atol=2e-6
-    )
+    np.testing.assert_allclose(first["wing_from_wing"].values, second["wing_from_wing"].values, rtol=2e-4, atol=2e-6)
     assert np.any(abs(first["tail_from_wing"].values) > 0.0)
 
 
@@ -227,3 +231,27 @@ def test_aircraft_geometry_reuses_surface_model() -> None:
         assert geometry.wing_area.convert_to(meter**2).value == pytest.approx(18.0)
         assert geometry.tail_area.convert_to(meter**2).value == pytest.approx(4.05)
 
+
+@pytest.mark.parametrize("count", (2, 6, 12))
+def test_panel_geometry_matches_numpy(count: int) -> None:
+    """Independently check the migrated geometry equations at several resolutions."""
+    surface = RectangularSurface(
+        span=12.0 * meter,
+        chord=1.5 * meter,
+        leading_edge_x=0.0 * meter,
+        height=0.0 * meter,
+        root_twist=0.002 * radian,
+        tip_twist=-0.008 * radian,
+    )
+    panels = discretise(surface, cg_x=1.0 * meter, panels=count)
+    edges = np.linspace(-6.0, 6.0, count + 1)
+    centres = 0.5 * (edges[:-1] + edges[1:])
+    with PANEL_MODEL:
+        np.testing.assert_allclose(panels.left_y.convert_to(meter).values, edges[:-1], atol=1e-12)
+        np.testing.assert_allclose(panels.right_y.convert_to(meter).values, edges[1:], atol=1e-12)
+        np.testing.assert_allclose(panels.centre_y.convert_to(meter).values, centres, atol=1e-12)
+        np.testing.assert_allclose(panels.width.convert_to(meter).values, np.diff(edges), atol=1e-12)
+        np.testing.assert_allclose(panels.twist.convert_to(radian).values, 0.002 - 0.01 * abs(centres) / 6.0)
+        assert panels.arm.convert_to(meter).value == pytest.approx(0.625)
+        assert panels.bound_x.convert_to(meter).value == pytest.approx(0.375)
+        assert panels.target_x.convert_to(meter).value == pytest.approx(1.125)

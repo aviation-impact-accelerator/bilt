@@ -245,7 +245,8 @@ def _validate_surface(surface: RectangularSurface, panels: int) -> None:
     if not np.isfinite(values).all():
         msg = "Lifting-surface geometry must contain finite coordinates."
         raise ValueError(msg)
-    if values[0] <= 0 or values[1] <= 0 or isinstance(panels, bool) or panels < 1:
+    invalid_count = isinstance(panels, bool) or not isinstance(panels, int) or panels < 1
+    if values[0] <= 0 or values[1] <= 0 or invalid_count:
         msg = "Lifting-surface span, chord and panel count must be positive."
         raise ValueError(msg)
     if not np.isfinite((surface.root_twist.convert_to(radian).value, surface.tip_twist.convert_to(radian).value)).all():
@@ -368,7 +369,9 @@ def calculate_influences(
             tip_twist=geometry.tail_tip_twist,
         )
         cg_x, wake = geometry.cg_x, geometry.wake_length
-    if not np.isfinite((cg_x.convert_to(meter).value, wake.convert_to(meter).value)).all() or wake.convert_to(meter).value <= 0:
+    cg_m = cg_x.convert_to(meter).value
+    wake_m = wake.convert_to(meter).value
+    if not np.isfinite((cg_m, wake_m)).all() or wake_m <= 0:
         msg = "CG coordinate must be finite and wake length positive."
         raise ValueError(msg)
     if tail_surface.leading_edge_x.convert_to(meter).value <= wing_surface.leading_edge_x.convert_to(meter).value:
@@ -392,8 +395,12 @@ def calculate_influences(
             ),
             "wing_width": tensor(wing.width.convert_to(meter).values, over=WING_SOURCE, unit=meter),
             "tail_width": tensor(tail.width.convert_to(meter).values, over=TAIL_SOURCE, unit=meter),
-            "wing_arm": tensor(np.full(resolution.wing, wing.arm.convert_to(meter).value), over=WING_SOURCE, unit=meter),
-            "tail_arm": tensor(np.full(resolution.tail, tail.arm.convert_to(meter).value), over=TAIL_SOURCE, unit=meter),
+            "wing_arm": tensor(
+                np.full(resolution.wing, wing.arm.convert_to(meter).value), over=WING_SOURCE, unit=meter
+            ),
+            "tail_arm": tensor(
+                np.full(resolution.tail, tail.arm.convert_to(meter).value), over=TAIL_SOURCE, unit=meter
+            ),
             "wing_twist": tensor(wing.twist.convert_to(radian).values, over=WING_TARGET, unit=radian),
             "tail_twist": tensor(tail.twist.convert_to(radian).values, over=TAIL_TARGET, unit=radian),
         }
