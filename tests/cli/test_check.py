@@ -336,3 +336,24 @@ def test_explicit_module_extends_auto_discovery(tmp_path: Path) -> None:
     result = _invoke(tmp_path)
     assert result.returncode == 0, result.stderr
     assert "2 system(s)" in result.stdout
+
+
+def test_api_checks_application_source_without_importing_it(tmp_path: Path) -> None:
+    (tmp_path / "model.py").write_text(
+        "from bilt import Implementation, Interface, field, system\n"
+        "@system\n"
+        "class Model(metaclass=Interface):\n"
+        "    output: float = field()\n"
+        "model = Implementation(Model, [])\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "app.py").write_text(
+        "from model import model\n"
+        "raise RuntimeError('application imported')\n"
+        "model.evaluate({}, 'output', None)\n",
+        encoding="utf-8",
+    )
+    result = _invoke(tmp_path)
+    assert result.returncode == 1
+    assert "app.py:3:1: error: BILT104" in result.stderr
+    assert "application imported" not in result.stderr
