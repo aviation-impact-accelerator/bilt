@@ -283,8 +283,7 @@ PANEL_MODEL = Implementation(
 
 def _validate_surface(surface: RectangularSurface, panels: int) -> None:
     values = tuple(
-        value.convert_to(meter).value
-        for value in (surface.span, surface.chord, surface.leading_edge_x, surface.height)
+        value.convert_to(meter).value for value in (surface.span, surface.chord, surface.leading_edge_x, surface.height)
     )
     if not np.isfinite(values).all():
         msg = "Lifting-surface geometry must contain finite coordinates."
@@ -626,9 +625,7 @@ class InfluenceInputs(TypedDict):
     tail_twist: QuantityTensor
 
 
-def calculate_influences(
-    geometry: AircraftGeometry, *, resolution: PanelResolution | None = None
-) -> InfluenceInputs:
+def calculate_influences(geometry: AircraftGeometry, *, resolution: PanelResolution | None = None) -> InfluenceInputs:
     """Evaluate the geometry and supply named influence and load tensors."""
     resolution = resolution if resolution is not None else default_resolution()
     validate_panel_count(resolution.wing)
