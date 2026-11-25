@@ -32,7 +32,9 @@ _QUANTITIES = frozenset({"bilt.Quantity", "bilt.units.Quantity", "bilt.QuantityT
 
 def _private_path(path: str) -> bool:
     return path.startswith("bilt.") and (
-        path == "bilt.core" or path.startswith("bilt.core.") or any(part.startswith("_") for part in path.split(".")[1:])
+        path == "bilt.core"
+        or path.startswith("bilt.core.")
+        or any(part.startswith("_") for part in path.split(".")[1:])
     )
 
 
@@ -116,7 +118,9 @@ class ApiChecker(ast.NodeVisitor):
                 f"Internal Implementation.{name}; activate the implementation and request a declared system field.",
             )
         elif parent in _BACKENDS and name in _BACKEND_METHODS:
-            self._report(node, "BILT105", f"Internal backend method {name!r}; select a backend with its context manager.")
+            self._report(
+                node, "BILT105", f"Internal backend method {name!r}; select a backend with its context manager."
+            )
         elif parent in _OBJECTS and name.startswith("_") and not name.startswith("__"):
             self._report(node, "BILT102", f"Private Bilt attribute {name!r}; use the documented public API.")
         elif (
