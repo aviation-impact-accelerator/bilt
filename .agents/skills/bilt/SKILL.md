@@ -80,13 +80,13 @@ assert distances.values.tolist() == [50.0, 100.0]
 - Supply quantities with explicit compatible units. Calculated outputs use coherent units; convert to the desired display unit. Dimensionless quantities still need a unit, e.g. `UNITLESS`; plain floats are outside the unit system. Distinguish absolute readings from relative changes and preserve metadata tags when relevant.
 - In transforms, extract scalar numbers with `q.convert_to(unit).value`, not bare `q.value`, and construct quantities with `Quantity(value, unit)` or a float times a unit. Transforms do not prove arbitrary Python dimensionally correct.
 - Use `dim` and `tensor(..., over=axis, unit=...)` to name axes. Shared axes align by name and must have matching lengths; independent axes broadcast. Do not add loops or positional reshaping for pointwise model calculations.
-- Use named reductions and selections in supported equations; use `QuantityTensor` (or unitless `Tensor`) for tensor-method parameters. Transforms support a restricted reduction form. Concrete tensors outside model execution do not implement general eager arithmetic or reductions; use their numerical arrays with explicit units/domains when post-processing. Coordinate selection currently requires an internal binding context; do not invent a public binding API.
+- Use named reductions and selections in supported equations; use `QuantityTensor` (or unitless `Tensor`) for tensor-method parameters. Transforms support a restricted reduction form. Concrete tensors outside model execution do not implement general eager arithmetic or reductions; use their numerical arrays with explicit units/domains when post-processing. Public coordinate binding is not yet available; resolve labels to positions and use `isel` instead. Do not use private APIs as a workaround.
 
 ### Backends and performance
 
 - Python is the default; use `with JAX_BACKEND, model:` with the optional JAX extra for compatible calculations. Equation conditionals and ordinary Python control flow in transforms have different restrictions. Check the backend reference and test the target backend rather than assuming all Python runs under JAX.
 - Distinguish structural planning, lowering, JIT compilation, numerical execution and instance-value caching. Benchmark cold and warm calls on fresh instances using the same implementation; synchronise JAX results before stopping the timer.
-- Use public APIs. Treat experimental planners, internal multi-output evaluation and proposed APIs as internal unless the installed version documents a public contract.
+- Use public APIs. Evaluate models through declared fields on system instances, not through low-level implementation or backend methods. Treat experimental planners, internal multi-output evaluation and proposed APIs as internal unless the installed version documents a public contract.
 
 ## Checking models
 
