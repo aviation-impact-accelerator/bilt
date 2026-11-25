@@ -348,9 +348,7 @@ def test_api_checks_application_source_without_importing_it(tmp_path: Path) -> N
         encoding="utf-8",
     )
     (tmp_path / "app.py").write_text(
-        "from model import model\n"
-        "raise RuntimeError('application imported')\n"
-        "model.evaluate({}, 'output', None)\n",
+        "from model import model\nraise RuntimeError('application imported')\nmodel.evaluate({}, 'output', None)\n",
         encoding="utf-8",
     )
     result = _invoke(tmp_path)
