@@ -178,8 +178,6 @@ Supplying `Motion(distance=5.0 * second)` raises the same error. This time the v
 
 Values declared on the system interface are checked at instantiation, even if we have not yet requested an output. Values accepted through an active implementation are also checked against that implementation's declarations.
 
-Calling `Implementation.evaluate()` directly applies the same input checks, including declarations on intermediate ports that are not exposed by the system interface.
-
 This gives callers a clear contract: choose any compatible unit, but say which unit the value uses.
 
 ## Choose a unit before extracting a number
