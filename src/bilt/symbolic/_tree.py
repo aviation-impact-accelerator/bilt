@@ -1,5 +1,6 @@
 import typing
 import weakref
+lazy import enum
 
 from bilt.symbolic._atoms import (
     CONDITIONAL,
@@ -22,6 +23,7 @@ from bilt.symbolic._atoms import (
     axis,
     coordinate,
     dimension,
+    enum_member,
     floating,
     integer,
     quantity,
@@ -45,6 +47,7 @@ __all__ = [
     "conditional_tree",
     "coordinate_tree",
     "dimension_tree",
+    "enum_tree",
     "equality_tree",
     "float_tree",
     "index_tree",
@@ -226,6 +229,11 @@ def axis_tree(value: int) -> Tree:
 
 def int_tree(n: int) -> Tree:
     return Tree(integer(n))
+
+
+def enum_tree(member: enum.Enum) -> Tree:
+    """Store typed enum identity until numerical backend lowering."""
+    return Tree(enum_member(member))
 
 
 def float_tree(x: float) -> Tree:

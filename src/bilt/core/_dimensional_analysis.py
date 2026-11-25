@@ -7,7 +7,7 @@ import typing
 
 from bilt.core._errors import BiltEquationDimensionalityError
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._atoms import CoordinateType, DimensionType, FloatType, IntType, QuantityType, SymbolType
+from bilt.symbolic._atoms import CoordinateType, DimensionType, EnumType, FloatType, IntType, QuantityType, SymbolType
 from bilt.units._errors import BiltDimensionalityError
 from bilt.units.dimensions import DIMENSIONLESS
 
@@ -48,6 +48,9 @@ def _leaf(tree: Tree, dimensionalities: collections.abc.Mapping[str, Dimension])
     """Look a symbol's dimensionality up, read a nonzero literal as dimensionless, and ignore an axis or coordinate."""
     if tree.head.atom_type is SymbolType:
         return dimensionalities.get(typing.cast("str", tree.head.value))
+    if tree.head.atom_type is EnumType:
+        # The numerical code is an implementation detail, not a dimension.
+        return DIMENSIONLESS
     if tree.head.atom_type in (IntType, FloatType):
         return DIMENSIONLESS if tree.head.value != 0 else None
     if tree.head.atom_type is QuantityType:

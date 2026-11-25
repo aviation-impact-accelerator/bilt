@@ -8,8 +8,11 @@ __all__ = [
 import inspect
 import types
 import typing
+lazy import enum
 
 from bilt.core._dimensional_analysis import absoluteness_of, dimensionality_of
+from bilt.core._enum_matching import enum_port_types, enum_tensor_ports
+from bilt.core._equation_ast import BiltCategoricalEquationError
 from bilt.core._equation_tracing import validated_symbolic_function
 from bilt.core._errors import (
     BiltEquationDimensionalityError,
@@ -20,11 +23,11 @@ from bilt.core._errors import (
 from bilt.core._interface import Interface
 from bilt.core._port import QualifiedPort
 from bilt.core._port_declaration import PortDeclaration, annotated_parts, port_declarations, quantity_magnitude_kind
-from bilt.core._sub_system import validate_name
+from bilt.core._sub_system import qualified_enum_ports, validate_name
 from bilt.core._tensors._tensors import QuantityTensor, Tensor
 from bilt.core._validation import validate_independently
 from bilt.symbolic import _atoms as ops
-from bilt.symbolic._atoms import QuantityType, SymbolType
+from bilt.symbolic._atoms import EnumType, QuantityType, SymbolType
 from bilt.symbolic._expressions import Expr, SubSystemExpr, symbol_expr, tensor_symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
 from bilt.symbolic._walk import subtrees
@@ -42,6 +45,8 @@ class Equation[R, **P](typing.Protocol):
     __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
+    __bilt_enum_ports__: dict[str, type[enum.Enum]]
+    __bilt_enum_tensor_ports__: frozenset[str]
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
@@ -53,6 +58,8 @@ class BasicEquation[R, **P]:
     __bilt_port_declarations__: dict[str, PortDeclaration]
     __bilt_equation_symbols__: dict[str, Expr]
     __bilt_equation_tree__: Tree
+    __bilt_enum_ports__: dict[str, type[enum.Enum]]
+    __bilt_enum_tensor_ports__: frozenset[str]
     __bilt_sub_systems__: types.MappingProxyType[str, Interface]
     _function: collections.abc.Callable[P, R]
 
@@ -66,14 +73,33 @@ class BasicEquation[R, **P]:
         _validate_equation_signature(name, signature)
 
         sub_systems = _sub_system_parameters(signature)
+        annotations = {port: parameter.annotation for port, parameter in signature.parameters.items()}
+        enum_types = enum_port_types(name, annotations)
+        tensor_ports = enum_tensor_ports(annotations)
+        sub_system_enum_types = {
+            port: enum_type
+            for child, interface in sub_systems.items()
+            for port, enum_type in qualified_enum_ports(child, interface).items()
+        }
         symbols = _build_symbols(signature, sub_systems)
-        traced_function = validated_symbolic_function(function)
+        traced_function = validated_symbolic_function(function, enum_types=enum_types | sub_system_enum_types)
         tree = _build_equation_tree(name, traced_function, symbols)
         occurring = subtrees(tree)
         equation_symbols, referenced_sub_systems, sub_system_declarations = _expand_sub_system_parameters(
             symbols, sub_systems, occurring
         )
 
+        referenced_enum_types = {
+            port: enum_type for port, enum_type in sub_system_enum_types.items() if port in equation_symbols
+        }
+        self.__bilt_enum_ports__ = enum_types | referenced_enum_types
+        self.__bilt_enum_tensor_ports__ = tensor_ports | frozenset(
+            f"{child}.{port}"
+            for child, interface in sub_systems.items()
+            for port in interface.__bilt_enum_tensor_ports__
+            if f"{child}.{port}" in equation_symbols
+        )
+        _validate_enum_uses(occurring, self.__bilt_enum_ports__)
         self.__bilt_name__ = name
         self.__bilt_parameters__ = tuple(equation_symbols)
         self.__bilt_port_declarations__ = (
@@ -201,6 +227,43 @@ def _expand_sub_system_parameters(
                     sub_system_declarations[dotted] = sub_systems[name].__bilt_port_declarations__[port]
 
     return equation_symbols, referenced_sub_systems, sub_system_declarations
+
+
+def _validate_enum_uses(occurring: set[Tree], enum_types: collections.abc.Mapping[str, type[enum.Enum]]) -> None:
+    """Check categorical operands that were introduced by Python calls during tracing."""
+    enum_symbols = {symbol_tree(port): enum_type for port, enum_type in enum_types.items()}
+    categorical = {node for node in occurring if node.head.atom_type is EnumType or node in enum_symbols}
+    if not categorical:
+        return
+
+    allowed_predicates = {
+        node.args[0]
+        for node in occurring
+        if node.head is ops.CONDITIONAL and _is_enum_predicate(node.args[0], enum_symbols)
+    }
+    for node in occurring:
+        for index, operand in enumerate(node.args):
+            if operand in categorical and node not in allowed_predicates:
+                if operand in enum_symbols:
+                    msg = f"Enum port {operand.head.value!r}: enum parameters may only be used as match subjects."
+                else:
+                    enum_type, member = typing.cast("tuple[type[enum.Enum], str]", operand.head.value)
+                    msg = f"Enum member {enum_type.__qualname__}.{member} may only be used in match case patterns."
+                raise BiltCategoricalEquationError(msg)
+            if operand in allowed_predicates and (node.head is not ops.CONDITIONAL or index != 0):
+                msg = "Enum comparisons may only be used as match case predicates."
+                raise BiltCategoricalEquationError(msg)
+
+
+def _is_enum_predicate(predicate: Tree, enum_symbols: dict[Tree, type[enum.Enum]]) -> bool:
+    if (
+        not predicate.is_equality
+        or predicate.left not in enum_symbols
+        or predicate.right.head.atom_type is not EnumType
+    ):
+        return False
+    enum_type, _ = typing.cast("tuple[type[enum.Enum], str]", predicate.right.head.value)
+    return enum_type is enum_symbols[predicate.left]
 
 
 def _build_equation_tree[R, **P](

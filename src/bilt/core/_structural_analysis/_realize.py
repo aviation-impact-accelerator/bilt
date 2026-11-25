@@ -8,6 +8,7 @@ import typing
 from bilt._backend._callable import BackendCallable, BackendOutput
 from bilt._backend._case import BackendCase
 from bilt._backend._errors import BiltBackendError
+from bilt.core._enum_transform_lowering import lower_enum_literals
 from bilt.core._equation import BasicEquation
 from bilt.core._errors import BiltAnalysisError, BiltEquationDomainRequirementError
 from bilt.core._evaluation_context import current_evaluation
@@ -223,7 +224,7 @@ def _transform_to_callable(
     )
 
     callable_ = _guarded_transpile(
-        function_ast,
+        lower_enum_literals(function_ast, transform._function),  # noqa: SLF001
         plan_step,
         backend,
     )
