@@ -86,7 +86,7 @@ assert distances.values.tolist() == [50.0, 100.0]
 
 - Python is the default; use `with JAX_BACKEND, model:` with the optional JAX extra for compatible calculations. Equation conditionals and ordinary Python control flow in transforms have different restrictions. Check the backend reference and test the target backend rather than assuming all Python runs under JAX.
 - Distinguish structural planning, lowering, JIT compilation, numerical execution and instance-value caching. Benchmark cold and warm calls on fresh instances using the same implementation; synchronise JAX results before stopping the timer.
-- Use public APIs. Evaluate models through declared fields on system instances, not through low-level implementation or backend methods. Treat experimental planners, internal multi-output evaluation and proposed APIs as internal unless the installed version documents a public contract.
+- Use only the documented public API for the installed Bilt version. Import from `bilt`, `bilt.units`, `bilt.units.dimensions` and `bilt.errors` as appropriate. Do not import private modules, access reserved model metadata, manipulate caches or call internal methods, even if they have no leading underscore. Evaluate models through declared fields on system instances within the active implementation and backend contexts. Expose child inputs and outputs on the parent interface through equations rather than evaluating child ports directly. If the public API cannot express a requirement, report the limitation instead of working around it through internals.
 
 ## Checking models
 
