@@ -90,7 +90,7 @@ assert distances.values.tolist() == [50.0, 100.0]
 
 ## Checking models
 
-- Run `uv run bilt check .` from a model project where Bilt is installed. It discovers and imports candidate modules (so module-level code runs). It checks constructed definitions, not numerical solvability or every possible runtime path. Add explicit modules when discovery cannot find them.
+- Run `uv run bilt check .` from a model project where Bilt is installed. It discovers and imports candidate modules (so module-level code runs). It checks constructed definitions and statically recognisable private API misuse, not numerical solvability or every possible runtime path. Add explicit modules when discovery cannot find them.
 - Run an example with known outputs and add numerical and dimensional tests; model checking is not a substitute for evaluation.
 - When stuck, reduce to a minimal system and inspect the specific error before adding constraints, changing units or reordering equations.
 

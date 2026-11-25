@@ -1,6 +1,6 @@
 # Check model definitions
 
-`bilt check` finds Bilt models in a project and runs the checks Bilt already performs when systems, equations, transforms and implementations are constructed. It does not need numerical inputs or a configuration file.
+`bilt check` finds Bilt models in a project and runs the checks Bilt already performs when systems, equations, transforms and implementations are constructed. It also checks source for misuse of Bilt's internal API. It does not need numerical inputs or a configuration file.
 
 Run from the model project:
 
@@ -23,6 +23,22 @@ modules = ["myproject.dynamic_models"]
 ```
 
 The optional `modules` list **adds to automatic discovery**. Repeated `--module` arguments override that list, but still include automatically discovered models. Use `--config` to select a different `pyproject.toml`.
+
+## Public API checks
+
+The checker inspects all selected Python source files, including files that use models without defining them.
+
+| Code | Meaning |
+| --- | --- |
+| BILT101 | Private Bilt import or namespace |
+| BILT102 | Private attribute on a recognised Bilt object |
+| BILT103 | Reserved model metadata |
+| BILT104 | Internal implementation method |
+| BILT105 | Internal backend method |
+
+Evaluate models through declared system fields within implementation and backend contexts. If a feature is not available publicly, do not bypass the system interface.
+
+The source checks recognise direct imports, aliases, simple assignments, annotations and straightforward imports between selected files. They are not a complete Python type checker: dynamic dispatch, arbitrary factories and complex re-exports may escape detection. Ordinary methods on unrelated objects are not rejected merely because their names match internal Bilt methods.
 
 ## Run with prek
 
