@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
 
+from bilt._check_api import scan_api
 from bilt._errors import BiltCheckConfigurationError
 
 if typing.TYPE_CHECKING:
@@ -145,6 +146,7 @@ def discover(target: Path, root: Path, excludes: collections.abc.Sequence[str]) 
     modules: set[str] = set()
     import_paths: set[Path] = {root, root / "src"}
     errors: list[str] = []
+    sources: list[tuple[str, ast.Module, tuple[str, Path] | None]] = []
     for file in _sources(target, root, excludes):
         relative = file.relative_to(root).as_posix()
         try:
@@ -154,13 +156,29 @@ def discover(target: Path, root: Path, excludes: collections.abc.Sequence[str]) 
             line = f":{error.lineno}" if isinstance(error, SyntaxError) and error.lineno else ""
             errors.append(f"{relative}{line}: error: {type(error).__name__}: {error}")
             continue
+        located = _module(file, root)
+        sources.append((relative, tree, located))
         if not _candidate(tree):
             continue
-        located = _module(file, root)
         if located is None:
             errors.append(f"{relative}: error: cannot import this Bilt module; use an importable Python module name")
             continue
         module, import_root = located
         modules.add(module)
         import_paths.add(import_root)
+    exports: dict[str, str] = {}
+    # Resolve direct model imports from neighbouring source files, including re-exports.
+    for _ in range(2):
+        for relative, tree, located in sources:
+            if located is None:
+                continue
+            module = located[0]
+            package = module if relative.endswith("/__init__.py") else module.rpartition(".")[0]
+            checker = scan_api(tree, relative, package, exports)
+            exports.update({f"{module}.{name}": kind for name, kind in checker.bindings.items() if kind is not None})
+    for relative, tree, located in sources:
+        module = located[0] if located is not None else ""
+        package = module if relative.endswith("/__init__.py") else module.rpartition(".")[0]
+        checker = scan_api(tree, relative, package, exports)
+        errors.extend(f"{item.location}: error: {item.code} {item.message}" for item in checker.diagnostics)
     return Discovery(tuple(sorted(modules)), tuple(sorted(import_paths)), tuple(errors))
