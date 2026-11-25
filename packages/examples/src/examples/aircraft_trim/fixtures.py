@@ -1,8 +1,7 @@
 """Geometry-derived wing-and-tail influence tensors and flight conditions."""
 
-from typing import NotRequired
+from typing import TYPE_CHECKING, NotRequired
 
-from bilt import Quantity
 from bilt.units import degree, fraction, kilogram, meter, second
 from bilt.units.units import newton
 
@@ -15,6 +14,9 @@ from .geometry import (
     example_geometry,
 )
 from .model import WingTailTrim
+
+if TYPE_CHECKING:
+    from bilt import Quantity
 
 
 class _AircraftInputs(InfluenceInputs):
