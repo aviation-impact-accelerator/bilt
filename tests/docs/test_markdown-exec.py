@@ -29,7 +29,11 @@ VISIBLE_EXAMPLES = {
         "class Heater(metaclass=Interface):",
     ),
     "docs/guide/backends.md": ("class Motion(metaclass=Interface):", "with JAX_BACKEND, motion_model:"),
-    "docs/guide/dimensions-domains-and-tensors.md": ("class FlightEnergy(metaclass=Interface):", "def select_route("),
+    "docs/guide/dimensions-domains-and-tensors.md": (
+        "class FlightEnergy(metaclass=Interface):",
+        "def second_route(",
+        'route_axis.coordinates.index("medium")',
+    ),
     "docs/guide/models-to-computation.md": ("def gamma(", "class Pair(metaclass=Interface):"),
     "docs/getting-started/first-model.md": ("class Motion(metaclass=Interface):", "def motion_relation("),
     "docs/guide/transforms-and-implementations.md": (

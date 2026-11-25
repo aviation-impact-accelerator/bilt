@@ -90,8 +90,10 @@ Both select one element along a dimension and remove that dimension from the res
 | `x.sel(dim, coordinate)` | Literal coordinate, including a captured Python constant, on a bound coordinate axis. |
 
 `isel` delegates bounds handling to the backend; invalid-index behaviour may differ.
-`sel` requires a matching label. Coordinates may be strings, integers, floats,
-`datetime.date` or `datetime.datetime`; float matches allow rounding tolerance.
+`sel` requires a bound coordinate axis and a matching label. Public coordinate
+binding is not yet available; use `isel` for model evaluation in the meantime.
+Coordinates may be strings, integers, floats, `datetime.date` or
+`datetime.datetime`; float matches allow rounding tolerance.
 
 ### Coordinate axes
 
@@ -101,17 +103,9 @@ Both select one element along a dimension and remove that dimension from the res
 | `CoordinateAxis(dimension, coordinates)` | Direct constructor with a coordinate tuple. |
 | `axis.dimension`, `axis.coordinates`, `len(axis)` | Dimension, labels and length. |
 
-Creating an axis does not bind it. Currently, bind coordinates through the
-internal evaluation context **before requesting calculated outputs**:
-
-```python exec="on" source="above" session="tensor-api"
-from bilt import coordinate_axis
-from bilt.core._evaluation_context import EvaluationContext
-
-with EvaluationContext() as evaluation:
-    evaluation.domains.bind(coordinate_axis(time, (2024, 2025, 2026)))
-    # Request a model output using values.sel(time, 2025).
-```
+Creating an axis does not bind it to a model evaluation. Coordinate binding is
+not yet available through the public API. Until it is, resolve labels to integer
+positions using `axis.coordinates.index(label)` and use `isel` in equations.
 
 ### Intermediate values
 

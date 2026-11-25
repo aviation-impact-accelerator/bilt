@@ -19,7 +19,7 @@ Bilt is an equation-oriented scientific modelling framework. Its interfaces and 
 - `docs/guide/`, `docs/api/` and `docs/worked_examples/`: supported concepts and public usage.
 - `pyproject.toml`, `prek.toml` and `.github/workflows/check.yml`: supported development commands and CI.
 
-Read the relevant implementation and existing tests before proposing an API or refactor. Treat source code and passing tests as more authoritative than roadmap prose. Read `src/bilt/__init__.py` to identify public exports; a private helper or experimental branch is not a public contract. For user-facing changes, compare the relevant API reference and worked examples against the implementation.
+Read the relevant implementation and existing tests before proposing an API or refactor. Treat source code and passing tests as more authoritative than roadmap prose. Read `src/bilt/__init__.py` and the documented public namespaces to identify supported exports. Exporting a class does not make every method on it public; a method without a leading underscore is not necessarily a public contract. For user-facing changes, compare the relevant API reference and worked examples against the implementation. Keep internal APIs confined to framework implementation, internal tests and benchmarks.
 
 ## Design principles
 
@@ -61,6 +61,7 @@ When touching model behaviour, add focused regression tests for successful calcu
 - Keep the getting-started tutorial and guides focused on modelling concepts and the API reference on precise contracts. Use concise engineering examples and cross-links rather than repeating complete reference material.
 - Give every Python documentation fence an explicit execution policy. Use `exec="on" source="above"` for visible executable examples; mark intentionally hidden setup with `<!-- markdown-exec: hidden setup -->`. Execute displayed transform definitions from a real source module where source inspection requires it. Do not duplicate displayed model code in hidden setup.
 - Use `\\[ ... \\]` and `\\( ... \\)` for display and inline LaTeX, respectively. Preserve the Arithmatex/MathJax setup and Mermaid custom fence configuration. Run `uv run pytest tests/docs/`, `uv run zensical build --clean --strict` and `uv run python scripts/check_docs_rendering.py` after documentation changes. A successful build does not guarantee visual layout; inspect rendered code, plots, diagrams and equations when possible.
+- Keep user-facing examples and the modelling skill on the documented public API. Evaluate through declared system fields, activate implementations and backends through their context managers, and do not demonstrate private imports, internal evaluation methods or direct cache access. If a feature needs an internal workaround, document the limitation rather than teaching the workaround.
 - Keep the two skills concise, version-aware and consistent with the docs and code. The modelling skill's complete Python example is executed in tests from a real source file. The development skill's script must mirror the CI checks, not silently omit new ones.
 
 ## Pull request review
