@@ -76,6 +76,11 @@ def lift_output(output_value: object, lifting_plan: LiftingPlan) -> Tensor | obj
             over=lifting_plan.output_domain.domain.dims,
             unit=lifting_plan.output_unit,
         )
+        registry = current_evaluation().domains
+        output_value = dataclasses.replace(
+            output_value,
+            axes=registry.axes_for(lifting_plan.output_domain.domain),
+        )
     elif lifting_plan.output_unit is not None:
         output_value = Quantity(float(cast("SupportsFloat", output_value)), lifting_plan.output_unit)
     return output_value

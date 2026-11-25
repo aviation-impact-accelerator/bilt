@@ -13,7 +13,7 @@ import typing
 import numpy as np
 
 from bilt.core._tensors._errors import BiltTensorDomainError
-from bilt.symbolic._dimensions import Coordinate, Dim
+from bilt.symbolic._dimensions import Coordinate, CoordinateAxis, Dim
 from bilt.symbolic._domains import Domain
 from bilt.units._category import UnitCategory
 from bilt.units._conversion import conversion_between
@@ -30,6 +30,7 @@ class Tensor:
     values: np.ndarray
     domain: Domain
     unit: Unit | None = None
+    axes: tuple[CoordinateAxis, ...] = dataclasses.field(default=(), kw_only=True)
 
     def __post_init__(self) -> None:
         values = _enum_preserving_array(self.values)
@@ -39,6 +40,16 @@ class Tensor:
         object.__setattr__(self, "values", values)
 
         _check_rank(values, self.domain)
+        if len({axis.dimension for axis in self.axes}) != len(self.axes):
+            msg = "A tensor cannot have multiple coordinate axes for one dimension."
+            raise BiltTensorDomainError(msg)
+        for axis in self.axes:
+            if (
+                axis.dimension not in self.domain.dims
+                or len(axis) != values.shape[self.domain.dims.index(axis.dimension)]
+            ):
+                msg = f"Coordinate axis {axis.dimension!s} does not match the tensor domain and shape."
+                raise BiltTensorDomainError(msg)
 
     @classmethod
     def scalar(cls, value: object, unit: Unit | None = None) -> Tensor:
@@ -165,7 +176,7 @@ class Tensor:
         return dataclasses.replace(self, values=self.values * conversion.scale + conversion.offset, unit=unit)
 
     def _labelled(self, unit: Unit) -> QuantityTensor:
-        return QuantityTensor(values=self.values, domain=self.domain, unit=unit)
+        return QuantityTensor(values=self.values, domain=self.domain, unit=unit, axes=self.axes)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -188,7 +199,7 @@ class QuantityTensor(Tensor):
     @property
     def value(self) -> Tensor:
         """The unitless magnitude, retaining the original tensor domain."""
-        return Tensor(values=self.values, domain=self.domain)
+        return Tensor(values=self.values, domain=self.domain, axes=self.axes)
 
 
 @typing.overload
@@ -219,11 +230,26 @@ def tensor(
     """Create a Bilt tensor from concrete user data.
 
     Scalars may omit a domain. Non-scalar values must provide either
-    ``over`` or ``domain``. A ``unit`` labels every value in the tensor.
+    ``over`` or ``domain``. A CoordinateAxis supplies both values and the
+    domain; its coordinates are retained as metadata. A ``unit`` labels
+    every value in the tensor (coordinates remain in the supplied scale).
     """
     if over is not None and domain is not None:
         message = "Pass either over= or domain=, not both."
         raise BiltTensorDomainError(message)
+
+    if isinstance(values, CoordinateAxis):
+        if over is not None or domain is not None:
+            message = "A coordinate axis already specifies the tensor domain."
+            raise BiltTensorDomainError(message)
+        axis = values
+        array = _enum_preserving_array(axis.coordinates)
+        domain = Domain((axis.dimension,))
+        return (
+            QuantityTensor(values=array, domain=domain, unit=unit, axes=(axis,))
+            if unit is not None
+            else Tensor(values=array, domain=domain, axes=(axis,))
+        )
 
     array = _enum_preserving_array(values)
 
