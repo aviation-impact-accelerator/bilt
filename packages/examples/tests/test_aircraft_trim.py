@@ -22,6 +22,10 @@ from bilt import QuantityTensor, tensor
 from bilt.units import degree, fraction, kilogram, meter, newton, radian, second
 
 
+_REFERENCE_LENGTH_TOLERANCE = 1e-12
+_REFERENCE_CROSS_TOLERANCE = _REFERENCE_LENGTH_TOLERANCE**4
+
+
 def _reference_segment_velocity(point: np.ndarray, start: np.ndarray, end: np.ndarray) -> np.ndarray:
     """Biot-Savart velocity in m^-1 for a straight unit-circulation filament.
 
@@ -36,13 +40,19 @@ def _reference_segment_velocity(point: np.ndarray, start: np.ndarray, end: np.nd
     squared = float(np.dot(cross, cross))
     norm1 = float(np.linalg.norm(r1))
     norm2 = float(np.linalg.norm(r2))
-    if squared <= 1e-48 or norm1 <= 1e-12 or norm2 <= 1e-12:
+    if (
+        squared <= _REFERENCE_CROSS_TOLERANCE
+        or norm1 <= _REFERENCE_LENGTH_TOLERANCE
+        or norm2 <= _REFERENCE_LENGTH_TOLERANCE
+    ):
         msg = "Vortex evaluation point lies on or too near a filament."
         raise ValueError(msg)
     return cross * (np.dot(direction, r1 / norm1 - r2 / norm2) / (4.0 * np.pi * squared))
 
 
-def _reference_horseshoe_velocity(point: np.ndarray, left: np.ndarray, right: np.ndarray, *, wake_length_m: float) -> np.ndarray:
+def _reference_horseshoe_velocity(
+    point: np.ndarray, left: np.ndarray, right: np.ndarray, *, wake_length_m: float
+) -> np.ndarray:
     """Velocity due to a horseshoe: left trailing leg, bound span, right leg.
 
     Positive unit circulation runs from negative to positive span along the
@@ -258,7 +268,6 @@ def test_influence_blocks_match_numpy(wing_panels: int, tail_panels: int) -> Non
         (data["tail_from_tail"], expected[wing_panels:, wing_panels:]),
     ):
         np.testing.assert_allclose(actual.convert_to(meter**-1).values, reference, rtol=1e-9, atol=1e-12)
-
 
 
 def test_symmetric_geometry_gives_symmetric_spanwise_influence() -> None:

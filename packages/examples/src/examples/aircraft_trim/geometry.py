@@ -2,7 +2,7 @@
 
 import math
 from dataclasses import dataclass
-from typing import Annotated, TypedDict
+from typing import TYPE_CHECKING, Annotated, TypedDict
 
 import numpy as np
 
@@ -12,14 +12,15 @@ from bilt.units.dimensions import DIMENSIONLESS, LENGTH
 
 from .model import TAIL_SOURCE, TAIL_TARGET, WING_SOURCE, WING_TARGET
 
+if TYPE_CHECKING:
+    from bilt import Dim
+
 _SINGULARITY_TOLERANCE_M = 1e-12
 _SINGULARITY_CROSS_SQUARED = _SINGULARITY_TOLERANCE_M**4
 
 PANEL = dim("panel")
 CARTESIAN = dim("cartesian")
 SEGMENT = dim("segment")
-VORTEX_SOURCE = dim("vortex_source")
-VORTEX_TARGET = dim("vortex_target")
 
 _LENGTH_SCALE = 1.0 * meter
 
@@ -73,9 +74,7 @@ def target_position(target_x: Length, leading_edge_x: Length, chord: Length) -> 
     return target_x == leading_edge_x + 0.75 * chord
 
 
-SURFACE_MODEL = Implementation(
-    RectangularSurface, [surface_area, surface_aspect_ratio, bound_position, target_position]
-)
+SURFACE_MODEL = Implementation(RectangularSurface, [surface_area, surface_aspect_ratio, bound_position, target_position])
 
 
 @system
@@ -240,9 +239,7 @@ def moment_arm(arm: Length, cg_x: Length, bound_x: Length) -> bool:
 
 
 @equation
-def spanwise_twist_fraction(
-    twist_fraction: PanelRatio, left_fraction: PanelRatio, right_fraction: PanelRatio
-) -> bool:
+def spanwise_twist_fraction(twist_fraction: PanelRatio, left_fraction: PanelRatio, right_fraction: PanelRatio) -> bool:
     """Absolute span fraction at the panel centre."""
     return twist_fraction == ((left_fraction + right_fraction) ** 2) ** 0.5
 
@@ -397,10 +394,7 @@ def endpoint_projection(  # noqa: PLR0913, PLR0917 - physical equation ports.
 
 @equation
 def biot_savart(
-    segment_influence: Influence,
-    cross_z: SquaredLength,
-    endpoint_factor: PanelLength,
-    cross_squared: FourthPowerLength,
+    segment_influence: Influence, cross_z: SquaredLength, endpoint_factor: PanelLength, cross_squared: FourthPowerLength
 ) -> bool:
     """Vertical finite-segment velocity per unit circulation."""
     return segment_influence == cross_z * endpoint_factor / (4.0 * math.pi * cross_squared)
@@ -448,7 +442,14 @@ def evaluate_vortices(point: QuantityTensor, start: QuantityTensor, end: Quantit
         return vortex.influence
 
 
-def influence_block(targets: SurfacePanels, sources: SurfacePanels, *, wake_length: Quantity) -> np.ndarray:
+def influence_block(
+    targets: SurfacePanels,
+    sources: SurfacePanels,
+    *,
+    wake_length: Quantity,
+    target_dim: Dim,
+    source_dim: Dim,
+) -> QuantityTensor:
     """Evaluate every target/source interaction using named Bilt tensor axes."""
     with PANEL_MODEL:
         left = _points(sources.bound_x, sources.left_y, sources.height)
@@ -460,12 +461,14 @@ def influence_block(targets: SurfacePanels, sources: SurfacePanels, *, wake_leng
     starts = np.stack((left + wake, left, right), axis=1)
     ends = np.stack((left, right, right + wake), axis=1)
     result = evaluate_vortices(
-        tensor(collocation, over=(VORTEX_TARGET, CARTESIAN), unit=meter),
-        tensor(starts, over=(VORTEX_SOURCE, SEGMENT, CARTESIAN), unit=meter),
-        tensor(ends, over=(VORTEX_SOURCE, SEGMENT, CARTESIAN), unit=meter),
+        tensor(collocation, over=(target_dim, CARTESIAN), unit=meter),
+        tensor(starts, over=(source_dim, SEGMENT, CARTESIAN), unit=meter),
+        tensor(ends, over=(source_dim, SEGMENT, CARTESIAN), unit=meter),
     )
-    order = tuple(result.domain.dims.index(axis) for axis in (VORTEX_TARGET, VORTEX_SOURCE))
-    return result.convert_to(meter**-1).values.transpose(order)
+    if result.domain.dims == (target_dim, source_dim):
+        return result
+    order = tuple(result.domain.dims.index(axis) for axis in (target_dim, source_dim))
+    return tensor(result.values.transpose(order), over=(target_dim, source_dim), unit=meter**-1)
 
 
 class InfluenceInputs(TypedDict):
@@ -517,17 +520,17 @@ def calculate_influences(
     tail = discretise(tail_surface, cg_x=cg_x, panels=resolution.tail)
     with PANEL_MODEL:
         return {
-            "wing_from_wing": tensor(
-                influence_block(wing, wing, wake_length=wake), over=(WING_TARGET, WING_SOURCE), unit=meter**-1
+            "wing_from_wing": influence_block(
+                wing, wing, wake_length=wake, target_dim=WING_TARGET, source_dim=WING_SOURCE
             ),
-            "wing_from_tail": tensor(
-                influence_block(wing, tail, wake_length=wake), over=(WING_TARGET, TAIL_SOURCE), unit=meter**-1
+            "wing_from_tail": influence_block(
+                wing, tail, wake_length=wake, target_dim=WING_TARGET, source_dim=TAIL_SOURCE
             ),
-            "tail_from_wing": tensor(
-                influence_block(tail, wing, wake_length=wake), over=(TAIL_TARGET, WING_SOURCE), unit=meter**-1
+            "tail_from_wing": influence_block(
+                tail, wing, wake_length=wake, target_dim=TAIL_TARGET, source_dim=WING_SOURCE
             ),
-            "tail_from_tail": tensor(
-                influence_block(tail, tail, wake_length=wake), over=(TAIL_TARGET, TAIL_SOURCE), unit=meter**-1
+            "tail_from_tail": influence_block(
+                tail, tail, wake_length=wake, target_dim=TAIL_TARGET, source_dim=TAIL_SOURCE
             ),
             "wing_width": tensor(wing.width.convert_to(meter).values, over=WING_SOURCE, unit=meter),
             "tail_width": tensor(tail.width.convert_to(meter).values, over=TAIL_SOURCE, unit=meter),
