@@ -9,7 +9,7 @@ see the [backend guide](../guide/backends.md) for a walkthrough.
 | `JAX_BACKEND` | JAX operations with `jax.jit` compilation of transforms and the calculation chain. | Optional `jax` extra. |
 
 ```console
-uv add "bilt[jax] @ git+https://github.com/aviation-impact-accelerator/bilt.git"
+uv add "bilt[jax] @ git+https://github.com/bilt-framework/bilt.git"
 ```
 
 For an existing `model` implementation and an instance `sample`:

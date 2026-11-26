@@ -10,6 +10,11 @@ dependencies = [
     "rustworkx>=0.18.0",
 ]
 
+[project.urls]
+Documentation = "https://bilt-framework.github.io/bilt/"
+Repository = "https://github.com/bilt-framework/bilt"
+Issues = "https://github.com/bilt-framework/bilt/issues"
+
 [project.scripts]
 bilt = "bilt._cli:main"
 

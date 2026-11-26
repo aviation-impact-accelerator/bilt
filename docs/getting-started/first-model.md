@@ -11,7 +11,7 @@ Bilt requires Python 3.15 or newer and a [Rust toolchain](https://www.rust-lang.
 ```sh
 uv init --python 3.15 my-bilt-project
 cd my-bilt-project
-uv add "git+https://github.com/aviation-impact-accelerator/bilt.git"
+uv add "git+https://github.com/bilt-framework/bilt.git"
 ```
 
 Open the generated `main.py`. Replace its contents with the Python blocks below, **in order**, then run the file at the end.

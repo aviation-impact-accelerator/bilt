@@ -12,19 +12,19 @@ Bilt currently provides Python and JAX backends.
 ## Python backend
 
 The Python backend is included in Bilt's standard installation. Bilt currently
-installs from [GitHub](https://github.com/aviation-impact-accelerator/bilt), and
+installs from [GitHub](https://github.com/bilt-framework/bilt), and
 requires Python 3.15 or newer and a Rust toolchain.
 
 With `uv`:
 
 ```console
-uv add "git+https://github.com/aviation-impact-accelerator/bilt.git"
+uv add "git+https://github.com/bilt-framework/bilt.git"
 ```
 
 Or with `pip` in a Python 3.15 environment:
 
 ```console
-python -m pip install "bilt @ git+https://github.com/aviation-impact-accelerator/bilt.git"
+python -m pip install "bilt @ git+https://github.com/bilt-framework/bilt.git"
 ```
 
 The Python backend is used by default. No additional dependencies are required.
@@ -36,13 +36,13 @@ JAX is an optional dependency.
 With `uv`:
 
 ```console
-uv add "bilt[jax] @ git+https://github.com/aviation-impact-accelerator/bilt.git"
+uv add "bilt[jax] @ git+https://github.com/bilt-framework/bilt.git"
 ```
 
 Or with `pip`:
 
 ```console
-python -m pip install "bilt[jax] @ git+https://github.com/aviation-impact-accelerator/bilt.git"
+python -m pip install "bilt[jax] @ git+https://github.com/bilt-framework/bilt.git"
 ```
 
 This installs Bilt together with its supported JAX dependency.

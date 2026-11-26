@@ -1,9 +1,9 @@
 [project]
 site_name = "Bilt"
-site_url = "https://aviation-impact-accelerator.github.io/bilt/"
+site_url = "https://bilt-framework.github.io/bilt/"
 site_description = "Documentation site for the Bilt package"
 docs_dir = "docs"
-repo_url = "https://github.com/aviation-impact-accelerator/bilt"
+repo_url = "https://github.com/bilt-framework/bilt"
 
 extra_css = [
     "stylesheets/mermaid-zoom.css",
