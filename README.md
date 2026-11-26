@@ -1,6 +1,6 @@
 <h1>Bilt<br><sub>Causal and acausal systems models in Python</sub></h1>
 
-[Documentation](https://aviation-impact-accelerator.github.io/bilt/) · [First model](https://aviation-impact-accelerator.github.io/bilt/getting-started/first-model/) · [Worked examples](https://aviation-impact-accelerator.github.io/bilt/#worked-examples) · [Discussions](https://github.com/aviation-impact-accelerator/bilt/discussions)
+[Documentation](https://bilt-framework.github.io/bilt/) · [First model](https://bilt-framework.github.io/bilt/getting-started/first-model/) · [Worked examples](https://bilt-framework.github.io/bilt/#worked-examples) · [Discussions](https://github.com/bilt-framework/bilt/discussions)
 
 ![Python 3.15+](https://img.shields.io/badge/python-3.15%2B-blue)
 [![MIT License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -14,8 +14,10 @@ Bilt requires **Python 3.15 or newer**, [uv](https://docs.astral.sh/uv/) and a [
 ```sh
 uv init --python 3.15 my-bilt-project
 cd my-bilt-project
-uv add "git+https://github.com/aviation-impact-accelerator/bilt.git"
+uv add "git+https://github.com/bilt-framework/bilt.git"
 ```
+
+If your existing project uses Bilt from its previous GitHub location, run the same `uv add` command to update the dependency source.
 
 Replace `main.py` with this model:
 
@@ -44,7 +46,7 @@ with model:
 
 Run it with `uv run python main.py`. Both requests use the **same equation**; only the known values and the requested output change.
 
-[Build your first model step by step](https://aviation-impact-accelerator.github.io/bilt/getting-started/first-model/)
+[Build your first model step by step](https://bilt-framework.github.io/bilt/getting-started/first-model/)
 
 ## Why Bilt?
 
@@ -54,7 +56,7 @@ Run it with `uv run python main.py`. Both requests use the **same equation**; on
 
 The same relationships can be used for forward calculations, inverse questions or parameter identification where supported. You do not need to write a separate function for each direction.
 
-[Equations and acausal modelling](https://aviation-impact-accelerator.github.io/bilt/guide/equations-and-acausal-modelling/)
+[Equations and acausal modelling](https://bilt-framework.github.io/bilt/guide/equations-and-acausal-modelling/)
 
 ### Reusable systems and coupled equations
 
@@ -62,7 +64,7 @@ The same relationships can be used for forward calculations, inverse questions o
 
 Build larger models from reusable systems. Bilt can solve supported coupled linear equations across subsystem boundaries without requiring you to flatten the model or assemble the matrix yourself.
 
-[Two springs in series](https://aviation-impact-accelerator.github.io/bilt/worked_examples/two-springs-in-series/) · [Coupled systems](https://aviation-impact-accelerator.github.io/bilt/guide/coupled-systems/)
+[Two springs in series](https://bilt-framework.github.io/bilt/worked_examples/two-springs-in-series/) · [Coupled systems](https://bilt-framework.github.io/bilt/guide/coupled-systems/)
 
 ### Physical quantities and dimensional analysis
 
@@ -70,7 +72,7 @@ Build larger models from reusable systems. Bilt can solve supported coupled line
 
 Declare physical dimensions on model fields. Bilt checks equation dimensions and converts compatible units during evaluation.
 
-[Units in models](https://aviation-impact-accelerator.github.io/bilt/guide/units/) · [Quantity annotations](https://aviation-impact-accelerator.github.io/bilt/api/quantity-annotations/)
+[Units in models](https://bilt-framework.github.io/bilt/guide/units/) · [Quantity annotations](https://bilt-framework.github.io/bilt/api/quantity-annotations/)
 
 ### Named tensors and uncertainty propagation
 
@@ -78,17 +80,17 @@ Declare physical dimensions on model fields. Bilt checks equation dimensions and
 
 Supply values over named dimensions such as samples, scenarios and routes. Bilt aligns and broadcasts those dimensions, allowing the same relationships to be evaluated across many cases. Propagating samples is not the same as fitting a statistical model or estimating a Bayesian posterior.
 
-[Battery-electric mission uncertainty analysis](https://aviation-impact-accelerator.github.io/bilt/worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting/)
+[Battery-electric mission uncertainty analysis](https://bilt-framework.github.io/bilt/worked_examples/battery-electric-mission-model-with-quasi-monte-carlo-broadcasting/)
 
 Bilt also supports directed transforms, conditional equations, Python and JAX execution backends, and a `bilt check .` command for model definitions.
 
 ## Where next?
 
-- **[First model](https://aviation-impact-accelerator.github.io/bilt/getting-started/first-model/)** — a guided introduction, from a system to forward and inverse evaluation.
-- **[User guide](https://aviation-impact-accelerator.github.io/bilt/)** — systems, equations, units, tensors, backends and model composition.
-- **[Worked examples](https://aviation-impact-accelerator.github.io/bilt/#worked-examples)** — two springs, a two-shaft gas turbine, mission uncertainty and JAX.
-- **[API reference](https://aviation-impact-accelerator.github.io/bilt/#api-reference)** — signatures, supported operations and limitations.
-- **[Model checking](https://aviation-impact-accelerator.github.io/bilt/check/)** — validate model definitions locally or in CI.
+- **[First model](https://bilt-framework.github.io/bilt/getting-started/first-model/)** — a guided introduction, from a system to forward and inverse evaluation.
+- **[User guide](https://bilt-framework.github.io/bilt/)** — systems, equations, units, tensors, backends and model composition.
+- **[Worked examples](https://bilt-framework.github.io/bilt/#worked-examples)** — two springs, a two-shaft gas turbine, mission uncertainty and JAX.
+- **[API reference](https://bilt-framework.github.io/bilt/#api-reference)** — signatures, supported operations and limitations.
+- **[Model checking](https://bilt-framework.github.io/bilt/check/)** — validate model definitions locally or in CI.
 
 ## Development and project status
 
@@ -97,14 +99,16 @@ Bilt is developed at the [Aviation Impact Accelerator, University of Cambridge](
 To contribute:
 
 ```sh
-git clone https://github.com/aviation-impact-accelerator/bilt.git
+git clone https://github.com/bilt-framework/bilt.git
 cd bilt
 uv sync
 ```
 
-Questions and suggestions are welcome in [issues](https://github.com/aviation-impact-accelerator/bilt/issues) and [discussions](https://github.com/aviation-impact-accelerator/bilt/discussions).
+For an existing checkout, update the remote with `git remote set-url origin https://github.com/bilt-framework/bilt.git`.
 
-Bilt provides optional coding-assistant skills: [`bilt`](.agents/skills/bilt/SKILL.md) for users and [`bilt-development`](.agents/skills/bilt-development/SKILL.md) for contributors. Install the user skill with `npx skills add aviation-impact-accelerator/bilt --skill bilt`. Skills provide instructions for assistants; they do not install the Python package.
+Questions and suggestions are welcome in [issues](https://github.com/bilt-framework/bilt/issues) and [discussions](https://github.com/bilt-framework/bilt/discussions).
+
+Bilt provides optional coding-assistant skills: [`bilt`](.agents/skills/bilt/SKILL.md) for users and [`bilt-development`](.agents/skills/bilt-development/SKILL.md) for contributors. Install the user skill with `npx skills add bilt-framework/bilt --skill bilt`. Skills provide instructions for assistants; they do not install the Python package.
 
 The README figures are generated from [`scripts/readme_figures.json`](scripts/readme_figures.json) with [`scripts/generate_readme_svgs.py`](scripts/generate_readme_svgs.py). Run `python scripts/generate_readme_svgs.py --check` to verify them.
 

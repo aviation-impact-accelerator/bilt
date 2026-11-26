@@ -98,12 +98,12 @@ assert distances.values.tolist() == [50.0, 100.0]
 
 Use the documentation for details rather than duplicating the entire API in this skill.
 
-- [User guide](https://aviation-impact-accelerator.github.io/bilt/guide/modelling-philosophy/)
-- [Systems and implementations](https://aviation-impact-accelerator.github.io/bilt/api/systems/)
-- [Equations and acausal modelling](https://aviation-impact-accelerator.github.io/bilt/guide/equations-and-acausal-modelling/)
-- [Coupled systems](https://aviation-impact-accelerator.github.io/bilt/guide/coupled-systems/)
-- [Units](https://aviation-impact-accelerator.github.io/bilt/guide/units/), [quantity annotations](https://aviation-impact-accelerator.github.io/bilt/api/quantity-annotations/)
-- [Dimensions, domains and tensors](https://aviation-impact-accelerator.github.io/bilt/guide/dimensions-domains-and-tensors/), [tensor API](https://aviation-impact-accelerator.github.io/bilt/api/tensors/)
-- [Equations and transforms API](https://aviation-impact-accelerator.github.io/bilt/api/relationships/), [backends](https://aviation-impact-accelerator.github.io/bilt/api/backends/)
-- [Worked examples](https://aviation-impact-accelerator.github.io/bilt/#worked-examples)
-- [Model checker](https://aviation-impact-accelerator.github.io/bilt/check/)
+- [User guide](https://bilt-framework.github.io/bilt/guide/modelling-philosophy/)
+- [Systems and implementations](https://bilt-framework.github.io/bilt/api/systems/)
+- [Equations and acausal modelling](https://bilt-framework.github.io/bilt/guide/equations-and-acausal-modelling/)
+- [Coupled systems](https://bilt-framework.github.io/bilt/guide/coupled-systems/)
+- [Units](https://bilt-framework.github.io/bilt/guide/units/), [quantity annotations](https://bilt-framework.github.io/bilt/api/quantity-annotations/)
+- [Dimensions, domains and tensors](https://bilt-framework.github.io/bilt/guide/dimensions-domains-and-tensors/), [tensor API](https://bilt-framework.github.io/bilt/api/tensors/)
+- [Equations and transforms API](https://bilt-framework.github.io/bilt/api/relationships/), [backends](https://bilt-framework.github.io/bilt/api/backends/)
+- [Worked examples](https://bilt-framework.github.io/bilt/#worked-examples)
+- [Model checker](https://bilt-framework.github.io/bilt/check/)
