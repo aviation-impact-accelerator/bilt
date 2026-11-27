@@ -8,6 +8,7 @@ from bilt.units._validation import validate_addition, validate_cast, validate_co
 
 if typing.TYPE_CHECKING:
     from bilt.core._tensors._protocols import QuantityTensor, Tensor
+    from bilt.core._tensors._tensors import _QuantityTensor
     from bilt.units._protocols import Quantity
     from bilt.units._units import Unit
 
@@ -60,12 +61,12 @@ class _Quantity:
         return self.__class__(abs(self.value), self.unit)
 
     @typing.overload
-    def __add__(self, other: QuantityTensor) -> QuantityTensor: ...
+    def __add__(self, other: QuantityTensor) -> _QuantityTensor: ...
 
     @typing.overload
     def __add__(self, other: Quantity) -> _Quantity: ...
 
-    def __add__(self, other: object) -> _Quantity | QuantityTensor:
+    def __add__(self, other: object) -> _Quantity | _QuantityTensor:
         if not isinstance(other, self.__class__):
             return NotImplemented
 
@@ -89,12 +90,12 @@ class _Quantity:
         return self
 
     @typing.overload
-    def __sub__(self, other: QuantityTensor) -> QuantityTensor: ...
+    def __sub__(self, other: QuantityTensor) -> _QuantityTensor: ...
 
     @typing.overload
     def __sub__(self, other: Quantity) -> _Quantity: ...
 
-    def __sub__(self, other: object) -> _Quantity | QuantityTensor:
+    def __sub__(self, other: object) -> _Quantity | _QuantityTensor:
         if not isinstance(other, _Quantity):
             return NotImplemented
         if self.unit.category is UnitCategory.ABSOLUTE and other.unit.category is UnitCategory.ABSOLUTE:
@@ -110,12 +111,12 @@ class _Quantity:
         return self + (-other)
 
     @typing.overload
-    def __mul__(self, other: QuantityTensor | Tensor) -> QuantityTensor: ...
+    def __mul__(self, other: QuantityTensor | Tensor) -> _QuantityTensor: ...
 
     @typing.overload
     def __mul__(self, other: Quantity | Unit | float) -> _Quantity: ...
 
-    def __mul__(self, other: object) -> _Quantity | QuantityTensor:
+    def __mul__(self, other: object) -> _Quantity | _QuantityTensor:
         if isinstance(other, self.__class__):
             return self.__class__(self.value * other.value, self.unit * other.unit)
         if isinstance(other, float):
@@ -123,23 +124,23 @@ class _Quantity:
         return NotImplemented
 
     @typing.overload
-    def __rmul__(self, other: QuantityTensor | Tensor) -> QuantityTensor: ...
+    def __rmul__(self, other: QuantityTensor | Tensor) -> _QuantityTensor: ...
 
     @typing.overload
     def __rmul__(self, other: Quantity | Unit | float) -> _Quantity: ...
 
-    def __rmul__(self, other: object) -> _Quantity | QuantityTensor:
+    def __rmul__(self, other: object) -> _Quantity | _QuantityTensor:
         if not isinstance(other, float):
             return NotImplemented
         return self.__class__(self.value * other, self.unit)
 
     @typing.overload
-    def __truediv__(self, other: QuantityTensor | Tensor) -> QuantityTensor: ...
+    def __truediv__(self, other: QuantityTensor | Tensor) -> _QuantityTensor: ...
 
     @typing.overload
     def __truediv__(self, other: Quantity | Unit | float) -> _Quantity: ...
 
-    def __truediv__(self, other: object) -> _Quantity | QuantityTensor:
+    def __truediv__(self, other: object) -> _Quantity | _QuantityTensor:
         if isinstance(other, self.__class__):
             return self.__class__(self.value / other.value, self.unit / other.unit)
         if isinstance(other, float):
@@ -147,23 +148,23 @@ class _Quantity:
         return NotImplemented
 
     @typing.overload
-    def __rtruediv__(self, other: QuantityTensor | Tensor) -> QuantityTensor: ...
+    def __rtruediv__(self, other: QuantityTensor | Tensor) -> _QuantityTensor: ...
 
     @typing.overload
     def __rtruediv__(self, other: Quantity | float) -> _Quantity: ...
 
-    def __rtruediv__(self, other: object) -> _Quantity | QuantityTensor:
+    def __rtruediv__(self, other: object) -> _Quantity | _QuantityTensor:
         if not isinstance(other, float):
             return NotImplemented
         return self.__class__(other / self.value, self.unit**-1)
 
     @typing.overload
-    def __pow__(self, other: QuantityTensor) -> QuantityTensor: ...
+    def __pow__(self, other: QuantityTensor) -> _QuantityTensor: ...
 
     @typing.overload
     def __pow__(self, other: Quantity | float) -> _Quantity: ...
 
-    def __pow__(self, other: object) -> _Quantity | QuantityTensor:
+    def __pow__(self, other: object) -> _Quantity | _QuantityTensor:
         match other:
             case int():
                 return self.__class__(self.value**other, self.unit**other)
