@@ -288,7 +288,9 @@ class _UnitEraser(ast.NodeTransformer):
                 # Resolve named constants through imported modules.
                 if isinstance(self._resolved(root), types.ModuleType):
                     value = self._resolved(node)
-                    return type(value) in (bool, int, float) or isinstance(value, (_Quantity, Unit, Dimension, Metadata))
+                    return type(value) in (bool, int, float) or isinstance(
+                        value, (_Quantity, Unit, Dimension, Metadata)
+                    )
 
                 # Supported, read-only properties on known Bilt constants.
                 return isinstance(self._resolved(root), (_Quantity, Unit, Dimension)) and node.attr in {
