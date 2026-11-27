@@ -62,7 +62,9 @@ def _influences(geometry: AircraftGeometry, *, resolution: PanelResolution) -> d
         }
     return {
         name: tensor(
-            block.convert_to(meter**-1).values.transpose(tuple(block.domain.dims.index(axis) for axis in (target, source))),
+            block.convert_to(meter**-1).values.transpose(
+                tuple(block.domain.dims.index(axis) for axis in (target, source))
+            ),
             over=(target, source),
             unit=meter**-1,
         )
