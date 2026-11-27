@@ -9,14 +9,15 @@ import types
 import typing
 
 from bilt.core._equation import BasicEquation
+from bilt.core._errors import BiltEvaluationError
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._port import mangle_inputs, mangle_name
+from bilt.core._port import QualifiedPort, mangle_inputs, mangle_name
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralAnalysis
 from bilt.core._sub_system import SubSystemConstituent
-from bilt.core._system._dimensional_unification import check_dimensional_consistency
+from bilt.core._system._dimensional_unification import check_categorical_consistency, check_dimensional_consistency
 from bilt.core._system._errors import (
     BiltSubSystemConflictError,
     BiltSubSystemMismatchedImplementationError,
@@ -27,6 +28,7 @@ from bilt.core._system._errors import (
 from bilt.core._system._input_validation import validate_inputs
 from bilt.core._system._intermediate_reuse import reuse_plan_outputs
 from bilt.core._tensors._tensors import Tensor
+from bilt.core._validation import validate_independently
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
@@ -74,11 +76,14 @@ class Implementation:
         internal = internal_implementations or {}
 
         sub_systems = _build_sub_system_constituents(named_components, internal)
-        _validate_sub_systems(named_components, internal, sub_systems)
+        _validate_sub_systems(system, named_components, internal, sub_systems)
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             named_components | sub_systems
         )
         check_dimensional_consistency(system, self._components.values())
+        self._enum_types = dict(system.__bilt_enum_ports__)
+        for component in self._components.values():
+            self._enum_types.update(getattr(component, "__bilt_enum_ports__", {}))
         self._port_declarations: dict[str, PortDeclaration] = {
             port: declaration
             for component in self._components.values()
@@ -144,7 +149,10 @@ class Implementation:
         expose_intermediates: bool,
         cached: dict[str, object] | None = None,
     ) -> dict[str, object]:
-        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs, enum_types=self._enum_types)
+        if output in self._enum_types and output not in inputs:
+            msg = f"Cannot solve categorical enum port {output!r}; enum inputs are forward-only match selectors."
+            raise BiltEvaluationError(msg)
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
             if output in inputs:
@@ -184,7 +192,7 @@ class Implementation:
                     )
                     for name, value in raw_outputs.items()
                 }
-            validate_inputs(self._system.__bilt_name__, self._port_declarations, outputs)
+            validate_inputs(self._system.__bilt_name__, self._port_declarations, outputs, enum_types=self._enum_types)
             evaluation.domains.bind_all(outputs.values())
         return outputs
 
@@ -363,6 +371,7 @@ class Implementation:
 
 
 def _required_sub_system_interfaces(
+    system: Interface,
     components: collections.abc.Iterable[BiltModelConstituent],
 ) -> dict[str, Interface]:
     """Read off the equations which interface each sub-system they have as a parameter ."""
@@ -372,6 +381,7 @@ def _required_sub_system_interfaces(
             for name, interface in component.__bilt_sub_systems__.items():
                 declared = required.setdefault(name, interface)
                 if declared is not interface:
+                    _check_sub_system_enum_types(system, name, declared, interface)
                     raise BiltSubSystemConflictError(name, declared.__bilt_name__, interface.__bilt_name__)
     return required
 
@@ -392,12 +402,13 @@ def _build_sub_system_constituents(
 
 
 def _validate_sub_systems(
+    system: Interface,
     components: collections.abc.Mapping[str, BiltModelConstituent],
     internal_implementations: collections.abc.Mapping[str, Implementation],
     sub_systems: collections.abc.Mapping[str, SubSystemConstituent],
 ) -> None:
     """Validate we have exactly as many internal sub-systems as we need."""
-    required_interfaces = _required_sub_system_interfaces(components.values())
+    required_interfaces = _required_sub_system_interfaces(system, components.values())
 
     for name, interface in required_interfaces.items():
         constituent = sub_systems.get(name)
@@ -406,6 +417,7 @@ def _validate_sub_systems(
                 name, interface.__bilt_name__, sorted(internal_implementations)
             )
         if constituent.interface is not interface:
+            _check_sub_system_enum_types(system, name, interface, constituent.interface)
             raise BiltSubSystemMismatchedImplementationError(
                 name, interface.__bilt_name__, constituent.interface.__bilt_name__
             )
@@ -413,3 +425,19 @@ def _validate_sub_systems(
     for name in internal_implementations:
         if name not in required_interfaces:
             raise BiltSubSystemUnreferencedEntryError(name, sorted(required_interfaces))
+
+
+def _check_sub_system_enum_types(system: Interface, name: str, expected: Interface, actual: Interface) -> None:
+    # Report type disagreements on shared ports before falling back to an interface identity error.
+    shared_ports = set(expected.__bilt_parameters__).intersection(actual.__bilt_parameters__)
+    validate_independently(
+        lambda port=port: check_categorical_consistency(
+            system.__bilt_name__,
+            QualifiedPort(name, port).dotted,
+            (
+                (expected.__bilt_name__, expected.__bilt_enum_ports__.get(port)),
+                (actual.__bilt_name__, actual.__bilt_enum_ports__.get(port)),
+            ),
+        )
+        for port in sorted(shared_ports)
+    )

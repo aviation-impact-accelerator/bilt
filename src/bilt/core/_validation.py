@@ -14,6 +14,7 @@ import typing
 
 from bilt._base_error import BiltError
 from bilt.core._errors import (
+    BiltCategoricalError,
     BiltCollectedValidationError,
     BiltEquationDimensionalityError,
     BiltImplementationDimensionalityError,
@@ -35,6 +36,8 @@ class Diagnostic:
 
 def code_for(error: Exception) -> str:
     """Assign stable codes to the first supported validation categories."""
+    if isinstance(error, BiltCategoricalError):
+        return "BILT004"
     if isinstance(error, BiltEquationDimensionalityError):
         return "BILT001"
     if isinstance(error, BiltImplementationDimensionalityError):

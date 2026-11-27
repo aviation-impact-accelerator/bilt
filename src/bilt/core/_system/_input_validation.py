@@ -1,7 +1,9 @@
 """Validate supplied values against a system or implementation's port declarations."""
 
+import enum
 import typing
 
+from bilt.core._errors import BiltEvaluationError
 from bilt.core._system._errors import BiltInputDimensionalityError
 from bilt.core._system._sentinel import MISSING
 from bilt.core._tensors._tensors import Tensor
@@ -18,11 +20,23 @@ def validate_inputs(
     system_name: str,
     declarations: collections.abc.Mapping[str, PortDeclaration],
     values: collections.abc.Mapping[str, object],
+    *,
+    enum_types: collections.abc.Mapping[str, type[enum.Enum]] | None = None,
 ) -> None:
     """Ensure every supplied value satisfies the declaration of its port."""
+    enum_types = enum_types or {}
     for port, value in values.items():
         if value is MISSING:
             continue
+        enum_type = enum_types.get(port)
+        if enum_type is not None:
+            if type(value) is not enum_type:
+                msg = f"Input {port!r} of {system_name!r} requires a {enum_type.__name__} enum member, got {value!r}."
+                raise BiltEvaluationError(msg)
+            continue
+        if isinstance(value, enum.Enum):
+            msg = f"Input {port!r} of {system_name!r} does not declare an enum type; got {value!r}."
+            raise BiltEvaluationError(msg)
 
         unit = value.unit if isinstance(value, Quantity | Tensor) else None
         expected = declarations.get(port)

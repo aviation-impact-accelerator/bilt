@@ -2,6 +2,9 @@
 
 __all__ = [
     "BiltAnalysisError",
+    "BiltCategoricalConsistencyError",
+    "BiltCategoricalError",
+    "BiltCategoricalPortError",
     "BiltCollectedValidationError",
     "BiltDefinitionError",
     "BiltDomainBindingError",
@@ -32,6 +35,10 @@ class BiltDefinitionError(BiltError):
     """Raised when a system or equation definition is invalid."""
 
 
+class BiltCategoricalError(BiltError):
+    """A definition violates the rules for categorical ports or matching."""
+
+
 class BiltCollectedValidationError(BiltDefinitionError):
     """Independent definition errors found while collecting validation failures."""
 
@@ -57,6 +64,10 @@ class BiltPortDeclarationError(BiltDefinitionError, TypeError):
 
     def __init__(self, owner_name: str, port: str, problem: str) -> None:
         super().__init__(f"Port {port!r} of {owner_name!r} {problem}")
+
+
+class BiltCategoricalPortError(BiltPortDeclarationError, BiltCategoricalError):
+    """A port has an unsupported categorical annotation."""
 
 
 class BiltUnresolvedAnnotationError(BiltDefinitionError, NameError):
@@ -86,6 +97,10 @@ class BiltImplementationDimensionalityError(BiltDimensionalityError):
 
     def __init__(self, system_name: str, problem: str) -> None:
         super().__init__(f"Implementation of {system_name!r} {problem}")
+
+
+class BiltCategoricalConsistencyError(BiltImplementationDimensionalityError, BiltCategoricalError):
+    """An implementation disagrees on the categorical type of a shared port."""
 
 
 class BiltAnalysisError(BiltError):
