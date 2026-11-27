@@ -27,7 +27,7 @@ def _imports(tree: ast.Module) -> set[tuple[str, str]]:
         for node in ast.walk(tree)
         if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module is not None
         for alias in node.names
-        if alias.name != "*" and alias.asname != alias.name
+        if alias.name not in {"*", alias.asname}
     }
 
 
