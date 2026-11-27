@@ -1,0 +1,26 @@
+[project]
+name = "bilt-proposals"
+version = "0.0.1"
+description = "Importable templates of proposed Bilt APIs, without implementations"
+readme = "README.md"
+authors = [
+    { name = "Sam Brockie", email = "sgb39@cam.ac.uk" },
+    { name = "James Emberton", email = "je484@cam.ac.uk" },
+    { name = "Nicolas Seyedzadeh", email = "ns896@cam.ac.uk" },
+]
+requires-python = ">=3.15"
+dependencies = [
+    "bilt",
+]
+
+[build-system]
+requires = [
+    "uv_build>=0.11.14,<0.12"
+]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "bilt_proposals"
+
+[tool.uv.sources]
+bilt = { workspace = true }

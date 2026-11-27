@@ -101,6 +101,8 @@ runtime-evaluated-decorators = [
     "bilt.equation",
     "bilt.system",
     "bilt.transform",
+    "bilt_proposals.connection",
+    "bilt_proposals.equation",
 ]
 
 [tool.ruff.lint.isort]
@@ -125,6 +127,7 @@ examples = { workspace = true }
 
 [tool.uv.workspace]
 members = [
+    "packages/bilt-proposals",
     "packages/examples",
 ]
 
