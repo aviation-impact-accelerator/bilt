@@ -58,9 +58,7 @@ def _import_names(statement: ast.Import | ast.ImportFrom) -> tuple[str, ...]:
     return tuple(alias.asname or alias.name.split(".")[0] for alias in statement.names)
 
 
-def _stable_imports(
-    statements: list[ast.stmt], table: symtable.SymbolTable, node: ast.AST
-) -> set[str]:
+def _stable_imports(statements: list[ast.stmt], table: symtable.SymbolTable, node: ast.AST) -> set[str]:
     """Use only unconditional, uniquely bound imports; never infer control flow."""
     candidates = {
         name

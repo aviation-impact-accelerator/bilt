@@ -100,12 +100,7 @@ def test_multiline_union() -> None:
 
 
 def test_migrate_functions_with_local_assignments() -> None:
-    source = (
-        "from bilt import Quantity\n"
-        "def model(x):\n"
-        "    value = x + 1\n"
-        "    return Quantity(value, meter)\n"
-    )
+    source = "from bilt import Quantity\ndef model(x):\n    value = x + 1\n    return Quantity(value, meter)\n"
     result = migrate_source(source)
     assert "return ((value) * (meter))" in result.source
     assert not result.notes
