@@ -68,3 +68,5 @@ Imports execute module-level Python code. For recognised top-level Bilt definiti
 Files with Python syntax errors encountered during discovery are reported rather than silently ignored. No Bilt models found is a failure, not a successful check.
 
 Exit status: `0` for success, `1` for model or source errors, `2` for invalid CLI usage or configuration.
+
+Categorical definition errors use diagnostic code `BILT004`. These include unsupported enum annotations, invalid enum cases or operations, and disagreements about an enum type on a shared port. Child ports use qualified names such as `engine.mode`. Enum inputs are validated when supplied; JAX branch dtypes are checked during compilation.

@@ -7,12 +7,13 @@ __all__ = [
 
 import collections.abc
 import dataclasses
+import enum
 import typing
 
 import numpy as np
 
 from bilt.core._tensors._errors import BiltTensorDomainError
-from bilt.symbolic._dimensions import Coordinate, Dim
+from bilt.symbolic._dimensions import Coordinate, CoordinateAxis, Dim
 from bilt.symbolic._domains import Domain
 from bilt.units._category import UnitCategory
 from bilt.units._conversion import conversion_between
@@ -29,16 +30,30 @@ class Tensor:
     values: np.ndarray
     domain: Domain
     unit: Unit | None = None
+    axes: tuple[CoordinateAxis, ...] = dataclasses.field(default=(), kw_only=True)
 
     def __post_init__(self) -> None:
-        values = np.asarray(self.values)
+        values = _enum_preserving_array(self.values)
+        if self.unit is not None and _has_enum_members(values):
+            msg = "Categorical tensors cannot carry physical units."
+            raise BiltTensorDomainError(msg)
         object.__setattr__(self, "values", values)
 
         _check_rank(values, self.domain)
+        if len({axis.dimension for axis in self.axes}) != len(self.axes):
+            msg = "A tensor cannot have multiple coordinate axes for one dimension."
+            raise BiltTensorDomainError(msg)
+        for axis in self.axes:
+            if (
+                axis.dimension not in self.domain.dims
+                or len(axis) != values.shape[self.domain.dims.index(axis.dimension)]
+            ):
+                msg = f"Coordinate axis {axis.dimension!s} does not match the tensor domain and shape."
+                raise BiltTensorDomainError(msg)
 
     @classmethod
     def scalar(cls, value: object, unit: Unit | None = None) -> Tensor:
-        values = np.asarray(value)
+        values = _enum_preserving_array(value)
 
         if values.ndim != 0:
             message = f"Cannot create scalar Tensor from rank-{values.ndim} value."
@@ -161,7 +176,7 @@ class Tensor:
         return dataclasses.replace(self, values=self.values * conversion.scale + conversion.offset, unit=unit)
 
     def _labelled(self, unit: Unit) -> QuantityTensor:
-        return QuantityTensor(values=self.values, domain=self.domain, unit=unit)
+        return QuantityTensor(values=self.values, domain=self.domain, unit=unit, axes=self.axes)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -184,7 +199,7 @@ class QuantityTensor(Tensor):
     @property
     def value(self) -> Tensor:
         """The unitless magnitude, retaining the original tensor domain."""
-        return Tensor(values=self.values, domain=self.domain)
+        return Tensor(values=self.values, domain=self.domain, axes=self.axes)
 
 
 @typing.overload
@@ -215,13 +230,28 @@ def tensor(
     """Create a Bilt tensor from concrete user data.
 
     Scalars may omit a domain. Non-scalar values must provide either
-    ``over`` or ``domain``. A ``unit`` labels every value in the tensor.
+    ``over`` or ``domain``. A CoordinateAxis supplies both values and the
+    domain; its coordinates are retained as metadata. A ``unit`` labels
+    every value in the tensor (coordinates remain in the supplied scale).
     """
     if over is not None and domain is not None:
         message = "Pass either over= or domain=, not both."
         raise BiltTensorDomainError(message)
 
-    array = np.asarray(values)
+    if isinstance(values, CoordinateAxis):
+        if over is not None or domain is not None:
+            message = "A coordinate axis already specifies the tensor domain."
+            raise BiltTensorDomainError(message)
+        axis = values
+        array = _enum_preserving_array(axis.coordinates)
+        domain = Domain((axis.dimension,))
+        return (
+            QuantityTensor(values=array, domain=domain, unit=unit, axes=(axis,))
+            if unit is not None
+            else Tensor(values=array, domain=domain, axes=(axis,))
+        )
+
+    array = _enum_preserving_array(values)
 
     match over, domain:
         case None, Domain():
@@ -271,3 +301,22 @@ def _arithmetic_not_implemented() -> NotImplementedError:
 
 def _symbolic_operation_only() -> TypeError:
     return TypeError("Tensor operations are symbolic and may only be used within Bilt equations and transforms.")
+
+
+def _has_enum_members(values: np.ndarray) -> bool:
+    return values.dtype == object and any(isinstance(value, enum.Enum) for value in values.flat)
+
+
+def _enum_preserving_array(values: object) -> np.ndarray:
+    """Do not coerce IntEnum and StrEnum members to numeric/string NumPy dtypes."""
+    if isinstance(values, np.ndarray) and values.dtype != object:
+        return values
+    objects = np.asarray(values, dtype=object)
+    if not _has_enum_members(objects):
+        return np.asarray(values)
+    members = list(objects.flat)
+    enum_type = type(members[0])
+    if not isinstance(members[0], enum.Enum) or any(type(member) is not enum_type for member in members):
+        msg = "Categorical tensor values must all belong to the same enum class."
+        raise BiltTensorDomainError(msg)
+    return objects

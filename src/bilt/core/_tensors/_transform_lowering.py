@@ -12,6 +12,7 @@ from bilt.core._to_ast import (
     MIN_INTRINSIC_NAME,
     PROD_INTRINSIC_NAME,
     SUM_INTRINSIC_NAME,
+    WHERE_INTRINSIC_NAME,
     reduction_intrinsic_ast,
 )
 from bilt.symbolic._dimensions import Dim
@@ -40,6 +41,7 @@ def lower_transform(
     canonical_order = current_evaluation().canonical_order
     function_ast.decorator_list = []
     _strip_annotations(function_ast)
+    function_ast = typing.cast("ast.FunctionDef", _EnumTensorConditionalLowerer(symbol_domains).visit(function_ast))
 
     parameter_names = (argument.arg for argument in _arguments(function_ast))
     fallback_domain = canonicalized(
@@ -264,3 +266,29 @@ def _strip_annotations(function_ast: ast.FunctionDef) -> None:
         function_ast.args.kwarg.annotation = None
 
     function_ast.returns = None
+
+
+class _EnumTensorConditionalLowerer(ast.NodeTransformer):
+    """Use elementwise WHERE for enum match expressions with tensor selectors.
+
+    The enum match parser marks the IfExp it creates. Ordinary Python if/else
+    expressions are not modified; scalar enum selectors keep lazy branching
+    through the existing Python conditional and JAX lax.cond lowerings.
+    """
+
+    def __init__(self, symbol_domains: collections.abc.Mapping[str, Domain]) -> None:
+        self.symbol_domains = symbol_domains
+
+    def visit_IfExp(self, node: ast.IfExp) -> ast.expr:
+        selector = getattr(node, "_bilt_enum_selector", None)
+        node = typing.cast("ast.IfExp", self.generic_visit(node))
+        if selector is None or self.symbol_domains[selector].is_scalar:
+            return node
+        return ast.copy_location(
+            ast.Call(
+                func=ast.Name(id=WHERE_INTRINSIC_NAME, ctx=ast.Load()),
+                args=[node.test, node.body, node.orelse],
+                keywords=[],
+            ),
+            node,
+        )

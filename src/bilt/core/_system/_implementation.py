@@ -8,15 +8,19 @@ import dataclasses
 import types
 import typing
 
+import numpy as np
+
+from bilt.core._enum_encoding import enum_from_code, enum_from_codes
 from bilt.core._equation import BasicEquation
+from bilt.core._errors import BiltEvaluationError
 from bilt.core._evaluation_context import EvaluationContext, current_evaluation
 from bilt.core._evaluation_request import EvaluationRequest
-from bilt.core._port import mangle_inputs, mangle_name
+from bilt.core._port import QualifiedPort, mangle_inputs, mangle_name
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._structural_analysis._causalization_block_solver._structural_scope import StructuralAnalysis
 from bilt.core._sub_system import SubSystemConstituent
-from bilt.core._system._dimensional_unification import check_dimensional_consistency
+from bilt.core._system._dimensional_unification import check_categorical_consistency, check_dimensional_consistency
 from bilt.core._system._errors import (
     BiltSubSystemConflictError,
     BiltSubSystemMismatchedImplementationError,
@@ -27,6 +31,8 @@ from bilt.core._system._errors import (
 from bilt.core._system._input_validation import validate_inputs
 from bilt.core._system._intermediate_reuse import reuse_plan_outputs
 from bilt.core._tensors._tensors import Tensor
+from bilt.core._transform import BasicTransform
+from bilt.core._validation import validate_independently
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
@@ -37,7 +43,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._port_declaration import PortDeclaration
     from bilt.core._structural_analysis import StructuralAnalyser
-    from bilt.symbolic._dimensions import Coordinate, Dim
+    from bilt.symbolic._dimensions import Dim
 
 
 @dataclasses.dataclass(frozen=True)
@@ -53,7 +59,7 @@ class _CompilationRequest:
 class _CompilationContext:
     canonical_order: Domain
     coordinate_signature: tuple[
-        tuple[Dim, tuple[Coordinate, ...]],
+        tuple[Dim, tuple[object, ...]],
         ...,
     ]
 
@@ -74,11 +80,16 @@ class Implementation:
         internal = internal_implementations or {}
 
         sub_systems = _build_sub_system_constituents(named_components, internal)
-        _validate_sub_systems(named_components, internal, sub_systems)
+        _validate_sub_systems(system, named_components, internal, sub_systems)
         self._components: types.MappingProxyType[str, BiltModelConstituent] = types.MappingProxyType(
             named_components | sub_systems
         )
         check_dimensional_consistency(system, self._components.values())
+        self._enum_types = dict(system.__bilt_enum_ports__)
+        self._enum_tensor_ports = set(system.__bilt_enum_tensor_ports__)
+        for component in self._components.values():
+            self._enum_types.update(getattr(component, "__bilt_enum_ports__", {}))
+            self._enum_tensor_ports.update(getattr(component, "__bilt_enum_tensor_ports__", ()))
         self._port_declarations: dict[str, PortDeclaration] = {
             port: declaration
             for component in self._components.values()
@@ -144,7 +155,15 @@ class Implementation:
         expose_intermediates: bool,
         cached: dict[str, object] | None = None,
     ) -> dict[str, object]:
-        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+        validate_inputs(
+            self._system.__bilt_name__,
+            self._port_declarations,
+            inputs,
+            enum_types=self._enum_types,
+            enum_tensor_ports=self._enum_tensor_ports,
+        )
+        if output not in inputs:
+            self._validate_categorical_outputs((output,))
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
             if output in inputs:
@@ -179,14 +198,32 @@ class Implementation:
                     raw_outputs = {output: backend_callable.evaluate(backend_inputs)}
                     output_domains = {output: typing.cast("Domain", backend_callable.output_domain)}
                 outputs = {
-                    name: lift_output(
-                        value, generate_lifting_plan(output_domains[name], self._port_declarations.get(name))
-                    )
-                    for name, value in raw_outputs.items()
+                    name: self._lift_value(name, value, output_domains[name]) for name, value in raw_outputs.items()
                 }
-            validate_inputs(self._system.__bilt_name__, self._port_declarations, outputs)
+            validate_inputs(
+                self._system.__bilt_name__,
+                self._port_declarations,
+                outputs,
+                enum_types=self._enum_types,
+                enum_tensor_ports=self._enum_tensor_ports,
+            )
             evaluation.domains.bind_all(outputs.values())
         return outputs
+
+    def _lift_value(self, name: str, value: object, output_domain: Domain) -> object:
+        plan = generate_lifting_plan(output_domain, self._port_declarations.get(name))
+        enum_type = self._enum_types.get(name)
+        if enum_type is None:
+            return lift_output(value, plan)
+        if not output_domain.is_scalar:
+            return lift_output(enum_from_codes(enum_type, np.asarray(value)), plan)
+        return enum_from_code(enum_type, typing.cast("typing.SupportsIndex", value))
+
+    def _validate_categorical_outputs(self, outputs: tuple[str, ...]) -> None:
+        for output in outputs:
+            if output in self._enum_types and not _has_categorical_producer(self, output):
+                msg = f"Cannot solve categorical enum port {output!r}; enum equation selectors are forward-only."
+                raise BiltEvaluationError(msg)
 
     def _evaluate_many_with_intermediates(
         self,
@@ -200,7 +237,13 @@ class Implementation:
         targets = tuple(dict.fromkeys(outputs))
         if not targets:
             return {}
-        validate_inputs(self._system.__bilt_name__, self._port_declarations, inputs)
+        validate_inputs(
+            self._system.__bilt_name__,
+            self._port_declarations,
+            inputs,
+            enum_types=self._enum_types,
+            enum_tensor_ports=self._enum_tensor_ports,
+        )
         with EvaluationContext() as evaluation:
             evaluation.domains.bind_all(inputs.values())
             known = inputs | (cached or {})
@@ -210,6 +253,7 @@ class Implementation:
             if len(missing) == 1:
                 return self._evaluate_with_intermediates(inputs, missing[0], backend, cached=cached)
 
+            self._validate_categorical_outputs(missing)
             request = EvaluationRequest(
                 output=missing[0],
                 input_domains={
@@ -250,10 +294,16 @@ class Implementation:
             raw_outputs = callable_.evaluate_outputs(mangle_inputs(aligned))
             domains = {item.port: item.domain for item in callable_.outputs or ()}
             computed = {
-                name: lift_output(value, generate_lifting_plan(domains[name], self._port_declarations.get(name)))
+                name: self._lift_value(name, value, domains[name])
                 for name, value in raw_outputs.items()
             }
-            validate_inputs(self._system.__bilt_name__, self._port_declarations, computed)
+            validate_inputs(
+                self._system.__bilt_name__,
+                self._port_declarations,
+                computed,
+                enum_types=self._enum_types,
+                enum_tensor_ports=self._enum_tensor_ports,
+            )
             evaluation.domains.bind_all(computed.values())
             return computed
 
@@ -363,6 +413,7 @@ class Implementation:
 
 
 def _required_sub_system_interfaces(
+    system: Interface,
     components: collections.abc.Iterable[BiltModelConstituent],
 ) -> dict[str, Interface]:
     """Read off the equations which interface each sub-system they have as a parameter ."""
@@ -372,6 +423,7 @@ def _required_sub_system_interfaces(
             for name, interface in component.__bilt_sub_systems__.items():
                 declared = required.setdefault(name, interface)
                 if declared is not interface:
+                    _check_sub_system_enum_types(system, name, declared, interface)
                     raise BiltSubSystemConflictError(name, declared.__bilt_name__, interface.__bilt_name__)
     return required
 
@@ -392,12 +444,13 @@ def _build_sub_system_constituents(
 
 
 def _validate_sub_systems(
+    system: Interface,
     components: collections.abc.Mapping[str, BiltModelConstituent],
     internal_implementations: collections.abc.Mapping[str, Implementation],
     sub_systems: collections.abc.Mapping[str, SubSystemConstituent],
 ) -> None:
     """Validate we have exactly as many internal sub-systems as we need."""
-    required_interfaces = _required_sub_system_interfaces(components.values())
+    required_interfaces = _required_sub_system_interfaces(system, components.values())
 
     for name, interface in required_interfaces.items():
         constituent = sub_systems.get(name)
@@ -406,6 +459,7 @@ def _validate_sub_systems(
                 name, interface.__bilt_name__, sorted(internal_implementations)
             )
         if constituent.interface is not interface:
+            _check_sub_system_enum_types(system, name, interface, constituent.interface)
             raise BiltSubSystemMismatchedImplementationError(
                 name, interface.__bilt_name__, constituent.interface.__bilt_name__
             )
@@ -413,3 +467,33 @@ def _validate_sub_systems(
     for name in internal_implementations:
         if name not in required_interfaces:
             raise BiltSubSystemUnreferencedEntryError(name, sorted(required_interfaces))
+
+
+def _check_sub_system_enum_types(system: Interface, name: str, expected: Interface, actual: Interface) -> None:
+    """Report qualified enum disagreements before generic interface identity errors."""
+    shared = sorted(set(expected.__bilt_parameters__).intersection(actual.__bilt_parameters__))
+    validate_independently(
+        lambda port=port: check_categorical_consistency(
+            system.__bilt_name__,
+            QualifiedPort(name, port).dotted,
+            (
+                (expected.__bilt_name__, expected.__bilt_enum_ports__.get(port)),
+                (actual.__bilt_name__, actual.__bilt_enum_ports__.get(port)),
+            ),
+        )
+        for port in shared
+    )
+
+
+def _has_categorical_producer(implementation: Implementation, output: str) -> bool:
+    """Find directed enum-producing transforms, also in nested child implementations."""
+    for component in implementation._components.values():  # noqa: SLF001
+        if isinstance(component, BasicTransform) and component.__bilt_name__ == output:
+            return True
+        if isinstance(component, SubSystemConstituent):
+            child_port = QualifiedPort.unqualify(
+                output, component.__bilt_name__, component.interface.__bilt_parameters__
+            )
+            if child_port is not None and _has_categorical_producer(component.implementation, child_port):
+                return True
+    return False
