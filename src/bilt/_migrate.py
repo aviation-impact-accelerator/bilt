@@ -147,19 +147,11 @@ class QuantityMigration(ApiChecker):
 
     def _dimension(self, node: ast.expr) -> bool:
         path = self._resolve(node)
-        return (
-            path is not None
-            and path.startswith("bilt.units.dimensions.")
-            and path.rsplit(".", 1)[-1] in _DIMENSIONS
-        )
+        return path is not None and path.startswith("bilt.units.dimensions.") and path.rsplit(".", 1)[-1] in _DIMENSIONS
 
     @typing.override
     def visit_Subscript(self, node: ast.Subscript) -> None:
-        if (
-            self._resolve(node.value) == "typing.Annotated"
-            and isinstance(node.slice, ast.Tuple)
-            and node.slice.elts
-        ):
+        if self._resolve(node.value) == "typing.Annotated" and isinstance(node.slice, ast.Tuple) and node.slice.elts:
             base, *metadata = node.slice.elts
             if self._constructor_reference(base) == "bilt.Tensor" and any(map(self._dimension, metadata)):
                 self._replace(base, self._public_name("QuantityTensor"))
@@ -197,8 +189,7 @@ class QuantityMigration(ApiChecker):
             return False
         factory = self._public_name("tensor")
         parts = [
-            (("values" if name == "value" else name).encode() + b"=" + self._text(arg))
-            for name, arg in args.items()
+            (("values" if name == "value" else name).encode() + b"=" + self._text(arg)) for name, arg in args.items()
         ]
         if scalar and next(iter(args)) == "value":
             parts[0] = self._text(args["value"])
