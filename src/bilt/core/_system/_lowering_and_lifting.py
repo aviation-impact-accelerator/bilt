@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, SupportsFloat, cast
 
 from bilt.core._canonical_ordering import canonicalized
 from bilt.core._evaluation_context import current_evaluation
-from bilt.core._tensors._tensors import Tensor, tensor
-from bilt.units import Quantity
+from bilt.core._tensors._tensors import _Tensor, tensor
+from bilt.units._quantities import _Quantity
 from bilt.units._units import BASE_UNIT_SYSTEM
 
 if TYPE_CHECKING:
@@ -30,14 +30,14 @@ class LiftingPlan:
 def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
     lowered_inputs: dict[str, object] = {}
     for input_name, input_value in inputs.items():
-        if isinstance(input_value, Tensor):
+        if isinstance(input_value, _Tensor):
             if input_value.unit is None:
                 lowered_inputs[input_name] = input_value.values
             else:
                 lowered_inputs[input_name] = BASE_UNIT_SYSTEM.coherent_value(
-                    Quantity(cast("float", input_value.values), input_value.unit)
+                    _Quantity(cast("float", input_value.values), input_value.unit)
                 )
-        elif isinstance(input_value, Quantity):
+        elif isinstance(input_value, _Quantity):
             lowered_inputs[input_name] = BASE_UNIT_SYSTEM.coherent_value(input_value)
         else:
             lowered_inputs[input_name] = input_value
@@ -57,7 +57,7 @@ def generate_lifting_plan(
     )
 
 
-def lift_output(output_value: object, lifting_plan: LiftingPlan) -> Tensor | object:
+def lift_output(output_value: object, lifting_plan: LiftingPlan) -> _Tensor | object:
     if lifting_plan.squeezed_axes:
         output_value = _squeeze_axes(output_value, lifting_plan.squeezed_axes)
     if lifting_plan.should_lift_into_tensor:
@@ -67,7 +67,7 @@ def lift_output(output_value: object, lifting_plan: LiftingPlan) -> Tensor | obj
             unit=lifting_plan.output_unit,
         )
     elif lifting_plan.output_unit is not None:
-        output_value = Quantity(float(cast("SupportsFloat", output_value)), lifting_plan.output_unit)
+        output_value = _Quantity(float(cast("SupportsFloat", output_value)), lifting_plan.output_unit)
     return output_value
 
 
