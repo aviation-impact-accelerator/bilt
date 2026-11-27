@@ -2,8 +2,7 @@
 
 from typing import TYPE_CHECKING, NotRequired
 
-from bilt.units import degree, fraction, kilogram, meter, second
-from bilt.units.units import newton
+from bilt.units import degree, fraction, kilogram, meter, newton, second
 
 from .geometry import (
     AircraftGeometry,

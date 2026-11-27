@@ -138,7 +138,7 @@ def _combine(wing: QuantityTensor, tail: QuantityTensor) -> np.ndarray:
     return np.r_[wing.convert_to(meter**2 / second).values, tail.convert_to(meter**2 / second).values]
 
 
-@pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4), (12, 6)))
+@pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4), (12, 6), (5, 3)))
 def test_geometry_based_forward_matches_numpy(wing_panels: int, tail_panels: int) -> None:
     """Bilt solves each source-panel circulation from physical vortex influence."""
     geometry = example_geometry()
@@ -163,7 +163,7 @@ def test_geometry_based_forward_matches_numpy(wing_panels: int, tail_panels: int
     assert moment.convert_to(newton * meter).value == pytest.approx(expected_moment, rel=1e-6)
 
 
-@pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4), (12, 6)))
+@pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4), (12, 6), (5, 3)))
 def test_geometry_based_inverse_trim_matches_numpy(wing_panels: int, tail_panels: int) -> None:
     """N panel unknowns plus two global unknowns form an (N+2)-square problem."""
     geometry = example_geometry()
@@ -256,7 +256,7 @@ def test_singular_vortex_is_rejected() -> None:
         evaluate_vortices(point, start, end)
 
 
-@pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4), (12, 6)))
+@pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4), (12, 6), (5, 3)))
 def test_influence_blocks_match_numpy(wing_panels: int, tail_panels: int) -> None:
     data = calculate_influences(example_geometry(), resolution=PanelResolution(wing=wing_panels, tail=tail_panels))
     expected, _, _, _, _ = _reference_operator(wing_panels, tail_panels)
@@ -324,7 +324,7 @@ def test_aircraft_geometry_reuses_surface_model() -> None:
         assert geometry.tail_area.convert_to(meter**2).value == pytest.approx(4.05)
 
 
-@pytest.mark.parametrize("count", (2, 6, 12))
+@pytest.mark.parametrize("count", (2, 5, 6, 12))
 def test_panel_geometry_matches_numpy(count: int) -> None:
     """Independently check the migrated geometry equations at several resolutions."""
     surface = RectangularSurface(

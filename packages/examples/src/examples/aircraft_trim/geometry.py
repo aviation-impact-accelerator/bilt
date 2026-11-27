@@ -133,6 +133,54 @@ def tail_area_connection(tail_area: Area, tail: RectangularSurface) -> bool:
     return tail_area == tail.area
 
 
+@equation
+def wing_leading_edge_x_connection(wing_leading_edge_x: Length, wing: RectangularSurface) -> bool:
+    """Connect the wing leading edge x."""
+    return wing_leading_edge_x == wing.leading_edge_x
+
+
+@equation
+def wing_height_connection(wing_height: Length, wing: RectangularSurface) -> bool:
+    """Connect the wing height."""
+    return wing_height == wing.height
+
+
+@equation
+def wing_root_twist_connection(wing_root_twist: Ratio, wing: RectangularSurface) -> bool:
+    """Connect the wing root twist."""
+    return wing_root_twist == wing.root_twist
+
+
+@equation
+def wing_tip_twist_connection(wing_tip_twist: Ratio, wing: RectangularSurface) -> bool:
+    """Connect the wing tip twist."""
+    return wing_tip_twist == wing.tip_twist
+
+
+@equation
+def tail_leading_edge_x_connection(tail_leading_edge_x: Length, tail: RectangularSurface) -> bool:
+    """Connect the tail leading edge x."""
+    return tail_leading_edge_x == tail.leading_edge_x
+
+
+@equation
+def tail_height_connection(tail_height: Length, tail: RectangularSurface) -> bool:
+    """Connect the tail height."""
+    return tail_height == tail.height
+
+
+@equation
+def tail_root_twist_connection(tail_root_twist: Ratio, tail: RectangularSurface) -> bool:
+    """Connect the tail root twist."""
+    return tail_root_twist == tail.root_twist
+
+
+@equation
+def tail_tip_twist_connection(tail_tip_twist: Ratio, tail: RectangularSurface) -> bool:
+    """Connect the tail tip twist."""
+    return tail_tip_twist == tail.tip_twist
+
+
 GEOMETRY_MODEL = Implementation(
     AircraftGeometry,
     [
@@ -142,6 +190,14 @@ GEOMETRY_MODEL = Implementation(
         tail_span_connection,
         tail_chord_connection,
         tail_area_connection,
+        wing_leading_edge_x_connection,
+        wing_height_connection,
+        wing_root_twist_connection,
+        wing_tip_twist_connection,
+        tail_leading_edge_x_connection,
+        tail_height_connection,
+        tail_root_twist_connection,
+        tail_tip_twist_connection,
     ],
     internal_implementations={"wing": SURFACE_MODEL, "tail": SURFACE_MODEL},
 )
@@ -254,7 +310,7 @@ def moment_arm(arm: Length, cg_x: Length, bound_x: Length) -> bool:
 
 
 @equation
-def spanwise_twist_fraction(twist_fraction: PanelRatio, left_fraction: PanelRatio, right_fraction: PanelRatio) -> bool:
+def spanwise_twist_fraction(twist_fraction: Ratio, left_fraction: Ratio, right_fraction: Ratio) -> bool:
     """Absolute span fraction at the panel centre."""
     return twist_fraction == ((left_fraction + right_fraction) ** 2) ** 0.5
 
@@ -321,22 +377,24 @@ class CartesianPoints(metaclass=Interface):
     x: Length = field()
     y: PanelLength = field()
     z: Length = field()
-    cartesian_index: PanelRatio = field()
+    x_mask: PanelRatio = field()
+    y_mask: PanelRatio = field()
+    z_mask: PanelRatio = field()
     points: PanelLength = field()
 
 
-@transform
-def points(x: Length, y: PanelLength, z: Length, cartesian_index: PanelRatio) -> PanelLength:
-    """Select the coordinate for each Cartesian component."""
-    from typing import cast  # noqa: PLC0415 - backend runtime dependency.
-
-    import numpy as np  # noqa: PLC0415 - backend runtime dependency.
-
-    index = cast("np.ndarray", cartesian_index)
-    return cast(
-        "PanelLength",
-        np.where(index == 0, cast("float", x), np.where(index == 1, cast("np.ndarray", y), cast("float", z))),
-    )
+@equation
+def points(  # noqa: PLR0913, PLR0917 - named coordinate components.
+    points: PanelLength,
+    x: Length,
+    y: PanelLength,
+    z: Length,
+    x_mask: PanelRatio,
+    y_mask: PanelRatio,
+    z_mask: PanelRatio,
+) -> bool:
+    """Pack coordinates by projecting onto the Cartesian basis."""
+    return points == x_mask * x + y_mask * y + z_mask * z
 
 
 POINTS_MODEL = Implementation(CartesianPoints, [points])
@@ -350,7 +408,9 @@ class HorseshoeEndpoints(metaclass=Interface):
     right: PanelLength = field()
     wake_length: Length = field()
     streamwise_axis: PanelRatio = field()
-    segment_index: PanelRatio = field()
+    left_segment: PanelRatio = field()
+    bound_segment: PanelRatio = field()
+    right_segment: PanelRatio = field()
     wake_offset: PanelLength = field()
     left_wake: PanelLength = field()
     right_wake: PanelLength = field()
@@ -376,32 +436,32 @@ def right_wake_position(right_wake: PanelLength, right: PanelLength, wake_offset
     return right_wake == right + wake_offset
 
 
-@transform
-def start(left_wake: PanelLength, left: PanelLength, right: PanelLength, segment_index: PanelRatio) -> PanelLength:
-    """Select the start endpoint of the left, bound and right segments."""
-    from typing import cast  # noqa: PLC0415 - backend runtime dependency.
+@equation
+def start(  # noqa: PLR0913, PLR0917 - named segment endpoints.
+    start: PanelLength,
+    left_wake: PanelLength,
+    left: PanelLength,
+    right: PanelLength,
+    left_segment: PanelRatio,
+    bound_segment: PanelRatio,
+    right_segment: PanelRatio,
+) -> bool:
+    """Project the three start endpoints onto their oriented segment axis."""
+    return start == left_segment * left_wake + bound_segment * left + right_segment * right
 
-    import numpy as np  # noqa: PLC0415 - backend runtime dependency.
 
-    index = cast("np.ndarray", segment_index)
-    first = cast("np.ndarray", left_wake)
-    second = cast("np.ndarray", left)
-    third = cast("np.ndarray", right)
-    return cast("PanelLength", np.where(index == 0, first, np.where(index == 1, second, third)))
-
-
-@transform
-def end(left: PanelLength, right: PanelLength, right_wake: PanelLength, segment_index: PanelRatio) -> PanelLength:
-    """Select the end endpoint of the left, bound and right segments."""
-    from typing import cast  # noqa: PLC0415 - backend runtime dependency.
-
-    import numpy as np  # noqa: PLC0415 - backend runtime dependency.
-
-    index = cast("np.ndarray", segment_index)
-    first = cast("np.ndarray", left)
-    second = cast("np.ndarray", right)
-    third = cast("np.ndarray", right_wake)
-    return cast("PanelLength", np.where(index == 0, first, np.where(index == 1, second, third)))
+@equation
+def end(  # noqa: PLR0913, PLR0917 - named segment endpoints.
+    end: PanelLength,
+    left: PanelLength,
+    right: PanelLength,
+    right_wake: PanelLength,
+    left_segment: PanelRatio,
+    bound_segment: PanelRatio,
+    right_segment: PanelRatio,
+) -> bool:
+    """Project the three end endpoints onto their oriented segment axis."""
+    return end == left_segment * left + bound_segment * right + right_segment * right_wake
 
 
 ENDPOINTS_MODEL = Implementation(
@@ -416,7 +476,9 @@ def _points(x: Quantity, y: QuantityTensor, z: Quantity, panel_dim: Dim) -> Quan
             x=x,
             y=tensor(y.convert_to(meter).values, over=panel_dim, unit=meter),
             z=z,
-            cartesian_index=tensor([0, 1, 2], over=CARTESIAN, unit=fraction),
+            x_mask=tensor([1, 0, 0], over=CARTESIAN, unit=fraction),
+            y_mask=tensor([0, 1, 0], over=CARTESIAN, unit=fraction),
+            z_mask=tensor([0, 0, 1], over=CARTESIAN, unit=fraction),
         )
         return geometry.points
 
@@ -440,6 +502,8 @@ class VortexInfluence(metaclass=Interface):
     cross_z: SquaredLength = field()
     cross_squared: FourthPowerLength = field()
     checked_cross_squared: FourthPowerLength = field()
+    norm1_squared: PanelRatio = field()
+    norm2_squared: PanelRatio = field()
     norm1: PanelLength = field()
     norm2: PanelLength = field()
     endpoint_factor: PanelLength = field()
@@ -488,19 +552,33 @@ def cross_magnitude_squared(
     cross_squared: FourthPowerLength, cross_x: SquaredLength, cross_y: SquaredLength, cross_z: SquaredLength
 ) -> bool:
     """Squared norm of the cross product."""
-    return cross_squared == cross_x**2 + cross_y**2 + cross_z**2
+    return cross_squared == cross_x * cross_x + cross_y * cross_y + cross_z * cross_z
 
 
 @equation
-def first_distance(norm1: PanelLength, r1: PanelLength) -> bool:
-    """Euclidean distance, using a dimensionless argument for the square root."""
-    return norm1 == _LENGTH_SCALE * ((r1 / _LENGTH_SCALE) ** 2).sum(CARTESIAN) ** 0.5
+def first_distance_squared(norm1_squared: PanelRatio, r1: PanelLength) -> bool:
+    """Squared Euclidean distance normalised by the reference length."""
+    normalised = r1 / _LENGTH_SCALE
+    return norm1_squared == (normalised * normalised).sum(CARTESIAN)
 
 
 @equation
-def second_distance(norm2: PanelLength, r2: PanelLength) -> bool:
-    """Euclidean distance to the second endpoint."""
-    return norm2 == _LENGTH_SCALE * ((r2 / _LENGTH_SCALE) ** 2).sum(CARTESIAN) ** 0.5
+def first_distance(norm1: Length, norm1_squared: Ratio) -> bool:
+    """Recover the positive endpoint distance pointwise."""
+    return norm1 == _LENGTH_SCALE * norm1_squared**0.5
+
+
+@equation
+def second_distance_squared(norm2_squared: PanelRatio, r2: PanelLength) -> bool:
+    """Squared Euclidean distance normalised by the reference length."""
+    normalised = r2 / _LENGTH_SCALE
+    return norm2_squared == (normalised * normalised).sum(CARTESIAN)
+
+
+@equation
+def second_distance(norm2: Length, norm2_squared: Ratio) -> bool:
+    """Recover the positive endpoint distance pointwise."""
+    return norm2 == _LENGTH_SCALE * norm2_squared**0.5
 
 
 @equation
@@ -564,6 +642,8 @@ VORTEX_MODEL = Implementation(
         cross_product_y,
         cross_product_z,
         cross_magnitude_squared,
+        first_distance_squared,
+        second_distance_squared,
         first_distance,
         second_distance,
         endpoint_projection,
@@ -601,7 +681,9 @@ def influence_block(
             right=right,
             wake_length=wake_length,
             streamwise_axis=tensor([1, 0, 0], over=CARTESIAN, unit=fraction),
-            segment_index=tensor([0, 1, 2], over=SEGMENT, unit=fraction),
+            left_segment=tensor([1, 0, 0], over=SEGMENT, unit=fraction),
+            bound_segment=tensor([0, 1, 0], over=SEGMENT, unit=fraction),
+            right_segment=tensor([0, 0, 1], over=SEGMENT, unit=fraction),
         )
         result = evaluate_vortices(collocation, endpoints.start, endpoints.end)
     if result.domain.dims == (target_dim, source_dim):

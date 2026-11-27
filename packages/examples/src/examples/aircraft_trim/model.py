@@ -27,8 +27,8 @@ type MomentArm = Annotated[Quantity, LENGTH]
 type WingTwist = Annotated[QuantityTensor, DIMENSIONLESS, Domain((WING_TARGET,))]
 type TailTwist = Annotated[QuantityTensor, DIMENSIONLESS, Domain((TAIL_TARGET,))]
 type TailControl = Annotated[Quantity, DIMENSIONLESS]
-type WingPanelLift = Annotated[Quantity | QuantityTensor, FORCE, Domain((WING_SOURCE,))]
-type TailPanelLift = Annotated[Quantity | QuantityTensor, FORCE, Domain((TAIL_SOURCE,))]
+type WingPanelLift = Annotated[QuantityTensor, FORCE, Domain((WING_SOURCE,))]
+type TailPanelLift = Annotated[QuantityTensor, FORCE, Domain((TAIL_SOURCE,))]
 type Density = Annotated[Quantity, MASS / LENGTH**3]
 type Speed = Annotated[Quantity, LENGTH / TIME]
 type Angle = Annotated[Quantity | QuantityTensor, DIMENSIONLESS, Domain.scalar()]
@@ -62,8 +62,8 @@ class WingTailTrim(metaclass=Interface):
     elevator: Annotated[Quantity, DIMENSIONLESS] = field()
     wing_circulation: Annotated[QuantityTensor, LENGTH**2 / TIME, Domain((WING_SOURCE,))] = field()
     tail_circulation: Annotated[QuantityTensor, LENGTH**2 / TIME, Domain((TAIL_SOURCE,))] = field()
-    wing_panel_lift: Annotated[QuantityTensor, FORCE, Domain((WING_SOURCE,))] = field()
-    tail_panel_lift: Annotated[QuantityTensor, FORCE, Domain((TAIL_SOURCE,))] = field()
+    wing_panel_lift: WingPanelLift = field()
+    tail_panel_lift: TailPanelLift = field()
     lift: Lift = field()
     pitch_moment: Moment = field()
 
@@ -126,7 +126,7 @@ def pitch_balance(
 
 @equation
 def wing_sectional_lift(
-    wing_panel_lift: WingPanelLift,
+    wing_panel_lift: Annotated[Quantity | QuantityTensor, FORCE, Domain((WING_SOURCE,))],
     wing_circulation: WingCirculation,
     wing_width: WingWidth,
     density: Density,
@@ -138,7 +138,7 @@ def wing_sectional_lift(
 
 @equation
 def tail_sectional_lift(
-    tail_panel_lift: TailPanelLift,
+    tail_panel_lift: Annotated[Quantity | QuantityTensor, FORCE, Domain((TAIL_SOURCE,))],
     tail_circulation: TailCirculation,
     tail_width: TailWidth,
     density: Density,

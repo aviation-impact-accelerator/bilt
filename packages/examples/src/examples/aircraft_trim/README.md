@@ -28,12 +28,11 @@ implementations. Panel resolution is a Bilt system carrying integer panel counts
 Biot-Savart law is also a Bilt system: displacement vectors, cross products,
 endpoint distances, projection and segment superposition are dimensional
 equations. Independent source, target, segment and Cartesian axes express all
-interactions without a Python loop over panels. Directed operations use Bilt
-transforms: Cartesian coordinate packing, oriented segment endpoint selection,
-the singularity guard on the Biot-Savart denominator.
-Wake displacements and normalised panel edges are equations. Only discrete axis
-creation, axis relabelling and external input validation remain at the Python
-boundary, because the current transform backend cannot introduce new named axes.
+interactions without a Python loop over panels. Cartesian coordinate packing and oriented segment endpoints are Bilt equations
+using named one-hot basis tensors. The singularity guard is the only transform;
+it raises an explicit error for invalid vortex geometry before division.
+Only discrete axis creation, axis relabelling and external input validation
+remain at the Python boundary.
 
 ## Acausal Bilt equations
 
