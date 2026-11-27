@@ -10,7 +10,6 @@ from bilt import dim
 from bilt.core._tensors._protocols import Number, QuantityTensor, Tensor
 from bilt.units._protocols import Quantity
 
-
 time = dim("time")
 
 
