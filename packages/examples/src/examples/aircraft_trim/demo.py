@@ -4,9 +4,9 @@
 
 from bilt.units import degree, meter, newton, second
 
+from .aircraft import MODEL
 from .fixtures import example_aircraft, trim_case
 from .geometry import PanelResolution, example_geometry
-from .model import MODEL
 
 
 def main() -> None:

@@ -31,10 +31,18 @@ equations. Independent source, target, segment and Cartesian axes express all
 interactions without a Python loop over panels. Cartesian coordinate packing and oriented segment endpoints are Bilt equations
 using named one-hot basis tensors. The singularity guard is the only transform;
 it raises an explicit error for invalid vortex geometry before division.
-Only discrete axis creation, axis relabelling and external input validation
-remain at the Python boundary.
+The composed aircraft implementation owns two surface lattices and four vortex
+influence subsystems. Named source and target axes are supplied at construction;
+no intermediate model evaluation or tensor relabelling is needed. Surface and
+wake validation are directed transforms on the geometry dependency paths.
+Only the creation of discrete axes and fixture inputs remains at the Python boundary.
 
 ## Acausal Bilt equations
+
+The demo activates `aircraft.MODEL` once and requests outputs directly from the
+`Aircraft` instance. Its inputs are physical geometry, named discretisation axes
+and flight conditions, not precomputed influence matrices. The standalone
+`WingTailTrim` implementation remains useful for testing the linear solve in isolation.
 
 The four influence tensors have axes:
 wing-from-wing (wing_target, wing_source), wing-from-tail
@@ -76,7 +84,7 @@ From the Bilt repository root:
     uv run python -m examples.aircraft_trim.demo
     uv run pytest packages/examples/tests/test_aircraft_trim.py
 
-The demo uses 6 wing and 4 tail panels. Tests cover 2+2, 6+4, 12+6,
+The demo uses 6 wing and 4 tail panels. Tests cover 2+2, 6+4, 12+6, 5+3,
 forward and inverse trim, panel loads, prescribed lift and several geometric
 invariants. Panel counts are independent numerical settings in
 `PanelResolution`, not physical geometry or hard-coded Bilt equations.

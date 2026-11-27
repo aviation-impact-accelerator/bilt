@@ -1,18 +1,11 @@
 """Dimensional lifting-surface geometry and horseshoe-vortex equations."""
 
 import math
-from typing import TYPE_CHECKING, Annotated, TypedDict
-
-import numpy as np
+from typing import Annotated
 
 from bilt import Implementation, Interface, Quantity, QuantityTensor, dim, equation, field, system, tensor, transform
 from bilt.units import fraction, meter, radian
 from bilt.units.dimensions import DIMENSIONLESS, LENGTH
-
-from .model import TAIL_SOURCE, TAIL_TARGET, WING_SOURCE, WING_TARGET
-
-if TYPE_CHECKING:
-    from bilt import Dim
 
 PANEL = dim("panel")
 CARTESIAN = dim("cartesian")
@@ -337,69 +330,6 @@ PANEL_MODEL = Implementation(
 )
 
 
-def _validate_surface(surface: RectangularSurface, panels: int) -> None:
-    values = tuple(
-        value.convert_to(meter).value for value in (surface.span, surface.chord, surface.leading_edge_x, surface.height)
-    )
-    if not np.isfinite(values).all():
-        msg = "Lifting-surface geometry must contain finite coordinates."
-        raise ValueError(msg)
-    invalid_count = isinstance(panels, bool) or not isinstance(panels, int) or panels < 1
-    if values[0] <= 0 or values[1] <= 0 or invalid_count:
-        msg = "Lifting-surface span, chord and panel count must be positive."
-        raise ValueError(msg)
-    if not np.isfinite((surface.root_twist.convert_to(radian).value, surface.tip_twist.convert_to(radian).value)).all():
-        msg = "Lifting-surface twist must be finite."
-        raise ValueError(msg)
-
-
-def discretise(surface: RectangularSurface, *, cg_x: Quantity, panels: int) -> SurfacePanels:
-    """Generate the numerical panel axis and evaluate dimensional geometry."""
-    with SURFACE_MODEL:
-        _validate_surface(surface, panels)
-        return SurfacePanels(
-            span=surface.span,
-            bound_x=surface.bound_x,
-            target_x=surface.target_x,
-            height=surface.height,
-            cg_x=cg_x,
-            root_twist=surface.root_twist,
-            tip_twist=surface.tip_twist,
-            panel_index=tensor(np.arange(panels), over=PANEL, unit=fraction),
-            panel_count=float(panels) * fraction,
-        )
-
-
-@system
-class CartesianPoints(metaclass=Interface):
-    """Pack dimensional coordinates on a supplied Cartesian axis."""
-
-    x: Length = field()
-    y: PanelLength = field()
-    z: Length = field()
-    x_mask: PanelRatio = field()
-    y_mask: PanelRatio = field()
-    z_mask: PanelRatio = field()
-    points: PanelLength = field()
-
-
-@equation
-def points(  # noqa: PLR0913, PLR0917 - named coordinate components.
-    points: PanelLength,
-    x: Length,
-    y: PanelLength,
-    z: Length,
-    x_mask: PanelRatio,
-    y_mask: PanelRatio,
-    z_mask: PanelRatio,
-) -> bool:
-    """Pack coordinates by projecting onto the Cartesian basis."""
-    return points == x_mask * x + y_mask * y + z_mask * z
-
-
-POINTS_MODEL = Implementation(CartesianPoints, [points])
-
-
 @system
 class HorseshoeEndpoints(metaclass=Interface):
     """Three oriented finite segments on supplied panel and segment axes."""
@@ -467,20 +397,6 @@ def end(  # noqa: PLR0913, PLR0917 - named segment endpoints.
 ENDPOINTS_MODEL = Implementation(
     HorseshoeEndpoints, [wake_displacement, left_wake_position, right_wake_position, start, end]
 )
-
-
-def _points(x: Quantity, y: QuantityTensor, z: Quantity, panel_dim: Dim) -> QuantityTensor:
-    """Bind the requested panel and Cartesian axes at the model boundary."""
-    with POINTS_MODEL:
-        geometry = CartesianPoints(
-            x=x,
-            y=tensor(y.convert_to(meter).values, over=panel_dim, unit=meter),
-            z=z,
-            x_mask=tensor([1, 0, 0], over=CARTESIAN, unit=fraction),
-            y_mask=tensor([0, 1, 0], over=CARTESIAN, unit=fraction),
-            z_mask=tensor([0, 0, 1], over=CARTESIAN, unit=fraction),
-        )
-        return geometry.points
 
 
 @system
@@ -652,112 +568,3 @@ VORTEX_MODEL = Implementation(
         integrate_segments,
     ],
 )
-
-
-def evaluate_vortices(point: QuantityTensor, start: QuantityTensor, end: QuantityTensor) -> QuantityTensor:
-    """Evaluate the model, rejecting singular geometries before division."""
-    with VORTEX_MODEL:
-        vortex = VortexInfluence(point=point, start=start, end=end)
-        return vortex.influence
-
-
-def influence_block(
-    targets: SurfacePanels,
-    sources: SurfacePanels,
-    *,
-    wake_length: Quantity,
-    target_dim: Dim,
-    source_dim: Dim,
-) -> QuantityTensor:
-    """Evaluate every target/source interaction using named Bilt tensor axes."""
-    with PANEL_MODEL:
-        left = _points(sources.bound_x, sources.left_y, sources.height, source_dim)
-        right = _points(sources.bound_x, sources.right_y, sources.height, source_dim)
-        collocation = _points(targets.target_x, targets.centre_y, targets.height, target_dim)
-
-    with ENDPOINTS_MODEL:
-        endpoints = HorseshoeEndpoints(
-            left=left,
-            right=right,
-            wake_length=wake_length,
-            streamwise_axis=tensor([1, 0, 0], over=CARTESIAN, unit=fraction),
-            left_segment=tensor([1, 0, 0], over=SEGMENT, unit=fraction),
-            bound_segment=tensor([0, 1, 0], over=SEGMENT, unit=fraction),
-            right_segment=tensor([0, 0, 1], over=SEGMENT, unit=fraction),
-        )
-        result = evaluate_vortices(collocation, endpoints.start, endpoints.end)
-    if result.domain.dims == (target_dim, source_dim):
-        return result
-    order = tuple(result.domain.dims.index(axis) for axis in (target_dim, source_dim))
-    return tensor(result.values.transpose(order), over=(target_dim, source_dim), unit=meter**-1)
-
-
-class InfluenceInputs(TypedDict):
-    """Named dimensional inputs at the numerical kernel / trim model boundary."""
-
-    wing_from_wing: QuantityTensor
-    wing_from_tail: QuantityTensor
-    tail_from_wing: QuantityTensor
-    tail_from_tail: QuantityTensor
-    wing_width: QuantityTensor
-    tail_width: QuantityTensor
-    wing_arm: Quantity
-    tail_arm: Quantity
-    wing_twist: QuantityTensor
-    tail_twist: QuantityTensor
-
-
-def calculate_influences(geometry: AircraftGeometry, *, resolution: PanelResolution | None = None) -> InfluenceInputs:
-    """Evaluate the geometry and supply named influence and load tensors."""
-    resolution = resolution if resolution is not None else default_resolution()
-    validate_panel_count(resolution.wing)
-    validate_panel_count(resolution.tail)
-    with GEOMETRY_MODEL:
-        wing_surface = RectangularSurface(
-            span=geometry.wing_span,
-            chord=geometry.wing_chord,
-            leading_edge_x=geometry.wing_leading_edge_x,
-            height=geometry.wing_height,
-            root_twist=geometry.wing_root_twist,
-            tip_twist=geometry.wing_tip_twist,
-        )
-        tail_surface = RectangularSurface(
-            span=geometry.tail_span,
-            chord=geometry.tail_chord,
-            leading_edge_x=geometry.tail_leading_edge_x,
-            height=geometry.tail_height,
-            root_twist=geometry.tail_root_twist,
-            tip_twist=geometry.tail_tip_twist,
-        )
-        cg_x, wake = geometry.cg_x, geometry.wake_length
-    cg_m = cg_x.convert_to(meter).value
-    wake_m = wake.convert_to(meter).value
-    if not np.isfinite((cg_m, wake_m)).all() or wake_m <= 0:
-        msg = "CG coordinate must be finite and wake length positive."
-        raise ValueError(msg)
-    if tail_surface.leading_edge_x.convert_to(meter).value <= wing_surface.leading_edge_x.convert_to(meter).value:
-        msg = "The horizontal tail must be downstream of the wing."
-        raise ValueError(msg)
-    wing = discretise(wing_surface, cg_x=cg_x, panels=resolution.wing)
-    tail = discretise(tail_surface, cg_x=cg_x, panels=resolution.tail)
-    with PANEL_MODEL:
-        return {
-            "wing_from_wing": influence_block(
-                wing, wing, wake_length=wake, target_dim=WING_TARGET, source_dim=WING_SOURCE
-            ),
-            "wing_from_tail": influence_block(
-                wing, tail, wake_length=wake, target_dim=WING_TARGET, source_dim=TAIL_SOURCE
-            ),
-            "tail_from_wing": influence_block(
-                tail, wing, wake_length=wake, target_dim=TAIL_TARGET, source_dim=WING_SOURCE
-            ),
-            "tail_from_tail": influence_block(
-                tail, tail, wake_length=wake, target_dim=TAIL_TARGET, source_dim=TAIL_SOURCE
-            ),
-            "wing_width": tensor(wing.width.convert_to(meter).values, over=WING_SOURCE, unit=meter),
-            "tail_width": tensor(tail.width.convert_to(meter).values, over=TAIL_SOURCE, unit=meter),
-            "wing_arm": wing.arm,
-            "tail_arm": tail.arm,
-            "wing_twist": tensor(wing.twist.convert_to(radian).values, over=WING_TARGET, unit=radian),
-            "tail_twist": tensor(tail.twist.convert_to(radian).values, over=TAIL_TARGET, unit=radian),
-        }

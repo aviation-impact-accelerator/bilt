@@ -2,27 +2,72 @@
 
 import numpy as np
 import pytest
+from examples.aircraft_trim.aircraft import MODEL
 from examples.aircraft_trim.fixtures import example_aircraft, forward_case, trim_case
 from examples.aircraft_trim.geometry import (
     CARTESIAN,
     GEOMETRY_MODEL,
+    PANEL,
     PANEL_MODEL,
     SEGMENT,
     SURFACE_MODEL,
+    VORTEX_MODEL,
+    AircraftGeometry,
     PanelResolution,
     RectangularSurface,
-    calculate_influences,
-    discretise,
-    evaluate_vortices,
+    SurfacePanels,
+    VortexInfluence,
     example_geometry,
 )
-from examples.aircraft_trim.model import MODEL, TAIL_SOURCE, WING_SOURCE
+from examples.aircraft_trim.model import TAIL_SOURCE, TAIL_TARGET, WING_SOURCE, WING_TARGET
 
-from bilt import QuantityTensor, tensor
+from bilt import Quantity, QuantityTensor, tensor
 from bilt.units import degree, fraction, kilogram, meter, newton, radian, second
 
 _REFERENCE_LENGTH_TOLERANCE = 1e-12
 _REFERENCE_CROSS_TOLERANCE = _REFERENCE_LENGTH_TOLERANCE**4
+
+
+def _discretise(surface: RectangularSurface, *, cg_x: Quantity, panels: int) -> SurfacePanels:
+    """Generate the numerical panel axis and evaluate dimensional geometry."""
+    with SURFACE_MODEL:
+        return SurfacePanels(
+            span=surface.span,
+            bound_x=surface.bound_x,
+            target_x=surface.target_x,
+            height=surface.height,
+            cg_x=cg_x,
+            root_twist=surface.root_twist,
+            tip_twist=surface.tip_twist,
+            panel_index=tensor(np.arange(panels), over=PANEL, unit=fraction),
+            panel_count=float(panels) * fraction,
+        )
+
+
+def _evaluate_vortices(point: QuantityTensor, start: QuantityTensor, end: QuantityTensor) -> QuantityTensor:
+    """Exercise the standalone vortex implementation through its public fields."""
+    with VORTEX_MODEL:
+        return VortexInfluence(point=point, start=start, end=end).influence
+
+
+def _influences(geometry: AircraftGeometry, *, resolution: PanelResolution) -> dict[str, QuantityTensor]:
+    """Read influence outputs and align the independent reference array order."""
+    with MODEL:
+        aircraft = example_aircraft(geometry=geometry, resolution=resolution)
+        blocks = {
+            "wing_from_wing": (aircraft.wing_from_wing, WING_TARGET, WING_SOURCE),
+            "wing_from_tail": (aircraft.wing_from_tail, WING_TARGET, TAIL_SOURCE),
+            "tail_from_wing": (aircraft.tail_from_wing, TAIL_TARGET, WING_SOURCE),
+            "tail_from_tail": (aircraft.tail_from_tail, TAIL_TARGET, TAIL_SOURCE),
+        }
+    return {
+        name: tensor(
+            block.convert_to(meter**-1).values.transpose(tuple(block.domain.dims.index(axis) for axis in (target, source))),
+            over=(target, source),
+            unit=meter**-1,
+        )
+        for name, (block, target, source) in blocks.items()
+    }
 
 
 def _reference_segment_velocity(point: np.ndarray, start: np.ndarray, end: np.ndarray) -> np.ndarray:
@@ -240,7 +285,7 @@ def test_inverse_trim_for_multiple_weights(mass: float) -> None:
 
 def test_finite_segment_biot_savart_against_analytic_value() -> None:
     """A centred unit straight vortex has a known velocity at unit distance."""
-    influence = evaluate_vortices(
+    influence = _evaluate_vortices(
         tensor([0.0, 1.0, 0.0], over=CARTESIAN, unit=meter),
         tensor([[-1.0, 0.0, 0.0]], over=(SEGMENT, CARTESIAN), unit=meter),
         tensor([[1.0, 0.0, 0.0]], over=(SEGMENT, CARTESIAN), unit=meter),
@@ -253,12 +298,12 @@ def test_singular_vortex_is_rejected() -> None:
     start = tensor([[-1.0, 0.0, 0.0]], over=(SEGMENT, CARTESIAN), unit=meter)
     end = tensor([[1.0, 0.0, 0.0]], over=(SEGMENT, CARTESIAN), unit=meter)
     with pytest.raises(ValueError, match="too near a filament"):
-        evaluate_vortices(point, start, end)
+        _evaluate_vortices(point, start, end)
 
 
 @pytest.mark.parametrize(("wing_panels", "tail_panels"), ((2, 2), (6, 4), (12, 6), (5, 3)))
 def test_influence_blocks_match_numpy(wing_panels: int, tail_panels: int) -> None:
-    data = calculate_influences(example_geometry(), resolution=PanelResolution(wing=wing_panels, tail=tail_panels))
+    data = _influences(example_geometry(), resolution=PanelResolution(wing=wing_panels, tail=tail_panels))
     expected, _, _, _, _ = _reference_operator(wing_panels, tail_panels)
     for actual, reference in (
         (data["wing_from_wing"], expected[:wing_panels, :wing_panels]),
@@ -271,7 +316,7 @@ def test_influence_blocks_match_numpy(wing_panels: int, tail_panels: int) -> Non
 
 def test_symmetric_geometry_gives_symmetric_spanwise_influence() -> None:
     """Mirror symmetry provides a geometry-based influence regression."""
-    data = calculate_influences(example_geometry(), resolution=PanelResolution(wing=6, tail=4))
+    data = _influences(example_geometry(), resolution=PanelResolution(wing=6, tail=4))
     ww = data["wing_from_wing"].convert_to(meter**-1).values
     tt = data["tail_from_tail"].convert_to(meter**-1).values
     wt = data["wing_from_tail"].convert_to(meter**-1).values
@@ -286,8 +331,8 @@ def test_wake_length_convergence_and_cross_surface_coupling() -> None:
     near = example_geometry()
     far = example_geometry(wake_length=800.0 * meter)
     resolution = PanelResolution(wing=6, tail=4)
-    first = calculate_influences(near, resolution=resolution)
-    second = calculate_influences(far, resolution=resolution)
+    first = _influences(near, resolution=resolution)
+    second = _influences(far, resolution=resolution)
     np.testing.assert_allclose(first["wing_from_wing"].values, second["wing_from_wing"].values, rtol=2e-4, atol=2e-6)
     assert np.any(abs(first["tail_from_wing"].values) > 0.0)
 
@@ -306,8 +351,24 @@ def test_invalid_surface_geometry_is_rejected(span: float, chord: float, panels:
         root_twist=0.0 * radian,
         tip_twist=0.0 * radian,
     )
-    with pytest.raises(ValueError, match="span, chord and panel count"):
-        discretise(surface, cg_x=1.0 * meter, panels=panels)
+    geometry = AircraftGeometry(
+        wing_span=surface.span,
+        wing_chord=surface.chord,
+        wing_leading_edge_x=surface.leading_edge_x,
+        wing_height=surface.height,
+        wing_root_twist=surface.root_twist,
+        wing_tip_twist=surface.tip_twist,
+        tail_span=4.5 * meter,
+        tail_chord=0.9 * meter,
+        tail_leading_edge_x=5.5 * meter,
+        tail_height=0.5 * meter,
+        tail_root_twist=0.0 * radian,
+        tail_tip_twist=0.0 * radian,
+        cg_x=1.0 * meter,
+        wake_length=400.0 * meter,
+    )
+    with MODEL, pytest.raises(ValueError, match="span, chord and panel count|Panel count"):
+        _ = example_aircraft(geometry=geometry, resolution=PanelResolution(wing=panels, tail=2)).wing_width
 
 
 def test_surface_geometry_is_acausal() -> None:
@@ -335,7 +396,7 @@ def test_panel_geometry_matches_numpy(count: int) -> None:
         root_twist=0.002 * radian,
         tip_twist=-0.008 * radian,
     )
-    panels = discretise(surface, cg_x=1.0 * meter, panels=count)
+    panels = _discretise(surface, cg_x=1.0 * meter, panels=count)
     edges = np.linspace(-6.0, 6.0, count + 1)
     centres = 0.5 * (edges[:-1] + edges[1:])
     with PANEL_MODEL:
@@ -347,3 +408,19 @@ def test_panel_geometry_matches_numpy(count: int) -> None:
         assert panels.arm.convert_to(meter).value == pytest.approx(0.625)
         assert panels.bound_x.convert_to(meter).value == pytest.approx(0.375)
         assert panels.target_x.convert_to(meter).value == pytest.approx(1.125)
+
+
+def test_composed_aircraft_exposes_geometry_without_trim_inputs() -> None:
+    """Geometry outputs are independently requestable from the same aircraft."""
+    with MODEL:
+        aircraft = example_aircraft(resolution=PanelResolution(wing=5, tail=3))
+        assert aircraft.wing_area.convert_to(meter**2).value == pytest.approx(18.0)
+        assert aircraft.tail_area.convert_to(meter**2).value == pytest.approx(4.05)
+        assert set(aircraft.wing_from_tail.domain.dims) == {WING_TARGET, TAIL_SOURCE}
+        assert aircraft.wing_width.domain.dims == (WING_SOURCE,)
+        assert aircraft.tail_twist.domain.dims == (TAIL_TARGET,)
+
+
+def test_composed_aircraft_validates_wake_on_influence_path() -> None:
+    with MODEL, pytest.raises(ValueError, match="wake length positive"):
+        _ = example_aircraft(geometry=example_geometry(wake_length=0.0 * meter)).wing_from_wing
