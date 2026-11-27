@@ -126,8 +126,8 @@ def test_an_answer_fed_back_in_as_an_input_is_read_in_its_own_unit() -> None:
         first = scale.doubled
         second = scale.doubled
 
-    assert isinstance(first, Tensor)
-    assert isinstance(second, Tensor)
+    assert isinstance(first, QuantityTensor)
+    assert isinstance(second, QuantityTensor)
     np.testing.assert_allclose(second.values, first.values)
 
 
@@ -272,7 +272,7 @@ def test_one_port_may_be_a_tensor_on_the_interface_and_a_quantity_in_a_constitue
     with Implementation(TensorScale, [tensor_doubling]):
         result = TensorScale(m=tensor([1.0, 2.0], over=time, unit=kilogram)).doubled
 
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     np.testing.assert_allclose(result.values, [2.0, 4.0])
 
 
@@ -371,7 +371,7 @@ def test_pointwise_quantity_boundary_accepts_scalar_and_tensor_without_ignores()
     with Implementation(GenericMassScale, [generic_mass_copy]):
         assert GenericMassScale(m=mass).doubled == mass
         answer = GenericMassScale(m=varied).doubled
-    assert isinstance(answer, Tensor)
+    assert isinstance(answer, QuantityTensor)
     np.testing.assert_array_equal(answer.values, [1.0, 2.0])
 
 
@@ -413,7 +413,7 @@ def test_concrete_quantity_tensor_reduction_preserves_outer_dimension() -> None:
     masses = tensor([[1.0, 2.0], [3.0, 4.0]], over=(scenario, time), unit=kilogram)
     with Implementation(ConcreteTensorTotals, [concrete_tensor_total]):
         result = ConcreteTensorTotals(m=masses).total
-    assert isinstance(result, Tensor)
+    assert isinstance(result, QuantityTensor)
     assert result.domain.dims == (scenario,)
     np.testing.assert_array_equal(result.values, [3.0, 7.0])
     if typing.TYPE_CHECKING:

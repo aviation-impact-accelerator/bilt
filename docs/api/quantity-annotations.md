@@ -33,7 +33,7 @@ axis.
 
 Write the dimension once, in an alias, and use it on systems and equations alike:
 
-```python exec="on" session="quantity-annotations"
+```python exec="on" session="quantity-annotations" source="above"
 from typing import Annotated
 
 from bilt import Implementation, Interface, Quantity, dim, equation, field, system, tensor
@@ -113,7 +113,7 @@ def grams(mass: Mass) -> Number:
 To get a Python `float` from a result you know is a scalar, call `float(...)`
 on its value; this also works for a tensor with no dimensions.
 
-```python exec="on" session="quantity-annotations"
+```python exec="on" session="quantity-annotations" source="above"
 assert float(scalar_result.value) == 4.0
 ```
 
@@ -131,7 +131,7 @@ type is `Tensor | QuantityTensor`.
 
 You can check what you were given with `isinstance`, against the same names:
 
-```python exec="on" session="quantity-annotations"
+```python exec="on" session="quantity-annotations" source="above"
 from bilt import QuantityTensor, Tensor
 
 assert isinstance(scalar_result, Quantity)
@@ -150,7 +150,7 @@ port refuses it. To test for a tensor of quantities, check `QuantityTensor`.
 Annotate an equation parameter `QuantityTensor` when the equation uses `sum`,
 `mean`, `isel`, `sel` or another named tensor method:
 
-```python exec="on" session="quantity-annotations"
+```python exec="on" session="quantity-annotations" source="above"
 type MassOverADomain = Annotated[QuantityTensor, MASS]
 
 
@@ -169,7 +169,7 @@ which axes remain.
 
 A tensor quantity port may require one or more named axes:
 
-```python exec="on" session="quantity-annotations"
+```python exec="on" session="quantity-annotations" source="above"
 from bilt import Domain
 
 type TimeMass = Annotated[QuantityTensor, MASS, Domain((time,))]

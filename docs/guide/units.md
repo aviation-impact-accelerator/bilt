@@ -24,7 +24,8 @@ from bilt.units import kilometer, meter
 
 
 distance = 5.0 * kilometer
-assert distance == Quantity(5.0, kilometer)
+assert distance.value == 5.0
+assert distance.unit == kilometer
 ```
 
 A **quantity** combines a numerical value with a unit. Both construction forms describe the same distance.
@@ -201,7 +202,7 @@ def distance_km(distance: ScalarLength) -> float:
 
 @transform
 def distance(distance_km: float) -> ScalarLength:
-    return Quantity(distance_km, kilometer)
+    return (distance_km * kilometer)
 ```
 
 <!-- markdown-exec: hidden setup -->
@@ -247,7 +248,7 @@ Bilt translates supported unit operations inside transforms into calculations on
 
 Outside a model, reading a returned quantity's `.value` is ordinary Python. Converting first still makes the numerical convention clear.
 
-Quantity constants can also be used in transforms, for example `distance + 500.0 * meter` or `distance + Quantity(0.5, kilometer)`. See [Units API](../api/units.md#quantities) for the supported operations and restrictions.
+Quantity constants can also be used in transforms, for example `distance + 500.0 * meter` or `distance + (0.5 * kilometer)`. See [Units API](../api/units.md#quantities) for the supported operations and restrictions.
 
 ## Declarations must agree throughout an implementation
 
@@ -276,7 +277,7 @@ half = 50.0 * percent
 assert half.convert_to(UNITLESS).value == 0.5
 ```
 
-A dimensionless system field still requires a quantity, such as `Quantity(0.5, UNITLESS)`; a bare `0.5` is refused.
+A dimensionless system field still requires a quantity, such as `(0.5 * UNITLESS)`; a bare `0.5` is refused.
 
 `DIMENSIONLESS` is the dimension used in declarations. `UNITLESS` is a unit used to construct or convert quantities.
 
@@ -355,7 +356,7 @@ def heating(
 
 with Implementation(Heater, [heating]):
     outlet = Heater(
-        inlet=Quantity(20.0, absolute_celsius),
+        inlet=(20.0 * absolute_celsius),
         rise=10.0 * celsius,
     ).outlet
 

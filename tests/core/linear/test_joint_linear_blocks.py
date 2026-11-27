@@ -83,7 +83,8 @@ def _evaluate(
     with EvaluationContext() as evaluation:
         evaluation.domains.bind_all(values.values())
         inputs = {
-            name: value.domain if isinstance(value, Tensor) else Domain.scalar() for name, value in values.items()
+            name: value.domain if isinstance(value, Tensor | QuantityTensor) else Domain.scalar()
+            for name, value in values.items()
         }
         case = CausalizationStructuralAnalyzer(operations, backend).analyse(
             EvaluationRequest(output=output, input_domains=inputs)
@@ -234,7 +235,7 @@ def test_joint_solve_retains_units_and_distinct_output_domains(backend: Backend,
         result = getattr(Lengths(p=tensor([0.002, 0.004, 0.006], over=TIME, unit=kilometer), q=1.0 * meter), output)
     assert result.unit == meter
     if output == "x":
-        assert isinstance(result, Tensor)
+        assert isinstance(result, QuantityTensor)
         assert result.domain == domain(TIME)
         np.testing.assert_allclose(result.values, [0, 2, 4], atol=1e-5)
     else:

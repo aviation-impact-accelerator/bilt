@@ -7,7 +7,7 @@ For choosing between the `Quantity`, `QuantityTensor`, `Number` and `Tensor` ann
 
 ## Imports and dimensions
 
-```python exec="on" session="units-api"
+```python exec="on" session="units-api" source="above"
 from typing import Annotated
 
 from bilt import Quantity, tensor
@@ -66,7 +66,7 @@ Conventions:
   relative to USD in 2025. They do not fetch live rates. Index a currency before
   using it as a unit; an unsupported year raises `AttributeError`.
 
-```python exec="on" session="units-api"
+```python exec="on" session="units-api" source="above"
 from bilt.units import GBP, USD, UNITLESS, percent
 
 assert (50.0 * percent).convert_to(UNITLESS).value == 0.5
@@ -92,7 +92,7 @@ number by a unit. Methods return a new quantity without changing the original.
 | `q**2` | Integer power. Floating-point powers are supported for dimensionless quantities. |
 | `+q`, `-q`, `abs(q)`, `round(q, ndigits)` | Apply the numerical operation and preserve the unit. |
 
-```python exec="on" session="units-api"
+```python exec="on" session="units-api" source="above"
 distance = 5.0 * kilometer
 assert distance.convert_to(meter).value == 5000.0
 ```
@@ -133,7 +133,7 @@ refused. Transform checks do not prove dimensional correctness of arbitrary Pyth
 
 Define shared custom units in a project module and import them where needed:
 
-```python exec="on" session="units-api"
+```python exec="on" session="units-api" source="above"
 from bilt.units import Unit, hour, meter
 
 nautical_mile = Unit.new_named("nautical_mile", relation=1852.0 * meter)
@@ -158,7 +158,7 @@ Use dimensions, such as `LENGTH / TIME`, in port declarations for these units to
 | `DECA`, `HECTO`, `KILO` | 1, 2, 3 |
 | `MEGA`, `GIGA`, `TERA`, `PETA`, `EXA` | 6, 9, 12, 15, 18 |
 
-```python exec="on" session="units-api"
+```python exec="on" session="units-api" source="above"
 from bilt.units import Prefix, Unit, second
 
 microsecond = Unit.new_named("microsecond", relation=second, prefix=Prefix.MICRO)
@@ -189,7 +189,7 @@ Import dimension constants and `ABSOLUTE` from `bilt.units.dimensions`.
 | `tag.value` | The tag's string value. |
 | `dimension * tag`, `unit * tag`, `quantity * tag` | Attach a tag to a dimension, unit or quantity. |
 
-```python exec="on" session="units-api"
+```python exec="on" session="units-api" source="above"
 from bilt.units import Metadata, kilogram
 from bilt.units.dimensions import MASS
 
