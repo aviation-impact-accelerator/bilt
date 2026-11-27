@@ -9,15 +9,21 @@ Bilt is a Python framework for scientific and engineering models built from equa
 
 ## Quick start
 
-Bilt requires **Python 3.15 or newer**, [uv](https://docs.astral.sh/uv/) and a [Rust toolchain](https://www.rust-lang.org/tools/install). It is currently installed from GitHub:
+Bilt requires **Python 3.15 or newer** and [uv](https://docs.astral.sh/uv/). Released wheels are available from the Bilt package index once the release build has completed. No Rust toolchain is needed for a supported platform:
 
 ```sh
 uv init --python 3.15 my-bilt-project
 cd my-bilt-project
+uv add bilt --index bilt=https://bilt-framework.github.io/bilt/packages/ --no-build-package bilt
+```
+
+The index targets Linux x86-64 (glibc 2.28+), macOS (Apple Silicon and Intel) and Windows x86-64. It serves stable releases only. For unreleased changes or an unsupported platform, install from GitHub with a [Rust toolchain](https://www.rust-lang.org/tools/install):
+
+```sh
 uv add "git+https://github.com/bilt-framework/bilt.git"
 ```
 
-If your existing project uses Bilt from its previous GitHub location, run the same `uv add` command to update the dependency source.
+If your existing project uses Bilt from its previous GitHub location, run the appropriate `uv add` command above to update the dependency source. The named index keeps Bilt tied to its own package source rather than a similarly named package on PyPI.
 
 Replace `main.py` with this model:
 
