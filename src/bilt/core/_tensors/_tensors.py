@@ -161,7 +161,7 @@ class Tensor:
         return dataclasses.replace(self, values=self.values * conversion.scale + conversion.offset, unit=unit)
 
     def _labelled(self, unit: Unit) -> QuantityTensor:
-        return QuantityTensor(values=self.values, domain=self.domain, unit=unit)
+        return _QuantityTensor(values=self.values, domain=self.domain, unit=unit)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -184,7 +184,7 @@ class QuantityTensor(Tensor):
     @property
     def value(self) -> Tensor:
         """The unitless magnitude, retaining the original tensor domain."""
-        return Tensor(values=self.values, domain=self.domain)
+        return _Tensor(values=self.values, domain=self.domain)
 
 
 # Internal concrete types; preserve public class identity until the protocol transition.
@@ -235,9 +235,9 @@ def tensor(
             domain = _domain_from_over(over)
         case None, None if array.ndim == 0:
             return (
-                QuantityTensor(values=array, domain=Domain.scalar(), unit=unit)
+                _QuantityTensor(values=array, domain=Domain.scalar(), unit=unit)
                 if unit is not None
-                else Tensor.scalar(array)
+                else _Tensor.scalar(array)
             )
         case None, None:
             message = "Non-scalar values need an explicit domain"
@@ -247,9 +247,9 @@ def tensor(
             raise BiltTensorDomainError(message)
 
     return (
-        QuantityTensor(values=array, domain=domain, unit=unit)
+        _QuantityTensor(values=array, domain=domain, unit=unit)
         if unit is not None
-        else Tensor(values=array, domain=domain)
+        else _Tensor(values=array, domain=domain)
     )
 
 
