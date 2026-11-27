@@ -91,9 +91,8 @@ def validated_span(  # noqa: PLR0913, PLR0917 - physical geometry inputs.
     panel_count: Ratio,
 ) -> Length:
     """Validate a physical surface before constructing its lattice."""
-    from typing import cast  # noqa: PLC0415 - backend runtime dependency.
-
     import math  # noqa: PLC0415 - backend runtime dependency.
+    from typing import cast  # noqa: PLC0415 - backend runtime dependency.
 
     span_value = cast("float", span)
     chord_value = cast("float", chord)

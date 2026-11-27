@@ -367,7 +367,7 @@ def test_invalid_surface_geometry_is_rejected(span: float, chord: float, panels:
         cg_x=1.0 * meter,
         wake_length=400.0 * meter,
     )
-    with MODEL, pytest.raises(ValueError, match="span, chord and panel count|Panel count"):
+    with MODEL, pytest.raises(ValueError, match=r"span, chord and panel count|Panel count"):
         _ = example_aircraft(geometry=geometry, resolution=PanelResolution(wing=panels, tail=2)).wing_width
 
 

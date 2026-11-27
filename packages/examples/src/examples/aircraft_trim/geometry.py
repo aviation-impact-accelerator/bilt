@@ -3,8 +3,8 @@
 import math
 from typing import Annotated
 
-from bilt import Implementation, Interface, Quantity, QuantityTensor, dim, equation, field, system, tensor, transform
-from bilt.units import fraction, meter, radian
+from bilt import Implementation, Interface, Quantity, QuantityTensor, dim, equation, field, system, transform
+from bilt.units import meter, radian
 from bilt.units.dimensions import DIMENSIONLESS, LENGTH
 
 PANEL = dim("panel")
