@@ -1,0 +1,132 @@
+name: release wheels
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/release-wheels.yml"
+      - ".github/workflows/docs.yml"
+      - ".github/scripts/package-index*"
+      - "rust/**"
+      - "Cargo.*"
+      - "rust-toolchain.toml"
+      - "pyproject.toml"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing published release tag (for example 0.4.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  index-check:
+    name: Test package index generation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: node --test .github/scripts/package-index.test.mjs
+
+  build:
+    name: Build wheel (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64
+            manylinux: "2_28"
+          - os: macos-15
+            target: aarch64
+            manylinux: auto
+          - os: macos-15-intel
+            target: x86_64
+            manylinux: auto
+          - os: windows-latest
+            target: x86_64
+            manylinux: auto
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag || github.sha }}
+          persist-credentials: false
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v10.3.2
+        with:
+          python-version: "3.15"
+          enable-cache: false
+
+      - name: Build wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          rust-toolchain: "1.99.1"
+          args: --release --locked --out dist -i python3.15
+
+      - name: Test installed wheel
+        run: |
+          uv venv --python 3.15 .wheel-test
+          uv pip install --python .wheel-test --only-binary :all: dist/*.whl
+          uv run --no-project --python .wheel-test python -c "import bilt; import bilt._native"
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  publish:
+    name: Attach wheels to release
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    needs: [index-check, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-wheels-${{ github.event.release.tag_name || inputs.tag }}
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          merge-multiple: true
+          path: dist
+
+      - name: Upload wheels without replacing existing assets
+        run: |
+          set -euo pipefail
+          test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = false
+          version="${RELEASE_TAG#v}"
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          test "${#wheels[@]}" -eq 4
+          for wheel in "${wheels[@]}"; do
+            [[ "$(basename "$wheel")" == "bilt-$version-"* ]] || exit 1
+          done
+          # Never overwrite an existing release asset.
+          gh release upload "$RELEASE_TAG" "${wheels[@]}"
+
+  deploy:
+    name: Refresh documentation and package index
+    needs: publish
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/docs.yml

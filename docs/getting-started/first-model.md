@@ -6,11 +6,17 @@ You only need basic Python. You do not need to understand symbolic algebra or so
 
 ## 1. Set up a project
 
-Bilt requires Python 3.15 or newer and a [Rust toolchain](https://www.rust-lang.org/tools/install) when building from source. We'll use [uv](https://docs.astral.sh/uv/) to create a project and install Bilt from GitHub:
+Bilt requires Python 3.15 or newer. We'll use [uv](https://docs.astral.sh/uv/) to create a project and install a pre-built release wheel from the Bilt package index:
 
 ```sh
 uv init --python 3.15 my-bilt-project
 cd my-bilt-project
+uv add bilt --index bilt=https://bilt-framework.github.io/bilt/packages/ --no-build-package bilt
+```
+
+Wheels are published for Linux x86-64 (glibc 2.28+), macOS (Apple Silicon and Intel) and Windows x86-64. If no compatible wheel is available, or you need unreleased changes, install from source instead with a [Rust toolchain](https://www.rust-lang.org/tools/install):
+
+```sh
 uv add "git+https://github.com/bilt-framework/bilt.git"
 ```
 
