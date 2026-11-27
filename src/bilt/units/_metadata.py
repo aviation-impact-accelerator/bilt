@@ -2,7 +2,7 @@ import typing
 
 from bilt.units._errors import BiltMetadataError
 
-from ._quantities import Quantity
+from ._quantities import _Quantity
 from ._units import Unit, UnitComposition, UnitOrder
 from .dimensions._dimensions import Dimension
 
@@ -39,15 +39,15 @@ class Metadata:
     def __rmul__(self, other: Unit) -> Unit: ...
 
     @typing.overload
-    def __rmul__(self, other: Quantity) -> Quantity: ...
+    def __rmul__(self, other: _Quantity) -> _Quantity: ...
 
-    def __rmul__(self, other: Dimension | Unit | Quantity) -> Dimension | Unit | Quantity:
+    def __rmul__(self, other: Dimension | Unit | _Quantity) -> Dimension | Unit | _Quantity:
         if isinstance(other, Dimension):
             return Dimension(tagged={(other, self): 1})
         if isinstance(other, Unit):
             return Unit(UnitComposition(UnitOrder(other, 1)), metadata=self)
-        if isinstance(other, Quantity):
-            return Quantity(other.value, other.unit * self)
+        if isinstance(other, _Quantity):
+            return _Quantity(other.value, other.unit * self)
         return NotImplemented
 
     def __lt__(self, other: Metadata | None) -> bool:
