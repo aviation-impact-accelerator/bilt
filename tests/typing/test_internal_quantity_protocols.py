@@ -7,10 +7,8 @@ Concrete implementation conformance is part of the subsequent API transition.
 import typing
 
 from bilt import dim
-
-if typing.TYPE_CHECKING:
-    from bilt.core._tensors._protocols import Number, QuantityTensor, Tensor
-    from bilt.units._protocols import Quantity
+from bilt.core._tensors._protocols import Number, QuantityTensor, Tensor
+from bilt.units._protocols import Quantity
 
 
 time = dim("time")
