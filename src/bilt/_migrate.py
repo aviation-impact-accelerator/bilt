@@ -426,7 +426,8 @@ class QuantityMigration(ApiChecker):
                         self.visit(condition)
                 if isinstance(node, ast.DictComp):
                     self.visit(node.key)
-                    self.visit(node.value)
+                    if node.value is not None:
+                        self.visit(node.value)
                 else:
                     self.visit(node.elt)
             finally:
