@@ -14,6 +14,30 @@ _SKIP = frozenset({".venv", "venv", "build", "dist", "node_modules", "__pycache_
 _QUANTITY = frozenset({"bilt.Quantity", "bilt.units.Quantity"})
 _TENSOR = "bilt.QuantityTensor"
 _PAIR = 2
+_DIMENSIONS = frozenset(
+    {
+        "AMOUNT",
+        "AREA",
+        "CHARGE",
+        "CONDUCTANCE",
+        "CURRENCY",
+        "CURRENT",
+        "DIMENSIONLESS",
+        "DYNAMIC_VISCOSITY",
+        "ENERGY",
+        "FORCE",
+        "LENGTH",
+        "LUMINOSITY",
+        "MASS",
+        "POWER",
+        "PRESSURE",
+        "RESISTANCE",
+        "TEMPERATURE",
+        "TIME",
+        "VOLTAGE",
+        "VOLUME",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,7 +56,7 @@ class Migration:
 class QuantityMigration(ApiChecker):
     """Use the checker's name resolution, but edit only unambiguous source spans."""
 
-    def __init__(self, source: str) -> None:
+    def __init__(self, source: str, tree: ast.Module) -> None:
         super().__init__("", "", {})
         self.source = source.encode()
         self.offsets = [0]
@@ -40,6 +64,18 @@ class QuantityMigration(ApiChecker):
             self.offsets.append(self.offsets[-1] + len(line))
         self.edits: list[Edit] = []
         self.notes: list[str] = []
+        self.imports: set[str] = set()
+        self.tree = tree
+        self.names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+        self.names.update(node.arg for node in ast.walk(tree) if isinstance(node, ast.arg))
+        self.names.update(
+            node.asname or node.name.split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.alias)
+        )
+        self.names.update(
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        )
 
     def _span(self, node: ast.expr) -> tuple[int, int]:
         assert node.end_lineno is not None  # noqa: S101
@@ -53,9 +89,9 @@ class QuantityMigration(ApiChecker):
         start, end = self._span(node)
         return self.source[start:end]
 
-    def _replace(self, node: ast.expr, replacement: bytes) -> bool:
+    def _replace(self, node: ast.expr, replacement: bytes, *, multiline: bool = False) -> bool:
         original = self._text(node)
-        if b"#" in original or b"\n" in original or b"\r" in original:
+        if b"#" in original or (not multiline and (b"\n" in original or b"\r" in original)):
             self.notes.append(f"{node.lineno}: review multiline or commented expression manually")
             return False
         start, end = self._span(node)
@@ -68,31 +104,102 @@ class QuantityMigration(ApiChecker):
             left = self._constructor_reference(node.left)
             right = self._constructor_reference(node.right)
             if left in _QUANTITY and right == _TENSOR:
-                if self._replace(node, self._text(node.left)):
+                if self._replace(node, self._text(node.left), multiline=True):
                     return
-            elif right in _QUANTITY and left == _TENSOR and self._replace(node, self._text(node.right)):
+            elif right in _QUANTITY and left == _TENSOR and self._replace(node, self._text(node.right), multiline=True):
                 return
         self.generic_visit(node)
 
-    def _factory(self) -> bytes | None:
+    def _public_name(self, member: str) -> bytes:
         for name, kind in self.bindings.items():
-            if kind == "bilt" and name.isidentifier():
-                return f"{name}.tensor".encode()
-        return None
+            if kind == f"bilt.{member}":
+                return name.encode()
+            if kind == "bilt":
+                return f"{name}.{member}".encode()
+        # Reserve a globally unused identifier, including names in nested scopes.
+        name = member
+        while name in self.names:
+            name = "_" + name
+        self.imports.add(member if name == member else f"{member} as {name}")
+        return name.encode()
+
+    def import_edit(self) -> Edit | None:
+        if not self.imports:
+            return None
+        body = self.tree.body
+        index = 0
+        if ast.get_docstring(self.tree) is not None:
+            index = 1
+        while index < len(body):
+            statement = body[index]
+            if not isinstance(statement, ast.ImportFrom) or statement.module != "__future__":
+                break
+            index += 1
+        if index == len(body):
+            return None
+        offset = self.offsets[body[index].lineno - 1]
+        if index and body[index - 1].end_lineno == body[index].lineno:
+            msg = "Cannot insert imports after a same-line docstring or future import"
+            raise ValueError(msg)
+        newline = b"\r\n" if b"\r\n" in self.source else b"\n"
+        source = ("from bilt import " + ", ".join(sorted(self.imports))).encode() + newline
+        return Edit(offset, offset, source)
+
+    def _dimension(self, node: ast.expr) -> bool:
+        path = self._resolve(node)
+        return path is not None and path.startswith("bilt.units.dimensions.") and path.rsplit(".", 1)[-1] in _DIMENSIONS
+
+    @typing.override
+    def visit_Subscript(self, node: ast.Subscript) -> None:
+        if self._resolve(node.value) == "typing.Annotated" and isinstance(node.slice, ast.Tuple) and node.slice.elts:
+            base, *metadata = node.slice.elts
+            if self._constructor_reference(base) == "bilt.Tensor" and any(map(self._dimension, metadata)):
+                self._replace(base, self._public_name("QuantityTensor"))
+        self.generic_visit(node)
+
+    def _arguments(self, node: ast.Call, parameters: tuple[str, ...]) -> dict[str, ast.expr] | None:
+        if len(node.args) > len(parameters) or any(isinstance(arg, ast.Starred) for arg in node.args):
+            return None
+        result = dict(zip(parameters, node.args, strict=False))
+        for keyword in node.keywords:
+            if keyword.arg is None or keyword.arg not in parameters or keyword.arg in result:
+                return None
+            result[keyword.arg] = keyword.value
+        return result
+
+    def _quantity_call(self, node: ast.Call) -> bool:
+        args = self._arguments(node, ("value", "unit"))
+        # Keep evaluation order: unit= before value= may have side effects.
+        if args is None or tuple(args) != ("value", "unit"):
+            return False
+        value, unit = args.values()
+        return self._replace(node, b"((" + self._text(value) + b") * (" + self._text(unit) + b"))")
+
+    def _tensor_call(self, node: ast.Call, kind: str) -> bool:
+        scalar = kind == "bilt.Tensor.scalar"
+        parameters = ("value", "unit") if scalar else ("values", "domain", "unit")
+        args = self._arguments(node, parameters)
+        if args is None or parameters[0] not in args or (not scalar and "domain" not in args):
+            return False
+        if kind == "bilt.QuantityTensor" and "unit" not in args:
+            return False
+        # Only change the callee and positional argument labels when possible.
+        # Rebuilding a commented or multiline call remains a manual operation.
+        if any(mark in self._text(node) for mark in (b"#", b"\n", b"\r")):
+            return False
+        factory = self._public_name("tensor")
+        parts = [
+            (("values" if name == "value" else name).encode() + b"=" + self._text(arg)) for name, arg in args.items()
+        ]
+        if scalar and next(iter(args)) == "value":
+            parts[0] = self._text(args["value"])
+        return self._replace(node, factory + b"(" + b", ".join(parts) + b")")
 
     def _migrate_call(self, node: ast.Call, kind: str) -> bool:
-        if kind in _QUANTITY and len(node.args) == _PAIR and not node.keywords:
-            value, unit = node.args
-            if not isinstance(value, ast.Starred) and not isinstance(unit, ast.Starred):
-                return self._replace(node, b"((" + self._text(value) + b") * (" + self._text(unit) + b"))")
-        if (
-            kind == "bilt.Tensor.scalar"
-            and len(node.args) == 1
-            and not isinstance(node.args[0], ast.Starred)
-            and all(kw.arg == "unit" for kw in node.keywords)
-            and (factory := self._factory()) is not None
-        ):
-            return self._replace(node.func, factory)
+        if kind in _QUANTITY:
+            return self._quantity_call(node)
+        if kind in {"bilt.Tensor", "bilt.QuantityTensor", "bilt.Tensor.scalar"}:
+            return self._tensor_call(node, kind)
         return False
 
     @typing.override
@@ -151,11 +258,14 @@ class QuantityMigration(ApiChecker):
 
 def migrate_source(source: str) -> Migration:
     """Rewrite a source string without importing or executing the model."""
-    visitor = QuantityMigration(source)
-    visitor.visit(ast.parse(source))
+    tree = ast.parse(source)
+    visitor = QuantityMigration(source, tree)
+    visitor.visit(tree)
+    if (edit := visitor.import_edit()) is not None:
+        visitor.edits.append(edit)
     result = visitor.source
     boundary = len(result)
-    for edit in sorted(visitor.edits, key=lambda item: item.start, reverse=True):
+    for edit in sorted(visitor.edits, key=lambda item: (item.start, item.end), reverse=True):
         if edit.end > boundary:
             msg = "Overlapping migration edits"
             raise ValueError(msg)

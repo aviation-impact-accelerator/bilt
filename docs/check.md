@@ -52,8 +52,8 @@ uv run bilt check .
 ```
 
 The first command previews a unified diff without writing files. The second applies safe source edits.
-The migration does not import your models. It handles positional quantity constructors and simple pointwise unions, and can replace scalar tensor factories when a Bilt module alias is available.
-It leaves ambiguous expressions, commented or multiline replacements, and runtime tensor classification for manual review.
+The migration does not import your models. It handles positional and ordered keyword quantity constructors, direct tensor constructors, scalar tensor factories, pointwise unions (including multiline unions without comments), and tensor annotations with directly imported physical dimensions. Required public imports are added automatically, using a fresh alias if necessary.
+It leaves ambiguous expressions, reordered quantity keywords, commented expressions, multiline constructor replacements and runtime tensor classification for manual review.
 Unused imports and more complex aliases may need manual cleanup. Review the diff and run the model tests afterwards.
 Exit status 1 means that manual review or a source error remains; 2 means the target is invalid.
 
