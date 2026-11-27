@@ -28,7 +28,8 @@ from bilt.symbolic._tree import (
     sum_tree,
     symbol_tree,
 )
-from bilt.units import Metadata, Quantity, Unit
+from bilt.units import Metadata, Unit
+from bilt.units._quantities import _Quantity
 from bilt.units._category import UnitCategory
 from bilt.units._units import BASE_UNIT_SYSTEM
 
@@ -311,7 +312,7 @@ def as_tree(value: object) -> Tree:
     if isinstance(value, float):
         return float_tree(value)
 
-    if isinstance(value, Quantity):
+    if isinstance(value, _Quantity):
         return quantity_tree(
             BASE_UNIT_SYSTEM.coherent_value(value),
             value.unit.dimension,
@@ -325,7 +326,7 @@ def as_tree(value: object) -> Tree:
                 f"Use its relative unit '{value.relation}' instead."
             )
             raise BiltSymbolicConversionError(msg)
-        return as_tree(Quantity(1.0, value))
+        return as_tree(_Quantity(1.0, value))
 
     if isinstance(value, Metadata):
         msg = (
