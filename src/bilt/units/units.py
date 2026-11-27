@@ -9,6 +9,7 @@ __all__ = [
     "absolute_celsius",
     "absolute_fahrenheit",
     "absolute_kelvin",
+    "absolute_second",
     "absolute_year",
     "acre",
     "ampere",
@@ -136,7 +137,10 @@ minute = Unit.new_named("minute", relation=60.0 * second)
 hour = Unit.new_named("hour", relation=60.0 * minute)
 day = Unit.new_named("day", relation=24.0 * hour)
 year = Unit.new_named("year", relation=365.25 * day)
-absolute_year = Unit.new_absolute("|year|", scale=year)
+# Absolute times are modelling coordinates, not civil-calendar timestamps.
+# The reference origin is arbitrary but shared by both units.
+absolute_second = Unit.new_absolute("|second|", scale=second)
+absolute_year = Unit.new_absolute("|year|", scale=year, zero=0.0 * absolute_second)
 
 # Temperature
 celsius = Unit.new_named("celsius", kelvin)

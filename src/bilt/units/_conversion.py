@@ -67,6 +67,23 @@ def _find_common_unit_index(
     return index
 
 
+def _absolute_step_scale(unit: Unit) -> float:
+    """Scale a point-unit step into the relative unit of its declared zero.
+
+    A named step may be defined through several intermediate relative units:
+    'year' -> 'day' -> 'hour' -> 'minute' -> 'second'. Its immediate
+    relation.scale is not necessarily the scale of the unit locating its zero.
+    """
+    if unit.offset is None:
+        message = f"Absolute unit {unit!s} has no zero in another absolute unit"
+        raise BiltUnitError(message)
+
+    step_unit = unit.relation.composition[0].unit
+    origin_unit = unit.offset.composition[0].unit
+    origin_step_unit = origin_unit.relation.composition[0].unit
+    return _relative_conversion(step_unit, origin_step_unit).scale
+
+
 def _absolute_conversion(
     source: Unit,
     target: Unit,
@@ -92,7 +109,7 @@ def _absolute_conversion(
     offset = 0.0
 
     for via_unit in reversed(start_unit_stack[index:]):
-        via_scale = via_unit.relation.composition[0].unit.relation.scale
+        via_scale = _absolute_step_scale(via_unit)
 
         scale *= via_scale
         offset *= via_scale
@@ -104,7 +121,7 @@ def _absolute_conversion(
         if via_unit.offset is not None:
             offset -= via_unit.offset.scale
 
-        via_scale = via_unit.relation.composition[0].unit.relation.scale
+        via_scale = _absolute_step_scale(via_unit)
 
         scale /= via_scale
         offset /= via_scale

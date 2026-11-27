@@ -399,7 +399,7 @@ def test_a_tag_beside_the_dimensionality_raises(
 
 
 @pytest.mark.parametrize(("declare", "owner", "port"), SITES)
-@pytest.mark.parametrize("annotation", (AbsoluteTime, AbsoluteTemperatureRate))
+@pytest.mark.parametrize("annotation", (AbsoluteTemperatureRate,))
 def test_an_absolute_marker_where_the_coherent_unit_has_no_absolute_counterpart_raises(
     declare: collections.abc.Callable[[object], None],
     owner: str,
@@ -420,6 +420,14 @@ def test_an_absolute_marker_without_a_dimensionality_raises(
 ) -> None:
     with pytest.raises(BiltPortDeclarationError, match=f"Port '{port}' of '{owner}' is marked ABSOLUTE without"):
         declare(AbsoluteFloat)
+
+
+def test_absolute_time_port_can_be_declared() -> None:
+    @system
+    class Timeline(metaclass=Interface):
+        reference: AbsoluteTime = field()
+
+    assert Timeline.__bilt_port_declarations__ == {"reference": PortDeclaration(TIME, absolute=True)}
 
 
 def test_a_dimensionality_on_a_tensor_is_the_same_declaration_as_on_a_quantity() -> None:

@@ -4,7 +4,7 @@ import typing
 
 import pytest
 
-from bilt import Implementation, Interface, QuantityTensor, equation, field, system, transform
+from bilt import Implementation, Interface, QuantityTensor, dim, equation, field, system, tensor, transform
 from bilt.errors import BiltDefinitionError, BiltEquationDimensionalityError, BiltInputDimensionalityError
 from bilt.units import Quantity
 from bilt.units.dimensions import ABSOLUTE, AMOUNT, DIMENSIONLESS, ENERGY, MASS, PRESSURE, TEMPERATURE, TIME, VOLUME
@@ -12,6 +12,7 @@ from bilt.units.units import (
     absolute_celsius,
     absolute_fahrenheit,
     absolute_kelvin,
+    absolute_second,
     absolute_year,
     celsius,
     fahrenheit,
@@ -19,10 +20,13 @@ from bilt.units.units import (
     kelvin,
     kilogram,
     mole,
+    year,
 )
 
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
 AbsoluteTemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
+AbsoluteTime = typing.Annotated[Quantity, TIME, ABSOLUTE]
+ElapsedTime = typing.Annotated[Quantity, TIME]
 Temperature = typing.Annotated[Quantity, TEMPERATURE]
 TemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE]
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
@@ -396,13 +400,66 @@ def test_a_coherent_conversion_in_the_iterable_of_a_comprehension_is_still_erase
         assert Probe(reading=Quantity(10.0, absolute_celsius)).degrees == pytest.approx(50.0)
 
 
-def test_an_absolute_unit_with_no_coherent_counterpart_is_refused_in_a_transform() -> None:
-    with pytest.raises(
-        BiltDefinitionError,
-        match=r"`absolute_year` cannot be converted to a coherent unit, so `Quantity\(elapsed, absolute_year\)` "
-        r"cannot use it",
-    ):
+def test_absolute_year_can_be_constructed_in_an_absolute_time_transform() -> None:
+    @system
+    class Clock(metaclass=Interface):
+        year_label: float = field()
+        started: typing.Annotated[Quantity | QuantityTensor, TIME, ABSOLUTE] = field()
 
-        @transform
-        def started(elapsed: float) -> typing.Annotated[Quantity, TIME]:
-            return Quantity(elapsed, absolute_year)
+    @transform
+    def started(year_label: float) -> typing.Annotated[Quantity, TIME, ABSOLUTE]:
+        return Quantity(year_label, absolute_year)
+
+    with Implementation(Clock, [started]):
+        result = Clock(year_label=2025.0).started
+
+    assert isinstance(result, Quantity)
+    assert result.unit is absolute_second
+    assert result.convert_to(absolute_year).value == pytest.approx(2025.0)
+
+
+def test_absolute_year_ports_support_acausal_time_arithmetic() -> None:
+    @system
+    class Timeline(metaclass=Interface):
+        date: typing.Annotated[Quantity | QuantityTensor, TIME, ABSOLUTE] = field()
+        start_date: typing.Annotated[Quantity | QuantityTensor, TIME, ABSOLUTE] = field()
+        elapsed: typing.Annotated[Quantity | QuantityTensor, TIME] = field()
+
+    @equation
+    def elapsed(date: AbsoluteTime, start_date: AbsoluteTime, elapsed: ElapsedTime) -> bool:
+        return elapsed == date - start_date
+
+    with Implementation(Timeline, [elapsed]):
+        finish = Timeline(start_date=Quantity(2025.0, absolute_year), elapsed=5.0 * year).date
+        duration = Timeline(
+            start_date=Quantity(2025.0, absolute_year),
+            date=Quantity(2030.0, absolute_year),
+        ).elapsed
+        start = Timeline(date=Quantity(2030.0, absolute_year), elapsed=5.0 * year).start_date
+
+    assert finish.unit is absolute_second
+    assert finish.convert_to(absolute_year).value == pytest.approx(2030.0)
+    assert duration.convert_to(year).value == pytest.approx(5.0)
+    assert start.convert_to(absolute_year).value == pytest.approx(2025.0)
+
+
+def test_absolute_year_tensors_preserve_named_axes_in_equations() -> None:
+    @system
+    class Timeline(metaclass=Interface):
+        date: typing.Annotated[Quantity | QuantityTensor, TIME, ABSOLUTE] = field()
+        start_date: typing.Annotated[Quantity | QuantityTensor, TIME, ABSOLUTE] = field()
+        elapsed: typing.Annotated[Quantity | QuantityTensor, TIME] = field()
+
+    @equation
+    def elapsed(date: AbsoluteTime, start_date: AbsoluteTime, elapsed: ElapsedTime) -> bool:
+        return elapsed == date - start_date
+
+    with Implementation(Timeline, [elapsed]):
+        result = Timeline(
+            date=tensor([2025.0, 2030.0], over=dim("modelling_date"), unit=absolute_year),
+            start_date=Quantity(2020.0, absolute_year),
+        ).elapsed
+
+    assert isinstance(result, QuantityTensor)
+    assert result.domain.dims == (dim("modelling_date"),)
+    assert result.convert_to(year).values.tolist() == pytest.approx([5.0, 10.0])
