@@ -1,7 +1,14 @@
 """Source-only migration regression tests."""
 
+import typing
+
 from bilt._cli import main
 from bilt._migrate import migrate_source
+
+if typing.TYPE_CHECKING:
+    from pathlib import Path
+
+    import pytest
 
 
 def test_quantity_constructor_and_union() -> None:
@@ -35,7 +42,7 @@ def test_utf8_offsets_and_line_endings() -> None:
     assert migrate_source(source).source == "from bilt import Quantity\r\nname = 'é'; x = ((2) * (meter))\r\n"
 
 
-def test_cli_preview_and_write(tmp_path, capsys) -> None:
+def test_cli_preview_and_write(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     path = tmp_path / "model.py"
     original = "from bilt import Quantity\nx = Quantity(2, meter)\n"
     path.write_text(original, encoding="utf-8")

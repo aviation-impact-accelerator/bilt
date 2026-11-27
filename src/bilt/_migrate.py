@@ -4,6 +4,7 @@ import ast
 import difflib
 import os
 import sys
+import typing
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -61,6 +62,7 @@ class QuantityMigration(ApiChecker):
         self.edits.append(Edit(start, end, replacement))
         return True
 
+    @typing.override
     def visit_BinOp(self, node: ast.BinOp) -> None:
         if isinstance(node.op, ast.BitOr):
             left = self._constructor_reference(node.left)
@@ -83,48 +85,67 @@ class QuantityMigration(ApiChecker):
             value, unit = node.args
             if not isinstance(value, ast.Starred) and not isinstance(unit, ast.Starred):
                 return self._replace(node, b"((" + self._text(value) + b") * (" + self._text(unit) + b"))")
-        if kind == "bilt.Tensor.scalar" and len(node.args) == 1 and not isinstance(node.args[0], ast.Starred):
-            if all(kw.arg == "unit" for kw in node.keywords) and (factory := self._factory()) is not None:
-                return self._replace(node.func, factory)
+        if (
+            kind == "bilt.Tensor.scalar"
+            and len(node.args) == 1
+            and not isinstance(node.args[0], ast.Starred)
+            and all(kw.arg == "unit" for kw in node.keywords)
+            and (factory := self._factory()) is not None
+        ):
+            return self._replace(node.func, factory)
         return False
 
+    @typing.override
     def visit_Call(self, node: ast.Call) -> None:
         kind = self._constructor_reference(node.func)
         if kind is not None:
             if self._migrate_call(node, kind):
                 return
             self.notes.append(f"{node.lineno}: review obsolete {kind} constructor manually")
-        elif isinstance(node.func, ast.Name) and node.func.id == "isinstance" and len(node.args) == _PAIR:
-            if self._constructor_reference(node.args[1]) == "bilt.Tensor":
-                self.notes.append(f"{node.lineno}: review Tensor runtime check for unit-bearing values")
+        elif (
+            isinstance(node.func, ast.Name)
+            and node.func.id == "isinstance"
+            and len(node.args) == _PAIR
+            and self._constructor_reference(node.args[1]) == "bilt.Tensor"
+        ):
+            self.notes.append(f"{node.lineno}: review Tensor runtime check for unit-bearing values")
         super().visit_Call(node)
 
+    @typing.override
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         # The checker is flow-sensitive, not a full lexical scope analyser.
         # Skip bodies that can shadow imported names before their assignment.
-        if any(isinstance(item, (ast.Name, ast.Global, ast.Nonlocal)) and (
-            not isinstance(item, ast.Name) or isinstance(item.ctx, (ast.Store, ast.Del))
-        ) for item in ast.walk(node)):
+        if any(
+            isinstance(item, (ast.Name, ast.Global, ast.Nonlocal))
+            and (not isinstance(item, ast.Name) or isinstance(item.ctx, (ast.Store, ast.Del)))
+            for item in ast.walk(node)
+        ):
             self.notes.append(f"{node.lineno}: review function with local bindings manually")
             return
         super().visit_FunctionDef(node)
 
+    @typing.override
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self.notes.append(f"{node.lineno}: review asynchronous function manually")
 
-    def visit_Lambda(self, node: ast.Lambda) -> None:
+    @typing.override
+    def visit_Lambda(self, _node: ast.Lambda) -> None:
         return
 
-    def visit_ListComp(self, node: ast.ListComp) -> None:
+    @typing.override
+    def visit_ListComp(self, _node: ast.ListComp) -> None:
         return
 
-    def visit_SetComp(self, node: ast.SetComp) -> None:
+    @typing.override
+    def visit_SetComp(self, _node: ast.SetComp) -> None:
         return
 
-    def visit_DictComp(self, node: ast.DictComp) -> None:
+    @typing.override
+    def visit_DictComp(self, _node: ast.DictComp) -> None:
         return
 
-    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
+    @typing.override
+    def visit_GeneratorExp(self, _node: ast.GeneratorExp) -> None:
         return
 
 
@@ -151,12 +172,12 @@ def _files(target: Path) -> list[Path]:
     files: list[Path] = []
     for parent, directories, names in os.walk(target):
         directories[:] = sorted(
-            name for name in directories if name not in _SKIP and not name.startswith(".")
-            and not (Path(parent) / name).is_symlink()
+            name
+            for name in directories
+            if name not in _SKIP and not name.startswith(".") and not (Path(parent) / name).is_symlink()
         )
         files.extend(
-            Path(parent) / name for name in sorted(names)
-            if name.endswith(".py") and not (Path(parent) / name).is_symlink()
+            Path(parent) / name for name in sorted(names) if name.endswith(".py") and not (Path(parent) / name).is_symlink()
         )
     return files
 
@@ -177,10 +198,14 @@ def migrate(target: Path, *, write: bool) -> int:
                 if write:
                     path.write_bytes(result.source.encode())
                 else:
-                    sys.stdout.writelines(difflib.unified_diff(
-                        source.splitlines(keepends=True), result.source.splitlines(keepends=True),
-                        fromfile=str(path), tofile=str(path),
-                    ))
+                    sys.stdout.writelines(
+                        difflib.unified_diff(
+                            source.splitlines(keepends=True),
+                            result.source.splitlines(keepends=True),
+                            fromfile=str(path),
+                            tofile=str(path),
+                        )
+                    )
             for note in result.notes:
                 sys.stderr.write(f"{path}:{note}\n")
             unresolved += len(result.notes)
