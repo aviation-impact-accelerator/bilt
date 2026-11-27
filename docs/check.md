@@ -43,6 +43,20 @@ Evaluate models through declared system fields within implementation and backend
 
 The source checks recognise direct imports, aliases, simple assignments, annotations and straightforward imports between selected files. They are not a complete Python type checker: dynamic dispatch, arbitrary factories and complex re-exports may escape detection. Ordinary methods on unrelated objects are not rejected merely because their names match internal Bilt methods.
 
+## Migrate the old quantity API
+
+```shell
+uv run bilt migrate .
+uv run bilt migrate . --write
+uv run bilt check .
+```
+
+The first command previews a unified diff without writing files. The second applies safe source edits.
+The migration does not import your models. It handles positional quantity constructors and simple pointwise unions, and can replace scalar tensor factories when a Bilt module alias is available.
+It leaves ambiguous expressions, commented or multiline replacements, and runtime tensor classification for manual review.
+Unused imports and more complex aliases may need manual cleanup. Review the diff and run the model tests afterwards.
+Exit status 1 means that manual review or a source error remains; 2 means the target is invalid.
+
 ## Run with prek
 
 Add a local hook to your project's `prek.toml`:
