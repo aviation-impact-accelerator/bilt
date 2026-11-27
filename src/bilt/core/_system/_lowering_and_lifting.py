@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, SupportsFloat, cast
 
 from bilt.core._canonical_ordering import canonicalized
 from bilt.core._evaluation_context import current_evaluation
-from bilt.core._tensors._tensors import _Tensor, tensor
+from bilt.core._tensors._tensors import _TensorBase, tensor
 from bilt.units._quantities import _Quantity
 from bilt.units._units import BASE_UNIT_SYSTEM
 
@@ -30,7 +30,7 @@ class LiftingPlan:
 def lower_inputs(inputs: dict[str, object]) -> dict[str, object]:
     lowered_inputs: dict[str, object] = {}
     for input_name, input_value in inputs.items():
-        if isinstance(input_value, _Tensor):
+        if isinstance(input_value, _TensorBase):
             if input_value.unit is None:
                 lowered_inputs[input_name] = input_value.values
             else:
@@ -57,7 +57,7 @@ def generate_lifting_plan(
     )
 
 
-def lift_output(output_value: object, lifting_plan: LiftingPlan) -> _Tensor | object:
+def lift_output(output_value: object, lifting_plan: LiftingPlan) -> _TensorBase | object:
     if lifting_plan.squeezed_axes:
         output_value = _squeeze_axes(output_value, lifting_plan.squeezed_axes)
     if lifting_plan.should_lift_into_tensor:
