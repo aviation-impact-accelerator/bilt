@@ -15,8 +15,28 @@ _QUANTITY = frozenset({"bilt.Quantity", "bilt.units.Quantity"})
 _TENSOR = "bilt.QuantityTensor"
 _PAIR = 2
 _DIMENSIONS = frozenset(
-    "AMOUNT AREA CHARGE CONDUCTANCE CURRENCY CURRENT DIMENSIONLESS DYNAMIC_VISCOSITY ENERGY FORCE "
-    "LENGTH LUMINOSITY MASS POWER PRESSURE RESISTANCE TEMPERATURE TIME VOLTAGE VOLUME".split()
+    {
+        "AMOUNT",
+        "AREA",
+        "CHARGE",
+        "CONDUCTANCE",
+        "CURRENCY",
+        "CURRENT",
+        "DIMENSIONLESS",
+        "DYNAMIC_VISCOSITY",
+        "ENERGY",
+        "FORCE",
+        "LENGTH",
+        "LUMINOSITY",
+        "MASS",
+        "POWER",
+        "PRESSURE",
+        "RESISTANCE",
+        "TEMPERATURE",
+        "TIME",
+        "VOLTAGE",
+        "VOLUME",
+    }
 )
 
 
@@ -180,7 +200,7 @@ class QuantityMigration(ApiChecker):
             (("values" if name == "value" else name).encode() + b"=" + self._text(arg))
             for name, arg in args.items()
         ]
-        if scalar and tuple(args)[0] == "value":
+        if scalar and next(iter(args)) == "value":
             parts[0] = self._text(args["value"])
         return self._replace(node, factory + b"(" + b", ".join(parts) + b")")
 
