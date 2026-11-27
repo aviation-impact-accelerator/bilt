@@ -62,13 +62,7 @@ def test_comprehension_scopes_and_module_alias() -> None:
 
 
 def test_import_collision_future_and_repeated_use() -> None:
-    source = (
-        "from __future__ import annotations\n"
-        "from example import old\n"
-        "new = other\n"
-        "a = old(1)\n"
-        "b = old(2)\n"
-    )
+    source = "from __future__ import annotations\nfrom example import old\nnew = other\na = old(1)\nb = old(2)\n"
     result = migrate_source(source, (RenameRule(),))
     assert "from __future__ import annotations\nfrom example import new as _new\n" in result.source
     assert "a = _new(1)\nb = _new(2)" in result.source

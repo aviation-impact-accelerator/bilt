@@ -49,9 +49,7 @@ def _import_names(statement: ast.Import | ast.ImportFrom) -> dict[str, str]:
     if statement.level or statement.module is None:
         return {}
     return {
-        alias.asname or alias.name: f"{statement.module}.{alias.name}"
-        for alias in statement.names
-        if alias.name != "*"
+        alias.asname or alias.name: f"{statement.module}.{alias.name}" for alias in statement.names if alias.name != "*"
     }
 
 
@@ -88,9 +86,11 @@ class LexicalScopes:
         self._index(root)
         globals_written = {name for node in ast.walk(tree) if isinstance(node, ast.Global) for name in node.names}
         stable = _stable_imports(tree.body, root, tree) - globals_written
-        self.builtin_names = set(dir(builtins)) - globals_written - {
-            name for name in root.get_identifiers() if root.lookup(name).is_local()
-        }
+        self.builtin_names = (
+            set(dir(builtins))
+            - globals_written
+            - {name for name in root.get_identifiers() if root.lookup(name).is_local()}
+        )
         if any(
             isinstance(node, ast.ImportFrom) and any(alias.name == "*" for alias in node.names)
             for node in ast.walk(tree)
