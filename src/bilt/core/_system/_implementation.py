@@ -26,7 +26,7 @@ from bilt.core._system._errors import (
 )
 from bilt.core._system._input_validation import validate_inputs
 from bilt.core._system._intermediate_reuse import reuse_plan_outputs
-from bilt.core._tensors._tensors import _Tensor
+from bilt.core._tensors._tensors import _TensorBase
 from bilt.symbolic._domains import Domain
 
 if typing.TYPE_CHECKING:
@@ -153,7 +153,7 @@ class Implementation:
                 request = EvaluationRequest(
                     output=output,
                     input_domains={
-                        name: value.domain if isinstance(value, _Tensor) else Domain.scalar()
+                        name: value.domain if isinstance(value, _TensorBase) else Domain.scalar()
                         for name, value in inputs.items()
                     },
                 )
@@ -213,7 +213,7 @@ class Implementation:
             request = EvaluationRequest(
                 output=missing[0],
                 input_domains={
-                    name: value.domain if isinstance(value, _Tensor) else Domain.scalar()
+                    name: value.domain if isinstance(value, _TensorBase) else Domain.scalar()
                     for name, value in inputs.items()
                 },
             )
