@@ -53,3 +53,47 @@ def test_cli_preview_and_write(tmp_path: Path, capsys: pytest.CaptureFixture[str
     assert "x = ((2) * (meter))" in path.read_text(encoding="utf-8")
     assert main(["migrate", str(path), "--write"]) == 0
     assert "Updated 0 file(s)" in capsys.readouterr().out
+
+
+def test_keyword_quantity_and_evaluation_order() -> None:
+    source = "from bilt import Quantity\nx = Quantity(value=2, unit=meter)\ny = Quantity(unit=u(), value=v())\n"
+    result = migrate_source(source)
+    assert "x = ((2) * (meter))" in result.source
+    assert "y = Quantity(unit=u(), value=v())" in result.source
+    assert len(result.notes) == 1
+
+
+def test_direct_tensor_constructors_insert_import() -> None:
+    source = "from bilt import Tensor, QuantityTensor\nx = Tensor(v, d)\ny = QuantityTensor(v, d, u)\n"
+    result = migrate_source(source)
+    assert result.source.startswith("from bilt import tensor\n")
+    assert "x = tensor(values=v, domain=d)" in result.source
+    assert "y = tensor(values=v, domain=d, unit=u)" in result.source
+    assert not result.notes
+    assert migrate_source(result.source).source == result.source
+
+
+def test_tensor_factory_import_collision_and_future() -> None:
+    source = '"""Docstring."""\nfrom __future__ import annotations\nfrom bilt import Tensor\ntensor = other\nx = Tensor.scalar(2, u)\n'
+    result = migrate_source(source)
+    assert "from __future__ import annotations\nfrom bilt import tensor as _tensor\n" in result.source
+    assert "x = _tensor(2, unit=u)" in result.source
+    assert not result.notes
+
+
+def test_dimensioned_tensor_annotation() -> None:
+    source = (
+        "from typing import Annotated\nfrom bilt import Tensor\n"
+        "from bilt.units.dimensions import MASS\n"
+        "Mass = Annotated[Tensor, MASS]\nPlain = Annotated[Tensor, 'metadata']\n"
+    )
+    result = migrate_source(source)
+    assert "from bilt import QuantityTensor\n" in result.source
+    assert "Mass = Annotated[QuantityTensor, MASS]" in result.source
+    assert "Plain = Annotated[Tensor, 'metadata']" in result.source
+    assert migrate_source(result.source).source == result.source
+
+
+def test_multiline_union() -> None:
+    source = "from bilt import Quantity, QuantityTensor\nMass = (\n    Quantity |\n    QuantityTensor\n)\n"
+    assert "Mass = (\n    Quantity\n)" in migrate_source(source).source
