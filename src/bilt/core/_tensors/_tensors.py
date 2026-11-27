@@ -244,6 +244,78 @@ class _Tensor(_TensorBase):
     def _unitless_tensor_marker(self) -> typing.Literal[True]:
         return True
 
+    @typing.overload
+    def __add__(self, other: Quantity) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __add__(self, other: object) -> _Tensor: ...
+
+    def __add__(self, other: object) -> _Tensor | _QuantityTensor:
+        return typing.cast("_Tensor | _QuantityTensor", _TensorBase.__add__(self, other))
+
+    @typing.overload
+    def __radd__(self, other: Quantity) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __radd__(self, other: object) -> _Tensor: ...
+
+    def __radd__(self, other: object) -> _Tensor | _QuantityTensor:
+        return typing.cast("_Tensor | _QuantityTensor", _TensorBase.__radd__(self, other))
+
+    @typing.overload
+    def __sub__(self, other: Quantity) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __sub__(self, other: object) -> _Tensor: ...
+
+    def __sub__(self, other: object) -> _Tensor | _QuantityTensor:
+        return typing.cast("_Tensor | _QuantityTensor", _TensorBase.__sub__(self, other))
+
+    @typing.overload
+    def __rsub__(self, other: Quantity) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __rsub__(self, other: object) -> _Tensor: ...
+
+    def __rsub__(self, other: object) -> _Tensor | _QuantityTensor:
+        return typing.cast("_Tensor | _QuantityTensor", _TensorBase.__rsub__(self, other))
+
+    @typing.overload
+    def __mul__(self, other: Unit | Quantity) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __mul__(self, other: object) -> _Tensor: ...
+
+    def __mul__(self, other: object) -> _Tensor | _QuantityTensor:
+        return typing.cast("_Tensor | _QuantityTensor", _TensorBase.__mul__(self, other))
+
+    @typing.overload
+    def __rmul__(self, other: Unit | Quantity) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __rmul__(self, other: object) -> _Tensor: ...
+
+    def __rmul__(self, other: object) -> _Tensor | _QuantityTensor:
+        return typing.cast("_Tensor | _QuantityTensor", _TensorBase.__rmul__(self, other))
+
+    @typing.overload
+    def __truediv__(self, other: Unit | Quantity) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __truediv__(self, other: object) -> _Tensor: ...
+
+    def __truediv__(self, other: object) -> _Tensor | _QuantityTensor:
+        return typing.cast("_Tensor | _QuantityTensor", _TensorBase.__truediv__(self, other))
+
+    @typing.overload
+    def __rtruediv__(self, other: Quantity) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __rtruediv__(self, other: object) -> _Tensor: ...
+
+    def __rtruediv__(self, other: object) -> _Tensor | _QuantityTensor:
+        return typing.cast("_Tensor | _QuantityTensor", _TensorBase.__rtruediv__(self, other))
+
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True, repr=False)
 class _QuantityTensor(_TensorBase):
@@ -262,44 +334,29 @@ class _QuantityTensor(_TensorBase):
             message = "QuantityTensor requires a physical unit"
             raise BiltUnitError(message)
 
-    # Scaling by a number or a unitless tensor keeps the unit; the base class already types
-    # addition and subtraction with quantities as returning a quantity tensor.
+    def __add__(self, other: object) -> _QuantityTensor:
+        return typing.cast("_QuantityTensor", _TensorBase.__add__(self, other))
 
-    @typing.overload
-    def __mul__(self, other: Unit | Tensor | Quantity | float) -> _QuantityTensor: ...
+    def __radd__(self, other: object) -> _QuantityTensor:
+        return typing.cast("_QuantityTensor", _TensorBase.__radd__(self, other))
 
-    @typing.overload
-    def __mul__(self, other: object) -> _TensorBase: ...
+    def __sub__(self, other: object) -> _QuantityTensor:
+        return typing.cast("_QuantityTensor", _TensorBase.__sub__(self, other))
 
-    def __mul__(self, other: object) -> _TensorBase:
-        return _TensorBase.__mul__(self, other)
+    def __rsub__(self, other: object) -> _QuantityTensor:
+        return typing.cast("_QuantityTensor", _TensorBase.__rsub__(self, other))
 
-    @typing.overload
-    def __rmul__(self, other: Unit | Tensor | Quantity | float) -> _QuantityTensor: ...
+    def __mul__(self, other: object) -> _QuantityTensor:
+        return typing.cast("_QuantityTensor", _TensorBase.__mul__(self, other))
 
-    @typing.overload
-    def __rmul__(self, other: object) -> _TensorBase: ...
+    def __rmul__(self, other: object) -> _QuantityTensor:
+        return typing.cast("_QuantityTensor", _TensorBase.__rmul__(self, other))
 
-    def __rmul__(self, other: object) -> _TensorBase:
-        return _TensorBase.__rmul__(self, other)
+    def __truediv__(self, other: object) -> _QuantityTensor:
+        return typing.cast("_QuantityTensor", _TensorBase.__truediv__(self, other))
 
-    @typing.overload
-    def __truediv__(self, other: Unit | Tensor | Quantity | float) -> _QuantityTensor: ...
-
-    @typing.overload
-    def __truediv__(self, other: object) -> _TensorBase: ...
-
-    def __truediv__(self, other: object) -> _TensorBase:
-        return _TensorBase.__truediv__(self, other)
-
-    @typing.overload
-    def __rtruediv__(self, other: Tensor | Quantity | float) -> _QuantityTensor: ...
-
-    @typing.overload
-    def __rtruediv__(self, other: object) -> _TensorBase: ...
-
-    def __rtruediv__(self, other: object) -> _TensorBase:
-        return _TensorBase.__rtruediv__(self, other)
+    def __rtruediv__(self, other: object) -> _QuantityTensor:
+        return typing.cast("_QuantityTensor", _TensorBase.__rtruediv__(self, other))
 
     def cast_to(self, unit: Unit) -> typing.Self:
         """Relabel these values with an equivalent `unit`, without converting them."""
