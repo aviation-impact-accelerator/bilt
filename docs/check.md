@@ -43,6 +43,20 @@ Evaluate models through declared system fields within implementation and backend
 
 The source checks recognise direct imports, aliases, simple assignments, annotations and straightforward imports between selected files. They are not a complete Python type checker: dynamic dispatch, arbitrary factories and complex re-exports may escape detection. Ordinary methods on unrelated objects are not rejected merely because their names match internal Bilt methods.
 
+## Migrate the old quantity API
+
+```shell
+uv run bilt migrate .
+uv run bilt migrate . --write
+uv run bilt check .
+```
+
+The first command previews a unified diff without writing files. The second applies safe source edits.
+The migration uses the shared source migration framework with the quantity protocol rule set. It does not import your models. It handles positional and ordered keyword quantity constructors, direct tensor constructors, scalar tensor factories, pointwise unions (including multiline unions without comments), and tensor annotations with directly imported physical dimensions. Required public imports are added automatically, using a fresh alias if necessary.
+The old Tensor class included dimensioned tensors; the new Tensor protocol is unitless. For unchanged parameters explicitly annotated with a union of Tensor and Quantity or QuantityTensor, the migration widens builtin isinstance checks to `(Tensor, QuantityTensor)`. Other runtime tensor checks remain manual review items: a bare Tensor annotation or an untyped value does not establish the intended classification. Ambiguous expressions, reordered quantity keywords and commented expressions also remain for review.
+Ordinary functions and async functions can be migrated using lexical scope information from Python's symbol table. Stable, unconditional imports are recognised; shadowed names, mutable globals, closure bindings and conditional imports are not assumed to refer to Bilt. Uncommented multiline calls, nested constructor calls, ordinary comprehension bodies and lambdas with stable global imports are migrated. Comprehension targets and lambda parameters cannot accidentally resolve to shadowed imports. Class-suite comprehensions, ambiguous closure aliases, comments inside calls and unused imports may still need manual cleanup. Review the diff and run the model tests afterwards.
+Exit status 1 means that manual review or a source error remains; 2 means the target is invalid.
+
 ## Run with prek
 
 Add a local hook to your project's `prek.toml`:
