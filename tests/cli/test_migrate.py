@@ -97,3 +97,92 @@ def test_dimensioned_tensor_annotation() -> None:
 def test_multiline_union() -> None:
     source = "from bilt import Quantity, QuantityTensor\nMass = (\n    Quantity |\n    QuantityTensor\n)\n"
     assert "Mass = (\n    Quantity\n)" in migrate_source(source).source
+
+
+def test_migrate_functions_with_local_assignments() -> None:
+    source = "from bilt import Quantity\ndef model(x):\n    value = x + 1\n    return Quantity(value, meter)\n"
+    result = migrate_source(source)
+    assert "return ((value) * (meter))" in result.source
+    assert not result.notes
+    assert migrate_source(result.source).source == result.source
+
+
+def test_lexically_shadowed_constructor_is_not_rewritten() -> None:
+    source = (
+        "from bilt import Quantity as Q\n"
+        "def model():\n"
+        "    x = Q(2, meter)\n"
+        "    Q = other\n"
+        "    return x\n"
+        "def by_argument(Q):\n"
+        "    return Q(2, meter)\n"
+        "def by_branch(flag):\n"
+        "    if flag:\n"
+        "        Q = other\n"
+        "    return Q(2, meter)\n"
+    )
+    assert migrate_source(source).source == source
+
+
+def test_global_reassignment_is_not_rewritten() -> None:
+    source = "from bilt import Quantity as Q\ndef model():\n    return Q(2, meter)\nQ = other\n"
+    assert migrate_source(source).source == source
+
+
+def test_nested_function_free_variable_is_not_rewritten() -> None:
+    source = (
+        "from bilt import Quantity as Q\n"
+        "def outer(Q):\n"
+        "    def inner():\n"
+        "        return Q(2, meter)\n"
+        "    return inner\n"
+    )
+    assert migrate_source(source).source == source
+
+
+def test_method_does_not_inherit_class_constructor_binding() -> None:
+    source = (
+        "from bilt import Quantity as Q\n"
+        "class Model:\n"
+        "    Q = other\n"
+        "    def run(self):\n"
+        "        x = 2\n"
+        "        return Q(x, meter)\n"
+    )
+    assert "return ((x) * (meter))" in migrate_source(source).source
+
+
+def test_unconditional_function_local_import() -> None:
+    source = "def model():\n    from bilt import Quantity as Q\n    return Q(2, meter)\n"
+    result = migrate_source(source)
+    assert "return ((2) * (meter))" in result.source
+    assert not result.notes
+
+
+def test_conditional_local_import_is_not_rewritten() -> None:
+    source = "def model(flag):\n    if flag:\n        from bilt import Quantity as Q\n    return Q(2, meter)\n"
+    assert migrate_source(source).source == source
+
+
+def test_async_function_with_locals() -> None:
+    source = "from bilt import Quantity\nasync def model():\n    x = 2\n    return Quantity(x, meter)\n"
+    assert "return ((x) * (meter))" in migrate_source(source).source
+
+
+def test_explicit_global_write_is_not_rewritten() -> None:
+    source = (
+        "from bilt import Quantity as Q\n"
+        "def change():\n"
+        "    global Q\n"
+        "    Q = other\n"
+        "def model():\n"
+        "    return Q(2, meter)\n"
+    )
+    assert migrate_source(source).source == source
+
+
+def test_defaults_are_evaluated_in_enclosing_scope() -> None:
+    source = "from bilt import Quantity as Q\ndef model(Q=Q(2, meter)):\n    return Q(2, meter)\n"
+    result = migrate_source(source)
+    assert "def model(Q=((2) * (meter))):" in result.source
+    assert "return Q(2, meter)" in result.source

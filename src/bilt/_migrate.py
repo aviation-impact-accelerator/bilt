@@ -3,6 +3,7 @@
 import ast
 import difflib
 import os
+import symtable
 import sys
 import typing
 from dataclasses import dataclass
@@ -53,6 +54,78 @@ class Migration:
     notes: tuple[str, ...]
 
 
+def _import_names(statement: ast.Import | ast.ImportFrom) -> tuple[str, ...]:
+    return tuple(alias.asname or alias.name.split(".")[0] for alias in statement.names)
+
+
+def _stable_imports(statements: list[ast.stmt], table: symtable.SymbolTable, node: ast.AST) -> set[str]:
+    """Use only unconditional, uniquely bound imports; never infer control flow."""
+    candidates = {
+        name
+        for statement in statements
+        if isinstance(statement, (ast.Import, ast.ImportFrom))
+        for name in _import_names(statement)
+    }
+    counts: dict[str, int] = {}
+    for item in ast.walk(node):
+        if isinstance(item, (ast.Import, ast.ImportFrom)):
+            for name in _import_names(item):
+                counts[name] = counts.get(name, 0) + 1
+    return {
+        name
+        for name in candidates.intersection(table.get_identifiers())
+        if counts[name] == 1
+        and table.lookup(name).is_imported()
+        and not table.lookup(name).is_assigned()
+        and not table.lookup(name).is_namespace()
+    }
+
+
+class LexicalScopes:
+    """Conservative lexical bindings for source edits, independent of runtime values."""
+
+    def __init__(self, source: str, tree: ast.Module) -> None:
+        root = symtable.symtable(source, "<migration>", "exec")
+        self.functions: dict[tuple[str, int], list[symtable.SymbolTable]] = {}
+        self._index(root)
+        globals_written = {name for node in ast.walk(tree) if isinstance(node, ast.Global) for name in node.names}
+        stable = _stable_imports(tree.body, root, tree) - globals_written
+        if any(
+            isinstance(node, ast.ImportFrom) and any(alias.name == "*" for alias in node.names)
+            for node in ast.walk(tree)
+        ):
+            stable.clear()
+        imports = ApiChecker("", "", {})
+        self.lines: dict[str, int] = {}
+        for statement in tree.body:
+            if isinstance(statement, (ast.Import, ast.ImportFrom)):
+                imports.visit(statement)
+                for name in _import_names(statement):
+                    self.lines[name] = statement.lineno
+        self.bindings = {name: value for name, value in imports.bindings.items() if name in stable}
+        constructors = imports._constructor_aliases  # noqa: SLF001
+        self.constructors = {name: value for name, value in constructors.items() if name in stable}
+
+    def _index(self, table: symtable.SymbolTable) -> None:
+        for child in table.get_children():
+            if child.get_type() == symtable.SymbolTableType.FUNCTION:
+                key = (child.get_name(), child.get_lineno())
+                self.functions.setdefault(key, []).append(child)
+            self._index(child)
+
+    def function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> symtable.SymbolTable | None:
+        tables = self.functions.get((node.name, node.lineno), [])
+        return tables[0] if len(tables) == 1 else None
+
+    def globals_for(self, node: ast.FunctionDef | ast.AsyncFunctionDef, table: symtable.SymbolTable) -> set[str]:
+        return {
+            name
+            for name in self.bindings
+            if self.lines[name] < node.lineno
+            and (name not in table.get_identifiers() or table.lookup(name).is_global())
+        }
+
+
 class QuantityMigration(ApiChecker):
     """Use the checker's name resolution, but edit only unambiguous source spans."""
 
@@ -66,6 +139,8 @@ class QuantityMigration(ApiChecker):
         self.notes: list[str] = []
         self.imports: set[str] = set()
         self.tree = tree
+        self.lexical = LexicalScopes(source, tree)
+        self.allowed: set[str] | None = None
         self.names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
         self.names.update(node.arg for node in ast.walk(tree) if isinstance(node, ast.arg))
         self.names.update(
@@ -112,6 +187,8 @@ class QuantityMigration(ApiChecker):
 
     def _public_name(self, member: str) -> bytes:
         for name, kind in self.bindings.items():
+            if self.allowed is not None and name not in self.allowed:
+                continue
             if kind == f"bilt.{member}":
                 return name.encode()
             if kind == "bilt":
@@ -219,21 +296,46 @@ class QuantityMigration(ApiChecker):
         super().visit_Call(node)
 
     @typing.override
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        # The checker is flow-sensitive, not a full lexical scope analyser.
-        # Skip bodies that can shadow imported names before their assignment.
-        if any(
-            isinstance(item, (ast.Name, ast.Global, ast.Nonlocal))
-            and (not isinstance(item, ast.Name) or isinstance(item.ctx, (ast.Store, ast.Del)))
-            for item in ast.walk(node)
-        ):
-            self.notes.append(f"{node.lineno}: review function with local bindings manually")
-            return
-        super().visit_FunctionDef(node)
+    def _resolve(self, node: ast.expr | None) -> str | None:
+        if isinstance(node, ast.Name) and self.allowed is not None and node.id not in self.allowed:
+            return None
+        return super()._resolve(node)
 
     @typing.override
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        self.notes.append(f"{node.lineno}: review asynchronous function manually")
+    def _constructor_reference(self, node: ast.expr | None) -> str | None:
+        if isinstance(node, ast.Name) and self.allowed is not None and node.id not in self.allowed:
+            return None
+        return super()._constructor_reference(node)
+
+    @typing.override
+    def _function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        # Defaults, decorators and annotations belong to the enclosing scope.
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        self.visit(node.args)
+        if node.returns is not None:
+            self.visit(node.returns)
+        self.bindings[node.name] = None
+        self._constructor_aliases.pop(node.name, None)
+
+        table = self.lexical.function(node)
+        if table is None:
+            self.notes.append(f"{node.lineno}: review unresolved lexical scope manually")
+            return
+        globals_visible = self.lexical.globals_for(node, table)
+        local_imports = _stable_imports(node.body, table, node)
+        outer_allowed = self.allowed
+        with self._scope():
+            self.bindings = {name: self.lexical.bindings[name] for name in globals_visible}
+            self._constructor_aliases = {
+                name: value for name, value in self.lexical.constructors.items() if name in globals_visible
+            }
+            self.allowed = globals_visible | local_imports
+            try:
+                for statement in node.body:
+                    self.visit(statement)
+            finally:
+                self.allowed = outer_allowed
 
     @typing.override
     def visit_Lambda(self, node: ast.Lambda) -> None:

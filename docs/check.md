@@ -54,7 +54,7 @@ uv run bilt check .
 The first command previews a unified diff without writing files. The second applies safe source edits.
 The migration does not import your models. It handles positional and ordered keyword quantity constructors, direct tensor constructors, scalar tensor factories, pointwise unions (including multiline unions without comments), and tensor annotations with directly imported physical dimensions. Required public imports are added automatically, using a fresh alias if necessary.
 It leaves ambiguous expressions, reordered quantity keywords, commented expressions, multiline constructor replacements and runtime tensor classification for manual review.
-Unused imports and more complex aliases may need manual cleanup. Review the diff and run the model tests afterwards.
+Ordinary functions and async functions can be migrated using lexical scope information from Python's symbol table. Stable, unconditional imports are recognised; shadowed names, mutable globals, closure bindings and conditional imports are not assumed to refer to Bilt. Comprehension and lambda bodies, more complex aliases and unused imports may still need manual cleanup. Review the diff and run the model tests afterwards.
 Exit status 1 means that manual review or a source error remains; 2 means the target is invalid.
 
 ## Run with prek
