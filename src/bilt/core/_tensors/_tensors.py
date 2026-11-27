@@ -187,6 +187,11 @@ class QuantityTensor(Tensor):
         return Tensor(values=self.values, domain=self.domain)
 
 
+# Internal concrete types; preserve public class identity until the protocol transition.
+_Tensor = Tensor
+_QuantityTensor = QuantityTensor
+
+
 @typing.overload
 def tensor(
     values: object, *, over: OverArg | None = None, domain: Domain | None = None, unit: Unit
