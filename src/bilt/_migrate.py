@@ -177,7 +177,9 @@ def _files(target: Path) -> list[Path]:
             if name not in _SKIP and not name.startswith(".") and not (Path(parent) / name).is_symlink()
         )
         files.extend(
-            Path(parent) / name for name in sorted(names) if name.endswith(".py") and not (Path(parent) / name).is_symlink()
+            Path(parent) / name
+            for name in sorted(names)
+            if name.endswith(".py") and not (Path(parent) / name).is_symlink()
         )
     return files
 
