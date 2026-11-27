@@ -344,9 +344,7 @@ def test_runtime_check_respects_shadowed_global_builtin() -> None:
 
 def test_runtime_check_does_not_infer_nested_container_types() -> None:
     source = (
-        "from bilt import Quantity, Tensor\n"
-        "def axes(x: list[Quantity | Tensor]):\n"
-        "    return isinstance(x, Tensor)\n"
+        "from bilt import Quantity, Tensor\ndef axes(x: list[Quantity | Tensor]):\n    return isinstance(x, Tensor)\n"
     )
     result = migrate_source(source)
     assert result.source == source

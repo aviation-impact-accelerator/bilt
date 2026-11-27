@@ -40,7 +40,6 @@ _DIMENSIONS = frozenset(
 )
 
 
-
 def _arguments(node: ast.Call, parameters: tuple[str, ...]) -> dict[str, ast.expr] | None:
     if len(node.args) > len(parameters) or any(isinstance(arg, ast.Starred) for arg in node.args):
         return None
@@ -81,9 +80,7 @@ class TensorConstructorRule:
             context.note(node, f"review obsolete {kind} constructor manually")
 
     @staticmethod
-    def _rewrite(
-        node: ast.Call, context: MigrationContext, *, scalar: bool, dimensioned: bool
-    ) -> bool:
+    def _rewrite(node: ast.Call, context: MigrationContext, *, scalar: bool, dimensioned: bool) -> bool:
         parameters = ("value", "unit") if scalar else ("values", "domain", "unit")
         args = _arguments(node, parameters)
         if args is None or parameters[0] not in args or (not scalar and "domain" not in args):
@@ -132,7 +129,11 @@ class DimensionedTensorAnnotationRule:
             return
         for item in metadata:
             path = context.resolve(item)
-            if path is not None and path.startswith("bilt.units.dimensions.") and path.rsplit(".", 1)[-1] in _DIMENSIONS:
+            if (
+                path is not None
+                and path.startswith("bilt.units.dimensions.")
+                and path.rsplit(".", 1)[-1] in _DIMENSIONS
+            ):
                 context.replace(base, context.ensure_import("bilt", "QuantityTensor"))
                 return
 
