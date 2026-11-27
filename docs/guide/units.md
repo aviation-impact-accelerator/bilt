@@ -202,7 +202,7 @@ def distance_km(distance: ScalarLength) -> float:
 
 @transform
 def distance(distance_km: float) -> ScalarLength:
-    return (distance_km * kilometer)
+    return distance_km * kilometer
 ```
 
 <!-- markdown-exec: hidden setup -->

@@ -1073,13 +1073,13 @@ mass_flow = 25.0 * kilogram / second
 or change the maximum turbine inlet temperature:
 
 ```python exec="off"
-turbine_inlet_temperature = (1500.0 * absolute_kelvin)
+turbine_inlet_temperature = 1500.0 * absolute_kelvin
 ```
 
 You can also change the compressor pressure-ratio target:
 
 ```python exec="off"
-high_pressure_compressor_pressure_ratio = (7.0 * UNITLESS)
+high_pressure_compressor_pressure_ratio = 7.0 * UNITLESS
 ```
 
 and ask again what compressor efficiency is required for a specified shaft power.
@@ -1087,7 +1087,7 @@ and ask again what compressor efficiency is required for a specified shaft power
 Another useful experiment is to change the core exit boundary:
 
 ```python exec="off"
-exit_temperature = (950.0 * absolute_kelvin)
+exit_temperature = 950.0 * absolute_kelvin
 ```
 
 To explore locally, edit these values while `zensical serve` is running and save the Markdown file. Zensical will rebuild the page and rerun the executable blocks.
