@@ -366,7 +366,7 @@ def discretise(surface: RectangularSurface, *, cg_x: Quantity, panels: int) -> S
             root_twist=surface.root_twist,
             tip_twist=surface.tip_twist,
             panel_index=tensor(np.arange(panels), over=PANEL, unit=fraction),
-            panel_count=panels * fraction,
+            panel_count=float(panels) * fraction,
         )
 
 
