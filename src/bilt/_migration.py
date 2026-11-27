@@ -14,6 +14,8 @@ from pathlib import Path
 if typing.TYPE_CHECKING:
     from collections.abc import Generator
 
+    from bilt._migration_cleanup import CleanupOptions
+
 _SKIP = frozenset({".venv", "venv", "build", "dist", "node_modules", "__pycache__", "site-packages"})
 
 
@@ -482,7 +484,13 @@ class MigrationContext(ast.NodeVisitor):
         self._comprehension(node)
 
 
-def migrate_source(source: str, rules: tuple[MigrationRule, ...]) -> Migration:
+def migrate_source(
+    source: str,
+    rules: tuple[MigrationRule, ...],
+    *,
+    cleanup: CleanupOptions | None = None,
+    path: Path | None = None,
+) -> Migration:
     """Rewrite a source string without importing or executing the model."""
     tree = ast.parse(source)
     visitor = MigrationContext(source, tree, rules)
@@ -499,6 +507,8 @@ def migrate_source(source: str, rules: tuple[MigrationRule, ...]) -> Migration:
         boundary = edit.start
     migrated = result.decode()
     ast.parse(migrated)
+    if cleanup is not None and not visitor.notes:
+        migrated = cleanup.apply(source, migrated, path=path)
     return Migration(migrated, tuple(dict.fromkeys(visitor.notes)))
 
 
@@ -520,7 +530,9 @@ def _files(target: Path) -> list[Path]:
     return files
 
 
-def migrate(target: Path, rules: tuple[MigrationRule, ...], *, write: bool) -> int:
+def migrate(
+    target: Path, rules: tuple[MigrationRule, ...], *, write: bool, cleanup: CleanupOptions | None = None
+) -> int:
     """Preview or apply source edits. Return 1 if manual review remains."""
     if target.is_symlink() or not target.exists() or (target.is_file() and target.suffix != ".py"):
         sys.stderr.write(f"{target}: expected an existing Python file or directory, not a symlink\n")
@@ -530,7 +542,7 @@ def migrate(target: Path, rules: tuple[MigrationRule, ...], *, write: bool) -> i
     for path in _files(target):
         try:
             source = path.read_bytes().decode("utf-8")
-            result = migrate_source(source, rules)
+            result = migrate_source(source, rules, cleanup=cleanup, path=path)
             if source != result.source:
                 changed += 1
                 if write:
