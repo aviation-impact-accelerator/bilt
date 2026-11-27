@@ -17,3 +17,18 @@ Scope resolution is deliberately conservative and is not a complete type checker
 Rules should require explicit evidence before rewriting expressions and leave
 ambiguous changes for review. Preserve comments and evaluation order, and test
 idempotence and shadowing for each rule.
+
+## Optional source cleanup
+
+A migration may register a `CleanupOptions` policy and pass it to
+`migrate_source` or `migrate`. Explicitly list fully qualified imports that
+are safe to remove. Only imports whose last apparent reference disappeared
+during the migration are eligible. Pre-existing unused imports, explicit
+re-exports, commented imports, quoted references, package initialisers and
+modules using dynamic namespace access are conservatively retained. This is
+not a whole-project unused-import analysis.
+
+A caller may also supply a source formatter. The engine rejects formatting
+that changes the Python AST. Neither an external formatter nor additional
+dependencies are required by the framework. Cleanup runs only on changed
+source with no outstanding migration notes.
