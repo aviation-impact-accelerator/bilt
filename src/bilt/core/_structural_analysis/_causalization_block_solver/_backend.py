@@ -24,6 +24,7 @@ from bilt.core._structural_analysis._causalization_block_solver._matching import
 from bilt.core._structural_analysis._causalization_block_solver._route_cache import (
     invalidate_route_cache,
     route_cache_scope,
+    route_dependency_scope,
 )
 from bilt.core._structural_analysis._causalization_block_solver._structural_cache import structural_cache_scope
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import (
@@ -117,7 +118,7 @@ class CausalizationStructuralAnalyzer:
                     return result
 
                 # Invalidate dependent parent answers before the next route query.
-                invalidate_route_cache()
+                invalidate_route_cache(self)
                 last_error = result.cause
                 if self._retry_child(result):
                     continue
@@ -255,7 +256,7 @@ class CausalizationStructuralAnalyzer:
         output: str,
     ) -> frozenset[str] | None:
         """Reuse an execution-route query within the current nested analysis."""
-        with structural_cache_scope(), route_cache_scope() as cache:
+        with structural_cache_scope(), route_cache_scope() as cache, route_dependency_scope(self):
             key = self, frozenset(available), output
             if key not in cache:
                 cache[key] = self._required_inputs_for_target(available, output)
