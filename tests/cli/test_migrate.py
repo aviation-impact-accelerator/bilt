@@ -268,3 +268,101 @@ def test_nested_edit_keeps_comments_in_outer_call() -> None:
 def test_class_comprehension_does_not_use_class_local_alias() -> None:
     source = "from bilt import Quantity as Q\nclass Model:\n    Q = other\n    x = [Q(v, u) for v in xs]\n"
     assert migrate_source(source).source == source
+
+
+def test_mixed_tensor_parameter_runtime_check() -> None:
+    source = (
+        "from bilt import Quantity, Tensor, QuantityTensor\n"
+        "def elapsed(date: float | Quantity | Tensor, origin: float | Quantity | Tensor):\n"
+        "    date_dims = date.domain.dims if isinstance(date, Tensor) else ()\n"
+        "    origin_dims = origin.domain.dims if isinstance(origin, Tensor) else ()\n"
+        "    return date_dims, origin_dims\n"
+    )
+    result = migrate_source(source)
+    assert "isinstance(date, (Tensor, QuantityTensor))" in result.source
+    assert "isinstance(origin, (Tensor, QuantityTensor))" in result.source
+    assert not result.notes
+    assert migrate_source(result.source) == result
+
+
+def test_mixed_tensor_runtime_check_inserts_missing_import() -> None:
+    source = "from bilt import Quantity, Tensor\ndef axes(x: Quantity | Tensor):\n    return isinstance(x, Tensor)\n"
+    result = migrate_source(source)
+    assert result.source.startswith("from bilt import QuantityTensor\n")
+    assert "isinstance(x, (Tensor, QuantityTensor))" in result.source
+    assert not result.notes
+
+
+def test_unknown_or_unitless_tensor_checks_require_review() -> None:
+    source = (
+        "from bilt import Tensor\n"
+        "def unitless(x: Tensor):\n"
+        "    return isinstance(x, Tensor)\n"
+        "def unknown(x):\n"
+        "    return isinstance(x, Tensor)\n"
+    )
+    result = migrate_source(source)
+    assert result.source == source
+    assert len(result.notes) == 2
+
+
+def test_mixed_tensor_reassigned_parameter_requires_review() -> None:
+    source = (
+        "from bilt import Quantity, Tensor\n"
+        "def axes(x: Quantity | Tensor):\n"
+        "    x = other()\n"
+        "    return isinstance(x, Tensor)\n"
+    )
+    result = migrate_source(source)
+    assert result.source == source
+    assert result.notes
+
+
+def test_runtime_check_respects_shadowed_isinstance() -> None:
+    source = (
+        "from bilt import Quantity, Tensor\n"
+        "def axes(x: Quantity | Tensor, isinstance):\n"
+        "    return isinstance(x, Tensor)\n"
+    )
+    result = migrate_source(source)
+    assert result.source == source
+    assert not result.notes
+
+
+def test_runtime_check_respects_shadowed_global_builtin() -> None:
+    source = (
+        "from bilt import Quantity, Tensor\n"
+        "def axes(x: Quantity | Tensor):\n"
+        "    return isinstance(x, Tensor)\n"
+        "isinstance = other\n"
+    )
+    assert migrate_source(source).source == source
+
+
+def test_runtime_check_does_not_infer_nested_container_types() -> None:
+    source = (
+        "from bilt import Quantity, Tensor\n"
+        "def axes(x: list[Quantity | Tensor]):\n"
+        "    return isinstance(x, Tensor)\n"
+    )
+    result = migrate_source(source)
+    assert result.source == source
+    assert result.notes
+
+
+def test_runtime_check_qualified_and_quoted_union() -> None:
+    source = "import bilt as b\ndef axes(x: 'b.Quantity | b.Tensor'):\n    return isinstance(x, b.Tensor)\n"
+    result = migrate_source(source)
+    assert "isinstance(x, (b.Tensor, b.QuantityTensor))" in result.source
+    assert not result.notes
+
+
+def test_runtime_check_comprehension_shadowing() -> None:
+    source = (
+        "from bilt import Quantity, Tensor\n"
+        "def axes(x: Quantity | Tensor):\n"
+        "    return [isinstance(x, Tensor) for x in xs]\n"
+    )
+    result = migrate_source(source)
+    assert result.source == source
+    assert result.notes

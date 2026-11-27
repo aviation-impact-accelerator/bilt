@@ -90,11 +90,15 @@ class LexicalScopes:
         self._index(root)
         globals_written = {name for node in ast.walk(tree) if isinstance(node, ast.Global) for name in node.names}
         stable = _stable_imports(tree.body, root, tree) - globals_written
+        self.builtin_isinstance = "isinstance" not in globals_written and (
+            "isinstance" not in root.get_identifiers() or not root.lookup("isinstance").is_local()
+        )
         if any(
             isinstance(node, ast.ImportFrom) and any(alias.name == "*" for alias in node.names)
             for node in ast.walk(tree)
         ):
             stable.clear()
+            self.builtin_isinstance = False
         imports = ApiChecker("", "", {})
         self.lines: dict[str, int] = {}
         for statement in tree.body:
@@ -144,6 +148,8 @@ class QuantityMigration(ApiChecker):
         self.lexical = LexicalScopes(source, tree)
         self.allowed: set[str] | None = None
         self.in_class = False
+        self.tensor_parameters: set[str] = set()
+        self.builtin_isinstance = self.lexical.builtin_isinstance
         self.names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
         self.names.update(node.arg for node in ast.walk(tree) if isinstance(node, ast.arg))
         self.names.update(
@@ -291,6 +297,50 @@ class QuantityMigration(ApiChecker):
             return self._tensor_call(node, kind)
         return False
 
+    def _union_members(self, node: ast.expr | None) -> set[str]:
+        """Recognise direct union members, not types nested in containers."""
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            return self._union_members(node.left) | self._union_members(node.right)
+        if (
+            isinstance(node, ast.Subscript)
+            and self._resolve(node.value) == "typing.Union"
+            and isinstance(node.slice, ast.Tuple)
+        ):
+            return set().union(*(self._union_members(item) for item in node.slice.elts))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            try:
+                return self._union_members(ast.parse(node.value, mode="eval").body)
+            except SyntaxError:
+                return set()
+        kind = self._constructor_reference(node)
+        return {kind} if kind is not None else set()
+
+    def _mixed_tensor_parameters(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef, table: symtable.SymbolTable
+    ) -> set[str]:
+        nonlocals = {name for item in ast.walk(node) if isinstance(item, ast.Nonlocal) for name in item.names}
+        arguments = (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
+        result: set[str] = set()
+        for argument in arguments:
+            members = self._union_members(argument.annotation)
+            if (
+                "bilt.Tensor" in members
+                and bool(members & (_QUANTITY | {_TENSOR}))
+                and argument.arg in table.get_identifiers()
+                and not table.lookup(argument.arg).is_assigned()
+                and argument.arg not in nonlocals
+            ):
+                result.add(argument.arg)
+        return result
+
+    def _tensor_runtime_check(self, node: ast.Call) -> None:
+        value, target = node.args
+        if isinstance(value, ast.Name) and value.id in self.tensor_parameters:
+            quantity_tensor = self._public_name("QuantityTensor")
+            if self._replace(target, b"(" + self._text(target) + b", " + quantity_tensor + b")"):
+                return
+        self.notes.append(f"{node.lineno}: review Tensor runtime check for unit-bearing values")
+
     @typing.override
     def visit_Call(self, node: ast.Call) -> None:
         # Visit children before rebuilding the call so nested edits are retained.
@@ -303,10 +353,12 @@ class QuantityMigration(ApiChecker):
         elif (
             isinstance(node.func, ast.Name)
             and node.func.id == "isinstance"
+            and self.builtin_isinstance
+            and not node.keywords
             and len(node.args) == _PAIR
             and self._constructor_reference(node.args[1]) == "bilt.Tensor"
         ):
-            self.notes.append(f"{node.lineno}: review Tensor runtime check for unit-bearing values")
+            self._tensor_runtime_check(node)
 
     @typing.override
     def _resolve(self, node: ast.expr | None) -> str | None:
@@ -335,10 +387,13 @@ class QuantityMigration(ApiChecker):
         if table is None:
             self.notes.append(f"{node.lineno}: review unresolved lexical scope manually")
             return
+        parameters = self._mixed_tensor_parameters(node, table)
         globals_visible = self.lexical.globals_for(node, table)
         local_imports = _stable_imports(node.body, table, node)
         outer_allowed = self.allowed
         outer_class = self.in_class
+        outer_parameters = self.tensor_parameters
+        outer_builtin = self.builtin_isinstance
         with self._scope():
             self.bindings = {name: self.lexical.bindings[name] for name in globals_visible}
             self._constructor_aliases = {
@@ -346,12 +401,18 @@ class QuantityMigration(ApiChecker):
             }
             self.allowed = globals_visible | local_imports
             self.in_class = False
+            self.tensor_parameters = parameters
+            self.builtin_isinstance = self.lexical.builtin_isinstance and (
+                "isinstance" not in table.get_identifiers() or table.lookup("isinstance").is_global()
+            )
             try:
                 for statement in node.body:
                     self.visit(statement)
             finally:
                 self.allowed = outer_allowed
                 self.in_class = outer_class
+                self.tensor_parameters = outer_parameters
+                self.builtin_isinstance = outer_builtin
 
     @typing.override
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
@@ -360,13 +421,19 @@ class QuantityMigration(ApiChecker):
         self.bindings[node.name] = None
         self._constructor_aliases.pop(node.name, None)
         outer_class = self.in_class
+        outer_parameters = self.tensor_parameters
+        outer_builtin = self.builtin_isinstance
         with self._scope():
             self.in_class = True
+            self.tensor_parameters = set()
+            self.builtin_isinstance = False
             try:
                 for statement in node.body:
                     self.visit(statement)
             finally:
                 self.in_class = outer_class
+                self.tensor_parameters = outer_parameters
+                self.builtin_isinstance = outer_builtin
 
     @typing.override
     def visit_Lambda(self, node: ast.Lambda) -> None:
@@ -383,6 +450,8 @@ class QuantityMigration(ApiChecker):
         }
         outer_allowed = self.allowed
         outer_class = self.in_class
+        outer_parameters = self.tensor_parameters
+        outer_builtin = self.builtin_isinstance
         with self._scope():
             self.bindings = {name: self.lexical.bindings[name] for name in visible}
             self._constructor_aliases = {
@@ -390,11 +459,17 @@ class QuantityMigration(ApiChecker):
             }
             self.allowed = visible
             self.in_class = False
+            self.tensor_parameters = set()
+            self.builtin_isinstance = self.lexical.builtin_isinstance and (
+                "isinstance" not in table.get_identifiers() or table.lookup("isinstance").is_global()
+            )
             try:
                 self.visit(node.body)
             finally:
                 self.allowed = outer_allowed
                 self.in_class = outer_class
+                self.tensor_parameters = outer_parameters
+                self.builtin_isinstance = outer_builtin
 
     def _comprehension(self, node: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp) -> None:
         # The first iterable is evaluated in the surrounding scope; every target
@@ -416,9 +491,13 @@ class QuantityMigration(ApiChecker):
             if isinstance(item, ast.NamedExpr) and isinstance(item.target, ast.Name)
         )
         outer_allowed = self.allowed
+        outer_parameters = self.tensor_parameters
+        outer_builtin = self.builtin_isinstance
         allowed = set(self.lexical.bindings) if outer_allowed is None else outer_allowed
         with self._scope():
             self.allowed = allowed - blocked
+            self.tensor_parameters = outer_parameters - blocked
+            self.builtin_isinstance = outer_builtin and "isinstance" not in blocked
             try:
                 for condition in first.ifs:
                     self.visit(condition)
@@ -434,6 +513,8 @@ class QuantityMigration(ApiChecker):
                     self.visit(node.elt)
             finally:
                 self.allowed = outer_allowed
+                self.tensor_parameters = outer_parameters
+                self.builtin_isinstance = outer_builtin
         for item in ast.walk(node):
             if isinstance(item, ast.NamedExpr) and isinstance(item.target, ast.Name):
                 self.bindings[item.target.id] = None
