@@ -129,23 +129,23 @@ class QuantityMigration(ApiChecker):
         self.notes.append(f"{node.lineno}: review asynchronous function manually")
 
     @typing.override
-    def visit_Lambda(self, node: ast.Lambda) -> None:  # noqa: ARG002
+    def visit_Lambda(self, node: ast.Lambda) -> None:
         return
 
     @typing.override
-    def visit_ListComp(self, node: ast.ListComp) -> None:  # noqa: ARG002
+    def visit_ListComp(self, node: ast.ListComp) -> None:
         return
 
     @typing.override
-    def visit_SetComp(self, node: ast.SetComp) -> None:  # noqa: ARG002
+    def visit_SetComp(self, node: ast.SetComp) -> None:
         return
 
     @typing.override
-    def visit_DictComp(self, node: ast.DictComp) -> None:  # noqa: ARG002
+    def visit_DictComp(self, node: ast.DictComp) -> None:
         return
 
     @typing.override
-    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:  # noqa: ARG002
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
         return
 
 
