@@ -109,7 +109,9 @@ class LexicalScopes:
     def _index(self, table: symtable.SymbolTable) -> None:
         for child in table.get_children():
             if child.get_type() == symtable.SymbolTableType.FUNCTION:
-                key = (child.get_name(), child.get_lineno())
+                # Python versions may expose the compiler name "<lambda>".
+                name = child.get_name()
+                key = ("lambda" if name == "<lambda>" else name, child.get_lineno())
                 self.functions.setdefault(key, []).append(child)
             self._index(child)
 
