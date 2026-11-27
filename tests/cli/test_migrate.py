@@ -208,7 +208,9 @@ def test_comprehension_forms() -> None:
         "c = (Q(x, u) for x in xs)\n"
     )
     result = migrate_source(source)
-    assert result.source.count("((x) * (u))") == 3
+    assert "a = [((x) * (u)) for x in xs]" in result.source
+    assert "b = {((x) * (u)) for x in xs}" in result.source
+    assert "c = (((x) * (u)) for x in xs)" in result.source
     assert not result.notes
 
 
