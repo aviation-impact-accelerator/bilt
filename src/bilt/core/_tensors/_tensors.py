@@ -26,7 +26,7 @@ OverArg = Dim | collections.abc.Iterable[Dim]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, repr=False)
-class _Tensor:
+class _TensorBase:
     """Concrete values over a Bilt domain."""
 
     values: np.ndarray
@@ -40,7 +40,7 @@ class _Tensor:
         _check_rank(values, self.domain)
 
     @classmethod
-    def scalar(cls, value: object, unit: Unit | None = None) -> _Tensor:
+    def scalar(cls, value: object, unit: Unit | None = None) -> _TensorBase:
         values = np.asarray(value)
 
         if values.ndim != 0:
@@ -78,45 +78,45 @@ class _Tensor:
     def __add__(self, other: Quantity) -> _QuantityTensor: ...
 
     @typing.overload
-    def __add__(self, other: object) -> _Tensor: ...
+    def __add__(self, other: object) -> _TensorBase: ...
 
-    def __add__(self, other: object) -> _Tensor:
+    def __add__(self, other: object) -> _TensorBase:
         raise _arithmetic_not_implemented()
 
     @typing.overload
     def __radd__(self, other: Quantity) -> _QuantityTensor: ...
 
     @typing.overload
-    def __radd__(self, other: object) -> _Tensor: ...
+    def __radd__(self, other: object) -> _TensorBase: ...
 
-    def __radd__(self, other: object) -> _Tensor:
+    def __radd__(self, other: object) -> _TensorBase:
         raise _arithmetic_not_implemented()
 
     @typing.overload
     def __sub__(self, other: Quantity) -> _QuantityTensor: ...
 
     @typing.overload
-    def __sub__(self, other: object) -> _Tensor: ...
+    def __sub__(self, other: object) -> _TensorBase: ...
 
-    def __sub__(self, other: object) -> _Tensor:
+    def __sub__(self, other: object) -> _TensorBase:
         raise _arithmetic_not_implemented()
 
     @typing.overload
     def __rsub__(self, other: Quantity) -> _QuantityTensor: ...
 
     @typing.overload
-    def __rsub__(self, other: object) -> _Tensor: ...
+    def __rsub__(self, other: object) -> _TensorBase: ...
 
-    def __rsub__(self, other: object) -> _Tensor:
+    def __rsub__(self, other: object) -> _TensorBase:
         raise _arithmetic_not_implemented()
 
     @typing.overload
     def __mul__(self, other: Unit | Quantity) -> _QuantityTensor: ...
 
     @typing.overload
-    def __mul__(self, other: object) -> _Tensor: ...
+    def __mul__(self, other: object) -> _TensorBase: ...
 
-    def __mul__(self, other: object) -> _Tensor:
+    def __mul__(self, other: object) -> _TensorBase:
         if isinstance(other, Unit):
             return self._labelled(other if self.unit is None else self.unit * other)
         raise _arithmetic_not_implemented()
@@ -125,9 +125,9 @@ class _Tensor:
     def __rmul__(self, other: Unit | Quantity) -> _QuantityTensor: ...
 
     @typing.overload
-    def __rmul__(self, other: object) -> _Tensor: ...
+    def __rmul__(self, other: object) -> _TensorBase: ...
 
-    def __rmul__(self, other: object) -> _Tensor:
+    def __rmul__(self, other: object) -> _TensorBase:
         if isinstance(other, Unit):
             if self.unit is None:
                 return NotImplemented
@@ -138,9 +138,9 @@ class _Tensor:
     def __truediv__(self, other: Unit | Quantity) -> _QuantityTensor: ...
 
     @typing.overload
-    def __truediv__(self, other: object) -> _Tensor: ...
+    def __truediv__(self, other: object) -> _TensorBase: ...
 
-    def __truediv__(self, other: object) -> _Tensor:
+    def __truediv__(self, other: object) -> _TensorBase:
         if isinstance(other, Unit):
             if self.unit is None:
                 return NotImplemented
@@ -151,9 +151,9 @@ class _Tensor:
     def __rtruediv__(self, other: Quantity) -> _QuantityTensor: ...
 
     @typing.overload
-    def __rtruediv__(self, other: object) -> _Tensor: ...
+    def __rtruediv__(self, other: object) -> _TensorBase: ...
 
-    def __rtruediv__(self, other: object) -> _Tensor:
+    def __rtruediv__(self, other: object) -> _TensorBase:
         raise _arithmetic_not_implemented()
 
     def __pow__(self, other: float | Tensor | Quantity) -> typing.Self:
@@ -234,19 +234,30 @@ class _Tensor:
         return _QuantityTensor(values=self.values, domain=self.domain, unit=unit)
 
 
+@dataclasses.dataclass(frozen=True, slots=True, repr=False)
+class _Tensor(_TensorBase):
+    """Concrete unitless tensor."""
+
+    unit: None = None
+
+    @property
+    def _unitless_tensor_marker(self) -> typing.Literal[True]:
+        return True
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True, repr=False)
-class _QuantityTensor(_Tensor):
+class _QuantityTensor(_TensorBase):
     """Unit-bearing tensor with a non-optional unit and a quantity magnitude.
 
-    It retains the _Tensor API, including symbolic operations, domains,
-    conversion and unit composition. Its `value` is a unitless _Tensor
+    It retains the _TensorBase API, including symbolic operations, domains,
+    conversion and unit composition. Its `value` is a unitless _TensorBase
     retaining the original domain.
     """
 
     unit: Unit
 
     def __post_init__(self) -> None:
-        _Tensor.__post_init__(self)
+        _TensorBase.__post_init__(self)
         if not isinstance(self.unit, Unit):
             message = "QuantityTensor requires a physical unit"
             raise BiltUnitError(message)
@@ -258,37 +269,37 @@ class _QuantityTensor(_Tensor):
     def __mul__(self, other: Unit | Tensor | Quantity | float) -> _QuantityTensor: ...
 
     @typing.overload
-    def __mul__(self, other: object) -> _Tensor: ...
+    def __mul__(self, other: object) -> _TensorBase: ...
 
-    def __mul__(self, other: object) -> _Tensor:
-        return _Tensor.__mul__(self, other)
+    def __mul__(self, other: object) -> _TensorBase:
+        return _TensorBase.__mul__(self, other)
 
     @typing.overload
     def __rmul__(self, other: Unit | Tensor | Quantity | float) -> _QuantityTensor: ...
 
     @typing.overload
-    def __rmul__(self, other: object) -> _Tensor: ...
+    def __rmul__(self, other: object) -> _TensorBase: ...
 
-    def __rmul__(self, other: object) -> _Tensor:
-        return _Tensor.__rmul__(self, other)
+    def __rmul__(self, other: object) -> _TensorBase:
+        return _TensorBase.__rmul__(self, other)
 
     @typing.overload
     def __truediv__(self, other: Unit | Tensor | Quantity | float) -> _QuantityTensor: ...
 
     @typing.overload
-    def __truediv__(self, other: object) -> _Tensor: ...
+    def __truediv__(self, other: object) -> _TensorBase: ...
 
-    def __truediv__(self, other: object) -> _Tensor:
-        return _Tensor.__truediv__(self, other)
+    def __truediv__(self, other: object) -> _TensorBase:
+        return _TensorBase.__truediv__(self, other)
 
     @typing.overload
     def __rtruediv__(self, other: Tensor | Quantity | float) -> _QuantityTensor: ...
 
     @typing.overload
-    def __rtruediv__(self, other: object) -> _Tensor: ...
+    def __rtruediv__(self, other: object) -> _TensorBase: ...
 
-    def __rtruediv__(self, other: object) -> _Tensor:
-        return _Tensor.__rtruediv__(self, other)
+    def __rtruediv__(self, other: object) -> _TensorBase:
+        return _TensorBase.__rtruediv__(self, other)
 
     def cast_to(self, unit: Unit) -> typing.Self:
         """Relabel these values with an equivalent `unit`, without converting them."""
@@ -350,7 +361,7 @@ def tensor(
             return (
                 _QuantityTensor(values=array, domain=Domain.scalar(), unit=unit)
                 if unit is not None
-                else _Tensor.scalar(array)
+                else _Tensor(values=array, domain=Domain.scalar())
             )
         case None, None:
             message = "Non-scalar values need an explicit domain"
