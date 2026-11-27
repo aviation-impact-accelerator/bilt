@@ -4,7 +4,7 @@ import typing
 
 from bilt.core._system._errors import BiltInputDimensionalityError
 from bilt.core._system._sentinel import MISSING
-from bilt.core._tensors._tensors import _Tensor
+from bilt.core._tensors._tensors import _TensorBase
 from bilt.units._category import UnitCategory
 from bilt.units._quantities import _Quantity
 
@@ -24,7 +24,7 @@ def validate_inputs(
         if value is MISSING:
             continue
 
-        unit = value.unit if isinstance(value, _Quantity | _Tensor) else None
+        unit = value.unit if isinstance(value, _Quantity | _TensorBase) else None
         expected = declarations.get(port)
         if expected is None:
             if unit is not None:
@@ -33,10 +33,10 @@ def validate_inputs(
             unit is None
             or unit.dimension != expected.dimensionality
             or not (unit.category is UnitCategory.ABSOLUTE if expected.absolute else unit.is_relative)
-            or (expected.over_a_domain and not isinstance(value, _Tensor))
+            or (expected.over_a_domain and not isinstance(value, _TensorBase))
             or (
                 expected.required_domain is not None
-                and isinstance(value, _Tensor)
+                and isinstance(value, _TensorBase)
                 and not set(expected.required_domain.dims).issubset(value.domain.dims)
             )
         ):
