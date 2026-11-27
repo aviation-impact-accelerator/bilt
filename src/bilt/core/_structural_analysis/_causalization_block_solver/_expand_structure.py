@@ -3,13 +3,12 @@
 __all__ = ["ExpansionSnapshot", "StructuralExpansion", "expand_structure"]
 
 import dataclasses
-import functools
 import typing
 
 import rustworkx as rx
 
 from bilt.core._errors import BiltAnalysisError
-from bilt.core._structural_analysis._causalization_block_solver._structural_scope import inspect_structure
+from bilt.core._structural_analysis._causalization_block_solver._structural_scope import _IncrementalStructuralScope
 from bilt.core._transform import BasicTransform
 
 if typing.TYPE_CHECKING:
@@ -101,7 +100,7 @@ class StructuralExpansion:
         self.available = frozenset(available)
         self.contexts: dict[tuple[str, ...], _Context] = {
             (): _Context(
-                functools.partial(inspect_structure, incidence), frozenset(incidence.attribute_nodes), frozenset()
+                _IncrementalStructuralScope(incidence).inspect, frozenset(incidence.attribute_nodes), frozenset()
             )
         }
         self.attributes: set[str] = set()
@@ -196,7 +195,11 @@ class StructuralExpansion:
             message = f"Recursive subsystem containment at {'.'.join(path)!r} is not supported."
             raise BiltAnalysisError(message)
         analysis = implementation.structural_analysis()
-        self.contexts[path] = _Context(analysis.inspect, analysis.attribute_names, ancestors | {id(implementation)})
+        self.contexts[path] = _Context(
+            _IncrementalStructuralScope(analysis.incidence).inspect,
+            analysis.attribute_names,
+            ancestors | {id(implementation)},
+        )
         # Expansion can expose ports referenced by parent or sibling constraints.
         # Replay existing attributes into the new child context, too.
         for attribute in sorted(self.attributes):

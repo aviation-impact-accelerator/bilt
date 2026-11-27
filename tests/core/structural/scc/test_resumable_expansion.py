@@ -4,13 +4,13 @@ import pytest
 
 from bilt import Implementation, Interface, equation, field, system
 from bilt.core._errors import BiltAnalysisError
-from bilt.core._structural_analysis._causalization_block_solver import _expand_structure, _structural_scope
 from bilt.core._structural_analysis._causalization_block_solver._errors import (
     BiltOverconstrainedError,
     BiltUnderconstrainedError,
 )
 from bilt.core._structural_analysis._causalization_block_solver._expand_structure import StructuralExpansion
 from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
+from bilt.core._structural_analysis._causalization_block_solver._structural_scope import _IncrementalStructuralScope
 from bilt.core._structural_analysis._causalization_block_solver._structural_validation import validate_structure
 from bilt.core._sub_system import SubSystemConstituent
 
@@ -164,20 +164,19 @@ def test_absent_target_is_preserved_without_querying_local_graph(output: str) ->
 
 
 def test_nested_queries_only_visit_graphs_containing_the_attribute(monkeypatch: pytest.MonkeyPatch) -> None:
-    original = _structural_scope.inspect_structure
+    original = _IncrementalStructuralScope.inspect
     queried: list[frozenset[str]] = []
 
     def inspect_present(
-        incidence: FullIncidenceGraph,
+        self: _IncrementalStructuralScope,
         available: collections.abc.Set[str],
         required: collections.abc.Set[str],
     ) -> StructuralScope:
-        assert required <= incidence.attribute_nodes.keys()
+        assert required <= self.incidence.attribute_nodes.keys()
         queried.append(frozenset(required))
-        return original(incidence, available, required)
+        return original(self, available, required)
 
-    monkeypatch.setattr(_expand_structure, "inspect_structure", inspect_present)
-    monkeypatch.setattr(_structural_scope, "inspect_structure", inspect_present)
+    monkeypatch.setattr(_IncrementalStructuralScope, "inspect", inspect_present)
 
     @equation
     def connection(b: float, inner: Ports) -> bool:
