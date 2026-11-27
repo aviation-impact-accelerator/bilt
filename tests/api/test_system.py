@@ -8,6 +8,7 @@ import pytest
 from bilt import (
     Implementation,
     Interface,
+    Number,
     Tensor,
     dim,
     field,
@@ -458,7 +459,7 @@ def test_default_causalization_keeps_supplied_inputs_separate_from_cached_output
     class Pair(metaclass=Interface):
         x: float = field()
         y: float = field()
-        p: float | Tensor = field()
+        p: Number = field()
         q: float = field()
 
     @equation
@@ -510,7 +511,7 @@ def test_default_causalization_keeps_supplied_inputs_separate_from_cached_output
             assert getattr(instance, name) is result
 
 
-type FlexibleValue = float | Tensor
+type FlexibleValue = Number
 
 
 @system
@@ -539,4 +540,4 @@ def test_unitless_union_system_field_accepts_scalar_and_tensors() -> None:
 
 def test_unitless_union_rejects_unit_bearing_tensor_at_runtime() -> None:
     with pytest.raises(BiltInputDimensionalityError, match="plain port"):
-        FlexiblePlainScale(x=tensor([1.0, 2.0], over=dim("time"), unit=kilogram))
+        FlexiblePlainScale(x=typing.cast("Tensor", tensor([1.0, 2.0], over=dim("time"), unit=kilogram)))

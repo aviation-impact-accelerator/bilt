@@ -24,6 +24,7 @@ from bilt import (
     PYTHON_BACKEND,
     Implementation,
     Interface,
+    Quantity,
     Tensor,
     dim,
     domain,
@@ -168,7 +169,7 @@ def _evaluate(
         else:
             assert isinstance(value, Tensor)
             assert value.domain == domain(axis)
-            assert value.unit is None
+            assert not isinstance(value, Quantity)
             values.append(np.asarray(value.values))
     return np.stack(values)
 

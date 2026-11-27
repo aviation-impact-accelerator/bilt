@@ -99,7 +99,7 @@ from ._currencies import JPY as JPY
 from ._currencies import USD as USD
 from ._metadata import Metadata as Metadata
 from ._prefix import Prefix as Prefix
-from ._quantities import Quantity as Quantity
+from ._protocols import Quantity as Quantity
 from ._units import Unit as Unit
 from .dimensions._dimensions import Dimension as Dimension
 from .units import UNITLESS as UNITLESS

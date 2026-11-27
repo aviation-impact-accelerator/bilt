@@ -10,6 +10,7 @@ from bilt import (
     Domain,
     Implementation,
     Interface,
+    Number,
     Quantity,
     QuantityTensor,
     Tensor,
@@ -42,19 +43,18 @@ OverTime = typing.Annotated[Tensor, domain(TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
 SharedLength = typing.Annotated[Quantity, LENGTH, Domain.scalar()]
-SharedLengthField = typing.Annotated[Quantity, LENGTH]
-LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+Length = typing.Annotated[Quantity, LENGTH]
 RatioArray = typing.Annotated[QuantityTensor, DIMENSIONLESS]
 
 
 @system
 class Pair(metaclass=Interface):
-    x: float | Tensor = field()
-    y: float | Tensor = field()
-    p: float | Tensor = field()
-    q: float | Tensor = field()
+    x: Number = field()
+    y: Number = field()
+    p: Number = field()
+    q: Number = field()
     weights: Tensor = field()
-    offset: float | Tensor = field()
+    offset: Number = field()
 
 
 def _balance_for_layout(layout: str) -> BiltModelConstituent:
@@ -234,18 +234,18 @@ def test_broadcast_context_preserves_units(backend: Backend, output: str) -> Non
     @system
     class Lengths(metaclass=Interface):
         x: LengthArray = field()
-        y: SharedLengthField = field()
+        y: Length = field()
         p: LengthArray = field()
-        q: LengthScalar = field()
+        q: Length = field()
         weights: RatioArray = field()
-        offset: LengthScalar = field()
+        offset: Length = field()
 
     @equation
     def first(x: LengthArray, y: SharedLength, p: LengthArray) -> bool:
         return x + y == p
 
     @equation
-    def second(x: LengthArray, y: SharedLength, weights: RatioArray, offset: LengthScalar, q: LengthScalar) -> bool:
+    def second(x: LengthArray, y: SharedLength, weights: RatioArray, offset: Length, q: Length) -> bool:
         return (weights * x + y + offset).sum(TIME) == q
 
     with backend, Implementation(Lengths, [first, second]):

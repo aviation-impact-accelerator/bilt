@@ -3,13 +3,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from bilt import system, transform
+from bilt import Tensor, system, tensor, transform
 from bilt._backend._jax._backend import JAX_BACKEND
 from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._interface import Interface
 from bilt.core._system._field import field
 from bilt.core._system._implementation import Implementation
-from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.errors import BiltDomainRegistryError
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import Domain

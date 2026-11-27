@@ -2,8 +2,8 @@ import typing
 
 import pytest
 
+from bilt import Tensor  # noqa: TC001
 from bilt.core._equation import equation
-from bilt.core._tensors._tensors import Tensor  # noqa: TC001
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._expressions import Expr, TensorExpr, tensor_symbol_expr
 from bilt.symbolic._tree import (

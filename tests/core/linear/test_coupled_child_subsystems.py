@@ -6,6 +6,7 @@ import pytest
 from bilt import (
     Implementation,
     Interface,
+    Number,
     Quantity,
     QuantityTensor,
     Tensor,
@@ -34,15 +35,15 @@ if typing.TYPE_CHECKING:
 
 TIME = dim("time")
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
-LengthScalar = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+LengthScalar = typing.Annotated[Quantity, LENGTH]
 
 
 @system
 class Pair(metaclass=Interface):
-    x: float | Tensor = field()
-    y: float | Tensor = field()
-    p: float | Tensor = field()
-    q: float | Tensor = field()
+    x: Number = field()
+    y: Number = field()
+    p: Number = field()
+    q: Number = field()
 
 
 @equation
@@ -155,7 +156,7 @@ def test_child_units_survive_shared_and_tensor_output_lifting(backend: Backend, 
         backend,
     )
     if output == "x":
-        assert isinstance(result, Tensor)
+        assert isinstance(result, QuantityTensor)
         assert result.unit == meter
         np.testing.assert_allclose(result.values, [0, 2, 4], atol=1e-5)
     else:

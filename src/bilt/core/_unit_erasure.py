@@ -246,16 +246,7 @@ class _UnitEraser(ast.NodeTransformer):
                     )
                     raise BiltDefinitionError(msg)
                 return self._erased(quantity)
-            case (
-                ast.Call(func=function, args=[value, unit], keywords=[])
-                | ast.Call(func=function, args=[value], keywords=[ast.keyword(arg="unit", value=unit)])
-                | ast.Call(
-                    func=function,
-                    args=[],
-                    keywords=[ast.keyword(arg="value", value=value), ast.keyword(arg="unit", value=unit)]
-                    | [ast.keyword(arg="unit", value=unit), ast.keyword(arg="value", value=value)],
-                )
-            ) if self._resolved(function) is _Quantity:
+            case ast.BinOp(left=value, op=ast.Mult(), right=unit) if self._makes_an_absolute_quantity(value, unit):
                 conversion = self._conversion(unit, node)
                 coherent = ast.BinOp(left=self._erased(value), op=ast.Mult(), right=ast.Constant(conversion.scale))
                 if conversion.offset:
@@ -311,17 +302,17 @@ class _UnitEraser(ast.NodeTransformer):
             ):
                 return self._is_constant(left) and self._is_constant(right)
 
-            case ast.Call(func=function, args=args, keywords=keywords):
-                return (
-                    self._resolved(function) is _Quantity
-                    and all(self._is_constant(arg) for arg in args)
-                    and all(
-                        keyword.arg in {"value", "unit"} and self._is_constant(keyword.value) for keyword in keywords
-                    )
-                )
-
             case _:
                 return False
+
+    def _makes_an_absolute_quantity(self, value: ast.expr, unit: ast.expr) -> bool:
+        """Whether `value * unit` reads a plain number as a reading in an absolute unit, such as `degrees * absolute_celsius`."""
+        if not self._is_constant(unit) or self._is_constant(value):
+            return False
+        resolved = self._evaluated(unit)
+        if not (isinstance(resolved, Unit) and resolved.category is UnitCategory.ABSOLUTE):
+            return False
+        return not (isinstance(value, ast.Name) and value.id in self.declared_parameters and value not in self.shadowed)
 
     def _reaches_a_unit(self, node: ast.expr) -> bool:
         """Whether `node` names a quantity, a unit or a dimensionality, or one of their classes."""
@@ -369,7 +360,7 @@ class _UnitEraser(ast.NodeTransformer):
             case Unit(category=UnitCategory.ABSOLUTE):
                 problem = (
                     "is an absolute unit, which cannot be used as a scale: "
-                    f"write `Quantity(<value>, {ast.unparse(node)})`"
+                    f"multiply a plain number by it, as in `<number> * {ast.unparse(node)}`"
                 )
             case Unit():
                 return self._literal(node, _Quantity(1.0, value))

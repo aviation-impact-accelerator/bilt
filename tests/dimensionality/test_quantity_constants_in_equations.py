@@ -4,29 +4,24 @@ import typing
 
 import pytest
 
-from bilt import Implementation, Interface, QuantityTensor, equation, field, system
+from bilt import Implementation, Interface, equation, field, system
 from bilt.errors import BiltEquationDimensionalityError, BiltSymbolicConversionError
 from bilt.units import UNITLESS, Quantity
 from bilt.units.dimensions import DIMENSIONLESS, FORCE, LENGTH, MASS, TEMPERATURE, TIME
 from bilt.units.units import absolute_celsius, hour, kilogram, kilometer, meter, newton, second
 
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
-DimensionlessField = typing.Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
 Force = typing.Annotated[Quantity, FORCE]
-ForceField = typing.Annotated[Quantity | QuantityTensor, FORCE]
 Length = typing.Annotated[Quantity, LENGTH]
-LengthField = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 Mass = typing.Annotated[Quantity, MASS]
-MassField = typing.Annotated[Quantity | QuantityTensor, MASS]
 Temperature = typing.Annotated[Quantity, TEMPERATURE]
 Time = typing.Annotated[Quantity, TIME]
-TimeField = typing.Annotated[Quantity | QuantityTensor, TIME]
 
 
 @system
 class Body(metaclass=Interface):
-    force: ForceField = field()
-    mass: MassField = field()
+    force: Force = field()
+    mass: Mass = field()
 
 
 @equation
@@ -79,8 +74,8 @@ def test_a_quantity_constant_referred_to_by_name_means_the_same() -> None:
 def test_a_constant_in_another_unit_means_what_it_says() -> None:
     @system
     class Journey(metaclass=Interface):
-        distance: LengthField = field()
-        duration: TimeField = field()
+        distance: Length = field()
+        duration: Time = field()
 
     @equation
     def cruise(distance: Length, duration: Time) -> bool:
@@ -96,15 +91,15 @@ def test_a_constant_in_another_unit_means_what_it_says() -> None:
 def test_a_bare_unit_is_one_of_that_unit() -> None:
     @system
     class Route(metaclass=Interface):
-        distance: LengthField = field()
-        laps: DimensionlessField = field()
+        distance: Length = field()
+        laps: Dimensionless = field()
 
     @equation
     def lapping(distance: Length, laps: Dimensionless) -> bool:
         return distance == laps * kilometer
 
     with Implementation(Route, [lapping]):
-        result = Route(laps=Quantity(2.0, UNITLESS)).distance
+        result = Route(laps=2.0 * UNITLESS).distance
 
     assert result.value == pytest.approx(2000.0)
     assert result.unit == meter
@@ -149,7 +144,7 @@ def test_a_plain_port_meeting_a_quantity_constant_raises() -> None:
 
 def test_a_plain_port_meeting_a_dimensionless_quantity_constant_raises() -> None:
     def doubled(y: float, x: float) -> bool:
-        return y == x * Quantity(2.0, UNITLESS)
+        return y == x * 2.0 * UNITLESS
 
     with pytest.raises(BiltEquationDimensionalityError, match="quantity constant"):
         equation(doubled)

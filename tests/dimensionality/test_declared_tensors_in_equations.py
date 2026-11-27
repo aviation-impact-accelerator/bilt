@@ -23,31 +23,25 @@ from bilt.units import fraction, kelvin, kilogram
 from bilt.units.dimensions import ABSOLUTE, DIMENSIONLESS, FORCE, MASS, TEMPERATURE
 
 Mass = typing.Annotated[Quantity, MASS]
-MassField = typing.Annotated[Quantity | QuantityTensor, MASS]
 MassOverADomain = typing.Annotated[QuantityTensor, MASS]
-MassOverADomainField = typing.Annotated[QuantityTensor, MASS]
 Force = typing.Annotated[Quantity, FORCE]
 Ratio = typing.Annotated[Quantity, DIMENSIONLESS]
-RatioField = typing.Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
 RatioOverADomain = typing.Annotated[QuantityTensor, DIMENSIONLESS]
-RatioOverADomainField = typing.Annotated[QuantityTensor, DIMENSIONLESS]
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
-AbsoluteTemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
 AbsoluteTemperatureOverADomain = typing.Annotated[QuantityTensor, TEMPERATURE, ABSOLUTE]
-AbsoluteTemperatureOverADomainField = typing.Annotated[QuantityTensor, TEMPERATURE, ABSOLUTE]
 time = dim("time")
 
 
 @system
 class Scale(metaclass=Interface):
-    m: MassOverADomainField = field()
-    reduced: MassField = field()
+    m: MassOverADomain = field()
+    reduced: Mass = field()
 
 
 @system
 class Thermometer(metaclass=Interface):
-    t: AbsoluteTemperatureOverADomainField = field()
-    reduced: AbsoluteTemperatureField = field()
+    t: AbsoluteTemperatureOverADomain = field()
+    reduced: AbsoluteTemperature = field()
 
 
 @pytest.mark.parametrize(
@@ -116,8 +110,8 @@ def test_a_product_along_an_axis_of_a_dimensional_port_raises() -> None:
 def test_a_product_along_an_axis_of_a_dimensionless_port_is_dimensionless() -> None:
     @system
     class Ratios(metaclass=Interface):
-        ratios: RatioOverADomainField = field()
-        combined: RatioField = field()
+        ratios: RatioOverADomain = field()
+        combined: Ratio = field()
 
     @equation
     def combining(combined: Ratio, ratios: RatioOverADomain) -> bool:
@@ -126,7 +120,7 @@ def test_a_product_along_an_axis_of_a_dimensionless_port_is_dimensionless() -> N
     with Implementation(Ratios, [combining]):
         result = Ratios(ratios=tensor([2.0, 3.0], over=time, unit=fraction)).combined
 
-    assert result == Quantity(6.0, fraction)
+    assert result == 6.0 * fraction
 
 
 def test_a_product_along_an_axis_of_a_dimensionless_port_against_a_dimensional_one_raises() -> None:
@@ -153,7 +147,7 @@ def test_a_selection_of_an_absolute_port_keeps_its_absoluteness() -> None:
     with Implementation(Thermometer, [first]):
         result = Thermometer(t=tensor([273.15, 373.15], over=time, unit=abs(kelvin))).reduced
 
-    assert result == Quantity(273.15, abs(kelvin))
+    assert result == 273.15 * abs(kelvin)
 
 
 def test_a_selection_of_an_absolute_port_related_to_a_relative_one_raises() -> None:

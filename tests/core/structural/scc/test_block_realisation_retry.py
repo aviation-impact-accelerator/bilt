@@ -233,8 +233,7 @@ def test_surplus_assignments_do_not_recompile_the_same_rejected_block(monkeypatc
     assert len(candidates) > len(attempts)
 
 
-type GeneralMass = typing.Annotated[Quantity | QuantityTensor, MASS]
-type ScalarMass = typing.Annotated[Quantity, MASS]
+type Mass = typing.Annotated[Quantity, MASS]
 REQ_TIME = dim("required_time")
 REQ_SCENARIO = dim("scenario")
 type RequiredTimeMass = typing.Annotated[QuantityTensor, MASS, Domain((REQ_TIME,))]
@@ -242,17 +241,17 @@ type RequiredTimeMass = typing.Annotated[QuantityTensor, MASS, Domain((REQ_TIME,
 
 @system
 class MinimumDomainCopy(metaclass=Interface):
-    x: GeneralMass = field()
-    y: GeneralMass = field()
+    x: Mass = field()
+    y: Mass = field()
 
 
 @equation
-def time_limited_copy(x: RequiredTimeMass, y: ScalarMass) -> bool:
+def time_limited_copy(x: RequiredTimeMass, y: Mass) -> bool:
     return y == x
 
 
 @equation
-def time_limited_output(x: ScalarMass, y: RequiredTimeMass) -> bool:
+def time_limited_output(x: Mass, y: RequiredTimeMass) -> bool:
     return y == x
 
 
@@ -275,7 +274,7 @@ def test_equation_minimum_domain_checks_computed_output() -> None:
         Implementation(MinimumDomainCopy, [time_limited_output]),
         pytest.raises(BiltExecutionPlanError, match="missing dimensions: required_time") as failure,
     ):
-        _ = MinimumDomainCopy(x=Quantity(3.0, kilogram)).y
+        _ = MinimumDomainCopy(x=3.0 * kilogram).y
     assert isinstance(failure.value.__cause__, BiltEquationDomainRequirementError)
 
 

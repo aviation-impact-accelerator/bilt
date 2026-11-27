@@ -2,7 +2,7 @@
 
 Import tensor helpers from `bilt`. See [Domains and tensors](../guide/dimensions-domains-and-tensors.md)
 for an introduction, [Units API](units.md) for physical units, and
-[Quantity annotations and typing](quantity-annotations.md) for scalar/tensor system fields.
+[Quantity annotations and typing](quantity-annotations.md) for choosing between `Quantity`, `QuantityTensor`, `Number` and `Tensor`.
 
 ## Construction and inspection
 
@@ -13,14 +13,13 @@ for an introduction, [Units API](units.md) for physical units, and
 | `domain()` / `Domain.scalar()` | Empty domain for scalar values. |
 | `as_domain(value)` | Convert a `Dim` or iterable of dimensions to a domain; return an existing domain unchanged. |
 | `tensor(values, *, over=None, domain=None, unit=None)` | Construct a tensor from array-like data. Supply either `over` or `domain` for non-scalar data. |
-| `Tensor(values, domain, unit=None)` | Direct constructor with an explicit domain. |
-| `tensor(value)` / `Tensor.scalar(value, unit=None)` | Rank-zero tensor. |
+| `tensor(value)` / `tensor(value, unit=unit)` | Rank-zero tensor. |
 | `t.values`, `t.shape`, `t.ndim` | NumPy array, shape and rank. |
 | `t.domain`, `t.domain.dims`, `t.domain.is_scalar` | Domain, ordered dimensions and scalar-domain flag. |
-| `t.unit` | Physical unit, or `None`. |
+| `t.unit` | Physical unit of a `QuantityTensor`. |
 | `dimension.name` | Dimension name. |
 
-```python exec="on" source="above" session="tensor-api"
+```python exec="on" session="tensor-api"
 from bilt import dim, domain, tensor
 
 time = dim("time")
@@ -42,8 +41,7 @@ align by name. Result axes follow the evaluation's dimension binding order.
 | `t * unit` | Label an unlabelled tensor or compose its unit; values are unchanged. |
 | `unit * t`, `t / unit` | Compose units on an already labelled tensor. |
 
-Use `Annotated[QuantityTensor, LENGTH]` for tensor-only unit-bearing fields or equation parameters. For pointwise quantities that can be scalars or tensors, use `Annotated[Quantity | QuantityTensor, LENGTH]`. Dimensioned `Annotated[Tensor, LENGTH]` declarations are no longer supported.
-Bare `Tensor` ports are outside the physical unit system. With a non-optional
+Use `Annotated[QuantityTensor, LENGTH]` for tensor-only unit-bearing fields or equation parameters, and `Annotated[Quantity, LENGTH]` for a quantity of any shape. `Tensor` and `Number` ports are outside the physical unit system, so `Annotated[Tensor, LENGTH]` is refused. With a non-optional
 unit, `tensor(..., unit=...)` returns `QuantityTensor`; without one it returns
 `Tensor`. Computed declared
 quantities use coherent units; convert returned tensors for display.
@@ -63,8 +61,8 @@ present in the operand's domain and removes it from the result's domain.
 
 In unit-aware equations, mean/sum/min/max retain dimensionality and tags.
 `prod` requires a dimensionless operand; `sum` refuses absolute readings.
-Reducing the last dimension gives a scalar domain. Unit-aware Tensor-declared
-outputs remain rank-zero tensors; other scalar-domain outputs are numerical
+Reducing the last dimension gives a scalar domain. Outputs declared
+`QuantityTensor` remain rank-zero tensors; other scalar-domain outputs are numerical
 scalars or declared quantities.
 
 **Transforms:** use a single return statement, applying reductions directly to
@@ -90,10 +88,8 @@ Both select one element along a dimension and remove that dimension from the res
 | `x.sel(dim, coordinate)` | Literal coordinate, including a captured Python constant, on a bound coordinate axis. |
 
 `isel` delegates bounds handling to the backend; invalid-index behaviour may differ.
-`sel` requires a bound coordinate axis and a matching label. Public coordinate
-binding is not yet available; use `isel` for model evaluation in the meantime.
-Coordinates may be strings, integers, floats, `datetime.date` or
-`datetime.datetime`; float matches allow rounding tolerance.
+`sel` requires a matching label. Coordinates may be strings, integers, floats,
+`datetime.date` or `datetime.datetime`; float matches allow rounding tolerance.
 
 ### Coordinate axes
 
@@ -103,9 +99,17 @@ Coordinates may be strings, integers, floats, `datetime.date` or
 | `CoordinateAxis(dimension, coordinates)` | Direct constructor with a coordinate tuple. |
 | `axis.dimension`, `axis.coordinates`, `len(axis)` | Dimension, labels and length. |
 
-Creating an axis does not bind it to a model evaluation. Coordinate binding is
-not yet available through the public API. Until it is, resolve labels to integer
-positions using `axis.coordinates.index(label)` and use `isel` in equations.
+Creating an axis does not bind it. Currently, bind coordinates through the
+internal evaluation context **before requesting calculated outputs**:
+
+```python exec="on" session="tensor-api"
+from bilt import coordinate_axis
+from bilt.core._evaluation_context import EvaluationContext
+
+with EvaluationContext() as evaluation:
+    evaluation.domains.bind(coordinate_axis(time, (2024, 2025, 2026)))
+    # Request a model output using values.sel(time, 2025).
+```
 
 ### Intermediate values
 
