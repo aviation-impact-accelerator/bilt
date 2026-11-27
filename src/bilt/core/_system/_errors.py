@@ -15,8 +15,8 @@ __all__ = [
 import typing
 
 from bilt.core._errors import BiltDefinitionError, BiltEvaluationError
-from bilt.core._tensors._tensors import Tensor
-from bilt.units import Quantity
+from bilt.core._tensors._tensors import _Tensor
+from bilt.units._quantities import _Quantity
 from bilt.units._errors import BiltDimensionalityError
 
 if typing.TYPE_CHECKING:
@@ -70,12 +70,12 @@ class BiltInputDimensionalityError(BiltDimensionalityError):
     def __init__(self, system_name: str, port: str, expected: PortDeclaration | None, value: object) -> None:
         label = ""
         match value:
-            case Quantity(unit=unit):
+            case _Quantity(unit=unit):
                 received = f"{value} of {unit.dimension}"
-            case Tensor(unit=unit) if unit is None:
+            case _Tensor(unit=unit) if unit is None:
                 received = f"a Tensor with no unit over {value.domain}"
                 label = " Label it with `tensor(..., unit=...)`."
-            case Tensor(unit=unit):
+            case _Tensor(unit=unit):
                 received = f"a Tensor in {unit} over {value.domain}"
             case _:
                 unit = None
@@ -85,11 +85,11 @@ class BiltInputDimensionalityError(BiltDimensionalityError):
         if expected is None:
             msg = (
                 f"Input {port!r} of {system_name!r} is a plain port, outside the unit system, so it rejects a "
-                f"{'unit-carrying Tensor' if isinstance(value, Tensor) else 'Quantity'}: got {received}."
+                f"{'unit-carrying Tensor' if isinstance(value, _Tensor) else 'Quantity'}: got {received}."
             )
         elif (
             expected.required_domain is not None
-            and isinstance(value, Tensor)
+            and isinstance(value, _Tensor)
             and not set(expected.required_domain.dims).issubset(value.domain.dims)
         ):
             missing = tuple(dim for dim in expected.required_domain.dims if dim not in value.domain.dims)
@@ -97,7 +97,7 @@ class BiltInputDimensionalityError(BiltDimensionalityError):
                 f"Input {port!r} of {system_name!r} requires domain {expected.required_domain}, "
                 f"but received {value.domain}; missing dimensions: {', '.join(str(dim) for dim in missing)}."
             )
-        elif expected.over_a_domain and not isinstance(value, Tensor):
+        elif expected.over_a_domain and not isinstance(value, _Tensor):
             msg = (
                 f"Input {port!r} of {system_name!r} varies over a domain, so it must be a Tensor of {expected}, "
                 f"not {received}. Annotate it `Quantity` instead if it does not vary over a domain."
