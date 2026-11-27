@@ -109,7 +109,9 @@ class LexicalScopes:
     def _index(self, table: symtable.SymbolTable) -> None:
         for child in table.get_children():
             if child.get_type() == symtable.SymbolTableType.FUNCTION:
-                key = (child.get_name(), child.get_lineno())
+                # Python versions may expose the compiler name "<lambda>".
+                name = child.get_name()
+                key = ("lambda" if name == "<lambda>" else name, child.get_lineno())
                 self.functions.setdefault(key, []).append(child)
             self._index(child)
 
@@ -141,6 +143,7 @@ class QuantityMigration(ApiChecker):
         self.tree = tree
         self.lexical = LexicalScopes(source, tree)
         self.allowed: set[str] | None = None
+        self.in_class = False
         self.names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
         self.names.update(node.arg for node in ast.walk(tree) if isinstance(node, ast.arg))
         self.names.update(
@@ -164,12 +167,22 @@ class QuantityMigration(ApiChecker):
         start, end = self._span(node)
         return self.source[start:end]
 
+    def _render(self, node: ast.expr) -> bytes:
+        """Render a source span including already planned edits to its children."""
+        start, end = self._span(node)
+        result = self.source[start:end]
+        for edit in sorted(self.edits, key=lambda item: item.start, reverse=True):
+            if start <= edit.start and edit.end <= end:
+                result = result[: edit.start - start] + edit.replacement + result[edit.end - start :]
+        return result
+
     def _replace(self, node: ast.expr, replacement: bytes, *, multiline: bool = False) -> bool:
         original = self._text(node)
         if b"#" in original or (not multiline and (b"\n" in original or b"\r" in original)):
             self.notes.append(f"{node.lineno}: review multiline or commented expression manually")
             return False
         start, end = self._span(node)
+        self.edits = [edit for edit in self.edits if not (start <= edit.start and edit.end <= end)]
         self.edits.append(Edit(start, end, replacement))
         return True
 
@@ -250,7 +263,7 @@ class QuantityMigration(ApiChecker):
         if args is None or tuple(args) != ("value", "unit"):
             return False
         value, unit = args.values()
-        return self._replace(node, b"((" + self._text(value) + b") * (" + self._text(unit) + b"))")
+        return self._replace(node, b"((" + self._render(value) + b") * (" + self._render(unit) + b"))", multiline=True)
 
     def _tensor_call(self, node: ast.Call, kind: str) -> bool:
         scalar = kind == "bilt.Tensor.scalar"
@@ -260,17 +273,16 @@ class QuantityMigration(ApiChecker):
             return False
         if kind == "bilt.QuantityTensor" and "unit" not in args:
             return False
-        # Only change the callee and positional argument labels when possible.
-        # Rebuilding a commented or multiline call remains a manual operation.
-        if any(mark in self._text(node) for mark in (b"#", b"\n", b"\r")):
+        # Do not discard comments when rebuilding an argument list.
+        if b"#" in self._text(node):
             return False
         factory = self._public_name("tensor")
         parts = [
-            (("values" if name == "value" else name).encode() + b"=" + self._text(arg)) for name, arg in args.items()
+            (("values" if name == "value" else name).encode() + b"=" + self._render(arg)) for name, arg in args.items()
         ]
         if scalar and next(iter(args)) == "value":
-            parts[0] = self._text(args["value"])
-        return self._replace(node, factory + b"(" + b", ".join(parts) + b")")
+            parts[0] = self._render(args["value"])
+        return self._replace(node, factory + b"(" + b", ".join(parts) + b")", multiline=True)
 
     def _migrate_call(self, node: ast.Call, kind: str) -> bool:
         if kind in _QUANTITY:
@@ -281,6 +293,8 @@ class QuantityMigration(ApiChecker):
 
     @typing.override
     def visit_Call(self, node: ast.Call) -> None:
+        # Visit children before rebuilding the call so nested edits are retained.
+        super().visit_Call(node)
         kind = self._constructor_reference(node.func)
         if kind is not None:
             if self._migrate_call(node, kind):
@@ -293,7 +307,6 @@ class QuantityMigration(ApiChecker):
             and self._constructor_reference(node.args[1]) == "bilt.Tensor"
         ):
             self.notes.append(f"{node.lineno}: review Tensor runtime check for unit-bearing values")
-        super().visit_Call(node)
 
     @typing.override
     def _resolve(self, node: ast.expr | None) -> str | None:
@@ -325,37 +338,122 @@ class QuantityMigration(ApiChecker):
         globals_visible = self.lexical.globals_for(node, table)
         local_imports = _stable_imports(node.body, table, node)
         outer_allowed = self.allowed
+        outer_class = self.in_class
         with self._scope():
             self.bindings = {name: self.lexical.bindings[name] for name in globals_visible}
             self._constructor_aliases = {
                 name: value for name, value in self.lexical.constructors.items() if name in globals_visible
             }
             self.allowed = globals_visible | local_imports
+            self.in_class = False
             try:
                 for statement in node.body:
                     self.visit(statement)
             finally:
                 self.allowed = outer_allowed
+                self.in_class = outer_class
+
+    @typing.override
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        for expression in (*node.decorator_list, *node.bases, *node.keywords):
+            self.visit(expression)
+        self.bindings[node.name] = None
+        self._constructor_aliases.pop(node.name, None)
+        outer_class = self.in_class
+        with self._scope():
+            self.in_class = True
+            try:
+                for statement in node.body:
+                    self.visit(statement)
+            finally:
+                self.in_class = outer_class
 
     @typing.override
     def visit_Lambda(self, node: ast.Lambda) -> None:
-        return
+        self.visit(node.args)
+        tables = self.lexical.functions.get(("lambda", node.lineno), [])
+        if len(tables) != 1:
+            return
+        table = tables[0]
+        visible = {
+            name
+            for name in self.lexical.bindings
+            if self.lexical.lines[name] < node.lineno
+            and (name not in table.get_identifiers() or table.lookup(name).is_global())
+        }
+        outer_allowed = self.allowed
+        outer_class = self.in_class
+        with self._scope():
+            self.bindings = {name: self.lexical.bindings[name] for name in visible}
+            self._constructor_aliases = {
+                name: value for name, value in self.lexical.constructors.items() if name in visible
+            }
+            self.allowed = visible
+            self.in_class = False
+            try:
+                self.visit(node.body)
+            finally:
+                self.allowed = outer_allowed
+                self.in_class = outer_class
+
+    def _comprehension(self, node: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp) -> None:
+        # The first iterable is evaluated in the surrounding scope; every target
+        # is local to the comprehension body, including later generator targets.
+        first, *rest = node.generators
+        self.visit(first.iter)
+        if self.in_class:
+            # Class suites are not closure scopes for comprehension bodies.
+            return
+        blocked = {
+            item.id
+            for generator in node.generators
+            for item in ast.walk(generator.target)
+            if isinstance(item, ast.Name) and isinstance(item.ctx, ast.Store)
+        }
+        blocked.update(
+            item.target.id
+            for item in ast.walk(node)
+            if isinstance(item, ast.NamedExpr) and isinstance(item.target, ast.Name)
+        )
+        outer_allowed = self.allowed
+        allowed = set(self.lexical.bindings) if outer_allowed is None else outer_allowed
+        with self._scope():
+            self.allowed = allowed - blocked
+            try:
+                for condition in first.ifs:
+                    self.visit(condition)
+                for generator in rest:
+                    self.visit(generator.iter)
+                    for condition in generator.ifs:
+                        self.visit(condition)
+                if isinstance(node, ast.DictComp):
+                    self.visit(node.key)
+                    if node.value is not None:
+                        self.visit(node.value)
+                else:
+                    self.visit(node.elt)
+            finally:
+                self.allowed = outer_allowed
+        for item in ast.walk(node):
+            if isinstance(item, ast.NamedExpr) and isinstance(item.target, ast.Name):
+                self.bindings[item.target.id] = None
+                self._constructor_aliases.pop(item.target.id, None)
 
     @typing.override
     def visit_ListComp(self, node: ast.ListComp) -> None:
-        return
+        self._comprehension(node)
 
     @typing.override
     def visit_SetComp(self, node: ast.SetComp) -> None:
-        return
+        self._comprehension(node)
 
     @typing.override
     def visit_DictComp(self, node: ast.DictComp) -> None:
-        return
+        self._comprehension(node)
 
     @typing.override
     def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
-        return
+        self._comprehension(node)
 
 
 def migrate_source(source: str) -> Migration:

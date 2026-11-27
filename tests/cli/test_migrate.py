@@ -186,3 +186,85 @@ def test_defaults_are_evaluated_in_enclosing_scope() -> None:
     result = migrate_source(source)
     assert "def model(Q=((2) * (meter))):" in result.source
     assert "return Q(2, meter)" in result.source
+
+
+def test_dictionary_comprehension_ingress() -> None:
+    source = (
+        "from bilt import Quantity\n"
+        "def rollout(ambitions):\n"
+        "    return Model(**{name: Quantity(value, percent) for name, value in ambitions.items()})\n"
+    )
+    result = migrate_source(source)
+    assert "name: ((value) * (percent))" in result.source
+    assert not result.notes
+    assert migrate_source(result.source).source == result.source
+
+
+def test_comprehension_forms() -> None:
+    source = (
+        "from bilt import Quantity as Q\n"
+        "a = [Q(x, u) for x in xs]\n"
+        "b = {Q(x, u) for x in xs}\n"
+        "c = (Q(x, u) for x in xs)\n"
+    )
+    result = migrate_source(source)
+    assert "a = [((x) * (u)) for x in xs]" in result.source
+    assert "b = {((x) * (u)) for x in xs}" in result.source
+    assert "c = (((x) * (u)) for x in xs)" in result.source
+    assert not result.notes
+
+
+def test_comprehension_shadowing_and_first_iterable() -> None:
+    source = "from bilt import Quantity as Q\nx = [Q(2, u) for Q in Q(3, u)]\n"
+    assert "[Q(2, u) for Q in ((3) * (u))]" in migrate_source(source).source
+
+
+def test_later_comprehension_target_shadows_earlier_filter() -> None:
+    source = "from bilt import Quantity as Q\nx = [Q(v, u) for v in xs if Q(v, u) for Q in ys]\n"
+    assert migrate_source(source).source == source
+
+
+def test_lambda_global_and_shadowed_argument() -> None:
+    source = "from bilt import Quantity as Q\na = lambda x: Q(x, u)\nb = lambda Q: Q(2, u)\n"
+    result = migrate_source(source)
+    assert "lambda x: ((x) * (u))" in result.source
+    assert "lambda Q: Q(2, u)" in result.source
+
+
+def test_lambda_defaults_in_outer_scope() -> None:
+    source = "from bilt import Quantity as Q\na = lambda Q=Q(2, u): Q(3, u)\n"
+    assert "lambda Q=((2) * (u)): Q(3, u)" in migrate_source(source).source
+
+
+def test_multiline_quantity_constructor() -> None:
+    source = "from bilt import Quantity\nx = Quantity(\n    value,\n    mega / gram,\n)\n"
+    result = migrate_source(source)
+    assert "x = ((value) * (mega / gram))" in result.source
+    assert not result.notes
+
+
+def test_multiline_tensor_constructor() -> None:
+    source = "import bilt as b\nx = b.QuantityTensor(\n    v,\n    d,\n    u,\n)\n"
+    result = migrate_source(source)
+    assert "x = b.tensor(values=v, domain=d, unit=u)" in result.source
+    assert not result.notes
+
+
+def test_nested_constructors_are_migrated_in_one_pass() -> None:
+    source = "import bilt as b\nx = b.Tensor.scalar(b.Quantity(2, u))\n"
+    result = migrate_source(source)
+    assert "x = b.tensor(((2) * (u)))" in result.source
+    assert not result.notes
+    assert migrate_source(result.source).source == result.source
+
+
+def test_nested_edit_keeps_comments_in_outer_call() -> None:
+    source = "import bilt as b\nx = b.Tensor.scalar(\n    b.Quantity(2, u),  # retain\n)\n"
+    result = migrate_source(source)
+    assert "b.Tensor.scalar(\n    ((2) * (u)),  # retain" in result.source
+    assert result.notes
+
+
+def test_class_comprehension_does_not_use_class_local_alias() -> None:
+    source = "from bilt import Quantity as Q\nclass Model:\n    Q = other\n    x = [Q(v, u) for v in xs]\n"
+    assert migrate_source(source).source == source
