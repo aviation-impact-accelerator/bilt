@@ -571,3 +571,31 @@ def test_scalar_system_field_cannot_require_tensor_domain() -> None:
     annotation = typing.Annotated[Quantity, MASS, Domain((time,))]
     with pytest.raises(BiltPortDeclarationError, match="non-tensor quantity"):
         _system_field(annotation)
+
+
+type _QuantityAlias = Quantity
+type _MassWithNote = typing.Annotated[Mass, "note"]
+
+
+def test_plain_alias_inside_annotated_preserves_dimensionality() -> None:
+    @system
+    class Aliased(metaclass=Interface):
+        mass: typing.Annotated[_QuantityAlias, MASS] = field()
+        noted: _MassWithNote = field()
+
+    assert Aliased.__bilt_port_declarations__ == {
+        "mass": PortDeclaration(MASS),
+        "noted": PortDeclaration(MASS),
+    }
+
+
+@pytest.mark.parametrize(
+    "annotation",
+    (
+        list[typing.Annotated[Quantity, kilogram]],
+        typing.Annotated[Quantity, kilogram] | None,
+    ),
+)
+def test_hidden_unit_metadata_is_not_silently_ignored(annotation: object) -> None:
+    with pytest.raises(BiltPortDeclarationError, match="where Bilt cannot read"):
+        _system_field(annotation)

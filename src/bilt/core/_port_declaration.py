@@ -46,12 +46,18 @@ class PortDeclaration:
 
 def annotated_parts(annotation: object) -> tuple[object, list[object]]:
     """Split an annotation into the type it is written over and its `Annotated` metadata, through any type alias."""
-    while isinstance(annotation, typing.TypeAliasType):
-        annotation = annotation.__value__
-    if typing.get_origin(annotation) is typing.Annotated:
-        base_type, *metadata = typing.get_args(annotation)
-        return base_type, metadata
-    return annotation, []
+    metadata: list[object] = []
+    seen: set[int] = set()
+    while id(annotation) not in seen:
+        seen.add(id(annotation))
+        if isinstance(annotation, typing.TypeAliasType):
+            annotation = annotation.__value__
+        elif typing.get_origin(annotation) is typing.Annotated:
+            annotation, *items = typing.get_args(annotation)
+            metadata[:0] = items
+        else:
+            break
+    return annotation, metadata
 
 
 def _is_old_pointwise_quantity_union(base_type: object) -> bool:
@@ -73,26 +79,31 @@ def quantity_magnitude_kind(base_type: object) -> typing.Literal["tensor", "any"
     return None
 
 
-_DECLARING_METADATA = (Dimension, Domain, Metadata)
+_DECLARING_METADATA = (Dimension, Domain, Metadata, Unit)
 
 
-def _hides_a_declaration(annotation: object) -> bool:
+def _hides_a_declaration(annotation: object, seen: frozenset[int] = frozenset()) -> bool:
     """Whether a dimensionality, `ABSOLUTE` or required domain sits somewhere Bilt does not read it.
 
     Bilt reads `Annotated` metadata only at the top of a port's annotation (through plain type aliases).
     Metadata inside a union, a generic or a subscripted generic type alias would otherwise be dropped silently.
     """
+    if id(annotation) in seen:
+        return False
+    seen = seen | {id(annotation)}
     if isinstance(annotation, typing.TypeAliasType):
-        return _hides_a_declaration(annotation.__value__)
+        return _hides_a_declaration(annotation.__value__, seen)
     origin = typing.get_origin(annotation)
     if isinstance(origin, typing.TypeAliasType):
-        return _hides_a_declaration(origin.__value__) or any(map(_hides_a_declaration, typing.get_args(annotation)))
+        return _hides_a_declaration(origin.__value__, seen) or any(
+            _hides_a_declaration(item, seen) for item in typing.get_args(annotation)
+        )
     if origin is typing.Annotated:
         base_type, *metadata = typing.get_args(annotation)
         return any(isinstance(item, _DECLARING_METADATA) or item is ABSOLUTE for item in metadata) or (
-            _hides_a_declaration(base_type)
+            _hides_a_declaration(base_type, seen)
         )
-    return any(map(_hides_a_declaration, typing.get_args(annotation)))
+    return any(_hides_a_declaration(item, seen) for item in typing.get_args(annotation))
 
 
 def _required_domain(  # noqa: PLR0913
