@@ -240,7 +240,7 @@ def test_scalar_declared_tensor_intermediate_stays_a_tensor(backend: Backend) ->
     with backend, Implementation(Demo, [double, finish]):
         instance = Demo(values=tensor(2.0, over=(), unit=kilogram))
         assert instance.result.values == pytest.approx(12.0)
-        assert isinstance(instance.doubled, Tensor)
+        assert isinstance(instance.doubled, QuantityTensor)
         assert instance.doubled.domain == domain()
         assert instance.doubled.unit == kilogram
 
