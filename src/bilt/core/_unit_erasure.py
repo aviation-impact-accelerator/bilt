@@ -10,10 +10,10 @@ from collections import Counter
 
 from bilt.core._errors import BiltDefinitionError
 from bilt.units import Dimension, Metadata, Unit
-from bilt.units._quantities import _Quantity
 from bilt.units._category import UnitCategory
 from bilt.units._conversion import conversion_between
 from bilt.units._errors import BiltUnitError
+from bilt.units._quantities import _Quantity
 from bilt.units._units import BASE_UNIT_SYSTEM
 
 if typing.TYPE_CHECKING:
@@ -288,7 +288,9 @@ class _UnitEraser(ast.NodeTransformer):
                 # Resolve named constants through imported modules.
                 if isinstance(self._resolved(root), types.ModuleType):
                     value = self._resolved(node)
-                    return type(value) in (bool, int, float) or isinstance(value, (_Quantity, Unit, Dimension, Metadata))
+                    return type(value) in (bool, int, float) or isinstance(
+                        value, (_Quantity, Unit, Dimension, Metadata)
+                    )
 
                 # Supported, read-only properties on known Bilt constants.
                 return isinstance(self._resolved(root), (_Quantity, Unit, Dimension)) and node.attr in {

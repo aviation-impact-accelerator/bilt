@@ -29,8 +29,8 @@ from bilt.symbolic._tree import (
     symbol_tree,
 )
 from bilt.units import Metadata, Unit
-from bilt.units._quantities import _Quantity
 from bilt.units._category import UnitCategory
+from bilt.units._quantities import _Quantity
 from bilt.units._units import BASE_UNIT_SYSTEM
 
 if typing.TYPE_CHECKING:

@@ -5,8 +5,8 @@ import typing
 from bilt.core._system._errors import BiltInputDimensionalityError
 from bilt.core._system._sentinel import MISSING
 from bilt.core._tensors._tensors import _Tensor
-from bilt.units._quantities import _Quantity
 from bilt.units._category import UnitCategory
+from bilt.units._quantities import _Quantity
 
 if typing.TYPE_CHECKING:
     import collections.abc
