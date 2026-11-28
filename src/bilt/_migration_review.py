@@ -27,15 +27,6 @@ def _runtime_check(node: ast.expr, context: MigrationContext) -> str | None:
     return None
 
 
-def _scalar_unit_product(node: ast.expr, context: MigrationContext) -> bool:
-    if not isinstance(node, ast.BinOp) or not isinstance(node.op, ast.Mult):
-        return False
-    if not isinstance(node.left, ast.Constant) or type(node.left.value) not in {int, float}:
-        return False
-    unit = context.resolve(node.right)
-    return unit is not None and unit.startswith("bilt.units.")
-
-
 def _quantity_receiver(node: ast.Attribute) -> ast.expr:
     receiver = node.value
     if (
@@ -121,11 +112,7 @@ class QuantityShapeReview:
             and context.builtin_visible("float")
         ):
             return
-        if _scalar_unit_product(receiver, context):
-            context.note(
-                node, "review scalar magnitude use; Quantity.value is Number, use float(...) if scalar is intended"
-            )
-        elif self._has_quantity_evidence(node, receiver, context) and (
+        if self._has_quantity_evidence(node, receiver, context) and (
             self._scalar_return(node, context) or self._numpy_boundary(node, context)
         ):
             context.note(
