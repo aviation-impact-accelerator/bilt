@@ -32,3 +32,17 @@ A caller may also supply a source formatter. The engine rejects formatting
 that changes the Python AST. Neither an external formatter nor additional
 dependencies are required by the framework. Cleanup runs only on changed
 source with no outstanding migration notes.
+
+## Expression generation
+
+Use `context.replace_binary(node, left, "*", right)` to construct a binary
+operation from two source expressions. The helper composes nested edits and
+checks candidate expressions against a fully grouped reference AST. It removes
+parentheses only if the operand grouping and enclosing Python syntax are
+unchanged. This preserves evaluation order even for overloaded arithmetic and
+non-associative operators.
+
+For other already-rendered expressions, `context.replace_expression(node,
+replacement)` applies the same contextual grouping check. Both helpers retain
+the engine's existing comment protection and manual-review diagnostics. No
+source is executed and no formatter dependency is required.
