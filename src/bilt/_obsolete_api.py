@@ -1,12 +1,11 @@
 """Shared recognition of obsolete public constructors."""
 
 import ast
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+import typing
 
-from bilt._migration import MigrationContext
+from bilt._lexical import LexicalVisitor
 
-if TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     from collections.abc import Callable
 
 CONSTRUCTORS = {
@@ -19,7 +18,7 @@ CONSTRUCTORS = {
 }
 
 
-def obsolete_constructor(node: ast.expr, context: MigrationContext) -> str | None:
+def obsolete_constructor(node: ast.expr, context: LexicalVisitor) -> str | None:
     """Resolve constructor references without inferring the types of values."""
     if not isinstance(node, ast.Call):
         return None
@@ -31,15 +30,18 @@ def constructor_message(kind: str) -> str:
     return f"Obsolete constructor {kind}; {CONSTRUCTORS[kind]} instead."
 
 
-@dataclass(frozen=True, slots=True)
-class _ConstructorScan:
-    report: Callable[[ast.expr, str], None]
+class _ConstructorScan(LexicalVisitor):
+    def __init__(self, source: str, tree: ast.Module, report: Callable[[ast.expr, str], None]) -> None:
+        super().__init__(source, tree)
+        self.report = report
 
-    def apply(self, node: ast.expr, context: MigrationContext) -> None:
-        if (kind := obsolete_constructor(node, context)) is not None:
+    @typing.override
+    def visit(self, node: ast.AST) -> None:
+        super().visit(node)
+        if isinstance(node, ast.expr) and (kind := obsolete_constructor(node, self)) is not None:
             self.report(node, kind)
 
 
 def scan_obsolete_constructors(source: str, tree: ast.Module, report: Callable[[ast.expr, str], None]) -> None:
     """Inspect the same lexical scopes as the migration, without proposing edits."""
-    MigrationContext(source, tree, (_ConstructorScan(report),)).visit(tree)
+    _ConstructorScan(source, tree, report).visit(tree)

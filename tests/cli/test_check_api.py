@@ -2,11 +2,16 @@
 
 import ast
 import textwrap
+from typing import TYPE_CHECKING
 
 import pytest
 
 from bilt._check_api import scan_api
+from bilt._check_discovery import discover
 from bilt._migrate import migrate_source
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.mark.parametrize(
@@ -124,3 +129,10 @@ def test_obsolete_constructor_check_and_migration_agree(source: str, manual: boo
         assert not remaining
         assert not migrated.notes
         assert migrate_source(migrated.source) == migrated
+
+
+def test_discovery_reports_invalid_lexical_scope(tmp_path: Path) -> None:
+    (tmp_path / "invalid.py").write_text("def run():\n    nonlocal missing\n", encoding="utf-8")
+    result = discover(tmp_path, tmp_path, ())
+    assert len(result.errors) == 1
+    assert result.errors[0].startswith("invalid.py:2: error: SyntaxError:")

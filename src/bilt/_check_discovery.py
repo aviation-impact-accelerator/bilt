@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
 
-from bilt._check_api import scan_api
+from bilt._check_api import ApiChecker, scan_api
 from bilt._errors import BiltCheckConfigurationError
 
 if typing.TYPE_CHECKING:
@@ -169,16 +169,22 @@ def discover(target: Path, root: Path, excludes: collections.abc.Sequence[str]) 
     exports: dict[str, str] = {}
     # Resolve direct model imports from neighbouring source files, including re-exports.
     for _ in range(2):
-        for relative, source, tree, located in sources:
+        for relative, _, tree, located in sources:
             if located is None:
                 continue
             module = located[0]
             package = module if relative.endswith("/__init__.py") else module.rpartition(".")[0]
-            checker = scan_api(source, tree, relative, package, exports)
+            checker = ApiChecker(relative, package, exports)
+            checker.visit(tree)
             exports.update({f"{module}.{name}": kind for name, kind in checker.bindings.items() if kind is not None})
     for relative, source, tree, located in sources:
         module = located[0] if located is not None else ""
         package = module if relative.endswith("/__init__.py") else module.rpartition(".")[0]
-        checker = scan_api(source, tree, relative, package, exports)
+        try:
+            checker = scan_api(source, tree, relative, package, exports)
+        except SyntaxError as error:
+            line = f":{error.lineno}" if error.lineno else ""
+            errors.append(f"{relative}{line}: error: SyntaxError: {error.msg}")
+            continue
         errors.extend(f"{item.location}: error: {item.code} {item.message}" for item in checker.diagnostics)
     return Discovery(tuple(sorted(modules)), tuple(sorted(import_paths)), tuple(errors))
