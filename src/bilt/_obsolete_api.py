@@ -40,8 +40,6 @@ class _ConstructorScan:
             self.report(node, kind)
 
 
-def scan_obsolete_constructors(
-    source: str, tree: ast.Module, report: Callable[[ast.expr, str], None]
-) -> None:
+def scan_obsolete_constructors(source: str, tree: ast.Module, report: Callable[[ast.expr, str], None]) -> None:
     """Inspect the same lexical scopes as the migration, without proposing edits."""
     MigrationContext(source, tree, (_ConstructorScan(report),)).visit(tree)
