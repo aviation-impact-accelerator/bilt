@@ -1,6 +1,7 @@
 """Review shape-sensitive boundaries without guessing the intended model behaviour."""
 
 import ast
+
 from bilt._migration import MigrationContext
 
 _QUANTITY = frozenset({"bilt.Quantity", "bilt.units.Quantity"})
@@ -49,9 +50,12 @@ class QuantityShapeReview:
 
     def _review_magnitude(self, node: ast.Attribute, context: MigrationContext) -> None:
         receiver = node.value
-        if isinstance(receiver, ast.Call) and isinstance(receiver.func, ast.Attribute):
-            if receiver.func.attr == "convert_to":
-                receiver = receiver.func.value
+        if (
+            isinstance(receiver, ast.Call)
+            and isinstance(receiver.func, ast.Attribute)
+            and receiver.func.attr == "convert_to"
+        ):
+            receiver = receiver.func.value
         if not _scalar_unit_product(receiver, context):
             return
         parent = self.parents.get(node)
