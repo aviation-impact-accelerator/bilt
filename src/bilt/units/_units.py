@@ -7,7 +7,7 @@ from bilt.units._errors import BiltUnitError
 
 from ._category import UnitCategory
 from ._prefix import PREFIX_NAMES, Prefix
-from ._quantities import Quantity
+from ._quantities import _Quantity
 from .dimensions._dimensions import (
     AMOUNT,
     CURRENCY,
@@ -292,7 +292,7 @@ class Unit:
 
     @classmethod
     def new_named(
-        cls, name: str, relation: Unit | UnitComposition | Quantity, prefix: Prefix | None = None
+        cls, name: str, relation: Unit | UnitComposition | _Quantity, prefix: Prefix | None = None
     ) -> typing.Self:
         if prefix is not None and not name.startswith(PREFIX_NAMES[prefix]):
             message = f"Unit with name {name!r} does not start with its defined prefix of {prefix}"
@@ -305,7 +305,7 @@ class Unit:
                 relation = relation.relation
             case UnitComposition():
                 pass
-            case Quantity():
+            case _Quantity():
                 quantity = relation
                 if quantity.unit.metadata is not None or quantity.unit.category in (
                     UnitCategory.BASE,
@@ -365,12 +365,12 @@ class Unit:
 
     @classmethod
     def new_absolute(
-        cls, name: str, scale: Unit, zero: Quantity | None = None, metadata: Metadata | None = None
+        cls, name: str, scale: Unit, zero: _Quantity | None = None, metadata: Metadata | None = None
     ) -> typing.Self:
         relation = UnitComposition(UnitOrder(scale, 1))
         offset: UnitComposition | None
         match zero:
-            case Quantity():
+            case _Quantity():
                 offset = UnitComposition(UnitOrder(zero.unit, 1), scale=zero.value)
             case None:
                 offset = None
@@ -488,9 +488,9 @@ class Unit:
     def __mul__(self, other: Unit) -> typing.Self: ...
 
     @typing.overload
-    def __mul__(self, other: Quantity) -> Quantity: ...
+    def __mul__(self, other: _Quantity) -> _Quantity: ...
 
-    def __mul__(self, other: Unit | Quantity) -> typing.Self | Quantity:
+    def __mul__(self, other: Unit | _Quantity) -> typing.Self | _Quantity:
         if isinstance(other, self.__class__):
             left = (
                 self.relation
@@ -503,24 +503,24 @@ class Unit:
                 else UnitComposition(UnitOrder(other, 1))
             )
             return self.__class__(left * right)
-        if isinstance(other, Quantity):
-            return Quantity(other.value, self * other.unit)
+        if isinstance(other, _Quantity):
+            return _Quantity(other.value, self * other.unit)
         return NotImplemented
 
-    def __rmul__(self, other: Quantity | float) -> Quantity:
-        if isinstance(other, Quantity):
-            return Quantity(other.value, other.unit * self)
+    def __rmul__(self, other: _Quantity | float) -> _Quantity:
+        if isinstance(other, _Quantity):
+            return _Quantity(other.value, other.unit * self)
         if isinstance(other, float):
-            return Quantity(other, self)
+            return _Quantity(other, self)
         return NotImplemented
 
     @typing.overload
     def __truediv__(self, other: Unit) -> typing.Self: ...
 
     @typing.overload
-    def __truediv__(self, other: Quantity) -> Quantity: ...
+    def __truediv__(self, other: _Quantity) -> _Quantity: ...
 
-    def __truediv__(self, other: Unit | Quantity) -> typing.Self | Quantity:
+    def __truediv__(self, other: Unit | _Quantity) -> typing.Self | _Quantity:
         if isinstance(other, self.__class__):
             numerator = (
                 self.relation
@@ -533,19 +533,19 @@ class Unit:
                 else UnitComposition(UnitOrder(other, 1))
             )
             return self.__class__(numerator / denominator)
-        if isinstance(other, Quantity):
-            return Quantity(1.0 / other.value, self / other.unit)
+        if isinstance(other, _Quantity):
+            return _Quantity(1.0 / other.value, self / other.unit)
         return NotImplemented
 
     @typing.overload
     def __rtruediv__(self, other: typing.Literal[1]) -> typing.Self: ...
 
     @typing.overload
-    def __rtruediv__(self, other: Quantity) -> Quantity: ...
+    def __rtruediv__(self, other: _Quantity) -> _Quantity: ...
 
-    def __rtruediv__(self, other: Quantity | typing.Literal[1]) -> typing.Self | Quantity:
-        if isinstance(other, Quantity):
-            return Quantity(other.value, other.unit / self)
+    def __rtruediv__(self, other: _Quantity | typing.Literal[1]) -> typing.Self | _Quantity:
+        if isinstance(other, _Quantity):
+            return _Quantity(other.value, other.unit / self)
         if isinstance(other, int) and other == 1:
             return self**-1
         return NotImplemented
@@ -706,7 +706,7 @@ class UnitSystem:
         )
         return Unit(UnitComposition(*(UnitOrder(base_unit, order) for base_unit, order in orders), *tagged))
 
-    def coherent_value(self, quantity: Quantity) -> float:
+    def coherent_value(self, quantity: _Quantity) -> float:
         """The value of `quantity` in the coherent unit of its dimensionality, or in that unit's absolute counterpart."""
         coherent_unit = self.coherent_unit(quantity.unit.dimension)
         if quantity.unit.category is UnitCategory.ABSOLUTE:

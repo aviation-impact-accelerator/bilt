@@ -154,3 +154,7 @@ class Quantity:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(value={self.value!r}, unit={self.unit!r})"
+
+
+# Internal concrete type; the public name remains unchanged for compatibility.
+_Quantity = Quantity

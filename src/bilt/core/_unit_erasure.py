@@ -9,10 +9,11 @@ import typing
 from collections import Counter
 
 from bilt.core._errors import BiltDefinitionError
-from bilt.units import Dimension, Metadata, Quantity, Unit
+from bilt.units import Dimension, Metadata, Unit
 from bilt.units._category import UnitCategory
 from bilt.units._conversion import conversion_between
 from bilt.units._errors import BiltUnitError
+from bilt.units._quantities import _Quantity
 from bilt.units._units import BASE_UNIT_SYSTEM
 
 if typing.TYPE_CHECKING:
@@ -22,7 +23,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._transform import BasicTransform
     from bilt.units._conversion import Conversion
 
-_UNIT_TYPES = (Quantity, Unit, Dimension)
+_UNIT_TYPES = (_Quantity, Unit, Dimension)
 
 _QUANTITY_ATTRIBUTES = frozenset({"value", "unit", "convert_to", "cast_to", "strip_metadata"})
 
@@ -254,7 +255,7 @@ class _UnitEraser(ast.NodeTransformer):
                     keywords=[ast.keyword(arg="value", value=value), ast.keyword(arg="unit", value=unit)]
                     | [ast.keyword(arg="unit", value=unit), ast.keyword(arg="value", value=value)],
                 )
-            ) if self._resolved(function) is Quantity:
+            ) if self._resolved(function) is _Quantity:
                 conversion = self._conversion(unit, node)
                 coherent = ast.BinOp(left=self._erased(value), op=ast.Mult(), right=ast.Constant(conversion.scale))
                 if conversion.offset:
@@ -281,16 +282,18 @@ class _UnitEraser(ast.NodeTransformer):
                     return False
 
                 value = self.bindings[name]
-                return type(value) in (bool, int, float) or isinstance(value, (Quantity, Unit, Dimension, Metadata))
+                return type(value) in (bool, int, float) or isinstance(value, (_Quantity, Unit, Dimension, Metadata))
 
             case ast.Attribute(value=root):
                 # Resolve named constants through imported modules.
                 if isinstance(self._resolved(root), types.ModuleType):
                     value = self._resolved(node)
-                    return type(value) in (bool, int, float) or isinstance(value, (Quantity, Unit, Dimension, Metadata))
+                    return type(value) in (bool, int, float) or isinstance(
+                        value, (_Quantity, Unit, Dimension, Metadata)
+                    )
 
                 # Supported, read-only properties on known Bilt constants.
-                return isinstance(self._resolved(root), (Quantity, Unit, Dimension)) and node.attr in {
+                return isinstance(self._resolved(root), (_Quantity, Unit, Dimension)) and node.attr in {
                     "value",
                     "dimension",
                     "is_dimensionless",
@@ -310,7 +313,7 @@ class _UnitEraser(ast.NodeTransformer):
 
             case ast.Call(func=function, args=args, keywords=keywords):
                 return (
-                    self._resolved(function) is Quantity
+                    self._resolved(function) is _Quantity
                     and all(self._is_constant(arg) for arg in args)
                     and all(
                         keyword.arg in {"value", "unit"} and self._is_constant(keyword.value) for keyword in keywords
@@ -369,8 +372,8 @@ class _UnitEraser(ast.NodeTransformer):
                     f"write `Quantity(<value>, {ast.unparse(node)})`"
                 )
             case Unit():
-                return self._literal(node, Quantity(1.0, value))
-            case Quantity():
+                return self._literal(node, _Quantity(1.0, value))
+            case _Quantity():
                 return ast.Constant(BASE_UNIT_SYSTEM.coherent_value(value))
             case bool() | int() | float():
                 return ast.Constant(value)
