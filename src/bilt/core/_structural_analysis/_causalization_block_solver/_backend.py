@@ -46,6 +46,7 @@ if typing.TYPE_CHECKING:
     from bilt.core._evaluation_request import EvaluationRequest
     from bilt.core._model_constituent import BiltModelConstituent
     from bilt.core._structural_analysis._causalization_block_solver._expand_structure import ExpansionSnapshot
+    from bilt.core._structural_analysis._causalization_block_solver._native_prototype import NativePlanner
     from bilt.core._structural_analysis._causalization_block_solver._structural_validation import ValidatedStructure
     from bilt.symbolic._domains import Domain
 
@@ -61,16 +62,26 @@ class CausalizationStructuralAnalyzer:
         self.backend = backend
         self.full_incidence_graph = FullIncidenceGraph(constituents)
         self._failures: dict[PlanStep, RealizationFailure] = {}
+        self._experimental_native_initialized = False
+        self._experimental_native: NativePlanner | None = None
         # A successful matching is only a starting point for later targets.
         # Structural validation and realisation still run for every request.
         self._last_matching: tuple[frozenset[tuple[str, Domain]], dict[str, BiltModelConstituent]] | None = None
 
     def analyse(self, request: EvaluationRequest) -> BackendCase:
         """Find and realise a plan, sharing request caches across nested analysis."""
+        from ._native_prototype import attempt  # noqa: PLC0415
+
         with structural_cache_scope(), route_cache_scope():
+            native = attempt(self, request, (request.output,))
+            if isinstance(native, (RealizationFailure, BlockRealizationFailure)):
+                self._retry_child(native)
+                return self._analyse(request, initial_error=native.cause)
+            if native is not None:
+                return native
             return self._analyse(request)
 
-    def _analyse(self, request: EvaluationRequest) -> BackendCase:
+    def _analyse(self, request: EvaluationRequest, *, initial_error: Exception | None = None) -> BackendCase:
         """Search within the current request's cache scopes."""
         available = set(request.input_domains)
         structure = validate_request_structure(
@@ -83,7 +94,7 @@ class CausalizationStructuralAnalyzer:
             return expanded
 
         signature = frozenset(request.input_domains.items())
-        last_error: Exception | None = None
+        last_error = initial_error
         block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
 
         for assignments in self._matching_candidates(request, available, structure, signature):
@@ -170,49 +181,57 @@ class CausalizationStructuralAnalyzer:
             raise ValueError(msg)
         if len(targets) == 1:
             return self.analyse(request)
+        from ._native_prototype import attempt  # noqa: PLC0415
+
         with structural_cache_scope(), route_cache_scope():
-            available = set(request.input_domains)
-            for target in targets:
-                structure = validate_request_structure(self.full_incidence_graph, available, target)
-                if structure is None or unavoidable_coupled_outputs(
-                    structure.well_determined, target, allow_local_linear=True
-                ):
-                    msg = f"Multi-output planning cannot jointly plan the coupled target {target!r}."
-                    raise BiltExecutionPlanError(msg)
+            native = attempt(self, request, targets)
+            if native is not None and not isinstance(native, (RealizationFailure, BlockRealizationFailure)):
+                return native
+            return self._analyse_many(request, targets)
 
-            graph = build_matching_graph(self.full_incidence_graph, available)
-            self._prefer_child_producers(graph, available, targets[0])
-            block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
-            last_error: Exception | None = None
-            # Bound candidate exploration; the existing single-output route
-            # remains the correctness-preserving fallback for unsupported sets.
-            for index, assignments in enumerate(search.candidate_assignments(graph, self._failures, output=None)):
-                if index >= 24:  # noqa: PLR2004 - bound joint matching search
-                    break
-                try:
-                    blocks = planning.plan_blocks_many(assignments, available, targets, backend=self.backend)
-                except BiltAnalysisError as error:
-                    last_error = error
-                    continue
-                result = realize_plan(
-                    AnalysisPlan(request=request, blocks=blocks),
-                    self.backend,
-                    block_failures=block_failures,
-                )
-                if isinstance(result, (RealizationFailure, BlockRealizationFailure)):
-                    last_error = result.cause
-                    invalidate_route_cache()
-                    # A joint formulation can fail even when individual routes work.
-                    # Do not blacklist its constituents for later requests.
-                    continue
-                produced = {item.port for item in result.outputs}
-                if not set(targets) <= (produced | available):
-                    last_error = BiltExecutionPlanError("Joint plan omitted a requested output.")
-                    continue
-                return result
+    def _analyse_many(self, request: EvaluationRequest, targets: tuple[str, ...]) -> BackendCase:
+        available = set(request.input_domains)
+        for target in targets:
+            structure = validate_request_structure(self.full_incidence_graph, available, target)
+            if structure is None or unavoidable_coupled_outputs(
+                structure.well_determined, target, allow_local_linear=True
+            ):
+                msg = f"Multi-output planning cannot jointly plan the coupled target {target!r}."
+                raise BiltExecutionPlanError(msg)
 
-            msg = f"Cannot jointly plan {targets!r} from supplied inputs {sorted(available)}."
-            raise BiltExecutionPlanError(msg) from last_error
+        graph = build_matching_graph(self.full_incidence_graph, available)
+        self._prefer_child_producers(graph, available, targets[0])
+        block_failures: dict[BlockRealizationKey, BlockRealizationFailure] = {}
+        last_error: Exception | None = None
+        # Bound candidate exploration; the existing single-output route
+        # remains the correctness-preserving fallback for unsupported sets.
+        for index, assignments in enumerate(search.candidate_assignments(graph, self._failures, output=None)):
+            if index >= 24:  # noqa: PLR2004 - bound joint matching search
+                break
+            try:
+                blocks = planning.plan_blocks_many(assignments, available, targets, backend=self.backend)
+            except BiltAnalysisError as error:
+                last_error = error
+                continue
+            result = realize_plan(
+                AnalysisPlan(request=request, blocks=blocks),
+                self.backend,
+                block_failures=block_failures,
+            )
+            if isinstance(result, (RealizationFailure, BlockRealizationFailure)):
+                last_error = result.cause
+                invalidate_route_cache()
+                # A joint formulation can fail even when individual routes work.
+                # Do not blacklist its constituents for later requests.
+                continue
+            produced = {item.port for item in result.outputs}
+            if not set(targets) <= (produced | available):
+                last_error = BiltExecutionPlanError("Joint plan omitted a requested output.")
+                continue
+            return result
+
+        msg = f"Cannot jointly plan {targets!r} from supplied inputs {sorted(available)}."
+        raise BiltExecutionPlanError(msg) from last_error
 
     def _preflight(self, request: EvaluationRequest, structure: ValidatedStructure | None) -> BackendCase | None:
         """Keep local requests on their existing path; expand execution only for cross-boundary coupling."""
@@ -255,10 +274,13 @@ class CausalizationStructuralAnalyzer:
         output: str,
     ) -> frozenset[str] | None:
         """Reuse an execution-route query within the current nested analysis."""
+        from ._native_prototype import attempt_required_inputs  # noqa: PLC0415
+
         with structural_cache_scope(), route_cache_scope() as cache:
             key = self, frozenset(available), output
             if key not in cache:
-                cache[key] = self._required_inputs_for_target(available, output)
+                native = attempt_required_inputs(self, available, output)
+                cache[key] = native if native is not None else self._required_inputs_for_target(available, output)
             return cache[key]
 
     def _required_inputs_for_target(self, available: set[str], output: str) -> frozenset[str] | None:

@@ -8,6 +8,7 @@ from bilt._backend._python._backend import PYTHON_BACKEND
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._evaluation_request import EvaluationRequest
 from bilt.core._structural_analysis._causalization_block_solver import _backend as solver
+from bilt.core._structural_analysis._causalization_block_solver import _native_prototype as native
 from bilt.core._structural_analysis._causalization_block_solver._backend import CausalizationStructuralAnalyzer
 from bilt.core._structural_analysis._causalization_block_solver._errors import BiltExecutionPlanError
 from bilt.core._structural_analysis._causalization_block_solver._route_cache import route_cache_scope
@@ -24,6 +25,12 @@ if typing.TYPE_CHECKING:
     from bilt.core._structural_analysis._causalization_block_solver._full_incidence_graph import FullIncidenceGraph
     from bilt.core._structural_analysis._plan import AnalysisPlan
     from bilt.core._structural_analysis._realize import BlockRealizationFailure, BlockRealizationKey, RealizationFailure
+
+
+@pytest.fixture(autouse=True)
+def _reference_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise the Python-specific graph and cache implementation."""
+    monkeypatch.setattr(native, "MODE", "python")
 
 
 @transform
