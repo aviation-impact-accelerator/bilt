@@ -74,7 +74,7 @@ def test_reflected_power_and_numeric_comparison_in_equations() -> None:
         scalar = Growth(exponent=3.0 * UNITLESS).result
         varied = Growth(exponent=tensor([0.0, 1.0, 2.0], over=time, unit=UNITLESS)).result
 
-    assert scalar.value == 8.0
+    assert scalar.value == 2.0**3.0
     assert isinstance(varied, QuantityTensor)
     np.testing.assert_allclose(varied.values, [1.0, 2.0, 4.0])
 
