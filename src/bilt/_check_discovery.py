@@ -1,38 +1,17 @@
 """Find importable Bilt model definitions without importing unrelated Python files."""
 
 import ast
-import os
 import typing
 from dataclasses import dataclass
-from fnmatch import fnmatchcase
-from pathlib import Path
 
-from bilt._check_api import scan_api
+from bilt._check_api import ApiChecker, scan_api
 from bilt._errors import BiltCheckConfigurationError
+from bilt._source_models import DECORATORS, IMPLEMENTATIONS, bilt_imports, recognised
+from bilt._source_project import source_files
 
 if typing.TYPE_CHECKING:
     import collections.abc
-
-_DECORATORS = frozenset({"equation", "system", "transform"})
-_IGNORED_DIRS = frozenset(
-    {
-        ".git",
-        ".venv",
-        ".tox",
-        ".nox",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        "__pycache__",
-        "build",
-        "dist",
-        "node_modules",
-        "site-packages",
-        "tests",
-        "benchmarks",
-        "scripts",
-    }
-)
+    from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,75 +23,17 @@ class Discovery:
     errors: tuple[str, ...]
 
 
-def project_root(target: Path, config: Path | None) -> Path:
-    """Choose the project containing a target, preferring an explicit pyproject.toml."""
-    if config is not None:
-        return config.resolve().parent
-    start = target if target.is_dir() else target.parent
-    for parent in (start, *start.parents):
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    if start.is_dir() and (start / "__init__.py").is_file():
-        return start.parent
-    return start
-
-
-def _excluded(relative: Path, patterns: collections.abc.Sequence[str]) -> bool:
-    path = relative.as_posix()
-    return any(fnmatchcase(path, pattern) or fnmatchcase(path, pattern.rstrip("/") + "/*") for pattern in patterns)
-
-
-def _sources(target: Path, root: Path, excludes: collections.abc.Sequence[str]) -> list[Path]:
-    if target.is_file():
-        return [target]
-    paths: list[Path] = []
-    for parent, directories, filenames in os.walk(target):
-        here = Path(parent)
-        relative = here.relative_to(root)
-        directories[:] = sorted(
-            directory
-            for directory in directories
-            if directory not in _IGNORED_DIRS
-            and not directory.startswith(".")
-            and not _excluded(relative / directory, excludes)
-        )
-        for filename in sorted(filenames):
-            file = here / filename
-            if file.suffix == ".py" and not _excluded(file.relative_to(root), excludes):
-                paths.append(file)
-    return paths
-
-
 def _candidate(tree: ast.Module) -> bool:
-    """Recognise Bilt's public decorators and implementation constructor by their imports."""
-    names: set[str] = set()
-    modules: set[str] = set()
-    for statement in ast.walk(tree):
-        if isinstance(statement, ast.ImportFrom) and statement.module == "bilt":
-            names.update(
-                alias.asname or alias.name
-                for alias in statement.names
-                if alias.name in _DECORATORS | {"Implementation"}
-            )
-        elif isinstance(statement, ast.Import):
-            modules.update(alias.asname or "bilt" for alias in statement.names if alias.name == "bilt")
-
-    def is_bilt(value: ast.expr) -> bool:
-        if isinstance(value, ast.Name):
-            return value.id in names
-        return (
-            isinstance(value, ast.Attribute)
-            and isinstance(value.value, ast.Name)
-            and value.value.id in modules
-            and value.attr in _DECORATORS | {"Implementation"}
-        )
-
+    """Recognise Bilt model declarations by their direct imports."""
+    decorators, implementations, modules = bilt_imports(ast.walk(tree))
+    names = decorators | implementations
+    members = DECORATORS | IMPLEMENTATIONS
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.AsyncFunctionDef)) and any(
-            is_bilt(decorator) for decorator in node.decorator_list
+            recognised(decorator, names, modules, members=members) for decorator in node.decorator_list
         ):
             return True
-        if isinstance(node, ast.Call) and is_bilt(node.func):
+        if isinstance(node, ast.Call) and recognised(node.func, names, modules, members=members):
             return True
     return False
 
@@ -135,6 +56,35 @@ def _module(file: Path, root: Path) -> tuple[str, Path] | None:
     return ".".join(module_parts), import_root
 
 
+def _api_errors(sources: list[tuple[str, str, ast.Module, tuple[str, Path] | None]]) -> list[str]:
+    errors: list[str] = []
+    exports: dict[str, str] = {}
+    # Resolve direct model imports from neighbouring source files, including re-exports.
+    for _ in range(2):
+        for relative, source, tree, located in sources:
+            if located is None:
+                continue
+            module = located[0]
+            package = module if relative.endswith("/__init__.py") else module.rpartition(".")[0]
+            try:
+                checker = ApiChecker(source, tree, relative, package, exports)
+            except SyntaxError:
+                continue  # Report invalid lexical scopes in the diagnostic pass.
+            checker.visit(tree)
+            exports.update({f"{module}.{name}": kind for name, kind in checker.bindings.items() if kind is not None})
+    for relative, source, tree, located in sources:
+        module = located[0] if located is not None else ""
+        package = module if relative.endswith("/__init__.py") else module.rpartition(".")[0]
+        try:
+            checker = scan_api(source, tree, relative, package, exports)
+        except SyntaxError as error:
+            line = f":{error.lineno}" if error.lineno else ""
+            errors.append(f"{relative}{line}: error: SyntaxError: {error.msg}")
+            continue
+        errors.extend(f"{item.location}: error: {item.code} {item.message}" for item in checker.diagnostics)
+    return errors
+
+
 def discover(target: Path, root: Path, excludes: collections.abc.Sequence[str]) -> Discovery:
     """Scan source safely; only candidate modules will later be imported by the checker."""
     target = target.resolve()
@@ -146,8 +96,8 @@ def discover(target: Path, root: Path, excludes: collections.abc.Sequence[str]) 
     modules: set[str] = set()
     import_paths: set[Path] = {root, root / "src"}
     errors: list[str] = []
-    sources: list[tuple[str, ast.Module, tuple[str, Path] | None]] = []
-    for file in _sources(target, root, excludes):
+    sources: list[tuple[str, str, ast.Module, tuple[str, Path] | None]] = []
+    for file in source_files(target, root, excludes):
         relative = file.relative_to(root).as_posix()
         try:
             source = file.read_text(encoding="utf-8")
@@ -157,7 +107,7 @@ def discover(target: Path, root: Path, excludes: collections.abc.Sequence[str]) 
             errors.append(f"{relative}{line}: error: {type(error).__name__}: {error}")
             continue
         located = _module(file, root)
-        sources.append((relative, tree, located))
+        sources.append((relative, source, tree, located))
         if not _candidate(tree):
             continue
         if located is None:
@@ -166,19 +116,5 @@ def discover(target: Path, root: Path, excludes: collections.abc.Sequence[str]) 
         module, import_root = located
         modules.add(module)
         import_paths.add(import_root)
-    exports: dict[str, str] = {}
-    # Resolve direct model imports from neighbouring source files, including re-exports.
-    for _ in range(2):
-        for relative, tree, located in sources:
-            if located is None:
-                continue
-            module = located[0]
-            package = module if relative.endswith("/__init__.py") else module.rpartition(".")[0]
-            checker = scan_api(tree, relative, package, exports)
-            exports.update({f"{module}.{name}": kind for name, kind in checker.bindings.items() if kind is not None})
-    for relative, tree, located in sources:
-        module = located[0] if located is not None else ""
-        package = module if relative.endswith("/__init__.py") else module.rpartition(".")[0]
-        checker = scan_api(tree, relative, package, exports)
-        errors.extend(f"{item.location}: error: {item.code} {item.message}" for item in checker.diagnostics)
+    errors.extend(_api_errors(sources))
     return Discovery(tuple(sorted(modules)), tuple(sorted(import_paths)), tuple(errors))

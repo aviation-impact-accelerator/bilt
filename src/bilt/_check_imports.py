@@ -13,6 +13,7 @@ import typing
 from pathlib import Path
 
 from bilt._base_error import BiltError
+from bilt._source_models import DECORATORS, IMPLEMENTATIONS, bilt_imports, recognised
 from bilt.core._errors import BiltCollectedValidationError, BiltUnresolvedAnnotationError
 from bilt.core._validation import Diagnostic, code_for
 
@@ -24,7 +25,6 @@ _REPORT = "__bilt_check_report__"
 _SKIP = "__bilt_check_skip__"
 _ERROR = "__bilt_check_error_type__"
 _CAUGHT = "__bilt_check_caught__"
-_DECORATORS = frozenset({"system", "equation", "transform"})
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -36,41 +36,12 @@ class SkippedDefinition:
     dependency: str
 
 
-def _bilt_imports(tree: ast.Module) -> tuple[set[str], set[str], set[str]]:
-    """Recognise explicitly imported public Bilt decorators and constructors."""
-    decorators: set[str] = set()
-    implementations: set[str] = set()
-    modules: set[str] = set()
-    for statement in tree.body:
-        if isinstance(statement, ast.ImportFrom) and statement.module == "bilt":
-            for alias in statement.names:
-                local = alias.asname or alias.name
-                if alias.name in _DECORATORS:
-                    decorators.add(local)
-                elif alias.name == "Implementation":
-                    implementations.add(local)
-        elif isinstance(statement, ast.Import):
-            modules.update(alias.asname or "bilt" for alias in statement.names if alias.name == "bilt")
-    return decorators, implementations, modules
-
-
-def _recognised(function: ast.expr, names: set[str], modules: set[str], *, members: frozenset[str]) -> bool:
-    if isinstance(function, ast.Name):
-        return function.id in names
-    return (
-        isinstance(function, ast.Attribute)
-        and isinstance(function.value, ast.Name)
-        and function.value.id in modules
-        and function.attr in members
-    )
-
-
 def _definition_names(
     statement: ast.stmt, decorators: set[str], implementations: set[str], modules: set[str]
 ) -> tuple[str, ...] | None:
     """Return names defined by a Bilt statement, or None for ordinary Python."""
     if isinstance(statement, (ast.FunctionDef, ast.ClassDef)):
-        if any(_recognised(dec, decorators, modules, members=_DECORATORS) for dec in statement.decorator_list):
+        if any(recognised(dec, decorators, modules, members=DECORATORS) for dec in statement.decorator_list):
             return (statement.name,)
         return None
 
@@ -86,8 +57,8 @@ def _definition_names(
     elif isinstance(statement, ast.Expr):
         value = statement.value
 
-    if isinstance(value, ast.Call) and _recognised(
-        value.func, implementations, modules, members=frozenset({"Implementation"})
+    if isinstance(value, ast.Call) and recognised(
+        value.func, implementations, modules, members=IMPLEMENTATIONS
     ):
         return names
     return None
@@ -125,7 +96,7 @@ def _guard(statement: ast.stmt, names: tuple[str, ...]) -> ast.Try:
 def _instrument(source: str, filename: str) -> types.CodeType | None:
     """Rewrite only direct Bilt definitions, keeping their original source locations."""
     tree = ast.parse(source, filename=filename)
-    decorators, implementations, modules = _bilt_imports(tree)
+    decorators, implementations, modules = bilt_imports(tree.body)
     found = False
     statements: list[ast.stmt] = []
     for statement in tree.body:
