@@ -8,6 +8,7 @@ from pathlib import Path
 from bilt._check import check_modules
 from bilt._check_discovery import discover, project_root
 from bilt._errors import BiltCheckConfigurationError
+from bilt._migrate import migrate
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -18,10 +19,16 @@ def main(argv: list[str] | None = None) -> int:
     checker.add_argument("path", nargs="?", type=Path, default=Path(), help="File or directory to check")
     checker.add_argument("--config", type=Path, help="Alternative pyproject.toml")
     checker.add_argument("--module", action="append", dest="modules", help="Module/package to check (repeatable)")
+    migration = commands.add_parser("migrate", help="Preview migration to the quantity protocol API")
+    migration.add_argument("path", nargs="?", type=Path, default=Path(), help="Python file or directory")
+    migration.add_argument("--write", action="store_true", help="Apply safe changes to source files")
+    migration.add_argument("--format", action="store_true", help="Format changed files with installed Ruff")
     args = parser.parse_args(argv)
 
     if args.command == "check":
         return _check(args.path, args.config, args.modules)
+    if args.command == "migrate":
+        return migrate(args.path, write=args.write, format_source=args.format)
     return 2
 
 
