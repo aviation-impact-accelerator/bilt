@@ -18,6 +18,7 @@ from bilt.core._structural_analysis._causalization_block_solver._structural_scop
 from bilt.core._sub_system import SubSystemConstituent
 from bilt.core._system._dimensional_unification import check_dimensional_consistency
 from bilt.core._system._errors import (
+    BiltDuplicateComponentError,
     BiltSubSystemConflictError,
     BiltSubSystemMismatchedImplementationError,
     BiltSubSystemMissingImplementationError,
@@ -69,7 +70,13 @@ class Implementation:
         internal_implementations: collections.abc.Mapping[str, Implementation] | None = None,
     ) -> None:
         self._system: Interface = system
-        named_components = {component.__bilt_name__: component for component in components}
+        named_components: dict[str, BiltModelConstituent] = {}
+        for component in components:
+            name = component.__bilt_name__
+            previous = named_components.get(name)
+            if previous is not None and previous is not component:
+                raise BiltDuplicateComponentError(name)
+            named_components[name] = component
 
         internal = internal_implementations or {}
 
@@ -79,11 +86,14 @@ class Implementation:
             named_components | sub_systems
         )
         check_dimensional_consistency(system, self._components.values())
-        self._port_declarations: dict[str, PortDeclaration] = {
-            port: declaration
-            for component in self._components.values()
-            for port, declaration in component.__bilt_port_declarations__.items()
-        } | system.__bilt_port_declarations__
+        self._port_declarations: collections.abc.Mapping[str, PortDeclaration] = types.MappingProxyType(
+            {
+                port: declaration
+                for component in self._components.values()
+                for port, declaration in component.__bilt_port_declarations__.items()
+            }
+            | dict(system.__bilt_port_declarations__)
+        )
         self._evaluation_cache: dict[
             _CompilationRequest,
             dict[_CompilationContext, BackendCallable],

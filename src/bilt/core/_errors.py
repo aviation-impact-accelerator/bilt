@@ -52,6 +52,10 @@ class BiltEquationSignatureError(BiltDefinitionError, TypeError):
     """Raised when an equation function signature is invalid."""
 
 
+class BiltTransformSignatureError(BiltDefinitionError, TypeError):
+    """Raised when a transform function's signature cannot define a directed operation."""
+
+
 class BiltPortDeclarationError(BiltDefinitionError, TypeError):
     """Raised when a port's annotation declares a dimensionality in a form bilt cannot read, or declares a unit."""
 
