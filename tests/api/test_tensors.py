@@ -4,7 +4,8 @@ import typing
 import numpy as np
 import pytest
 
-from bilt.core._tensors._tensors import QuantityTensor, Tensor, tensor
+from bilt import Quantity, QuantityTensor, Tensor, tensor
+from bilt.core._tensors._tensors import _QuantityTensor, _Tensor
 from bilt.errors import BiltDimensionalityError, BiltTensorDomainError, BiltUnitError
 from bilt.symbolic._dimensions import dim
 from bilt.symbolic._domains import domain
@@ -55,7 +56,7 @@ def test_tensor_rejects_incorrect_rank() -> None:
         BiltTensorDomainError,
         match="Value rank 2 does not match domain rank 1",
     ):
-        Tensor(
+        _Tensor(
             values=np.array([[1.0, 2.0]]),
             domain=domain(time),
         )
@@ -88,7 +89,7 @@ def test_tensor_arithmetic_is_not_implemented() -> None:
 
 
 def test_a_tensor_has_no_unit_by_default() -> None:
-    assert tensor([1.0, 2.0], over=dim("time")).unit is None
+    assert not isinstance(tensor([1.0, 2.0], over=dim("time")), Quantity)
 
 
 def test_a_tensor_takes_a_unit_at_construction() -> None:
@@ -178,7 +179,7 @@ def test_tensor_multiplication_outside_the_unit_system_still_raises(operand: obj
     labelled = tensor([1.0, 2.0], over=dim("time"), unit=gram)
 
     with pytest.raises(NotImplementedError, match="Operations will be dispatched through an active backend"):
-        labelled * operand
+        labelled * typing.cast("float", operand)
 
 
 def test_negating_a_labelled_tensor_still_raises() -> None:
@@ -235,7 +236,7 @@ def test_converting_an_unlabelled_tensor_raises_and_names_the_label() -> None:
     unlabelled = tensor([1.0, 2.0], over=dim("time"))
 
     with pytest.raises(BiltUnitError, match=r"tensor\(\.\.\., unit=\.\.\.\)"):
-        unlabelled.convert_to(kilogram)
+        typing.cast("_Tensor", unlabelled).convert_to(kilogram)
 
 
 def test_typed_tensor_factory_and_magnitude_contract() -> None:
@@ -244,35 +245,37 @@ def test_typed_tensor_factory_and_magnitude_contract() -> None:
     typing.assert_type(varied.unit, Unit)
     typing.assert_type(varied.value, Tensor)
     assert isinstance(varied, QuantityTensor)
-    assert varied.value.unit is None
+    assert not isinstance(varied.value, Quantity)
     assert varied.value.domain == varied.domain
     np.testing.assert_array_equal(varied.value.values, varied.values)
 
     plain = tensor([1.0, 2.0], over=dim("time"))
     typing.assert_type(plain, Tensor)
-    assert type(plain) is Tensor
+    assert isinstance(plain, Tensor)
+    assert not isinstance(plain, QuantityTensor)
 
 
-def _tensor_with_optional_unit(maybe_unit: Unit | None) -> Tensor:
+def _tensor_with_optional_unit(maybe_unit: Unit | None) -> Tensor | QuantityTensor:
     result = tensor([1.0, 2.0], over=dim("time"), unit=maybe_unit)
-    typing.assert_type(result, Tensor)
+    typing.assert_type(result, Tensor | QuantityTensor)
     return result
 
 
 def test_optional_unit_factory_has_conservative_static_return() -> None:
     assert isinstance(_tensor_with_optional_unit(gram), QuantityTensor)
-    assert type(_tensor_with_optional_unit(None)) is Tensor
+    assert not isinstance(_tensor_with_optional_unit(None), QuantityTensor)
 
 
 def test_quantity_tensor_preserves_concrete_type_and_rejects_missing_unit() -> None:
     labelled = tensor([1000.0, 2000.0], over=dim("time"), unit=gram)
     converted = labelled.convert_to(kilogram)
     typing.assert_type(converted, QuantityTensor)
-    assert type(converted) is QuantityTensor
+    assert type(converted) is _QuantityTensor
 
-    updated = dataclasses.replace(labelled, values=np.asarray([3.0, 4.0]))
-    assert type(updated) is QuantityTensor
+    concrete = typing.cast("_QuantityTensor", labelled)
+    updated = dataclasses.replace(concrete, values=np.asarray([3.0, 4.0]))
+    assert type(updated) is _QuantityTensor
     assert updated.unit is gram
 
     with pytest.raises(BiltUnitError, match="requires a physical unit"):
-        dataclasses.replace(labelled, unit=typing.cast("Unit", None))
+        dataclasses.replace(concrete, unit=typing.cast("Unit", None))

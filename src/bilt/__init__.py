@@ -7,7 +7,8 @@ from bilt._backend._python import PYTHON_BACKEND
 from bilt.core._equation import equation
 from bilt.core._interface import Interface
 from bilt.core._system import Implementation, field, system
-from bilt.core._tensors._tensors import QuantityTensor, Tensor, tensor
+from bilt.core._tensors._protocols import Number, QuantityTensor, Tensor
+from bilt.core._tensors._tensors import tensor
 from bilt.core._transform import transform
 from bilt.symbolic._dimensions import CoordinateAxis, Dim, coordinate_axis, dim
 from bilt.symbolic._domains import Domain, as_domain, domain
@@ -24,6 +25,7 @@ __all__ = [
     "Domain",
     "Implementation",
     "Interface",
+    "Number",
     "Quantity",
     "QuantityTensor",
     "Tensor",

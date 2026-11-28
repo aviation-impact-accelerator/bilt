@@ -6,6 +6,9 @@ from ._quantities import _Quantity
 from ._units import Unit, UnitComposition, UnitOrder
 from .dimensions._dimensions import Dimension
 
+if typing.TYPE_CHECKING:
+    from bilt.units._protocols import Quantity
+
 
 @typing.final
 class Metadata:
@@ -39,9 +42,9 @@ class Metadata:
     def __rmul__(self, other: Unit) -> Unit: ...
 
     @typing.overload
-    def __rmul__(self, other: _Quantity) -> _Quantity: ...
+    def __rmul__[Q: Quantity](self, other: Q) -> Q: ...
 
-    def __rmul__(self, other: Dimension | Unit | _Quantity) -> Dimension | Unit | _Quantity:
+    def __rmul__(self, other: object) -> object:
         if isinstance(other, Dimension):
             return Dimension(tagged={(other, self): 1})
         if isinstance(other, Unit):

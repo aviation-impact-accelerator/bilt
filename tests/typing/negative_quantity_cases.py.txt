@@ -8,22 +8,18 @@ and then removes the file.
 
 from typing import Annotated
 
-from bilt import Interface, Quantity, QuantityTensor, Tensor, dim, field, system, tensor
+from bilt import Interface, Number, Quantity, QuantityTensor, Tensor, dim, field, system, tensor
 from bilt.units import kilogram
 from bilt.units.dimensions import MASS
 
 
 time = dim("time")
-scalar = Quantity(2.0, kilogram)
+scalar = 2.0 * kilogram
 labelled = tensor([1.0, 2.0], over=time, unit=kilogram)
 unitless = tensor([1.0, 2.0], over=time)
 
 
-def takes_quantity(mass: Quantity | QuantityTensor) -> None:
-    pass
-
-
-def takes_scalar(mass: Quantity) -> None:
+def takes_quantity(mass: Quantity) -> None:
     pass
 
 
@@ -31,18 +27,25 @@ def takes_tensor(mass: QuantityTensor) -> None:
     pass
 
 
+def takes_unitless_tensor(value: Tensor) -> None:
+    pass
+
+
+def takes_number(value: Number) -> None:
+    pass
+
+
+# Units: a unitless value is not a quantity, and a quantity is not unitless.
 takes_quantity(unitless)  # expect: unlabelled-tensor-is-not-a-quantity
-takes_scalar(labelled)  # expect: tensor-is-not-a-scalar-quantity
+takes_number(scalar)  # expect: quantity-is-not-a-number
+takes_number(labelled)  # expect: quantity-tensor-is-not-a-number
+takes_unitless_tensor(labelled)  # expect: quantity-tensor-is-not-a-unitless-tensor
+
+# Shape: a scalar quantity is not a tensor, so it cannot be reduced.
 takes_tensor(scalar)  # expect: scalar-is-not-a-tensor-quantity
+takes_unitless_tensor(scalar)  # expect: scalar-quantity-is-not-a-tensor
 scalar.sum(time)  # expect: scalar-quantity-has-no-tensor-reduction
-
-
 takes_tensor(unitless)  # expect: unitless-tensor-is-not-quantity-tensor
-
-
-@system
-class ScalarOnly(metaclass=Interface):
-    mass: Annotated[Quantity, MASS] = field()
 
 
 @system
@@ -50,11 +53,10 @@ class TensorOnly(metaclass=Interface):
     mass: Annotated[QuantityTensor, MASS] = field()
 
 
-ScalarOnly(mass=labelled)  # expect: scalar-system-rejects-tensor
 TensorOnly(mass=scalar)  # expect: tensor-system-rejects-scalar
 
 
-# Pointwise quantities must still be unit-bearing.
+# The old pointwise union means the same as Quantity, so it must still be unit-bearing.
 PointwiseMass = Annotated[Quantity | QuantityTensor, MASS]
 
 
@@ -66,7 +68,13 @@ takes_pointwise_mass(unitless)  # expect: unitless-tensor-not-pointwise-quantity
 
 @system
 class UnitlessFlexible(metaclass=Interface):
-    value: float | Tensor = field()
+    value: Number = field()
 
 
 UnitlessFlexible(value=scalar)  # expect: unitless-union-rejects-scalar-quantity
+
+
+# Operator results keep or lack units exactly as their operands do.
+takes_quantity(unitless * 2.0)  # expect: scaled-unitless-tensor-is-not-a-quantity
+takes_tensor(scalar**2)  # expect: scalar-power-is-not-a-tensor-quantity
+takes_tensor(labelled.value)  # expect: tensor-magnitude-is-not-a-quantity

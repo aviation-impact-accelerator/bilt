@@ -8,7 +8,6 @@ from bilt import (
     Interface,
     Quantity,
     QuantityTensor,
-    Tensor,
     dim,
     equation,
     field,
@@ -233,8 +232,7 @@ def test_surplus_assignments_do_not_recompile_the_same_rejected_block(monkeypatc
     assert len(candidates) > len(attempts)
 
 
-type GeneralMass = typing.Annotated[Quantity | QuantityTensor, MASS]
-type ScalarMass = typing.Annotated[Quantity, MASS]
+type Mass = typing.Annotated[Quantity, MASS]
 REQ_TIME = dim("required_time")
 REQ_SCENARIO = dim("scenario")
 type RequiredTimeMass = typing.Annotated[QuantityTensor, MASS, Domain((REQ_TIME,))]
@@ -242,17 +240,17 @@ type RequiredTimeMass = typing.Annotated[QuantityTensor, MASS, Domain((REQ_TIME,
 
 @system
 class MinimumDomainCopy(metaclass=Interface):
-    x: GeneralMass = field()
-    y: GeneralMass = field()
+    x: Mass = field()
+    y: Mass = field()
 
 
 @equation
-def time_limited_copy(x: RequiredTimeMass, y: ScalarMass) -> bool:
+def time_limited_copy(x: RequiredTimeMass, y: Mass) -> bool:
     return y == x
 
 
 @equation
-def time_limited_output(x: ScalarMass, y: RequiredTimeMass) -> bool:
+def time_limited_output(x: Mass, y: RequiredTimeMass) -> bool:
     return y == x
 
 
@@ -265,7 +263,7 @@ def test_equation_minimum_domain_failure_does_not_blacklist_a_later_request() ->
 
         valid = tensor([[1.0, 2.0], [3.0, 4.0]], over=(REQ_SCENARIO, REQ_TIME), unit=kilogram)
         answer = MinimumDomainCopy(x=valid).y
-    assert isinstance(answer, Tensor)
+    assert isinstance(answer, QuantityTensor)
     assert answer.domain.dims == (REQ_SCENARIO, REQ_TIME)
     np.testing.assert_array_equal(answer.values, valid.values)
 
@@ -275,7 +273,7 @@ def test_equation_minimum_domain_checks_computed_output() -> None:
         Implementation(MinimumDomainCopy, [time_limited_output]),
         pytest.raises(BiltExecutionPlanError, match="missing dimensions: required_time") as failure,
     ):
-        _ = MinimumDomainCopy(x=Quantity(3.0, kilogram)).y
+        _ = MinimumDomainCopy(x=3.0 * kilogram).y
     assert isinstance(failure.value.__cause__, BiltEquationDomainRequirementError)
 
 

@@ -11,7 +11,6 @@ from bilt.symbolic._atoms import Atom, DimensionType, OpType
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._expressions import as_tree, symbol_expr, tensor_symbol_expr
 from bilt.symbolic._tree import Tree, symbol_tree
-from bilt.units import Quantity
 from bilt.units.dimensions import AREA, DIMENSIONLESS, FORCE, LENGTH, MASS, TEMPERATURE, TIME
 from bilt.units.units import absolute_celsius, kelvin
 
@@ -189,7 +188,7 @@ def test_a_plain_port_and_a_literal_are_read_either_way() -> None:
 
 
 def test_a_quantity_constant_is_absolute_if_its_unit_is() -> None:
-    assert absoluteness_of("balance", as_tree(Quantity(0.0, absolute_celsius)), {}) == {1}
+    assert absoluteness_of("balance", as_tree(0.0 * absolute_celsius), {}) == {1}
     assert absoluteness_of("balance", as_tree(2.0 * kelvin), {}) == {0}
 
 

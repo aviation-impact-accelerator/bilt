@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
 
+from bilt import Tensor, tensor
 from bilt.core._evaluation_context import EvaluationContext
 from bilt.core._system._lowering_and_lifting import (
     generate_lifting_plan,
     lift_output,
 )
-from bilt.core._tensors._tensors import Tensor, tensor
 from bilt.symbolic._dimensions import Dim
 from bilt.symbolic._domains import domain
 

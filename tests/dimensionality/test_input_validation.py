@@ -11,30 +11,21 @@ from bilt.units.dimensions import ABSOLUTE, CURRENT, DIMENSIONLESS, LENGTH, MASS
 from bilt.units.units import absolute_celsius, ampere, kelvin, kilogram, kilometer, meter, ohm
 
 Current = typing.Annotated[Quantity, CURRENT]
-CurrentField = typing.Annotated[Quantity | QuantityTensor, CURRENT]
 Dimensionless = typing.Annotated[Quantity, DIMENSIONLESS]
-DimensionlessField = typing.Annotated[Quantity | QuantityTensor, DIMENSIONLESS]
 Length = typing.Annotated[Quantity, LENGTH]
-LengthField = typing.Annotated[Quantity | QuantityTensor, LENGTH]
 Mass = typing.Annotated[Quantity, MASS]
-MassField = typing.Annotated[Quantity | QuantityTensor, MASS]
 Resistance = typing.Annotated[Quantity, RESISTANCE]
-ResistanceField = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
 Temperature = typing.Annotated[Quantity, TEMPERATURE]
-TemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE]
 AbsoluteTemperature = typing.Annotated[Quantity, TEMPERATURE, ABSOLUTE]
-AbsoluteTemperatureField = typing.Annotated[Quantity | QuantityTensor, TEMPERATURE, ABSOLUTE]
 MassOverADomain = typing.Annotated[QuantityTensor, MASS]
-MassOverADomainField = typing.Annotated[QuantityTensor, MASS]
 Voltage = typing.Annotated[Quantity, VOLTAGE]
-VoltageField = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
 
 
 @system
 class Resistor(metaclass=Interface):
-    v: VoltageField = field()
-    i: CurrentField = field()
-    r: ResistanceField = field()
+    v: Voltage = field()
+    i: Current = field()
+    r: Resistance = field()
 
 
 @equation
@@ -44,9 +35,9 @@ def ohms_law(v: Voltage, i: Current, r: Resistance) -> bool:
 
 @system
 class Amplifier(metaclass=Interface):
-    gain: DimensionlessField = field()
-    x: LengthField = field()
-    amplified: LengthField = field()
+    gain: Dimensionless = field()
+    x: Length = field()
+    amplified: Length = field()
 
 
 @equation
@@ -56,14 +47,14 @@ def amplifying(amplified: Length, gain: Dimensionless, x: Length) -> bool:
 
 @system
 class MassScale(metaclass=Interface):
-    m: MassField = field()
-    doubled: MassField = field()
+    m: Mass = field()
+    doubled: Mass = field()
 
 
 @system
 class TensorScale(metaclass=Interface):
-    m: MassOverADomainField = field()
-    doubled: MassField = field()
+    m: MassOverADomain = field()
+    doubled: Mass = field()
 
 
 @system
@@ -74,14 +65,14 @@ class PlainScale(metaclass=Interface):
 
 @system
 class Thermometer(metaclass=Interface):
-    t: TemperatureField = field()
-    same: TemperatureField = field()
+    t: Temperature = field()
+    same: Temperature = field()
 
 
 @system
 class AbsoluteThermometer(metaclass=Interface):
-    t: AbsoluteTemperatureField = field()
-    same: AbsoluteTemperatureField = field()
+    t: AbsoluteTemperature = field()
+    same: AbsoluteTemperature = field()
 
 
 def test_a_bare_float_at_an_annotated_port_raises() -> None:
@@ -104,7 +95,7 @@ def test_a_quantity_of_the_declared_dimensionality_evaluates() -> None:
     with Implementation(Resistor, [ohms_law]):
         result = Resistor(i=2.0 * ampere, r=3.0 * ohm).v
 
-    assert isinstance(result, Quantity)
+    assert not isinstance(result, QuantityTensor)
     assert result.value == pytest.approx(6.0)
     assert result.unit.dimension == VOLTAGE
 
@@ -116,14 +107,14 @@ def test_a_dimensionless_port_rejects_a_bare_float() -> None:
 
 def test_a_dimensionless_port_accepts_a_dimensionless_quantity() -> None:
     with Implementation(Amplifier, [amplifying]):
-        result = Amplifier(gain=Quantity(2.0, UNITLESS), x=3.0 * meter).amplified
+        result = Amplifier(gain=2.0 * UNITLESS, x=3.0 * meter).amplified
 
     assert result == 6.0 * meter
 
 
 def test_a_declared_port_accepts_a_quantity_in_any_unit_of_its_dimensionality() -> None:
     with Implementation(Amplifier, [amplifying]):
-        result = Amplifier(gain=Quantity(2.0, UNITLESS), x=3.0 * kilometer).amplified
+        result = Amplifier(gain=2.0 * UNITLESS, x=3.0 * kilometer).amplified
 
     assert result == 6000.0 * meter
 
@@ -164,7 +155,7 @@ def test_a_relative_tensor_at_an_absolute_port_raises() -> None:
 def test_a_unit_carrying_tensor_at_a_plain_port_raises() -> None:
     masses = tensor([1.0, 2.0], over=dim("time"), unit=kilogram)
     with pytest.raises(BiltInputDimensionalityError, match="'x'") as raised:
-        PlainScale(x=masses)
+        PlainScale(x=typing.cast("Tensor", masses))
 
     message = str(raised.value)
     assert "plain port" in message
@@ -183,8 +174,8 @@ def test_a_scalar_quantity_at_a_tensor_annotated_port_raises() -> None:
 def test_a_quantity_of_the_wrong_dimensionality_at_a_port_only_a_constituent_reads_raises() -> None:
     @system
     class Rig(metaclass=Interface):
-        v: VoltageField = field()
-        scaled: VoltageField = field()
+        v: Voltage = field()
+        scaled: Voltage = field()
 
     @equation
     def doubling(scaled: Voltage, v: Voltage) -> bool:

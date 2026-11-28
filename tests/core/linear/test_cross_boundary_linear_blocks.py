@@ -7,8 +7,8 @@ import pytest
 from bilt import (
     Implementation,
     Interface,
+    Number,
     Quantity,
-    QuantityTensor,
     Tensor,
     dim,
     equation,
@@ -31,15 +31,15 @@ if typing.TYPE_CHECKING:
 
     from bilt._backend import Backend, BackendCallable
 
-Length = typing.Annotated[Quantity | QuantityTensor, LENGTH]
+Length = typing.Annotated[Quantity, LENGTH]
 
 
 @system
 class Pair(metaclass=Interface):
-    x: float | Tensor = field()
-    y: float | Tensor = field()
-    p: float | Tensor = field()
-    q: float | Tensor = field()
+    x: Number = field()
+    y: Number = field()
+    p: Number = field()
+    q: Number = field()
     raw: float = field()
     answer: float = field()
 

@@ -21,6 +21,9 @@ from .dimensions._dimensions import (
 )
 
 if typing.TYPE_CHECKING:
+    from bilt.core._tensors._protocols import QuantityTensor, Tensor
+    from bilt.units._protocols import Quantity
+
     from ._metadata import Metadata
 
 
@@ -292,7 +295,7 @@ class Unit:
 
     @classmethod
     def new_named(
-        cls, name: str, relation: Unit | UnitComposition | _Quantity, prefix: Prefix | None = None
+        cls, name: str, relation: Unit | UnitComposition | Quantity, prefix: Prefix | None = None
     ) -> typing.Self:
         if prefix is not None and not name.startswith(PREFIX_NAMES[prefix]):
             message = f"Unit with name {name!r} does not start with its defined prefix of {prefix}"
@@ -321,7 +324,8 @@ class Unit:
                         scale=quantity.value * quantity.unit.relation.scale,
                     )
             case _:
-                typing.assert_never(relation)
+                message = f"Unit {name!r} must be defined by a unit or a scalar quantity, not {relation!r}"
+                raise BiltUnitError(message)
 
         if relation is UnitComposition(UnitOrder(kilogram, 1)):
             prefix_scale = 0.001 if prefix is None else 10 ** (prefix.value - 3)
@@ -365,7 +369,7 @@ class Unit:
 
     @classmethod
     def new_absolute(
-        cls, name: str, scale: Unit, zero: _Quantity | None = None, metadata: Metadata | None = None
+        cls, name: str, scale: Unit, zero: Quantity | None = None, metadata: Metadata | None = None
     ) -> typing.Self:
         relation = UnitComposition(UnitOrder(scale, 1))
         offset: UnitComposition | None
@@ -375,7 +379,8 @@ class Unit:
             case None:
                 offset = None
             case _:
-                typing.assert_never(zero)
+                message = f"Absolute unit {name!r} must have a scalar quantity as its zero, not {zero!r}"
+                raise BiltUnitError(message)
         key = (name, relation, metadata)
         if key in cls._cache:
             instance = cls._cache[key]
@@ -488,9 +493,12 @@ class Unit:
     def __mul__(self, other: Unit) -> typing.Self: ...
 
     @typing.overload
-    def __mul__(self, other: _Quantity) -> _Quantity: ...
+    def __mul__[Q: Quantity](self, other: Q) -> Q: ...
 
-    def __mul__(self, other: Unit | _Quantity) -> typing.Self | _Quantity:
+    @typing.overload
+    def __mul__(self, other: Tensor) -> QuantityTensor: ...
+
+    def __mul__(self, other: object) -> object:
         if isinstance(other, self.__class__):
             left = (
                 self.relation
@@ -507,20 +515,29 @@ class Unit:
             return _Quantity(other.value, self * other.unit)
         return NotImplemented
 
-    def __rmul__(self, other: _Quantity | float) -> _Quantity:
+    @typing.overload
+    def __rmul__(self, other: float) -> Quantity: ...
+
+    @typing.overload
+    def __rmul__[Q: Quantity](self, other: Q) -> Q: ...
+
+    @typing.overload
+    def __rmul__(self, other: Tensor) -> QuantityTensor: ...
+
+    def __rmul__(self, other: object) -> object:
         if isinstance(other, _Quantity):
             return _Quantity(other.value, other.unit * self)
-        if isinstance(other, float):
-            return _Quantity(other, self)
+        if isinstance(other, int | float) and not isinstance(other, bool):
+            return _Quantity(float(other), self)
         return NotImplemented
 
     @typing.overload
     def __truediv__(self, other: Unit) -> typing.Self: ...
 
     @typing.overload
-    def __truediv__(self, other: _Quantity) -> _Quantity: ...
+    def __truediv__[Q: Quantity](self, other: Q) -> Q: ...
 
-    def __truediv__(self, other: Unit | _Quantity) -> typing.Self | _Quantity:
+    def __truediv__(self, other: object) -> object:
         if isinstance(other, self.__class__):
             numerator = (
                 self.relation
@@ -541,9 +558,12 @@ class Unit:
     def __rtruediv__(self, other: typing.Literal[1]) -> typing.Self: ...
 
     @typing.overload
-    def __rtruediv__(self, other: _Quantity) -> _Quantity: ...
+    def __rtruediv__[Q: Quantity](self, other: Q) -> Q: ...
 
-    def __rtruediv__(self, other: _Quantity | typing.Literal[1]) -> typing.Self | _Quantity:
+    @typing.overload
+    def __rtruediv__(self, other: Tensor) -> QuantityTensor: ...
+
+    def __rtruediv__(self, other: object) -> object:
         if isinstance(other, _Quantity):
             return _Quantity(other.value, other.unit / self)
         if isinstance(other, int) and other == 1:

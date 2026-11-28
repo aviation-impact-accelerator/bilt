@@ -1,8 +1,7 @@
-"""Internal typing contract for dimensioned scalar or tensor expressions.
+"""Typing contract for dimensioned scalar or tensor expressions.
 
 These protocols describe symbolic model expressions, not general eager arithmetic.
-They are deliberately not runtime-checkable: runtime port validation must inspect
-the actual value and its unit.
+Runtime port validation inspects the actual value and its unit.
 """
 
 import typing
@@ -12,6 +11,7 @@ if typing.TYPE_CHECKING:
     from bilt.units._units import Unit
 
 
+@typing.runtime_checkable
 class Quantity(typing.Protocol):
     """A unit-bearing expression whose shape is not fixed."""
 

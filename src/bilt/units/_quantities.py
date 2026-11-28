@@ -7,12 +7,15 @@ from bilt.units._errors import BiltUnitError
 from bilt.units._validation import validate_addition, validate_cast, validate_comparison
 
 if typing.TYPE_CHECKING:
+    from bilt.core._tensors._protocols import QuantityTensor, Tensor
+    from bilt.core._tensors._tensors import _QuantityTensor
+    from bilt.units._protocols import Quantity
     from bilt.units._units import Unit
 
 
 @typing.final
 @functools.total_ordering
-class Quantity:
+class _Quantity:
     __slots__ = ("_unit", "_value")
 
     _value: float
@@ -34,13 +37,13 @@ class Quantity:
         validate_cast(self, unit)
         return self.__class__(self.value, unit)
 
-    def convert_to(self, unit: Unit) -> Quantity:
+    def convert_to(self, unit: Unit) -> _Quantity:
         if self.unit.category is UnitCategory.ABSOLUTE and self.unit is unit:
             return self
 
         conversion = conversion_between(self.unit, unit)
 
-        return Quantity(
+        return _Quantity(
             conversion.apply(self.value),
             unit,
         )
@@ -57,7 +60,13 @@ class Quantity:
     def __abs__(self) -> typing.Self:
         return self.__class__(abs(self.value), self.unit)
 
-    def __add__(self, other: Quantity) -> typing.Self:
+    @typing.overload
+    def __add__(self, other: QuantityTensor) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __add__(self, other: Quantity) -> _Quantity: ...
+
+    def __add__(self, other: object) -> _Quantity | _QuantityTensor:
         if not isinstance(other, self.__class__):
             return NotImplemented
 
@@ -75,15 +84,23 @@ class Quantity:
             unit,
         )
 
-    def __radd__(self, other: int) -> Quantity:
+    def __radd__(self, other: int) -> _Quantity:
         if not isinstance(other, int) and other != 0:
             return NotImplemented
         return self
 
-    def __sub__(self, other: Quantity) -> Quantity:
+    @typing.overload
+    def __sub__(self, other: QuantityTensor) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __sub__(self, other: Quantity) -> _Quantity: ...
+
+    def __sub__(self, other: object) -> _Quantity | _QuantityTensor:
+        if not isinstance(other, _Quantity):
+            return NotImplemented
         if self.unit.category is UnitCategory.ABSOLUTE and other.unit.category is UnitCategory.ABSOLUTE:
-            return (self.value * self.unit.relation.composition[0].unit) + (
-                -other.value * other.unit.relation.composition[0].unit
+            return _Quantity(self.value, self.unit.relation.composition[0].unit) + _Quantity(
+                -other.value, other.unit.relation.composition[0].unit
             )
         if isinstance(other, self.__class__) and other.unit.category is UnitCategory.ABSOLUTE:
             message = (
@@ -93,37 +110,67 @@ class Quantity:
             raise BiltUnitError(message)
         return self + (-other)
 
-    def __mul__(self, other: Quantity | float) -> typing.Self:
+    @typing.overload
+    def __mul__(self, other: QuantityTensor | Tensor) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __mul__(self, other: Quantity | Unit | float) -> _Quantity: ...
+
+    def __mul__(self, other: object) -> _Quantity | _QuantityTensor:
         if isinstance(other, self.__class__):
             return self.__class__(self.value * other.value, self.unit * other.unit)
         if isinstance(other, float):
             return self.__class__(self.value * other, self.unit)
         return NotImplemented
 
-    def __rmul__(self, other: float) -> typing.Self:
+    @typing.overload
+    def __rmul__(self, other: QuantityTensor | Tensor) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __rmul__(self, other: Quantity | Unit | float) -> _Quantity: ...
+
+    def __rmul__(self, other: object) -> _Quantity | _QuantityTensor:
         if not isinstance(other, float):
             return NotImplemented
         return self.__class__(self.value * other, self.unit)
 
-    def __truediv__(self, other: Quantity | float) -> typing.Self:
+    @typing.overload
+    def __truediv__(self, other: QuantityTensor | Tensor) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __truediv__(self, other: Quantity | Unit | float) -> _Quantity: ...
+
+    def __truediv__(self, other: object) -> _Quantity | _QuantityTensor:
         if isinstance(other, self.__class__):
             return self.__class__(self.value / other.value, self.unit / other.unit)
         if isinstance(other, float):
             return self.__class__(self.value / other, self.unit)
         return NotImplemented
 
-    def __rtruediv__(self, other: float) -> typing.Self:
+    @typing.overload
+    def __rtruediv__(self, other: QuantityTensor | Tensor) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __rtruediv__(self, other: Quantity | float) -> _Quantity: ...
+
+    def __rtruediv__(self, other: object) -> _Quantity | _QuantityTensor:
         if not isinstance(other, float):
             return NotImplemented
         return self.__class__(other / self.value, self.unit**-1)
 
-    def __pow__(self, other: float | Quantity) -> typing.Self:
+    @typing.overload
+    def __pow__(self, other: QuantityTensor) -> _QuantityTensor: ...
+
+    @typing.overload
+    def __pow__(self, other: Quantity | float) -> _Quantity: ...
+
+    def __pow__(self, other: object) -> _Quantity | _QuantityTensor:
         match other:
             case int():
                 return self.__class__(self.value**other, self.unit**other)
             case float() if self.unit.is_dimensionless:
                 return self.__class__(self.value**other, self.unit)
-            case Quantity() if self.unit.is_dimensionless and self.unit.relation.scale == 1.0:
+            case _Quantity() if self.unit.is_dimensionless and self.unit.relation.scale == 1.0:
                 return self.__class__(self.value**other.value, self.unit)
         return NotImplemented
 
@@ -153,8 +200,4 @@ class Quantity:
         return f"{self.value!s} {self.unit!s}"
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(value={self.value!r}, unit={self.unit!r})"
-
-
-# Internal concrete type; the public name remains unchanged for compatibility.
-_Quantity = Quantity
+        return f"Quantity(value={self.value!r}, unit={self.unit!r})"

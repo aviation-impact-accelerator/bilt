@@ -1,4 +1,4 @@
-"""Internal contracts for named tensor expressions."""
+"""Contracts for named tensor expressions."""
 
 import typing
 
@@ -27,6 +27,8 @@ class _Tensorial(typing.Protocol):
     @property
     def ndim(self) -> int: ...
 
+    def __float__(self) -> float: ...
+
     def sum(self, dim: Dim, /) -> typing.Self: ...
 
     def mean(self, dim: Dim, /) -> typing.Self: ...
@@ -42,11 +44,15 @@ class _Tensorial(typing.Protocol):
     def sel(self, dim: Dim, coordinate: Coordinate, /) -> typing.Self: ...
 
 
+@typing.runtime_checkable
 class Tensor(_Tensorial, typing.Protocol):
     """A unitless tensor expression."""
 
     @property
     def unit(self) -> None: ...
+
+    @property
+    def _unitless_tensor_marker(self) -> typing.Literal[True]: ...
 
     def __add__(self, other: Tensor | float, /) -> Tensor: ...
 
@@ -88,7 +94,16 @@ class Tensor(_Tensorial, typing.Protocol):
 
     def __abs__(self) -> typing.Self: ...
 
+    def __lt__(self, other: Tensor | float, /) -> bool: ...
 
+    def __le__(self, other: Tensor | float, /) -> bool: ...
+
+    def __gt__(self, other: Tensor | float, /) -> bool: ...
+
+    def __ge__(self, other: Tensor | float, /) -> bool: ...
+
+
+@typing.runtime_checkable
 class QuantityTensor(Quantity, _Tensorial, typing.Protocol):
     """A dimensioned tensor expression."""
 

@@ -7,6 +7,7 @@ from bilt import (
     Domain,
     Implementation,
     Interface,
+    Number,
     Quantity,
     QuantityTensor,
     Tensor,
@@ -34,17 +35,17 @@ Shared = typing.Annotated[float, Domain.scalar()]
 OverTime = typing.Annotated[Tensor, domain(TIME)]
 PerSite = typing.Annotated[Tensor, domain(SITE)]
 CurrentArray = typing.Annotated[QuantityTensor, CURRENT]
-Voltage = typing.Annotated[Quantity | QuantityTensor, VOLTAGE]
+Voltage = typing.Annotated[Quantity, VOLTAGE]
 VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
-Resistance = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
+Resistance = typing.Annotated[Quantity, RESISTANCE]
 
 
 @system
 class Pair(metaclass=Interface):
     x: Tensor = field()
     y: Tensor = field()
-    p: float | Tensor = field()
-    q: float | Tensor = field()
+    p: Number = field()
+    q: Number = field()
     weights: Tensor = field()
 
 
@@ -207,7 +208,7 @@ def test_circuit_infers_current_and_voltage_domains_from_unit_only_annotations(b
             output,
         )
     if output == "current":
-        assert isinstance(result, Tensor)
+        assert isinstance(result, QuantityTensor)
         assert result.domain == domain(BRANCH)
         assert result.unit == ampere
         np.testing.assert_allclose(result.values, [2.8, 4.8, 6.8], atol=1e-5)

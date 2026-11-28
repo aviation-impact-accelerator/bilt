@@ -9,6 +9,7 @@ import pytest
 from bilt import (
     Implementation,
     Interface,
+    Number,
     QuantityTensor,
     Tensor,
     dim,
@@ -47,14 +48,14 @@ PerSite = typing.Annotated[Tensor, domain(SITE)]
 LengthArray = typing.Annotated[QuantityTensor, LENGTH]
 LengthGrid = typing.Annotated[QuantityTensor, LENGTH, domain(TIME)]
 LengthScalar = typing.Annotated[Quantity, LENGTH, Domain.scalar()]
-LengthScalarField = typing.Annotated[Quantity, LENGTH]
+Length = typing.Annotated[Quantity, LENGTH]
 ReverseGrid = typing.Annotated[Tensor, domain(TIME, SITE)]
 CurrentArray = typing.Annotated[QuantityTensor, CURRENT]
 BranchCurrent = typing.Annotated[QuantityTensor, CURRENT, domain(BRANCH)]
 SharedVoltage = typing.Annotated[Quantity, VOLTAGE, Domain.scalar()]
-SharedVoltageField = typing.Annotated[Quantity, VOLTAGE]
+Voltage = typing.Annotated[Quantity, VOLTAGE]
 VoltageArray = typing.Annotated[QuantityTensor, VOLTAGE]
-Resistance = typing.Annotated[Quantity | QuantityTensor, RESISTANCE]
+Resistance = typing.Annotated[Quantity, RESISTANCE]
 
 
 @equation
@@ -73,7 +74,7 @@ class Pair(metaclass=Interface):
     y: Tensor = field()
     p: Tensor = field()
     q: float = field()
-    a: float | Tensor = field()
+    a: Number = field()
 
 
 def _evaluate(
@@ -82,7 +83,8 @@ def _evaluate(
     with EvaluationContext() as evaluation:
         evaluation.domains.bind_all(values.values())
         inputs = {
-            name: value.domain if isinstance(value, Tensor) else Domain.scalar() for name, value in values.items()
+            name: value.domain if isinstance(value, Tensor | QuantityTensor) else Domain.scalar()
+            for name, value in values.items()
         }
         case = CausalizationStructuralAnalyzer(operations, backend).analyse(
             EvaluationRequest(output=output, input_domains=inputs)
@@ -217,9 +219,9 @@ def test_joint_solve_retains_units_and_distinct_output_domains(backend: Backend,
     @system
     class Lengths(metaclass=Interface):
         x: LengthArray = field()
-        y: LengthScalarField = field()
+        y: Length = field()
         p: LengthArray = field()
-        q: LengthScalarField = field()
+        q: Length = field()
 
     @equation
     def first(x: LengthGrid, y: LengthScalar, p: LengthArray) -> bool:
@@ -233,7 +235,7 @@ def test_joint_solve_retains_units_and_distinct_output_domains(backend: Backend,
         result = getattr(Lengths(p=tensor([0.002, 0.004, 0.006], over=TIME, unit=kilometer), q=1.0 * meter), output)
     assert result.unit == meter
     if output == "x":
-        assert isinstance(result, Tensor)
+        assert isinstance(result, QuantityTensor)
         assert result.domain == domain(TIME)
         np.testing.assert_allclose(result.values, [0, 2, 4], atol=1e-5)
     else:
@@ -301,7 +303,7 @@ def test_parallel_sources_share_one_bus_voltage(backend: Backend, output: str) -
     @system
     class Circuit(metaclass=Interface):
         current: CurrentArray = field()
-        bus_voltage: SharedVoltageField = field()
+        bus_voltage: Voltage = field()
         source_voltage: VoltageArray = field()
         branch_resistance: Resistance = field()
         load_resistance: Resistance = field()
@@ -327,7 +329,7 @@ def test_parallel_sources_share_one_bus_voltage(backend: Backend, output: str) -
         )
         result = getattr(circuit, output)
     if output == "current":
-        assert isinstance(result, Tensor)
+        assert isinstance(result, QuantityTensor)
         assert result.domain == domain(BRANCH)
         assert result.unit == ampere
         np.testing.assert_allclose(result.values, [2.8, 4.8, 6.8], atol=1e-5)

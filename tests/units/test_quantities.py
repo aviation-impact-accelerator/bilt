@@ -5,7 +5,7 @@ import pytest
 
 from bilt.errors import BiltDimensionalityError, BiltUnitError
 from bilt.units._metadata import Metadata
-from bilt.units._quantities import Quantity
+from bilt.units._quantities import _Quantity
 from bilt.units._units import (
     UNITLESS,
     Unit,
@@ -53,15 +53,15 @@ class TestQuantity:
         ),
     )
     def test_equality(
-        left: Quantity,
-        right: Quantity,
+        left: _Quantity,
+        right: _Quantity,
         expected: bool,
     ) -> None:
         assert (left == right) is expected
 
     @staticmethod
     def test_positive_and_rounding() -> None:
-        quantity = -2.345 * meter
+        quantity = _Quantity(-2.345, meter)
 
         assert +quantity == -2.345 * meter
         assert round(quantity, 2) == -2.35 * meter
@@ -75,8 +75,8 @@ class TestQuantity:
         ),
     )
     def test_negation(
-        quantity: Quantity,
-        expected: Quantity,
+        quantity: _Quantity,
+        expected: _Quantity,
     ) -> None:
         assert -quantity == expected
 
@@ -89,8 +89,8 @@ class TestQuantity:
         ),
     )
     def test_absolute(
-        quantity: Quantity,
-        expected: Quantity,
+        quantity: _Quantity,
+        expected: _Quantity,
     ) -> None:
         assert abs(quantity) == expected
 
@@ -107,15 +107,15 @@ class TestQuantity:
         ),
     )
     def test_addition(
-        left: Quantity,
-        right: Quantity,
-        expected: Quantity,
+        left: _Quantity,
+        right: _Quantity,
+        expected: _Quantity,
     ) -> None:
         assert left + right == expected
 
     @staticmethod
     def test_sum_uses_reflected_addition() -> None:
-        assert sum((1.0 * meter, 2.0 * meter)) == 3.0 * meter
+        assert sum((_Quantity(1.0, meter), _Quantity(2.0, meter))) == 3.0 * meter
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -130,8 +130,8 @@ class TestQuantity:
         ),
     )
     def test_addition_dimensionality_error_if_units_dimensionally_inconsistent(
-        left: Quantity,
-        right: Quantity,
+        left: _Quantity,
+        right: _Quantity,
     ) -> None:
         with pytest.raises(
             BiltDimensionalityError,
@@ -154,8 +154,8 @@ class TestQuantity:
         ),
     )
     def test_addition_unit_error_if_units_not_equal(
-        left: Quantity,
-        right: Quantity,
+        left: _Quantity,
+        right: _Quantity,
     ) -> None:
         with pytest.raises(
             BiltUnitError,
@@ -186,8 +186,8 @@ class TestQuantity:
         ),
     )
     def test_addition_dimensionality_error_if_unit_metadata_not_equal(
-        left: Quantity,
-        right: Quantity,
+        left: _Quantity,
+        right: _Quantity,
     ) -> None:
         with pytest.raises(
             BiltDimensionalityError,
@@ -214,8 +214,8 @@ class TestQuantity:
         ),
     )
     def test_addition_type_error_if_other_is_not_quantity(
-        left: Quantity,
-        right: Quantity,
+        left: _Quantity,
+        right: _Quantity,
     ) -> None:
         with pytest.raises(TypeError):
             _ = left + right
@@ -245,9 +245,9 @@ class TestQuantity:
         ),
     )
     def test_addition_absolute_and_relative_returns_absolute_quantity(
-        left: Quantity,
-        right: Quantity,
-        expected: Quantity,
+        left: _Quantity,
+        right: _Quantity,
+        expected: _Quantity,
     ) -> None:
         assert left + right == expected
 
@@ -269,9 +269,9 @@ class TestQuantity:
         ),
     )
     def test_subtraction(
-        left: Quantity,
-        right: Quantity,
-        expected: Quantity,
+        left: _Quantity,
+        right: _Quantity,
+        expected: _Quantity,
     ) -> None:
         assert left - right == expected
 
@@ -280,36 +280,36 @@ class TestQuantity:
         ("left", "right", "expected"),
         (
             (
-                Quantity(2.0, second),
-                Quantity(2.0, ampere),
-                Quantity(4.0, ampere * second),
+                _Quantity(2.0, second),
+                _Quantity(2.0, ampere),
+                _Quantity(4.0, ampere * second),
             ),
             (
-                Quantity(2.0, second),
+                _Quantity(2.0, second),
                 ampere,
-                Quantity(2.0, ampere * second),
+                _Quantity(2.0, ampere * second),
             ),
             (
-                Quantity(2.0, kilogram),
+                _Quantity(2.0, kilogram),
                 co2,
-                Quantity(2.0, kilogram * co2),
+                _Quantity(2.0, kilogram * co2),
             ),
             (
-                Quantity(2.0, kilogram),
+                _Quantity(2.0, kilogram),
                 2.0,
-                Quantity(4.0, kilogram),
+                _Quantity(4.0, kilogram),
             ),
             (
-                Quantity(2.0, kilogram * co2),
+                _Quantity(2.0, kilogram * co2),
                 2.0,
-                Quantity(4.0, kilogram * co2),
+                _Quantity(4.0, kilogram * co2),
             ),
         ),
     )
     def test_multiplication_quantity_left(
-        left: Quantity,
-        right: Unit | Quantity | Metadata | float,
-        expected: Quantity,
+        left: _Quantity,
+        right: Unit | _Quantity | Metadata | float,
+        expected: _Quantity,
     ) -> None:
         assert left * right == expected
 
@@ -318,26 +318,26 @@ class TestQuantity:
         ("left", "right", "expected"),
         (
             (
-                Quantity(2.0, second),
-                Quantity(2.0, ampere),
-                Quantity(4.0, ampere * second),
+                _Quantity(2.0, second),
+                _Quantity(2.0, ampere),
+                _Quantity(4.0, ampere * second),
             ),
             (
                 2.0,
-                Quantity(2.0, kilogram),
-                Quantity(4.0, kilogram),
+                _Quantity(2.0, kilogram),
+                _Quantity(4.0, kilogram),
             ),
             (
                 2.0,
-                Quantity(2.0, kilogram * co2),
-                Quantity(4.0, kilogram * co2),
+                _Quantity(2.0, kilogram * co2),
+                _Quantity(4.0, kilogram * co2),
             ),
         ),
     )
     def test_multiplication_quantity_right(
-        left: Quantity | float,
-        right: Quantity,
-        expected: Quantity,
+        left: _Quantity | float,
+        right: _Quantity,
+        expected: _Quantity,
     ) -> None:
         assert left * right == expected
 
@@ -346,26 +346,26 @@ class TestQuantity:
         ("left", "right", "expected"),
         (
             (
-                Quantity(4.0, meter),
-                Quantity(2.0, second),
-                Quantity(2.0, meter / second),
+                _Quantity(4.0, meter),
+                _Quantity(2.0, second),
+                _Quantity(2.0, meter / second),
             ),
             (
-                Quantity(2.0, meter / second),
+                _Quantity(2.0, meter / second),
                 2.0,
-                Quantity(1.0, meter / second),
+                _Quantity(1.0, meter / second),
             ),
             (
-                Quantity(2.0, meter),
+                _Quantity(2.0, meter),
                 second,
-                Quantity(2.0, meter / second),
+                _Quantity(2.0, meter / second),
             ),
         ),
     )
     def test_division_quantity_numerator(
-        left: Quantity,
-        right: Quantity | Unit | float,
-        expected: Quantity,
+        left: _Quantity,
+        right: _Quantity | Unit | float,
+        expected: _Quantity,
     ) -> None:
         assert left / right == expected
 
@@ -374,26 +374,26 @@ class TestQuantity:
         ("left", "right", "expected"),
         (
             (
-                Quantity(4.0, meter),
-                Quantity(2.0, second),
-                Quantity(2.0, meter / second),
+                _Quantity(4.0, meter),
+                _Quantity(2.0, second),
+                _Quantity(2.0, meter / second),
             ),
             (
                 1.0,
-                Quantity(2.0, second),
-                Quantity(0.5, 1 / second),
+                _Quantity(2.0, second),
+                _Quantity(0.5, 1 / second),
             ),
             (
                 meter,
-                Quantity(2.0, second),
-                Quantity(0.5, meter / second),
+                _Quantity(2.0, second),
+                _Quantity(0.5, meter / second),
             ),
         ),
     )
     def test_division_quantity_denominator(
-        left: Quantity | Unit | float,
-        right: Quantity,
-        expected: Quantity,
+        left: _Quantity | Unit | float,
+        right: _Quantity,
+        expected: _Quantity,
     ) -> None:
         assert left / right == expected
 
@@ -434,9 +434,9 @@ class TestQuantity:
         ),
     )
     def test_exponentiation_unitless_unit(
-        quantity: Quantity,
+        quantity: _Quantity,
         exponent: float,
-        expected: Quantity,
+        expected: _Quantity,
     ) -> None:
         assert quantity**exponent == expected
 
@@ -462,9 +462,9 @@ class TestQuantity:
         ),
     )
     def test_exponentiation_int_exponent(
-        quantity: Quantity,
+        quantity: _Quantity,
         exponent: int,
-        expected: Quantity,
+        expected: _Quantity,
     ) -> None:
         assert quantity**exponent == expected
 
@@ -478,10 +478,10 @@ class TestQuantity:
         ),
     )
     def test_exponentiation_float_exponent_raises_type_error(
-        quantity: Quantity,
+        quantity: _Quantity,
         exponent: float,
     ) -> None:
-        message = re.escape("unsupported operand type(s) for ** or pow(): 'Quantity' and 'float'")
+        message = re.escape("unsupported operand type(s) for ** or pow(): '_Quantity' and 'float'")
 
         with pytest.raises(TypeError, match=message):
             _ = quantity**exponent
@@ -514,8 +514,8 @@ class TestQuantity:
     )
     def test_exponentiation_float_base(
         base: float,
-        quantity: Quantity,
-        expected: Quantity,
+        quantity: _Quantity,
+        expected: _Quantity,
     ) -> None:
         assert base**quantity == expected
 
@@ -529,9 +529,9 @@ class TestQuantity:
     )
     def test_exponentiation_float_base_non_dimensionless_quantity_raises_type_error(
         base: float,
-        quantity: Quantity,
+        quantity: _Quantity,
     ) -> None:
-        message = re.escape("unsupported operand type(s) for ** or pow(): 'float' and 'Quantity'")
+        message = re.escape("unsupported operand type(s) for ** or pow(): 'float' and '_Quantity'")
 
         with pytest.raises(TypeError, match=message):
             _ = base**quantity
@@ -616,9 +616,9 @@ class TestQuantity:
         ),
     )
     def test_quantity_cast_to(
-        quantity: Quantity,
+        quantity: _Quantity,
         unit: Unit,
-        expected: Quantity,
+        expected: _Quantity,
     ) -> None:
         result = quantity.cast_to(unit)
 
@@ -640,7 +640,7 @@ class TestQuantity:
         ),
     )
     def test_quantity_cast_to_unit_error_if_units_not_equivalent(
-        quantity: Quantity,
+        quantity: _Quantity,
         unit: Unit,
     ) -> None:
         with pytest.raises(BiltUnitError, match="Cannot cast quantity"):
@@ -698,9 +698,9 @@ class TestQuantity:
         ),
     )
     def test_quantity_convert_to(
-        quantity: Quantity,
+        quantity: _Quantity,
         unit: Unit,
-        expected: Quantity,
+        expected: _Quantity,
     ) -> None:
         result = quantity.convert_to(unit)
 
@@ -729,7 +729,7 @@ class TestQuantity:
         ),
     )
     def test_quantity_convert_to_dimensionality_error_if_units_not_dimensionally_consistent(
-        quantity: Quantity,
+        quantity: _Quantity,
         unit: Unit,
     ) -> None:
         with pytest.raises(
@@ -749,7 +749,7 @@ class TestQuantity:
             (1.0 * (kilogram * co2) / (kilogram * nox), UNITLESS),
         ),
     )
-    def test_quantity_convert_to_dimensionality_error_if_tags_differ(quantity: Quantity, unit: Unit) -> None:
+    def test_quantity_convert_to_dimensionality_error_if_tags_differ(quantity: _Quantity, unit: Unit) -> None:
         with pytest.raises(BiltDimensionalityError, match="Cannot convert"):
             quantity.convert_to(unit)
 
@@ -791,7 +791,7 @@ class TestQuantity:
         ),
     )
     def test_strip_metadata(
-        quantity: Quantity,
-        expected: Quantity,
+        quantity: _Quantity,
+        expected: _Quantity,
     ) -> None:
         assert quantity.strip_metadata() == expected
