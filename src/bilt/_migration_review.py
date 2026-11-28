@@ -47,9 +47,7 @@ def _quantity_receiver(node: ast.Attribute) -> ast.expr:
     return receiver
 
 
-def _checks_receiver(
-    test: ast.expr, receiver: ast.expr, context: MigrationContext, kinds: frozenset[str]
-) -> bool:
+def _checks_receiver(test: ast.expr, receiver: ast.expr, context: MigrationContext, kinds: frozenset[str]) -> bool:
     return (
         isinstance(test, ast.Call)
         and _runtime_check(test, context) in kinds
