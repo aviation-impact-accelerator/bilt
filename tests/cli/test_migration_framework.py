@@ -88,7 +88,6 @@ def test_review_notes_and_file_preview(tmp_path: Path, capsys: pytest.CaptureFix
     assert "a = new(1)" in path.read_text(encoding="utf-8")
 
 
-
 def test_post_review_does_not_prevent_safe_cleanup() -> None:
     from bilt._migration_cleanup import CleanupOptions  # noqa: PLC0415
 

@@ -47,12 +47,8 @@ def test_unrelated_and_shadowed_checks_are_not_reported() -> None:
 
 def test_retained_import_report_does_not_prevent_rewrite() -> None:
     source = (
-        "from bilt import Quantity, QuantityTensor\n"
-        "Mass = Quantity | QuantityTensor\n"
-        "value = getattr(model, name)\n"
+        "from bilt import Quantity, QuantityTensor\nMass = Quantity | QuantityTensor\nvalue = getattr(model, name)\n"
     )
     result = migrate_source(source)
     assert result.source == source.replace("Mass = Quantity | QuantityTensor", "Mass = Quantity")
-    assert result.notes == (
-        "1: review retained import bilt.QuantityTensor; cleanup could not safely remove it",
-    )
+    assert result.notes == ("1: review retained import bilt.QuantityTensor; cleanup could not safely remove it",)

@@ -66,7 +66,9 @@ class QuantityShapeReview:
             and context.builtin_visible("float")
         ):
             return
-        context.note(node, "review scalar magnitude use; Quantity.value is Number, use float(...) if scalar is intended")
+        context.note(
+            node, "review scalar magnitude use; Quantity.value is Number, use float(...) if scalar is intended"
+        )
 
 
 def review_quantity_shapes(source: str) -> tuple[str, ...]:
