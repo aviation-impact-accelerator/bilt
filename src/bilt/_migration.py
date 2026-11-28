@@ -11,6 +11,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+from bilt._migration_expressions import binary_expression, contextual_expression
+
 if typing.TYPE_CHECKING:
     from collections.abc import Generator
 
@@ -247,6 +249,25 @@ class MigrationContext(ast.NodeVisitor):
         self.edits = [edit for edit in self.edits if not (start <= edit.start and edit.end <= end)]
         self.edits.append(Edit(start, end, replacement))
         return True
+
+    def replace_expression(self, node: ast.expr, replacement: bytes) -> bool:
+        """Replace an expression, adding grouping only where the grammar requires it."""
+        start, end = self._span(node)
+        try:
+            rendered = contextual_expression(self.source, start, end, replacement)
+        except ValueError as error:
+            self.note(node, str(error))
+            return False
+        return self.replace(node, rendered, multiline=True)
+
+    def replace_binary(self, node: ast.expr, left: ast.expr, operator: str, right: ast.expr) -> bool:
+        """Replace an expression with a binary operation, preserving nested edits."""
+        try:
+            replacement = binary_expression(self.render(left), operator, self.render(right))
+        except ValueError as error:
+            self.note(node, str(error))
+            return False
+        return self.replace_expression(node, replacement)
 
     def ensure_import(self, module: str, member: str) -> bytes:
         """Return a usable imported reference, reserving a fresh alias if necessary."""
