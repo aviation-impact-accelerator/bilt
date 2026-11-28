@@ -35,6 +35,9 @@ The checker inspects all selected Python source files, including files that use 
 | BILT103 | Reserved model metadata |
 | BILT104 | Internal implementation method |
 | BILT105 | Internal backend method |
+| BILT106 | Obsolete quantity or tensor constructor |
+
+Use `2.0 * meter` rather than `Quantity(2.0, meter)`, and `tensor(value)` rather than `Tensor.scalar(value)`. The public quantity and tensor protocols are annotations, not constructors. Legacy `Quantity | QuantityTensor` annotations remain supported.
 
 Evaluate models through declared system fields within implementation and backend contexts. If a feature is not available publicly, do not bypass the system interface.
 
