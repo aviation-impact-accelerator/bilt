@@ -11,10 +11,12 @@ from bilt._migration_expressions import binary_expression, contextual_expression
 from bilt._source_project import source_files
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable
     from pathlib import Path
 
     from bilt._migration_cleanup import CleanupOptions
+    from bilt._source_project import SourceSelection
+
 
 @dataclass(frozen=True, slots=True)
 class Edit:
@@ -198,17 +200,17 @@ def migrate(
     rules: tuple[MigrationRule, ...],
     *,
     write: bool,
-    root: Path | None = None,
-    excludes: Sequence[str] = (),
+    selection: SourceSelection | None = None,
     cleanup: CleanupOptions | None = None,
     review: Callable[[str, str], tuple[str, ...]] | None = None,
-) -> int:
+) -> int:  # noqa: PLR0913 - selection and independent rewrite/review policies.
     """Preview or apply source edits. Return 1 if manual review remains."""
     if target.is_symlink() or not target.exists() or (target.is_file() and target.suffix != ".py"):
         sys.stderr.write(f"{target}: expected an existing Python file or directory, not a symlink\n")
         return 2
     target = target.resolve()
-    root = root.resolve() if root is not None else (target if target.is_dir() else target.parent)
+    root = selection.root.resolve() if selection is not None else (target if target.is_dir() else target.parent)
+    excludes = selection.excludes if selection is not None else ()
     if not target.is_relative_to(root):
         sys.stderr.write(f"{target}: expected a source inside {root}\n")
         return 2

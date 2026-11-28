@@ -9,7 +9,7 @@ from bilt._check import check_modules
 from bilt._check_discovery import discover
 from bilt._errors import BiltCheckConfigurationError
 from bilt._migrate import migrate
-from bilt._source_project import project_root
+from bilt._source_project import SourceSelection, project_root
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -81,7 +81,7 @@ def _migrate_project(target: Path, config: Path | None, *, write: bool, format_s
     except BiltCheckConfigurationError as error:
         sys.stderr.write(f"{config_path}: error: {error}\n")
         return 2
-    return migrate(target, write=write, format_source=format_source, root=root, excludes=excludes)
+    return migrate(target, write=write, format_source=format_source, selection=SourceSelection(root, tuple(excludes)))
 
 
 def _check(target: Path, config: Path | None, modules_override: list[str] | None) -> int:

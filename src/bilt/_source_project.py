@@ -2,6 +2,7 @@
 
 import os
 import typing
+from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
 
@@ -28,6 +29,12 @@ _IGNORED_DIRS = frozenset(
         "scripts",
     }
 )
+
+
+@dataclass(frozen=True, slots=True)
+class SourceSelection:
+    root: Path
+    excludes: tuple[str, ...] = ()
 
 
 def project_root(target: Path, config: Path | None) -> Path:

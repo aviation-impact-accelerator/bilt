@@ -10,31 +10,33 @@ if typing.TYPE_CHECKING:
     from collections.abc import Generator
 
 
-def _import_names(statement: ast.Import | ast.ImportFrom) -> dict[str, str]:
+def _import_names(statement: ast.Import | ast.ImportFrom, package: str = "") -> dict[str, str]:
     if isinstance(statement, ast.Import):
         return {
             alias.asname or alias.name.split(".")[0]: alias.name if alias.asname else alias.name.split(".")[0]
             for alias in statement.names
         }
-    if statement.level or statement.module is None:
-        return {}
-    return {
-        alias.asname or alias.name: f"{statement.module}.{alias.name}" for alias in statement.names if alias.name != "*"
-    }
+    module = statement.module or ""
+    if statement.level:
+        parts = package.split(".") if package else []
+        if statement.level > len(parts):
+            return {}
+        module = ".".join((*parts[: len(parts) - statement.level + 1], *([module] if module else [])))
+    return {alias.asname or alias.name: f"{module}.{alias.name}" for alias in statement.names if alias.name != "*"}
 
 
-def _stable_imports(statements: list[ast.stmt], table: symtable.SymbolTable, node: ast.AST) -> set[str]:
+def _stable_imports(statements: list[ast.stmt], table: symtable.SymbolTable, node: ast.AST, package: str = "") -> set[str]:
     """Use only unconditional, uniquely bound imports; never infer control flow."""
     candidates = {
         name
         for statement in statements
         if isinstance(statement, (ast.Import, ast.ImportFrom))
-        for name in _import_names(statement)
+        for name in _import_names(statement, package)
     }
     counts: dict[str, int] = {}
     for item in ast.walk(node):
         if isinstance(item, (ast.Import, ast.ImportFrom)):
-            for name in _import_names(item):
+            for name in _import_names(item, package):
                 counts[name] = counts.get(name, 0) + 1
     return {
         name
@@ -49,13 +51,13 @@ def _stable_imports(statements: list[ast.stmt], table: symtable.SymbolTable, nod
 class LexicalScopes:
     """Conservative lexical bindings for source analysis, independent of runtime values."""
 
-    def __init__(self, source: str, tree: ast.Module) -> None:
+    def __init__(self, source: str, tree: ast.Module, *, package: str = "") -> None:
         root = symtable.symtable(source, "<source>", "exec")
         self.functions: dict[tuple[str, int], list[symtable.SymbolTable]] = {}
         self.names = set(root.get_identifiers())
         self._index(root)
         globals_written = {name for node in ast.walk(tree) if isinstance(node, ast.Global) for name in node.names}
-        stable = _stable_imports(tree.body, root, tree) - globals_written
+        stable = _stable_imports(tree.body, root, tree, package) - globals_written
         self.builtin_names = (
             set(dir(builtins))
             - globals_written
@@ -71,8 +73,8 @@ class LexicalScopes:
         self.lines: dict[str, int] = {}
         for statement in tree.body:
             if isinstance(statement, (ast.Import, ast.ImportFrom)):
-                imports.update(_import_names(statement))
-                for name in _import_names(statement):
+                imports.update(_import_names(statement, package))
+                for name in _import_names(statement, package):
                     self.lines[name] = statement.lineno
         self.bindings = {name: value for name, value in imports.items() if name in stable}
 
@@ -104,10 +106,11 @@ class LexicalScopes:
 class LexicalVisitor(ast.NodeVisitor):
     """Traverse lexical scopes without importing or executing the source."""
 
-    def __init__(self, source: str, tree: ast.Module) -> None:
+    def __init__(self, source: str, tree: ast.Module, *, package: str = "") -> None:
         self.bindings: dict[str, str | None] = {}
         self.tree = tree
-        self.lexical = LexicalScopes(source, tree)
+        self.package = package
+        self.lexical = LexicalScopes(source, tree, package=package)
         self.allowed: set[str] | None = None
         self.in_class = False
         self.parameter_members: dict[str, set[str]] = {}
@@ -142,11 +145,11 @@ class LexicalVisitor(ast.NodeVisitor):
 
     @typing.override
     def visit_Import(self, node: ast.Import) -> None:
-        self.bindings.update(_import_names(node))
+        self.bindings.update(_import_names(node, self.package))
 
     @typing.override
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
-        self.bindings.update(_import_names(node))
+        self.bindings.update(_import_names(node, self.package))
 
     @typing.override
     def visit_Name(self, node: ast.Name) -> None:
@@ -167,7 +170,25 @@ class LexicalVisitor(ast.NodeVisitor):
         reference = self.resolve(node.value)
         self.generic_visit(node)
         if isinstance(node.target, ast.Name):
-            self.bindings[node.target.id] = reference
+            self.bindings[node.target.id] = reference or self.annotation_binding(node.annotation)
+
+    def annotation_binding(self, node: ast.expr | None) -> str | None:
+        """Optional value-type evidence for annotated assignments."""
+        return None
+
+    def function_binding(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
+        """Optional binding for a decorated function."""
+        return None
+
+    def function_bindings(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, table: symtable.SymbolTable
+    ) -> dict[str, str | None]:
+        """Bindings visible when entering a function or lambda."""
+        return {name: self.lexical.bindings[name] for name in self.lexical.globals_for(node, table)}
+
+    def local_names(self, node: ast.FunctionDef | ast.AsyncFunctionDef, table: symtable.SymbolTable) -> set[str]:
+        """Names that can acquire bindings in a function body."""
+        return _stable_imports(node.body, table, node, self.package)
 
     def union_members(self, node: ast.expr | None) -> set[str]:
         """Recognise direct union members, not types nested in containers."""
@@ -223,22 +244,22 @@ class LexicalVisitor(ast.NodeVisitor):
         self.visit(node.args)
         if node.returns is not None:
             self.visit(node.returns)
-        self.bindings[node.name] = None
+        self.bindings[node.name] = self.function_binding(node)
 
         table = self.lexical.function(node)
         if table is None:
             self.unresolved_scope(node)
             return
         parameters = self._parameter_members(node, table)
-        globals_visible = self.lexical.globals_for(node, table)
-        local_imports = _stable_imports(node.body, table, node)
+        global_bindings = self.function_bindings(node, table)
+        local_names = self.local_names(node, table)
         outer_allowed = self.allowed
         outer_class = self.in_class
         outer_members = self.parameter_members
         outer_builtin = self.builtin_names
         with self._scope():
-            self.bindings = {name: self.lexical.bindings[name] for name in globals_visible}
-            self.allowed = globals_visible | local_imports
+            self.bindings = global_bindings
+            self.allowed = set(global_bindings) | local_names
             self.in_class = False
             self.parameter_members = parameters
             self.builtin_names = self._visible_builtins(table)
@@ -278,14 +299,14 @@ class LexicalVisitor(ast.NodeVisitor):
         if len(tables) != 1:
             return
         table = tables[0]
-        visible = self.lexical.globals_for(node, table)
+        global_bindings = self.function_bindings(node, table)
         outer_allowed = self.allowed
         outer_class = self.in_class
         outer_members = self.parameter_members
         outer_builtin = self.builtin_names
         with self._scope():
-            self.bindings = {name: self.lexical.bindings[name] for name in visible}
-            self.allowed = visible
+            self.bindings = global_bindings
+            self.allowed = set(global_bindings)
             self.in_class = False
             self.parameter_members = {}
             self.builtin_names = self._visible_builtins(table)

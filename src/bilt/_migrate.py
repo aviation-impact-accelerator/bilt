@@ -13,10 +13,10 @@ from bilt._migration_review import review_quantity_shapes
 from bilt._obsolete_api import obsolete_constructor
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Sequence
     from pathlib import Path
 
     from bilt._migration import Migration, MigrationContext, MigrationRule
+    from bilt._source_project import SourceSelection
 
 _QUANTITY = frozenset({"bilt.Quantity", "bilt.units.Quantity"})
 _TENSOR = "bilt.QuantityTensor"
@@ -221,8 +221,7 @@ def migrate(
     *,
     write: bool,
     format_source: bool = False,
-    root: Path | None = None,
-    excludes: Sequence[str] = (),
+    selection: SourceSelection | None = None,
 ) -> int:
     """Preview or apply the quantity protocol migration."""
     if format_source and shutil.which("ruff") is None:
@@ -232,4 +231,4 @@ def migrate(
         removable_imports=_REMOVABLE_IMPORTS,
         formatter=_format_with_ruff if format_source else None,
     )
-    return _migrate(target, QUANTITY_RULES, write=write, root=root, excludes=excludes, cleanup=cleanup, review=_review)
+    return _migrate(target, QUANTITY_RULES, write=write, selection=selection, cleanup=cleanup, review=_review)

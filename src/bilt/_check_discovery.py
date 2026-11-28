@@ -3,7 +3,6 @@
 import ast
 import typing
 from dataclasses import dataclass
-from pathlib import Path
 
 from bilt._check_api import ApiChecker, scan_api
 from bilt._errors import BiltCheckConfigurationError
@@ -12,6 +11,8 @@ from bilt._source_project import source_files
 
 if typing.TYPE_CHECKING:
     import collections.abc
+    from pathlib import Path
+
 
 @dataclass(frozen=True, slots=True)
 class Discovery:
@@ -60,12 +61,15 @@ def _api_errors(sources: list[tuple[str, str, ast.Module, tuple[str, Path] | Non
     exports: dict[str, str] = {}
     # Resolve direct model imports from neighbouring source files, including re-exports.
     for _ in range(2):
-        for relative, _, tree, located in sources:
+        for relative, source, tree, located in sources:
             if located is None:
                 continue
             module = located[0]
             package = module if relative.endswith("/__init__.py") else module.rpartition(".")[0]
-            checker = ApiChecker(relative, package, exports)
+            try:
+                checker = ApiChecker(source, tree, relative, package, exports)
+            except SyntaxError:
+                continue  # Report invalid lexical scopes in the diagnostic pass.
             checker.visit(tree)
             exports.update({f"{module}.{name}": kind for name, kind in checker.bindings.items() if kind is not None})
     for relative, source, tree, located in sources:

@@ -2,13 +2,14 @@
 
 import ast
 import typing
-from contextlib import contextmanager
+from collections import Counter
 
+from bilt._lexical import LexicalVisitor
 from bilt._obsolete_api import constructor_message, scan_obsolete_constructors
 from bilt.core._validation import Diagnostic
 
 if typing.TYPE_CHECKING:
-    import collections.abc
+    import symtable
 
 _OBJECTS = frozenset(
     {
@@ -40,14 +41,37 @@ def _private_path(path: str) -> bool:
     )
 
 
-class ApiChecker(ast.NodeVisitor):
+def _stable_module_values(tree: ast.Module) -> set[str]:
+    candidates: set[str] = set()
+    for statement in tree.body:
+        if isinstance(statement, ast.Assign):
+            candidates.update(target.id for target in statement.targets if isinstance(target, ast.Name))
+        elif isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name):
+            candidates.add(statement.target.id)
+        elif isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            candidates.add(statement.name)
+    writes: Counter[str] = Counter()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            writes[node.id] += 1
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            writes[node.name] += 1
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            writes.update(alias.asname or alias.name.partition(".")[0] for alias in node.names)
+        elif isinstance(node, ast.Global):
+            writes.update(node.names)
+    return {name for name in candidates if writes[name] == 1}
+
+
+class ApiChecker(LexicalVisitor):
     """Track explicit imports, straightforward assignments and annotations within scopes."""
 
-    def __init__(self, path: str, package: str, exports: dict[str, str]) -> None:
+    def __init__(self, source: str, tree: ast.Module, path: str, package: str, exports: dict[str, str]) -> None:
+        super().__init__(source, tree, package=package)
         self.path = path
-        self.package = package
         self.exports = exports
-        self.bindings: dict[str, str | None] = {}
+        self.module_bindings = self.bindings
+        self.stable_values = _stable_module_values(tree)
         self.diagnostics: list[Diagnostic] = []
 
     def _report(self, node: ast.expr | ast.stmt, code: str, message: str) -> None:
@@ -56,39 +80,43 @@ class ApiChecker(ast.NodeVisitor):
     def report_obsolete_constructor(self, node: ast.expr, kind: str) -> None:
         self._report(node, "BILT106", constructor_message(kind))
 
-    def _resolve(self, node: ast.expr | None) -> str | None:
-        if isinstance(node, ast.Name):
-            return self.bindings.get(node.id)
-        if isinstance(node, ast.Attribute):
-            parent = self._resolve(node.value)
-            if parent is not None:
-                path = f"{parent}.{node.attr}"
-                return self.exports.get(path, path)
+    @typing.override
+    def resolve(self, node: ast.expr | None) -> str | None:
+        """Resolve references and infer only explicitly recognised Bilt object types."""
+        if (reference := super().resolve(node)) is not None:
+            return self.exports.get(reference, reference)
+        if isinstance(node, ast.Name) and node.id not in self.bindings:
+            members = self.parameter_members.get(node.id, set())
+            if len(members) == 1:
+                return next(iter(members))
+            if members and members <= _QUANTITIES:
+                return "bilt.Quantity"
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
-            left = self._annotation(node.left)
-            right = self._annotation(node.right)
+            left = self.annotation_binding(node.left)
+            right = self.annotation_binding(node.right)
             if left in _QUANTITIES and right in _QUANTITIES:
                 return "bilt.Quantity"
         if (
             isinstance(node, ast.Subscript)
-            and self._resolve(node.value) == "typing.Annotated"
+            and self.resolve(node.value) == "typing.Annotated"
             and isinstance(node.slice, ast.Tuple)
             and node.slice.elts
         ):
-            return self._annotation(node.slice.elts[0])
+            return self.annotation_binding(node.slice.elts[0])
         if isinstance(node, ast.Call):
-            kind = self._resolve(node.func)
+            kind = self.resolve(node.func)
             if kind in _OBJECTS:
                 return "bilt.Tensor" if kind == "bilt.tensor" else kind
         return None
 
-    def _annotation(self, node: ast.expr | None) -> str | None:
+    @typing.override
+    def annotation_binding(self, node: ast.expr | None) -> str | None:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             try:
-                return self._annotation(ast.parse(node.value, mode="eval").body)
+                return self.annotation_binding(ast.parse(node.value, mode="eval").body)
             except SyntaxError:
                 return None
-        kind = self._resolve(node)
+        kind = self.resolve(node)
         return kind if kind in _OBJECTS else None
 
     def _import(self, node: ast.stmt, name: str, path: str) -> None:
@@ -96,6 +124,7 @@ class ApiChecker(ast.NodeVisitor):
             self._report(node, "BILT101", f"Private Bilt import {path!r}; use a documented public import instead.")
         self.bindings[name] = self.exports.get(path, path)
 
+    @typing.override
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
             name = alias.asname or alias.name.partition(".")[0]
@@ -103,6 +132,7 @@ class ApiChecker(ast.NodeVisitor):
             if not alias.asname:
                 self.bindings[name] = name
 
+    @typing.override
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         module = node.module or ""
         if node.level:
@@ -136,88 +166,60 @@ class ApiChecker(ast.NodeVisitor):
         ):
             self._report(node, "BILT101", f"Private Bilt namespace or attribute {name!r}; use a public import instead.")
 
+    @typing.override
     def visit_Attribute(self, node: ast.Attribute) -> None:
-        self._member(node, self._resolve(node.value), node.attr)
+        self._member(node, self.resolve(node.value), node.attr)
         self.generic_visit(node)
 
+    @typing.override
     def visit_Call(self, node: ast.Call) -> None:
         if (
             isinstance(node.func, ast.Name)
             and node.func.id in {"getattr", "setattr", "delattr", "hasattr"}
-            and node.func.id not in self.bindings
+            and self.builtin_visible(node.func.id)
             and len(node.args) >= _ATTRIBUTE_ARGUMENTS
             and isinstance(node.args[1], ast.Constant)
             and isinstance(node.args[1].value, str)
         ):
-            self._member(node, self._resolve(node.args[0]), node.args[1].value)
+            self._member(node, self.resolve(node.args[0]), node.args[1].value)
         self.generic_visit(node)
 
-    def visit_Assign(self, node: ast.Assign) -> None:
-        self.visit(node.value)
-        kind = self._resolve(node.value)
-        for target in node.targets:
-            self.visit(target)
-            if isinstance(target, ast.Name):
-                self.bindings[target.id] = kind
-
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
-        self.generic_visit(node)
-        if isinstance(node.target, ast.Name):
-            self.bindings[node.target.id] = self._resolve(node.value) or self._annotation(node.annotation)
-
-    def visit_Name(self, node: ast.Name) -> None:
-        if isinstance(node.ctx, (ast.Store, ast.Del)):
-            self.bindings[node.id] = None
-
-    @contextmanager
-    def _scope(self) -> collections.abc.Generator[None]:
-        outer = self.bindings
-        self.bindings = outer.copy()
-        try:
-            yield
-        finally:
-            self.bindings = outer
-
-    def _function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
-        for decorator in node.decorator_list:
-            self.visit(decorator)
-        self.visit(node.args)
-        if node.returns is not None:
-            self.visit(node.returns)
-        relationship = next(
+    @typing.override
+    def function_binding(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
+        return next(
             (
                 kind
                 for decorator in node.decorator_list
-                if (kind := self._resolve(decorator)) in {"bilt.equation", "bilt.transform"}
+                if (kind := self.resolve(decorator)) in {"bilt.equation", "bilt.transform"}
             ),
             None,
         )
-        self.bindings[node.name] = relationship
-        with self._scope():
-            arguments = (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
-            for argument in (*arguments, node.args.vararg, node.args.kwarg):
-                if argument is not None:
-                    self.bindings[argument.arg] = self._annotation(argument.annotation)
-            for statement in node.body:
-                self.visit(statement)
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        self._function(node)
+    @typing.override
+    def function_bindings(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, table: symtable.SymbolTable
+    ) -> dict[str, str | None]:
+        bindings = super().function_bindings(node, table)
+        bindings.update(
+            {
+                name: self.module_bindings[name]
+                for name in self.stable_values.intersection(self.module_bindings)
+                if name not in table.get_identifiers() or table.lookup(name).is_global()
+            }
+        )
+        return bindings
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        self._function(node)
-
-    def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        for expression in (*node.decorator_list, *node.bases, *node.keywords):
-            self.visit(expression)
-        self.bindings[node.name] = None
-        with self._scope():
-            for statement in node.body:
-                self.visit(statement)
+    @typing.override
+    def local_names(self, node: ast.FunctionDef | ast.AsyncFunctionDef, table: symtable.SymbolTable) -> set[str]:
+        return super().local_names(node, table) | {
+            name
+            for name in table.get_identifiers()
+            if table.lookup(name).is_local() and table.lookup(name).is_assigned() and not table.lookup(name).is_imported()
+        }
 
 
 def scan_api(source: str, tree: ast.Module, path: str, package: str, exports: dict[str, str]) -> ApiChecker:
-    checker = ApiChecker(path, package, exports)
+    checker = ApiChecker(source, tree, path, package, exports)
     checker.visit(tree)
     scan_obsolete_constructors(source, tree, checker.report_obsolete_constructor)
     return checker

@@ -31,6 +31,10 @@ if TYPE_CHECKING:
         ("from bilt import Implementation; getattr(Implementation, 'evaluate')", "BILT104"),
         ("from bilt import tensor; t = tensor([]); t._values", "BILT102"),
         ("from bilt import Implementation\ndef run(model: Implementation):\n    model.evaluate", "BILT104"),
+        ("from bilt import Implementation\ndef run():\n    model = Implementation(None, [])\n    model.evaluate()", "BILT104"),
+        ("from bilt import Implementation\nmodel = Implementation(None, [])\ndef run():\n    model.evaluate()", "BILT104"),
+        ("from bilt import Implementation as I\nf = lambda: I.evaluate()", "BILT104"),
+        ("from bilt import Implementation as I\nx = [I.evaluate() for x in values]", "BILT104"),
     ),
 )
 def test_api_misuse(source: str, code: str) -> None:
@@ -93,6 +97,10 @@ def test_obsolete_protocol_constructors(source: str) -> None:
         "from bilt import Tensor, tensor; t = tensor(1); t.scalar(2)",
         "from bilt import Quantity, QuantityTensor; Old = Quantity | QuantityTensor",
         "from bilt import tensor; tensor(1)",
+        "from bilt import Implementation as I\nf = lambda I: I.evaluate()",
+        "from bilt import Implementation as I\nx = [I.evaluate() for I in values]",
+        "from bilt import Implementation as I\ndef f():\n    I.evaluate()\n    I = other",
+        "from bilt import Implementation\ndef f(getattr):\n    getattr(Implementation, 'evaluate')",
         "from bilt import Quantity as Q\nfactory = lambda Q: Q(2, meter)",
         "from bilt import Quantity as Q\nvalues = [Q(2, meter) for Q in factories]",
     ),
