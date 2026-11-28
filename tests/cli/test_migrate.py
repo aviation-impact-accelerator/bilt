@@ -383,3 +383,21 @@ def test_optional_ruff_format(tmp_path: Path) -> None:
     path.write_text("from bilt import Quantity\nx=Quantity(2,meter)\n", encoding="utf-8")
     assert main(["migrate", str(path), "--write", "--format"]) == 0
     assert path.read_text(encoding="utf-8") == "x = 2 * meter\n"
+
+
+def test_migration_respects_project_source_selection(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text('[tool.bilt.check]\nexclude = ["generated.py"]\n', encoding="utf-8")
+    original = "from bilt import Quantity\nx = Quantity(2, meter)\n"
+    model = tmp_path / "model.py"
+    generated = tmp_path / "generated.py"
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    example = tests / "example.py"
+    for path in (model, generated, example):
+        path.write_text(original, encoding="utf-8")
+    assert main(["migrate", str(tmp_path), "--write"]) == 0
+    assert model.read_text(encoding="utf-8") == "x = 2 * meter\n"
+    assert generated.read_text(encoding="utf-8") == original
+    assert example.read_text(encoding="utf-8") == original
+    assert main(["migrate", str(example), "--write"]) == 0
+    assert example.read_text(encoding="utf-8") == "x = 2 * meter\n"

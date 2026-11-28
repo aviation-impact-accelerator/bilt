@@ -114,7 +114,7 @@ class LexicalVisitor(ast.NodeVisitor):
         self.builtin_names = self.lexical.builtin_names
         self.names = self.lexical.names
 
-    def unresolved_scope(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:  # noqa: ARG002
+    def unresolved_scope(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         """Hook for consumers that need to report an ambiguous scope."""
 
     def builtin_visible(self, name: str) -> bool:

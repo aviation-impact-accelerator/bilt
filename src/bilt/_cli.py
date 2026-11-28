@@ -6,9 +6,10 @@ import tomllib
 from pathlib import Path
 
 from bilt._check import check_modules
-from bilt._check_discovery import discover, project_root
+from bilt._check_discovery import discover
 from bilt._errors import BiltCheckConfigurationError
 from bilt._migrate import migrate
+from bilt._source_project import project_root
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -21,6 +22,7 @@ def main(argv: list[str] | None = None) -> int:
     checker.add_argument("--module", action="append", dest="modules", help="Module/package to check (repeatable)")
     migration = commands.add_parser("migrate", help="Preview migration to the quantity protocol API")
     migration.add_argument("path", nargs="?", type=Path, default=Path(), help="Python file or directory")
+    migration.add_argument("--config", type=Path, help="Alternative pyproject.toml")
     migration.add_argument("--write", action="store_true", help="Apply safe changes to source files")
     migration.add_argument("--format", action="store_true", help="Format changed files with installed Ruff")
     args = parser.parse_args(argv)
@@ -28,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "check":
         return _check(args.path, args.config, args.modules)
     if args.command == "migrate":
-        return migrate(args.path, write=args.write, format_source=args.format)
+        return _migrate_project(args.path, args.config, write=args.write, format_source=args.format)
     return 2
 
 
@@ -69,6 +71,17 @@ def _read_config(path: Path, *, required: bool) -> dict[str, object]:
         return {}
     except (OSError, tomllib.TOMLDecodeError) as error:
         raise BiltCheckConfigurationError(str(error)) from error
+
+
+def _migrate_project(target: Path, config: Path | None, *, write: bool, format_source: bool) -> int:
+    root = project_root(target.absolute(), config)
+    config_path = config.resolve() if config is not None else root / "pyproject.toml"
+    try:
+        _, _, excludes = _settings(_read_config(config_path, required=config is not None), None)
+    except BiltCheckConfigurationError as error:
+        sys.stderr.write(f"{config_path}: error: {error}\n")
+        return 2
+    return migrate(target, write=write, format_source=format_source, root=root, excludes=excludes)
 
 
 def _check(target: Path, config: Path | None, modules_override: list[str] | None) -> int:

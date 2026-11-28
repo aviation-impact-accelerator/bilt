@@ -13,6 +13,7 @@ from bilt._migration_review import review_quantity_shapes
 from bilt._obsolete_api import obsolete_constructor
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
 
     from bilt._migration import Migration, MigrationContext, MigrationRule
@@ -215,7 +216,14 @@ def _format_with_ruff(source: str) -> str:
     return result.stdout
 
 
-def migrate(target: Path, *, write: bool, format_source: bool = False) -> int:
+def migrate(
+    target: Path,
+    *,
+    write: bool,
+    format_source: bool = False,
+    root: Path | None = None,
+    excludes: Sequence[str] = (),
+) -> int:
     """Preview or apply the quantity protocol migration."""
     if format_source and shutil.which("ruff") is None:
         sys.stderr.write("Ruff is required for --format; install it in the project environment\n")
@@ -224,4 +232,4 @@ def migrate(target: Path, *, write: bool, format_source: bool = False) -> int:
         removable_imports=_REMOVABLE_IMPORTS,
         formatter=_format_with_ruff if format_source else None,
     )
-    return _migrate(target, QUANTITY_RULES, write=write, cleanup=cleanup, review=_review)
+    return _migrate(target, QUANTITY_RULES, write=write, root=root, excludes=excludes, cleanup=cleanup, review=_review)

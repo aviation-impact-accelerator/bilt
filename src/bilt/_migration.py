@@ -2,22 +2,19 @@
 
 import ast
 import difflib
-import os
 import sys
 import typing
 from dataclasses import dataclass
-from pathlib import Path
 
 from bilt._lexical import LexicalVisitor
 from bilt._migration_expressions import binary_expression, contextual_expression
+from bilt._source_project import source_files
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
+    from pathlib import Path
 
     from bilt._migration_cleanup import CleanupOptions
-
-_SKIP = frozenset({".venv", "venv", "build", "dist", "node_modules", "__pycache__", "site-packages"})
-
 
 @dataclass(frozen=True, slots=True)
 class Edit:
@@ -196,29 +193,13 @@ def migrate_source(
     return Migration(migrated, tuple(dict.fromkeys(visitor.notes)))
 
 
-def _files(target: Path) -> list[Path]:
-    if target.is_file():
-        return [target]
-    files: list[Path] = []
-    for parent, directories, names in os.walk(target):
-        directories[:] = sorted(
-            name
-            for name in directories
-            if name not in _SKIP and not name.startswith(".") and not (Path(parent) / name).is_symlink()
-        )
-        files.extend(
-            Path(parent) / name
-            for name in sorted(names)
-            if name.endswith(".py") and not (Path(parent) / name).is_symlink()
-        )
-    return files
-
-
 def migrate(
     target: Path,
     rules: tuple[MigrationRule, ...],
     *,
     write: bool,
+    root: Path | None = None,
+    excludes: Sequence[str] = (),
     cleanup: CleanupOptions | None = None,
     review: Callable[[str, str], tuple[str, ...]] | None = None,
 ) -> int:
@@ -226,9 +207,14 @@ def migrate(
     if target.is_symlink() or not target.exists() or (target.is_file() and target.suffix != ".py"):
         sys.stderr.write(f"{target}: expected an existing Python file or directory, not a symlink\n")
         return 2
+    target = target.resolve()
+    root = root.resolve() if root is not None else (target if target.is_dir() else target.parent)
+    if not target.is_relative_to(root):
+        sys.stderr.write(f"{target}: expected a source inside {root}\n")
+        return 2
     changed = 0
     unresolved = 0
-    for path in _files(target):
+    for path in source_files(target, root, excludes):
         try:
             source = path.read_bytes().decode("utf-8")
             result = migrate_source(source, rules, cleanup=cleanup, path=path, review=review)
