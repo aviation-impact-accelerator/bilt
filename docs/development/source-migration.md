@@ -57,9 +57,11 @@ do not suppress safe cleanup or formatting. Review locations refer to the
 candidate migrated source (the output in preview mode). The CLI returns a nonzero
 status when review items remain, including in write mode.
 
-The quantity migration uses this pass to flag changed `Quantity` runtime checks,
-negative `QuantityTensor` checks where scalar narrowing may be assumed, magnitude
-access on a recognisable scalar-unit construction, and newly unused approved
+The quantity migration flags direct magnitude access at scalar return or selected
+NumPy boundaries when there is local evidence of a quantity (an annotation,
+preceding assertion, or a negative tensor check in the enclosing branch).
+A quantity runtime check alone is not a review item. It also flags magnitude
+access on a recognisable scalar-unit construction and newly unused approved
 imports retained by cleanup. Review these according to the intended shape;
 do not automatically insert casts, scalar conversions or reductions. Retained
 import findings describe the current rewrite, not pre-existing unused imports.
