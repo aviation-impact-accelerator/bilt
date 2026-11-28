@@ -100,11 +100,8 @@ class QuantityShapeReview:
         for _, parent in self._ancestors(node):
             if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 annotation = parent.returns
-                return (
-                    isinstance(annotation, ast.Name)
-                    and annotation.id == "float"
-                    or isinstance(annotation, ast.Constant)
-                    and annotation.value == "float"
+                return (isinstance(annotation, ast.Name) and annotation.id == "float") or (
+                    isinstance(annotation, ast.Constant) and annotation.value == "float"
                 )
         return False
 
