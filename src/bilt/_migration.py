@@ -11,8 +11,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+from bilt._migration_expressions import binary_expression, contextual_expression
+
 if typing.TYPE_CHECKING:
     from collections.abc import Generator
+
+    from bilt._migration_cleanup import CleanupOptions
 
 _SKIP = frozenset({".venv", "venv", "build", "dist", "node_modules", "__pycache__", "site-packages"})
 
@@ -245,6 +249,25 @@ class MigrationContext(ast.NodeVisitor):
         self.edits = [edit for edit in self.edits if not (start <= edit.start and edit.end <= end)]
         self.edits.append(Edit(start, end, replacement))
         return True
+
+    def replace_expression(self, node: ast.expr, replacement: bytes) -> bool:
+        """Replace an expression, adding grouping only where the grammar requires it."""
+        start, end = self._span(node)
+        try:
+            rendered = contextual_expression(self.source, start, end, replacement)
+        except ValueError as error:
+            self.note(node, str(error))
+            return False
+        return self.replace(node, rendered, multiline=True)
+
+    def replace_binary(self, node: ast.expr, left: ast.expr, operator: str, right: ast.expr) -> bool:
+        """Replace an expression with a binary operation, preserving nested edits."""
+        try:
+            replacement = binary_expression(self.render(left), operator, self.render(right))
+        except ValueError as error:
+            self.note(node, str(error))
+            return False
+        return self.replace_expression(node, replacement)
 
     def ensure_import(self, module: str, member: str) -> bytes:
         """Return a usable imported reference, reserving a fresh alias if necessary."""
@@ -482,7 +505,13 @@ class MigrationContext(ast.NodeVisitor):
         self._comprehension(node)
 
 
-def migrate_source(source: str, rules: tuple[MigrationRule, ...]) -> Migration:
+def migrate_source(
+    source: str,
+    rules: tuple[MigrationRule, ...],
+    *,
+    cleanup: CleanupOptions | None = None,
+    path: Path | None = None,
+) -> Migration:
     """Rewrite a source string without importing or executing the model."""
     tree = ast.parse(source)
     visitor = MigrationContext(source, tree, rules)
@@ -499,6 +528,8 @@ def migrate_source(source: str, rules: tuple[MigrationRule, ...]) -> Migration:
         boundary = edit.start
     migrated = result.decode()
     ast.parse(migrated)
+    if cleanup is not None and not visitor.notes:
+        migrated = cleanup.apply(source, migrated, path=path)
     return Migration(migrated, tuple(dict.fromkeys(visitor.notes)))
 
 
@@ -520,7 +551,9 @@ def _files(target: Path) -> list[Path]:
     return files
 
 
-def migrate(target: Path, rules: tuple[MigrationRule, ...], *, write: bool) -> int:
+def migrate(
+    target: Path, rules: tuple[MigrationRule, ...], *, write: bool, cleanup: CleanupOptions | None = None
+) -> int:
     """Preview or apply source edits. Return 1 if manual review remains."""
     if target.is_symlink() or not target.exists() or (target.is_file() and target.suffix != ".py"):
         sys.stderr.write(f"{target}: expected an existing Python file or directory, not a symlink\n")
@@ -530,7 +563,7 @@ def migrate(target: Path, rules: tuple[MigrationRule, ...], *, write: bool) -> i
     for path in _files(target):
         try:
             source = path.read_bytes().decode("utf-8")
-            result = migrate_source(source, rules)
+            result = migrate_source(source, rules, cleanup=cleanup, path=path)
             if source != result.source:
                 changed += 1
                 if write:
