@@ -121,6 +121,25 @@ def remove_obsolete_imports(
     return result
 
 
+def retained_import_notes(original: str, migrated: str, removable_imports: frozenset[str]) -> tuple[str, ...]:
+    """Report newly unused approved imports retained by conservative cleanup."""
+    if original == migrated or not removable_imports:
+        return ()
+    before, after = ast.parse(original), ast.parse(migrated)
+    lost = _references(before) - _references(after)
+    obsolete = {(path, name) for path, name in _imports(before) if path in removable_imports and name in lost}
+    notes: list[str] = []
+    for node in ast.walk(after):
+        if not isinstance(node, ast.ImportFrom) or node.level or node.module is None:
+            continue
+        for alias in node.names:
+            name = alias.asname or alias.name
+            qualified = f"{node.module}.{alias.name}"
+            if (qualified, name) in obsolete:
+                notes.append(f"{node.lineno}: review retained import {qualified}; cleanup could not safely remove it")
+    return tuple(notes)
+
+
 @dataclass(frozen=True, slots=True)
 class CleanupOptions:
     """Optional reusable cleanup policy for a registered migration.
