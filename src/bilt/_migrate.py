@@ -1,10 +1,14 @@
 """Migration rules for the transition to the quantity protocol API."""
 
 import ast
+import shutil
+import subprocess
+import sys
 import typing
 
 from bilt._migration import migrate as _migrate
 from bilt._migration import migrate_source as _migrate_source
+from bilt._migration_cleanup import CleanupOptions
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
@@ -61,8 +65,7 @@ class QuantityConstructorRule:
         # Keep evaluation order: unit= before value= may have side effects.
         if args is not None and tuple(args) == ("value", "unit"):
             value, unit = args.values()
-            replacement = b"((" + context.render(value) + b") * (" + context.render(unit) + b"))"
-            if context.replace(node, replacement, multiline=True):
+            if context.replace_binary(node, value, "*", unit):
                 return
         context.note(node, f"review obsolete {context.resolve(node.func)} constructor manually")
 
@@ -96,7 +99,7 @@ class TensorConstructorRule:
         ]
         if scalar and next(iter(args)) == "value":
             parts[0] = context.render(args["value"])
-        return context.replace(node, factory + b"(" + b", ".join(parts) + b")", multiline=True)
+        return context.replace_expression(node, factory + b"(" + b", ".join(parts) + b")")
 
 
 class QuantityUnionRule:
@@ -108,9 +111,9 @@ class QuantityUnionRule:
         left = context.resolve(node.left)
         right = context.resolve(node.right)
         if left in _QUANTITY and right == _TENSOR:
-            context.replace(node, context.text(node.left), multiline=True)
+            context.replace_expression(node, context.render(node.left))
         elif right in _QUANTITY and left == _TENSOR:
-            context.replace(node, context.text(node.right), multiline=True)
+            context.replace_expression(node, context.render(node.right))
 
 
 class DimensionedTensorAnnotationRule:
@@ -170,11 +173,40 @@ QUANTITY_RULES: tuple[MigrationRule, ...] = (
 )
 
 
+_REMOVABLE_IMPORTS = _QUANTITY | frozenset({"bilt.Tensor", _TENSOR})
+_CLEANUP = CleanupOptions(removable_imports=_REMOVABLE_IMPORTS)
+
+
 def migrate_source(source: str) -> Migration:
     """Apply the quantity protocol migration to a Python source string."""
-    return _migrate_source(source, QUANTITY_RULES)
+    return _migrate_source(source, QUANTITY_RULES, cleanup=_CLEANUP)
 
 
-def migrate(target: Path, *, write: bool) -> int:
+def _format_with_ruff(source: str) -> str:
+    executable = shutil.which("ruff")
+    if executable is None:
+        msg = "Ruff is required for --format; install it in the project environment"
+        raise ValueError(msg)
+    result = subprocess.run(  # noqa: S603
+        [executable, "format", "--stdin-filename", "migration.py", "-"],
+        input=source,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode:
+        msg = f"Ruff formatting failed: {result.stderr.strip()}"
+        raise ValueError(msg)
+    return result.stdout
+
+
+def migrate(target: Path, *, write: bool, format_source: bool = False) -> int:
     """Preview or apply the quantity protocol migration."""
-    return _migrate(target, QUANTITY_RULES, write=write)
+    if format_source and shutil.which("ruff") is None:
+        sys.stderr.write("Ruff is required for --format; install it in the project environment\n")
+        return 2
+    cleanup = CleanupOptions(
+        removable_imports=_REMOVABLE_IMPORTS,
+        formatter=_format_with_ruff if format_source else None,
+    )
+    return _migrate(target, QUANTITY_RULES, write=write, cleanup=cleanup)
