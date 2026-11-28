@@ -14,10 +14,10 @@ import typing
 
 from bilt import Number, Quantity, QuantityTensor, Tensor, dim, tensor
 from bilt.units import kilogram, meter, second, year
+from bilt.units._quantities import _Quantity
 
 if typing.TYPE_CHECKING:
     from bilt.core._tensors._tensors import _QuantityTensor, _Tensor
-    from bilt.units._quantities import _Quantity
 
 time = dim("time")
 
@@ -60,7 +60,8 @@ def _constructed_scalar_mixes_with_known_tensor(qt: QuantityTensor, t: Tensor) -
 def test_scalar_conversion_supports_calendar_arithmetic() -> None:
     seconds_per_year = (1.0 * year).convert_to(second).value
     assert isinstance(seconds_per_year, float)
-    assert _scalar_conversion_supports_calendar_arithmetic(seconds_per_year) == 2021
+    expected_year = 2021
+    assert _scalar_conversion_supports_calendar_arithmetic(seconds_per_year) == expected_year
 
 
 def _quantity_arithmetic_stays_a_quantity(x: Quantity, y: Quantity) -> None:
