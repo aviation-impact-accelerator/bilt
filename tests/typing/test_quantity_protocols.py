@@ -58,6 +58,15 @@ def _quantity_arithmetic_stays_a_quantity(x: Quantity, y: Quantity) -> None:
     typing.assert_type(x.convert_to(meter), Quantity)
     typing.assert_type(x.strip_metadata(), Quantity)
     typing.assert_type(x < y, bool)
+    typing.assert_type(x < 1.0, bool)
+    typing.assert_type(x <= 1.0, bool)
+    typing.assert_type(x > 1.0, bool)
+    typing.assert_type(x >= 1.0, bool)
+    typing.assert_type(1.0 < x, bool)
+    typing.assert_type(1.0 <= x, bool)
+    typing.assert_type(1.0 > x, bool)
+    typing.assert_type(1.0 >= x, bool)
+    typing.assert_type(2.0**x, Quantity)
     typing.assert_type(x.value, Number)
 
 
@@ -76,6 +85,8 @@ def _quantity_tensor_arithmetic_stays_a_quantity_tensor(x: QuantityTensor, q: Qu
     typing.assert_type(x.sum(time), QuantityTensor)
     typing.assert_type(x.isel(time, 0), QuantityTensor)
     typing.assert_type(x.value, Tensor)
+    typing.assert_type(2.0**x, QuantityTensor)
+    typing.assert_type(x >= 0.0, bool)
 
 
 def _a_unitless_tensor_gains_a_unit_only_from_a_quantity_or_unit(t: Tensor, q: Quantity) -> None:
@@ -84,6 +95,7 @@ def _a_unitless_tensor_gains_a_unit_only_from_a_quantity_or_unit(t: Tensor, q: Q
     typing.assert_type(1.0 - t, Tensor)
     typing.assert_type(t * 2.0, Tensor)
     typing.assert_type(t**2, Tensor)
+    typing.assert_type(2.0**t, Tensor)
     typing.assert_type(t.mean(time), Tensor)
     typing.assert_type(t * q, QuantityTensor)
     typing.assert_type(q * t, QuantityTensor)
@@ -96,6 +108,10 @@ def _number_arithmetic_stays_a_number(n: Number) -> None:
     typing.assert_type(n * 2.0, Number)
     typing.assert_type(n + 1.0, Number)
     typing.assert_type(n**2, Number)
+    # Built-in float exponentiation does not infer a precise result for every exponent.
+    # The tensor-specific reflected operator is checked separately above.
+    if isinstance(n, Tensor):
+        typing.assert_type(2.0**n, Tensor)
 
 
 def test_isinstance_follows_the_grid_for_created_values() -> None:
