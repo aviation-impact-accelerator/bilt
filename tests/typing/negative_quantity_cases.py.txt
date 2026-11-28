@@ -78,3 +78,16 @@ UnitlessFlexible(value=scalar)  # expect: unitless-union-rejects-scalar-quantity
 takes_quantity(unitless * 2.0)  # expect: scaled-unitless-tensor-is-not-a-quantity
 takes_tensor(scalar**2)  # expect: scalar-power-is-not-a-tensor-quantity
 takes_tensor(labelled.value)  # expect: tensor-magnitude-is-not-a-quantity
+
+
+# A known scalar combined with a shape-unknown quantity is not necessarily scalar.
+def takes_float(value: float) -> None:
+    pass
+
+
+def mixed_shape(other: Quantity) -> None:
+    takes_float((scalar + other).value)  # expect: mixed-addition-not-necessarily-scalar
+    takes_float((scalar - other).value)  # expect: mixed-subtraction-not-necessarily-scalar
+    takes_float((scalar * other).value)  # expect: mixed-multiplication-not-necessarily-scalar
+    takes_float((scalar / other).value)  # expect: mixed-division-not-necessarily-scalar
+    takes_float((scalar**other).value)  # expect: mixed-power-not-necessarily-scalar

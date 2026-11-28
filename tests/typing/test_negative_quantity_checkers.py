@@ -20,6 +20,26 @@ MARKER = re.compile(r"# expect: ([a-z][a-z0-9-]+)")
 # The two tools sometimes describe the same typing rule differently.
 # Keep this mapping narrow: incorrect or unrelated diagnostics must fail.
 EXPECTED_CODES: dict[str, dict[str, frozenset[str]]] = {
+    "mixed-addition-not-necessarily-scalar": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "mixed-subtraction-not-necessarily-scalar": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "mixed-multiplication-not-necessarily-scalar": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "mixed-division-not-necessarily-scalar": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
+    "mixed-power-not-necessarily-scalar": {
+        "ty": frozenset({"invalid-argument-type"}),
+        "pyrefly": frozenset({"bad-argument-type"}),
+    },
     "unitless-union-rejects-scalar-quantity": {
         "ty": frozenset({"invalid-argument-type"}),
         "pyrefly": frozenset({"bad-argument-type"}),

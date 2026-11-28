@@ -11,7 +11,7 @@ import typing
 
 import numpy as np
 
-from bilt import QuantityTensor, dim, tensor
+from bilt import Quantity, QuantityTensor, dim, tensor
 from bilt.core._tensors._tensors import _QuantityTensor, _Tensor
 from bilt.units import kilogram, meter
 from bilt.units._quantities import _Quantity
@@ -53,6 +53,28 @@ def _mixed_scalar_and_tensor_quantities_give_a_tensor(q: _Quantity, qt: _Quantit
     typing.assert_type(t * q, _QuantityTensor)
     typing.assert_type(t / q, _QuantityTensor)
     typing.assert_type(q / t, _QuantityTensor)
+
+
+def _scalar_arithmetic_preserves_known_shape(q: _Quantity, other: _Quantity) -> None:
+    typing.assert_type(q + other, _Quantity)
+    typing.assert_type(q - other, _Quantity)
+    typing.assert_type(q * other, _Quantity)
+    typing.assert_type(q / other, _Quantity)
+    typing.assert_type(q * 2.0, _Quantity)
+    typing.assert_type(2.0 * q, _Quantity)
+    typing.assert_type(2.0 / q, _Quantity)
+    typing.assert_type(q * meter, _Quantity)
+    typing.assert_type(q / meter, _Quantity)
+    typing.assert_type(q**2, _Quantity)
+    typing.assert_type(q**other, _Quantity)
+
+
+def _scalar_arithmetic_with_unknown_shape(q: _Quantity, other: Quantity) -> None:
+    typing.assert_type(q + other, _Quantity | _QuantityTensor)
+    typing.assert_type(q - other, _Quantity | _QuantityTensor)
+    typing.assert_type(q * other, _Quantity | _QuantityTensor)
+    typing.assert_type(q / other, _Quantity | _QuantityTensor)
+    typing.assert_type(q**other, _Quantity | _QuantityTensor)
 
 
 def _unitless_tensor_arithmetic_stays_unitless(t: _Tensor) -> None:
