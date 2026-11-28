@@ -8,7 +8,8 @@ import typing
 
 from bilt._migration import migrate as _migrate
 from bilt._migration import migrate_source as _migrate_source
-from bilt._migration_cleanup import CleanupOptions
+from bilt._migration_cleanup import CleanupOptions, retained_import_notes
+from bilt._migration_review import review_quantity_shapes
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
@@ -177,9 +178,13 @@ _REMOVABLE_IMPORTS = _QUANTITY | frozenset({"bilt.Tensor", _TENSOR})
 _CLEANUP = CleanupOptions(removable_imports=_REMOVABLE_IMPORTS)
 
 
+def _review(original: str, migrated: str) -> tuple[str, ...]:
+    return (*review_quantity_shapes(migrated), *retained_import_notes(original, migrated, _REMOVABLE_IMPORTS))
+
+
 def migrate_source(source: str) -> Migration:
     """Apply the quantity protocol migration to a Python source string."""
-    return _migrate_source(source, QUANTITY_RULES, cleanup=_CLEANUP)
+    return _migrate_source(source, QUANTITY_RULES, cleanup=_CLEANUP, review=_review)
 
 
 def _format_with_ruff(source: str) -> str:
@@ -209,4 +214,4 @@ def migrate(target: Path, *, write: bool, format_source: bool = False) -> int:
         removable_imports=_REMOVABLE_IMPORTS,
         formatter=_format_with_ruff if format_source else None,
     )
-    return _migrate(target, QUANTITY_RULES, write=write, cleanup=cleanup)
+    return _migrate(target, QUANTITY_RULES, write=write, cleanup=cleanup, review=_review)

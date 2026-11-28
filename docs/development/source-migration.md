@@ -46,3 +46,25 @@ For other already-rendered expressions, `context.replace_expression(node,
 replacement)` applies the same contextual grouping check. Both helpers retain
 the engine's existing comment protection and manual-review diagnostics. No
 source is executed and no formatter dependency is required.
+
+
+## Advisory review
+
+An optional `review(original, migrated)` callback runs after rewriting and
+cleanup, even when no edits were needed. It returns source-located notes without
+changing source. Unlike notes raised by an unsuccessful rewrite, these findings
+do not suppress safe cleanup or formatting. Review locations refer to the
+candidate migrated source (the output in preview mode). The CLI returns a nonzero
+status when review items remain, including in write mode.
+
+The quantity migration flags direct magnitude access at scalar return or selected
+NumPy boundaries when there is local evidence of a quantity (an annotation,
+preceding assertion, or a negative tensor check in the enclosing branch).
+A quantity runtime check alone is not a review item. It also flags magnitude
+access on a recognisable scalar-unit construction and newly unused approved
+imports retained by cleanup. Review these according to the intended shape;
+do not automatically insert casts, scalar conversions or reductions. Retained
+import findings describe the current rewrite, not pre-existing unused imports.
+These syntactic checks are intentionally incomplete: run the project's type
+checker, linter and regression tests after migration. A zero review count is
+not proof of semantic equivalence.

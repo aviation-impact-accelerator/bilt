@@ -14,7 +14,7 @@ from pathlib import Path
 from bilt._migration_expressions import binary_expression, contextual_expression
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
 
     from bilt._migration_cleanup import CleanupOptions
 
@@ -511,6 +511,7 @@ def migrate_source(
     *,
     cleanup: CleanupOptions | None = None,
     path: Path | None = None,
+    review: Callable[[str, str], tuple[str, ...]] | None = None,
 ) -> Migration:
     """Rewrite a source string without importing or executing the model."""
     tree = ast.parse(source)
@@ -530,6 +531,8 @@ def migrate_source(
     ast.parse(migrated)
     if cleanup is not None and not visitor.notes:
         migrated = cleanup.apply(source, migrated, path=path)
+    if review is not None:
+        visitor.notes.extend(review(source, migrated))
     return Migration(migrated, tuple(dict.fromkeys(visitor.notes)))
 
 
@@ -552,7 +555,12 @@ def _files(target: Path) -> list[Path]:
 
 
 def migrate(
-    target: Path, rules: tuple[MigrationRule, ...], *, write: bool, cleanup: CleanupOptions | None = None
+    target: Path,
+    rules: tuple[MigrationRule, ...],
+    *,
+    write: bool,
+    cleanup: CleanupOptions | None = None,
+    review: Callable[[str, str], tuple[str, ...]] | None = None,
 ) -> int:
     """Preview or apply source edits. Return 1 if manual review remains."""
     if target.is_symlink() or not target.exists() or (target.is_file() and target.suffix != ".py"):
@@ -563,7 +571,7 @@ def migrate(
     for path in _files(target):
         try:
             source = path.read_bytes().decode("utf-8")
-            result = migrate_source(source, rules, cleanup=cleanup, path=path)
+            result = migrate_source(source, rules, cleanup=cleanup, path=path, review=review)
             if source != result.source:
                 changed += 1
                 if write:

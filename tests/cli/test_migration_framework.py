@@ -86,3 +86,18 @@ def test_review_notes_and_file_preview(tmp_path: Path, capsys: pytest.CaptureFix
     assert "3: ambiguous call" in preview.err
     assert migrate(path, rules, write=True) == 1
     assert "a = new(1)" in path.read_text(encoding="utf-8")
+
+
+def test_post_review_does_not_prevent_safe_cleanup() -> None:
+    from bilt._migration_cleanup import CleanupOptions  # noqa: PLC0415
+
+    source = "from example import old\na = old(1)\n"
+    options = CleanupOptions(removable_imports=frozenset({"example.old"}))
+    result = migrate_source(
+        source,
+        (RenameRule(),),
+        cleanup=options,
+        review=lambda _before, _after: ("2: inspect result",),
+    )
+    assert result.source == "from example import new\na = new(1)\n"
+    assert result.notes == ("2: inspect result",)
