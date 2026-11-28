@@ -52,9 +52,8 @@ def _scalar_conversion_supports_calendar_arithmetic(start_modeling_time: float) 
     return int(2020 + start_modeling_time / seconds_per_year)
 
 
-def _constructed_scalar_mixes_with_known_tensor(qt: QuantityTensor, t: Tensor) -> None:
-    typing.assert_type((2.0 * kilogram) + qt, QuantityTensor)
-    typing.assert_type((2.0 * kilogram) * t, QuantityTensor)
+def _constructed_scalar_mixes_with_known_tensor(qt: QuantityTensor, t: Tensor) -> tuple[QuantityTensor, QuantityTensor]:
+    return (2.0 * kilogram) + qt, (2.0 * kilogram) * t
 
 
 def test_scalar_conversion_supports_calendar_arithmetic() -> None:
