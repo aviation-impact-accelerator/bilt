@@ -4,6 +4,7 @@ import ast
 import typing
 from contextlib import contextmanager
 
+from bilt._obsolete_api import constructor_message, scan_obsolete_constructors
 from bilt.core._validation import Diagnostic
 
 if typing.TYPE_CHECKING:
@@ -31,16 +32,6 @@ _ATTRIBUTE_ARGUMENTS = 2
 _QUANTITIES = frozenset({"bilt.Quantity", "bilt.units.Quantity", "bilt.QuantityTensor"})
 
 
-_PROTOCOL_CONSTRUCTORS = {
-    "bilt.Quantity": "multiply a number by a unit, e.g. 2.0 * meter",
-    "bilt.units.Quantity": "multiply a number by a unit, e.g. 2.0 * meter",
-    "bilt.QuantityTensor": "use tensor(..., unit=...)",
-    "bilt.Tensor": "use tensor(...)",
-    "bilt.Number": "use a plain number or tensor(...)",
-    "bilt.Tensor.scalar": "use tensor(value), or tensor(value, unit=...)",
-}
-
-
 def _private_path(path: str) -> bool:
     return path.startswith("bilt.") and (
         path == "bilt.core"
@@ -58,10 +49,12 @@ class ApiChecker(ast.NodeVisitor):
         self.exports = exports
         self.bindings: dict[str, str | None] = {}
         self.diagnostics: list[Diagnostic] = []
-        self._constructor_aliases: dict[str, str] = {}
 
     def _report(self, node: ast.expr | ast.stmt, code: str, message: str) -> None:
         self.diagnostics.append(Diagnostic(f"{self.path}:{node.lineno}:{node.col_offset + 1}", message, code))
+
+    def report_obsolete_constructor(self, node: ast.expr, kind: str) -> None:
+        self._report(node, "BILT106", constructor_message(kind))
 
     def _resolve(self, node: ast.expr | None) -> str | None:
         if isinstance(node, ast.Name):
@@ -89,19 +82,6 @@ class ApiChecker(ast.NodeVisitor):
                 return "bilt.Tensor" if kind == "bilt.tensor" else kind
         return None
 
-    def _constructor_reference(self, node: ast.expr | None) -> str | None:
-        """Recognise constructor names, not variables holding values of those types."""
-        if isinstance(node, ast.Name):
-            return self._constructor_aliases.get(node.id)
-        if isinstance(node, ast.Attribute):
-            if node.attr == "scalar" and self._constructor_reference(node.value) == "bilt.Tensor":
-                return "bilt.Tensor.scalar"
-            if self._resolve(node.value) in {"bilt", "bilt.units"}:
-                kind = self._resolve(node)
-                if kind in _PROTOCOL_CONSTRUCTORS:
-                    return kind
-        return None
-
     def _annotation(self, node: ast.expr | None) -> str | None:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             try:
@@ -115,9 +95,6 @@ class ApiChecker(ast.NodeVisitor):
         if _private_path(path):
             self._report(node, "BILT101", f"Private Bilt import {path!r}; use a documented public import instead.")
         self.bindings[name] = self.exports.get(path, path)
-        self._constructor_aliases.pop(name, None)
-        if path in _PROTOCOL_CONSTRUCTORS:
-            self._constructor_aliases[name] = path
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
@@ -164,13 +141,6 @@ class ApiChecker(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
-        constructor = self._constructor_reference(node.func)
-        if constructor is not None:
-            self._report(
-                node,
-                "BILT106",
-                f"Obsolete constructor {constructor}; {_PROTOCOL_CONSTRUCTORS[constructor]} instead.",
-            )
         if (
             isinstance(node.func, ast.Name)
             and node.func.id in {"getattr", "setattr", "delattr", "hasattr"}
@@ -185,38 +155,28 @@ class ApiChecker(ast.NodeVisitor):
     def visit_Assign(self, node: ast.Assign) -> None:
         self.visit(node.value)
         kind = self._resolve(node.value)
-        constructor = self._constructor_reference(node.value)
         for target in node.targets:
             self.visit(target)
             if isinstance(target, ast.Name):
                 self.bindings[target.id] = kind
-                if constructor is not None:
-                    self._constructor_aliases[target.id] = constructor
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
-        constructor = self._constructor_reference(node.value)
         self.generic_visit(node)
         if isinstance(node.target, ast.Name):
             self.bindings[node.target.id] = self._resolve(node.value) or self._annotation(node.annotation)
-            if constructor is not None:
-                self._constructor_aliases[node.target.id] = constructor
 
     def visit_Name(self, node: ast.Name) -> None:
         if isinstance(node.ctx, (ast.Store, ast.Del)):
             self.bindings[node.id] = None
-            self._constructor_aliases.pop(node.id, None)
 
     @contextmanager
     def _scope(self) -> collections.abc.Generator[None]:
         outer = self.bindings
-        outer_constructors = self._constructor_aliases
         self.bindings = outer.copy()
-        self._constructor_aliases = outer_constructors.copy()
         try:
             yield
         finally:
             self.bindings = outer
-            self._constructor_aliases = outer_constructors
 
     def _function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         for decorator in node.decorator_list:
@@ -233,13 +193,11 @@ class ApiChecker(ast.NodeVisitor):
             None,
         )
         self.bindings[node.name] = relationship
-        self._constructor_aliases.pop(node.name, None)
         with self._scope():
             arguments = (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
             for argument in (*arguments, node.args.vararg, node.args.kwarg):
                 if argument is not None:
                     self.bindings[argument.arg] = self._annotation(argument.annotation)
-                    self._constructor_aliases.pop(argument.arg, None)
             for statement in node.body:
                 self.visit(statement)
 
@@ -253,13 +211,13 @@ class ApiChecker(ast.NodeVisitor):
         for expression in (*node.decorator_list, *node.bases, *node.keywords):
             self.visit(expression)
         self.bindings[node.name] = None
-        self._constructor_aliases.pop(node.name, None)
         with self._scope():
             for statement in node.body:
                 self.visit(statement)
 
 
-def scan_api(tree: ast.Module, path: str, package: str, exports: dict[str, str]) -> ApiChecker:
+def scan_api(source: str, tree: ast.Module, path: str, package: str, exports: dict[str, str]) -> ApiChecker:
     checker = ApiChecker(path, package, exports)
     checker.visit(tree)
+    scan_obsolete_constructors(source, tree, checker.report_obsolete_constructor)
     return checker

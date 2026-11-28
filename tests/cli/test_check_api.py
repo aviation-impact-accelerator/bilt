@@ -6,6 +6,7 @@ import textwrap
 import pytest
 
 from bilt._check_api import scan_api
+from bilt._migrate import migrate_source
 
 
 @pytest.mark.parametrize(
@@ -28,7 +29,7 @@ from bilt._check_api import scan_api
     ),
 )
 def test_api_misuse(source: str, code: str) -> None:
-    result = scan_api(ast.parse(source), "model.py", "", {})
+    result = scan_api(source, ast.parse(source), "model.py", "", {})
     assert [item.code for item in result.diagnostics] == [code]
     assert result.diagnostics[0].location.startswith("model.py:")
 
@@ -50,12 +51,12 @@ def test_public_and_unrelated_usage() -> None:
         model = other
         model.evaluate()
         """)
-    assert not scan_api(ast.parse(source), "model.py", "", {}).diagnostics
+    assert not scan_api(source, ast.parse(source), "model.py", "", {}).diagnostics
 
 
 def test_imported_model_alias() -> None:
     source = "from .models import motion as model\nmodel.evaluate"
-    result = scan_api(ast.parse(source), "app/run.py", "app", {"app.models.motion": "bilt.Implementation"})
+    result = scan_api(source, ast.parse(source), "app/run.py", "app", {"app.models.motion": "bilt.Implementation"})
     assert [item.code for item in result.diagnostics] == ["BILT104"]
 
 
@@ -73,7 +74,7 @@ def test_imported_model_alias() -> None:
     ),
 )
 def test_obsolete_protocol_constructors(source: str) -> None:
-    result = scan_api(ast.parse(source), "model.py", "", {})
+    result = scan_api(source, ast.parse(source), "model.py", "", {})
     assert [item.code for item in result.diagnostics] == ["BILT106"]
     assert "instead" in result.diagnostics[0].message
 
@@ -87,7 +88,39 @@ def test_obsolete_protocol_constructors(source: str) -> None:
         "from bilt import Tensor, tensor; t = tensor(1); t.scalar(2)",
         "from bilt import Quantity, QuantityTensor; Old = Quantity | QuantityTensor",
         "from bilt import tensor; tensor(1)",
+        "from bilt import Quantity as Q\nfactory = lambda Q: Q(2, meter)",
+        "from bilt import Quantity as Q\nvalues = [Q(2, meter) for Q in factories]",
     ),
 )
 def test_migration_checks_do_not_flag_unrelated_calls(source: str) -> None:
-    assert not scan_api(ast.parse(source), "model.py", "", {}).diagnostics
+    assert not scan_api(source, ast.parse(source), "model.py", "", {}).diagnostics
+
+
+@pytest.mark.parametrize(
+    ("source", "manual"),
+    (
+        ("from bilt import Quantity\nx = Quantity(2.0, meter)\n", False),
+        ("from bilt.units import Quantity as Q\nx = Q(2.0, meter)\n", False),
+        ("import bilt as b\nx = b.Tensor.scalar(2)\n", False),
+        ("from bilt import Tensor\nx = Tensor(values, domain)\n", False),
+        ("from bilt import QuantityTensor\nx = QuantityTensor(values, domain, meter)\n", False),
+        ("from bilt import Number\nx = Number(2)\n", True),
+        ("from bilt import Quantity\nx = Quantity(unit=u(), value=v())\n", True),
+        ("from bilt import QuantityTensor\nx = QuantityTensor(values, domain)\n", True),
+        ("from bilt import Quantity as Q\ndef run():\n    return Q(2, meter)\n", False),
+        ("from bilt import Quantity as Q\nx = [Q(v, meter) for v in values]\n", False),
+    ),
+)
+def test_obsolete_constructor_check_and_migration_agree(source: str, manual: bool) -> None:
+    before = scan_api(source, ast.parse(source), "model.py", "", {})
+    assert [item.code for item in before.diagnostics] == ["BILT106"]
+    migrated = migrate_source(source)
+    after = scan_api(migrated.source, ast.parse(migrated.source), "model.py", "", {})
+    remaining = [item for item in after.diagnostics if item.code == "BILT106"]
+    if manual:
+        assert remaining
+        assert any("review obsolete" in note for note in migrated.notes)
+    else:
+        assert not remaining
+        assert not migrated.notes
+        assert migrate_source(migrated.source) == migrated

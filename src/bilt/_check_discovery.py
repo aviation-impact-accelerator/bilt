@@ -146,7 +146,7 @@ def discover(target: Path, root: Path, excludes: collections.abc.Sequence[str]) 
     modules: set[str] = set()
     import_paths: set[Path] = {root, root / "src"}
     errors: list[str] = []
-    sources: list[tuple[str, ast.Module, tuple[str, Path] | None]] = []
+    sources: list[tuple[str, str, ast.Module, tuple[str, Path] | None]] = []
     for file in _sources(target, root, excludes):
         relative = file.relative_to(root).as_posix()
         try:
@@ -157,7 +157,7 @@ def discover(target: Path, root: Path, excludes: collections.abc.Sequence[str]) 
             errors.append(f"{relative}{line}: error: {type(error).__name__}: {error}")
             continue
         located = _module(file, root)
-        sources.append((relative, tree, located))
+        sources.append((relative, source, tree, located))
         if not _candidate(tree):
             continue
         if located is None:
@@ -169,16 +169,16 @@ def discover(target: Path, root: Path, excludes: collections.abc.Sequence[str]) 
     exports: dict[str, str] = {}
     # Resolve direct model imports from neighbouring source files, including re-exports.
     for _ in range(2):
-        for relative, tree, located in sources:
+        for relative, source, tree, located in sources:
             if located is None:
                 continue
             module = located[0]
             package = module if relative.endswith("/__init__.py") else module.rpartition(".")[0]
-            checker = scan_api(tree, relative, package, exports)
+            checker = scan_api(source, tree, relative, package, exports)
             exports.update({f"{module}.{name}": kind for name, kind in checker.bindings.items() if kind is not None})
-    for relative, tree, located in sources:
+    for relative, source, tree, located in sources:
         module = located[0] if located is not None else ""
         package = module if relative.endswith("/__init__.py") else module.rpartition(".")[0]
-        checker = scan_api(tree, relative, package, exports)
+        checker = scan_api(source, tree, relative, package, exports)
         errors.extend(f"{item.location}: error: {item.code} {item.message}" for item in checker.diagnostics)
     return Discovery(tuple(sorted(modules)), tuple(sorted(import_paths)), tuple(errors))

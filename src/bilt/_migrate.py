@@ -10,6 +10,7 @@ from bilt._migration import migrate as _migrate
 from bilt._migration import migrate_source as _migrate_source
 from bilt._migration_cleanup import CleanupOptions, retained_import_notes
 from bilt._migration_review import review_quantity_shapes
+from bilt._obsolete_api import obsolete_constructor
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
@@ -60,7 +61,7 @@ class QuantityConstructorRule:
     """Rewrite legacy scalar quantity construction as multiplication by a unit."""
 
     def apply(self, node: ast.expr, context: MigrationContext) -> None:
-        if not isinstance(node, ast.Call) or context.resolve(node.func) not in _QUANTITY:
+        if not isinstance(node, ast.Call) or obsolete_constructor(node, context) not in _QUANTITY:
             return
         args = _arguments(node, ("value", "unit"))
         # Keep evaluation order: unit= before value= may have side effects.
@@ -77,7 +78,7 @@ class TensorConstructorRule:
     def apply(self, node: ast.expr, context: MigrationContext) -> None:
         if not isinstance(node, ast.Call):
             return
-        kind = context.resolve(node.func)
+        kind = obsolete_constructor(node, context)
         if kind not in {"bilt.Tensor", "bilt.QuantityTensor", "bilt.Tensor.scalar"}:
             return
         if not self._rewrite(node, context, scalar=kind == "bilt.Tensor.scalar", dimensioned=kind == _TENSOR):
@@ -101,6 +102,14 @@ class TensorConstructorRule:
         if scalar and next(iter(args)) == "value":
             parts[0] = context.render(args["value"])
         return context.replace_expression(node, factory + b"(" + b", ".join(parts) + b")")
+
+
+class NumberConstructorReview:
+    """Do not guess whether an invalid Number call should return a scalar or a tensor."""
+
+    def apply(self, node: ast.expr, context: MigrationContext) -> None:
+        if obsolete_constructor(node, context) == "bilt.Number":
+            context.note(node, "review obsolete bilt.Number constructor manually")
 
 
 class QuantityUnionRule:
@@ -168,6 +177,7 @@ class TensorRuntimeCheckRule:
 QUANTITY_RULES: tuple[MigrationRule, ...] = (
     QuantityConstructorRule(),
     TensorConstructorRule(),
+    NumberConstructorReview(),
     QuantityUnionRule(),
     DimensionedTensorAnnotationRule(),
     TensorRuntimeCheckRule(),
