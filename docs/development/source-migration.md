@@ -60,9 +60,10 @@ status when review items remain, including in write mode.
 The quantity migration flags direct magnitude access at scalar return or selected
 NumPy boundaries when there is local evidence of a quantity (an annotation,
 preceding assertion, or a negative tensor check in the enclosing branch).
-A quantity runtime check alone is not a review item. It also flags magnitude
-access on a recognisable scalar-unit construction and newly unused approved
-imports retained by cleanup. Review these according to the intended shape;
+A quantity runtime check alone is not a review item. Direct scalar-unit
+construction preserves scalar magnitude typing and does not require a review.
+Newly unused approved imports retained by cleanup are also flagged.
+Review remaining shape-sensitive findings according to the intended shape;
 do not automatically insert casts, scalar conversions or reductions. Retained
 import findings describe the current rewrite, not pre-existing unused imports.
 These syntactic checks are intentionally incomplete: run the project's type

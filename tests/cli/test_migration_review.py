@@ -18,17 +18,19 @@ def test_quantity_runtime_checks_alone_do_not_require_review() -> None:
     assert migrate_source(result.source) == result
 
 
-def test_scalar_magnitude_review_and_explicit_conversion() -> None:
+def test_known_scalar_magnitudes_do_not_require_review() -> None:
     source = (
-        "from bilt.units import year, second\n"
+        "from bilt.units import second, year\n"
         "seconds = (1.0 * year).convert_to(second).value\n"
+        "integer_seconds = (1 * year).convert_to(second).value\n"
         "explicit = float((1.0 * year).convert_to(second).value)\n"
+        "def extract() -> float:\n"
+        "    return (1.0 * year).convert_to(second).value\n"
     )
     result = migrate_source(source)
     assert result.source == source
-    assert result.notes == (
-        "2: review scalar magnitude use; Quantity.value is Number, use float(...) if scalar is intended",
-    )
+    assert not result.notes
+    assert migrate_source(result.source) == result
 
 
 def test_unrelated_and_shadowed_checks_are_not_reported() -> None:

@@ -13,11 +13,11 @@ that `isinstance` agrees with the grid for the values users create.
 import typing
 
 from bilt import Number, Quantity, QuantityTensor, Tensor, dim, tensor
-from bilt.units import kilogram, meter
+from bilt.units import kilogram, meter, second, year
+from bilt.units._quantities import _Quantity
 
 if typing.TYPE_CHECKING:
     from bilt.core._tensors._tensors import _QuantityTensor, _Tensor
-    from bilt.units._quantities import _Quantity
 
 time = dim("time")
 
@@ -36,11 +36,31 @@ def _a_quantity_tensor_is_a_quantity(qt: QuantityTensor) -> Quantity:
     return qt
 
 
-def _creating_values_gives_the_public_types() -> None:
-    typing.assert_type(2.0 * kilogram, Quantity)
+def _creating_values_preserves_known_shape() -> None:
+    typing.assert_type(2.0 * kilogram, _Quantity)
+    typing.assert_type(2 * kilogram, _Quantity)
+    typing.assert_type((2.0 * kilogram).value, float)
+    typing.assert_type((1.0 * year).convert_to(second).value, float)
     typing.assert_type(tensor([1.0], over=time, unit=kilogram), QuantityTensor)
     typing.assert_type(tensor([1.0], over=time), Tensor)
     typing.assert_type(tensor([1.0], over=time) * meter, QuantityTensor)
+
+
+def _scalar_conversion_supports_calendar_arithmetic(start_modeling_time: float) -> int:
+    seconds_per_year = (1.0 * year).convert_to(second).value
+    typing.assert_type(seconds_per_year, float)
+    return int(2020 + start_modeling_time / seconds_per_year)
+
+
+def _constructed_scalar_mixes_with_known_tensor(qt: QuantityTensor, t: Tensor) -> tuple[QuantityTensor, QuantityTensor]:
+    return (2.0 * kilogram) + qt, (2.0 * kilogram) * t
+
+
+def test_scalar_conversion_supports_calendar_arithmetic() -> None:
+    seconds_per_year = (1.0 * year).convert_to(second).value
+    assert isinstance(seconds_per_year, float)
+    expected_year = 2021
+    assert _scalar_conversion_supports_calendar_arithmetic(seconds_per_year) == expected_year
 
 
 def _quantity_arithmetic_stays_a_quantity(x: Quantity, y: Quantity) -> None:
